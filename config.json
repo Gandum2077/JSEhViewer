@@ -1,0 +1,24 @@
+{
+  "widget" : {
+    "staticSize" : false,
+    "tintColor" : "",
+    "height" : 0,
+    "iconColor" : ""
+  },
+  "info" : {
+    "types" : 1,
+    "author" : "Gandum2077",
+    "website" : "https://github.com/Gandum2077/JSEhViewer",
+    "name" : "JSEhViewer",
+    "url" : "",
+    "version" : "1.0.0"
+  },
+  "settings" : {
+    "minOSVer" : "10.0.0",
+    "minSDKVer" : "1.0.0",
+    "rotateDisabled" : false,
+    "autoKeyboardEnabled" : false,
+    "keyboardToolbarEnabled" : false,
+    "idleTimerDisabled" : false
+  }
+}

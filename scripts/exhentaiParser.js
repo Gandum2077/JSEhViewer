@@ -496,40 +496,72 @@ async function fetchPicAPIResult(gid, key, mpvkey, page) {
         "imgkey": key,
         "mpvkey": mpvkey
     };
-    const resp1 =  await $http.post({
+    const resp = await $http.post({
         url: URL_API,
         body: payload,
         header: header
     })
-    return resp1.data
+    if (resp && resp.response.statusCode === 200) {
+        return resp.data
+    } else {
+        return null
+    }
 }
 
 async function downloadResizedImage(fullpath, gid, key, mpvkey, page) {
-    const response = await fetchPicAPIResult(gid, key, mpvkey, page)
-    const url = response['i']
-    console.info(url)
-    const success = await downloadPic(fullpath, url)
-    console.info(success, fullpath)
+    const result = await downloadResizedImageUsingNode(fullpath, gid, key, mpvkey, page)
+    console.info(result)
 }
 
 async function downloadOriginalImage(fullpath, gid, key, mpvkey, page) {
     const response = await fetchPicAPIResult(gid, key, mpvkey, page)
     const fullimg_url = URL_EXHENTAI + response['lf']
-    await downloadPic(fullpath, fullimg_url)
+    const a = await downloadPicAxios(fullpath, fullimg_url)
 }
 
+function downloadResizedImageUsingNode(fullpath, gid, key, mpvkey, page) {
+  const axiosDownloader = new Promise((resolve, reject) => {
+    $nodejs.run({
+      path: "scripts/bottleneckTaskUsingNode.js",
+      query: {
+        URL_API: URL_API,
+        USERAGENT: USERAGENT,
+        COOKIE: COOKIE,
+        fullpath: fullpath,
+        gid: gid,
+        key: key,
+        mpvkey: mpvkey,
+        page: page
+      },
+      listener: {
+        id: "eventId",
+        handler: result => {
+          resolve(result)
+        }
+      }
+    });
+  })
+  return axiosDownloader
+}
+
+
 async function downloadPic(fullpath, url, timeout=20) {
-    const {rawData} = await $http.get({
+    //const {rawData} = await $http.get({
+    const resp = await $http.download({
         url: url,
         timeout: timeout,
+        showsProgress: true,
+        //backgroundFetch: true, 
         header: {
             "User-Agent": USERAGENT
             //"Cookie": COOKIE
         }
     });
-    if (rawData){
+    if (resp) {
+    //if (rawData){
         return $file.write({
-            data: rawData,
+            //data: rawData,
+            data: resp.data,
             path: fullpath
         })
     } else {

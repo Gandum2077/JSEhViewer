@@ -188,7 +188,6 @@ const baseViewForItemCellView = [
         },
         events: {
             tapped: async function (sender) {
-                console.info(1)
                 await galleryViewGenerator.init(sender.info.url)
             },
             ready: async function (sender) {
@@ -487,7 +486,6 @@ async function init(url=null) {
         url = glv.default_url
     }
     const infos = await exhentaiParser.getListInfosFromUrl(url)
-    //console.info(info)
     const listView = renderListView(infos)
     const sideBarView = sidebarViewGenerator.renderSidebarView()
     $("rootView").add(listView)

@@ -669,9 +669,16 @@ function renderGalleryView(infos, path, contentSizeHeight) {
 }
 
 async function init(url) {
-    const infos = await exhentaiParser.getGalleryMpvInfosFromUrl(url)
-    const path = utility.joinPath(glv.imagePath, infos['filename'])
-    exhentaiParser.saveMangaInfos(infos, path)
+    const filename = utility.verifyUrl(url)
+    const path = utility.joinPath(glv.imagePath, filename)
+    const infosFile = utility.joinPath(glv.imagePath, filename, 'manga_infos.json')
+    let infos;
+    if ($file.exists(infosFile)) {
+        infos = JSON.parse($file.read(infosFile).string)
+    } else {
+        infos = await exhentaiParser.getGalleryMpvInfosFromUrl(url)
+        exhentaiParser.saveMangaInfos(infos, path)
+    }
     const [scrollContentView, scrollContentViewHeight] = renderScrollContentView(infos, path)
     $("rootView").add(renderGalleryView(infos, path, scrollContentViewHeight))
     $("rootView").get("galleryView").get("scrollLocationView").get("scrollView").add(scrollContentView)

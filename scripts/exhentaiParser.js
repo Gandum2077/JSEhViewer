@@ -599,7 +599,9 @@ async function downloadPic(fullpath, url, timeout=20) {
 function downloadPicsByBottleneck(infos) {
     for (let pic of infos['pics']) {
         const fullpath = utility.joinPath(glv.imagePath, infos.filename, pic.img_id + pic.img_name.slice(pic.img_name.lastIndexOf('.')))
-        limiter.schedule(()=>downloadResizedImage(fullpath, pic.gid, pic.key, pic.mpvkey, pic.page))
+        if (!$file.exists(fullpath)) {
+            limiter.schedule(()=>downloadResizedImage(fullpath, pic.gid, pic.key, pic.mpvkey, pic.page))
+        }
     }
 }
 

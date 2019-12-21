@@ -161,46 +161,66 @@ const baseViewsForMpv = [
 
 
 function renderMpv(infos, path, page = 1) {
-    lengthOfLengthnumber = infos.length.length
     const imageView = {
-        type: "scroll",
+        type: "image",
         props: {
-            zoomEnabled: true,
-            doubleTapToZoom: false,
-            maxZoomScale: 3
+            src: utility.joinPath(path, infos.pics[page-1]['img_id'] + infos.pics[page-1].img_name.slice(infos.pics[page-1].img_name.lastIndexOf('.'))),
+            contentMode: 1
         },
-        layout: function (make, view) {
-            make.edges.insets($insets(18, 0, 0, 57))
+        layout: $layout.fill
+    };
+    
+    const contentView = {
+        type: "view",
+        props: {
+            id: "contentView",
+            userInteractionEnabled: true
         },
-        views: [{
-            type: "image",
-            props: {
-                src: utility.joinPath(path, utility.prefixInteger(page, lengthOfLengthnumber) + '.jpg'),
-                contentMode: 1
-            },
-            layout: $layout.fill
-        }],
         events: {
-            tapped: function (sender) {
-                page += 1
-                sender.get("image").src = utility.joinPath(path, utility.prefixInteger(page, lengthOfLengthnumber) + '.jpg')
-                $('rootView').get('mpv').get('text_current_page').text = page
-                $('rootView').get('mpv').get('slider1').value = page / parseInt(infos.length)
-            },
-            ready: function (sender) {
-                $('rootView').get('mpv').get('text_total_page').text = infos.length
-                $('rootView').get('mpv').get('text_current_page').text = page
-                $('rootView').get('mpv').get('slider1').value = page / parseInt(infos.length)
+            touchesEnded: function (sender, location, locations) {
+                if (sender.super.zoomScale === 1) {
+                    page = (location.y <= sender.frame.height / 2) ? Math.max(page - 1, 1): Math.min(page + 1, infos.pics.length)
+                    sender.get("image").src = utility.joinPath(path, infos.pics[page-1]['img_id'] + infos.pics[page-1].img_name.slice(infos.pics[page-1].img_name.lastIndexOf('.')))
+                    $('rootView').get('mpv').get('text_current_page').text = page
+                    $('rootView').get('mpv').get('slider1').value = page / parseInt(infos.length)
+                } else {
+                    sender.super.zoomScale = 1
+                }
             }
         }
     }
+
+    const scroll = {
+        type: "scroll",
+        props: {
+            id: "scroll",
+            zoomEnabled: true,
+            doubleTapToZoom: false,
+            maxZoomScale: 3 // Optional, default is 2
+        },
+        layout: (make, view) => {
+            make.edges.insets($insets(18, 0, 0, 57))
+        },
+        views: [contentView]
+    }
+
     const mpv = {
         props: {
             id: "mpv",
             bgcolor: $color("white")
         },
-        views: baseViewsForMpv.concat(imageView),
-        layout: $layout.fill
+        views: baseViewsForMpv.concat(scroll),
+        layout: $layout.fill,
+        events: {
+            ready: async function (sender) {
+                $('rootView').get('mpv').get('text_total_page').text = infos.length
+                $('rootView').get('mpv').get('text_current_page').text = page
+                $('rootView').get('mpv').get('slider1').value = page / parseInt(infos.length)
+                await $wait(0.05)
+                $("rootView").get("mpv").get("scroll").get("contentView").frame = $rect(0, 0, sender.get("scroll").frame.width, sender.get("scroll").frame.height)
+                $("rootView").get("mpv").get("scroll").get("contentView").add(imageView)
+            }
+        }
     };
     return mpv
 }

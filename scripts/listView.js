@@ -262,26 +262,31 @@ const baseViewForItemCellView = [
         }
     },
     {
-        type: "canvas",
+        type: "view",
         props: {
-            id: "canvas_rating"
+            id: "maskview_grey_for_fivestars",
+            bgcolor: $color("#efeff4")
         },
         layout: (make, view) => {
             make.height.equalTo(24)
             make.width.equalTo(120)
             make.center.equalTo($("lowlevel_view_rating"))
         },
-        events: {
-            draw: function(view, ctx) {
-                const width = view.frame.width * view.info.display_rating / 5;
-                const height = view.frame.height;
-                ctx.fillColor = view.info.ratingColor;
-                ctx.addRect($rect(0, 0, width, height));
-                ctx.fillPath();
-                ctx.fillColor = $color('#efeff4');
-                ctx.addRect($rect(width, 0, view.frame.width - width, height));
-                ctx.fillPath()
+        views: [
+            {
+                type: "view",
+                props: {
+                    id: "maskview_colored_for_fivestars"
+                }
             }
+        ],
+        events: {
+            layoutSubviews: sender => {
+                const inner = sender.get("maskview_colored_for_fivestars");
+                const bounds = sender.frame;
+                const percentage = sender.info.display_rating / 5.0
+                inner.frame = $rect(0, 0, bounds.width * percentage, bounds.height);
+              }
         }
     },
     {
@@ -408,7 +413,7 @@ function getData(infos) {
             label_length: {
                 text: item['length'] + '页'
             },
-            canvas_rating: {
+            maskview_grey_for_fivestars: {
                 info: {
                     display_rating: parseFloat(item['display_rating']), 
                     ratingColor: $color((item['is_personal_rating']) ? "#5eacff" : "#ffd217")
@@ -459,6 +464,15 @@ function renderRealListView(infos) {
             make.top.equalTo($("textfield_search").bottom)
             make.left.inset(16)
             make.right.inset(57)
+        },
+        events: {
+            forEachItem: (view, indexPath) => {
+                const wrapper = view.get("maskview_grey_for_fivestars");
+                const inner = wrapper.get("maskview_colored_for_fivestars");
+                const percentage = wrapper.info.display_rating /  5.0;
+                inner.frame = $rect(0, 0, wrapper.frame.width * percentage, wrapper.frame.height);
+                inner.bgcolor = wrapper.info.ratingColor
+            }
         }
     }
     return listView

@@ -484,41 +484,36 @@ async function rateGallery(rating, apikey, apiuid, gid, token) {
  *      s: 不明
  */
 async function fetchPicAPIResult(gid, key, mpvkey, page) {
-    return new Promise((resolve, reject) => {
-        const header = {
-            "User-Agent": USERAGENT,
-            "Content-Type": "application/json",
-            "Cookie": COOKIE
-        };
-        const payload = {
-            "method": "imagedispatch",
-            "gid": gid,
-            "page": page,
-            "imgkey": key,
-            "mpvkey": mpvkey
-        };
-        objcHttpRequest({
-            "url": URL_API,
-            "method": "POST",  // Optional, default to GET
-            "timeout": 20,    // Optional, default to 60
-            "header": header,     // Optional, default to {}
-            "body": $data({string: JSON.stringify(payload)}),     // Optional, default to null
-            "handler": result => {
-                const data = result.data;
-                if (data && result.response.statusCode === 200) {
-                    resolve(data);
-                } else {
-                    reject(new Error('fail to fetch api response'))
-                }
-            }
-        })
+    const header = {
+        "User-Agent": USERAGENT,
+        "Content-Type": "application/json",
+        "Cookie": COOKIE
+    };
+    const payload = {
+        "method": "imagedispatch",
+        "gid": gid,
+        "page": page,
+        "imgkey": key,
+        "mpvkey": mpvkey
+    };
+    const resp = await $http.post({
+        url: URL_API,
+        header: header,
+        body: payload,
+        timeout: 20
     })
+    const data = resp.data
+    if (data && resp.response.statusCode === 200) {
+        return data
+    } else {
+        throw new Error('fail to fetch api resonse')
+    }
 }
 
 async function downloadResizedImage(fullpath, gid, key, mpvkey, page) {
     try {
         const response = await fetchPicAPIResult(gid, key, mpvkey, page)
-        const url = JSON.parse(response.string)['i']
+        const url = response['i']
         const success = await downloadPic(fullpath, url)
         console.info(success, fullpath)
     } catch(err) {
@@ -531,49 +526,6 @@ async function downloadOriginalImage(fullpath, gid, key, mpvkey, page) {
     const fullimg_url = URL_EXHENTAI + response['lf']
     await downloadPic(fullpath, fullimg_url)
 }
-
-function objcHttpRequest(params) {
-    params = params || {};
-    params.handlers = params.handlers || {};
-  
-    const url = params.url;
-    const method = params.method || "GET";
-    const timeout = params.timeout || 60;
-    const header = params.header || {};
-    const body = params.body;
-    const callback = params.handler;
-  
-    const request = $objc("NSMutableURLRequest").$requestWithURL($objc("NSURL").$URLWithString(url));
-    request.$setHTTPMethod(method);
-    request.$setTimeoutInterval(timeout);
-  
-    for (const [key, value] of Object.entries(header)) {
-        request.$addValue_forHTTPHeaderField(value, key);
-    }
-  
-    if (body) {
-        request.$setHTTPBody(body.ocValue());
-    }
-  
-    const session = $objc("NSURLSession").$sharedSession();
-    const completionHandler = $block("void, NSURL *, NSURLResponse *, NSError *", (location, response, error) => {
-        if (callback) {
-            const data = $objc("NSData").$dataWithContentsOfURL(location).$copy();
-            $thread.main({
-                handler: () => {
-                    callback({
-                        "data": data.jsValue(),
-                        "response": response.jsValue(),
-                        "error": error.jsValue(),
-                    });
-                }
-            });
-        }
-    });
-    const task = session.$downloadTaskWithRequest_completionHandler(request, completionHandler);
-    task.$resume();
-}
-
 
 // 此函数将专用于下载大图片
 async function downloadPic(fullpath, url, timeout=20) {

@@ -237,6 +237,7 @@ async function getGalleryMpvInfosFromUrl(gallery_url, full_comments=true) {
     const mpvHtml = await getHtml(mpv_url)
     const infos = getGalleryInfos(getRootElement(galleryHtml))
     infos['pics'] = getMpvInfos(getRootElement(mpvHtml))
+    infos['url'] = gallery_url
     return infos
 }
 

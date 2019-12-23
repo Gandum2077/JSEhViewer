@@ -406,13 +406,16 @@ async function getFavcatAndFavnote(gallery_url) {
     const html = await getHtml(url)
     const rootElement = getRootElement(html)
     const favcat_nums_titles_elements = rootElement.firstChild({'selector': 'div.nosel'}).children({"tag": "div"}).slice(0, 10)
-    const favcat_titles = {}
+    const favcat_titles = []
     for (let i in favcat_nums_titles_elements) {
         const v = favcat_nums_titles_elements[i]
-        favcat_titles['favcat' + i] = v.string.trim()
+        favcat_titles.push({
+            favcat: 'favcat' + i,
+            title: v.string.trim()
+        })
     }
-    const input_selected_element = rootElement.firstChild({'xPath': 'input[@checked="checked"]'})
-    const favcat_selected = (input_selected_element) ? 'favcat' + input_selected_element.value({'tag':'id'})[3] : null
+    const input_selected_element = rootElement.firstChild({'xPath': '//input[@checked="checked"]'})
+    const favcat_selected = (input_selected_element) ? 'favcat' + input_selected_element.value({'attribute':'id'})[3] : null
     const is_favorited = (rootElement.firstChild({'selector': 'input#favdel'})) ? true : false
     const favnote = rootElement.firstChild({'selector': 'textarea'}).string
     return {
@@ -569,6 +572,7 @@ module.exports = {
     saveMangaInfos: saveMangaInfos,
     COOKIE: COOKIE,
     USERAGENT: USERAGENT,
+    getFavcatAndFavnote: getFavcatAndFavnote,
     downloadPicsByBottleneck: downloadPicsByBottleneck,
     stopDownloadTasksCreatedByBottleneck: stopDownloadTasksCreatedByBottleneck
 }

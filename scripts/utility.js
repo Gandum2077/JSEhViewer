@@ -23,6 +23,18 @@ function getWindowSize() {
     return window.size;
 }
 
+// 计算特定字号的文字长度
+// 此函数不应该用于处理超长文本
+function getTextWidth(text, fontSize = 14) {
+    return $text.sizeThatFits({
+        text: text,
+        width: 10000,
+        font: $font(fontSize),
+        align: $align.center,
+        lineSpacing: 0
+    })
+}
+
 // 验证url是否合法，若合法返回foldername
 function verifyUrl(url) {
     const patt = /https:\/\/e[-x]hentai\.org\/g\/(\d*)\/(\w*)\/?/g
@@ -329,6 +341,7 @@ module.exports = {
     prefixInteger: prefixInteger,
     joinPath: joinPath,
     getWindowSize: getWindowSize,
+    getTextWidth: getTextWidth,
     verifyUrl: verifyUrl,
     getNameAndColor: getNameAndColor,
     getColorFromFavcat: getColorFromFavcat,

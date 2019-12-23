@@ -1,6 +1,6 @@
 const utility = require('./utility')
 const mpvGenerator = require('./mpv')
-const fullTagTableViewGenerator = require('./tagTableView')
+const tagTableViewGenerator = require('./tagTableView')
 const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
 
@@ -460,6 +460,81 @@ function renderGalleryInfoView(infos, path) {
     return galleryInfoView
 }
 
+function renderFullTagTableView(width, info, translated = true) {
+    const bilingualTaglist = utility.getBilingualTaglist(info.taglist, translated = translated)
+    const tagTableView = tagTableViewGenerator.renderTagTableView(width - 2 - 50, bilingualTaglist)
+    const height = tagTableView.props.frame.height + 2
+    const views = [
+        {
+            type: "scroll",
+            props: {
+                id: "scroll",
+                contentSize: $size(0, height-2)
+            },
+            layout: function (make, view) {
+                make.top.bottom.left.inset(1)
+                make.right.inset(51)
+            },
+            views: [tagTableView]
+        },
+        {
+            type: "view",
+            props: {
+                bgcolor: $color("#c8c7cc")
+            },
+            layout: function (make, view) {
+                make.width.equalTo(1)
+                make.top.bottom.inset(0)
+                make.right.inset(50)
+            }
+        },
+        {
+            type: "button",
+            props: {
+                id: 'buttonTranslate',
+                image: $image('assets/icons/translate_32_32.png').alwaysTemplate,
+                tintColor: $color("#0079FF"),
+                bgcolor: $color("clear"),
+                //frame: $rect(width - 50 + 8, height * 0.25 - 16, 32, 32)
+            },
+            layout: function (make, view) {
+                make.size.equalTo($size(32, 32))
+                make.top.inset(height * 0.25 - 16)
+                make.right.inset(10)
+            }
+        },
+        {
+            type: "button",
+            props: {
+                id: 'buttonCopy',
+                image: $image('assets/icons/ios7_copy_32_32.png').alwaysTemplate,
+                tintColor: $color("#0079FF"),
+                bgcolor: $color("clear"),
+                //frame: $rect(width - 50 + 8, height * 0.75 - 16, 32, 32)
+            },
+            layout: function (make, view) {
+                make.size.equalTo($size(32, 32))
+                make.bottom.inset(height * 0.25 - 16)
+                make.right.inset(10)
+            }
+        }
+    ]
+    return {
+        props: {
+            id: "fullTagTableView",
+            bgcolor: $color("white"),
+            borderWidth: 1,
+            borderColor: $color('#c8c7cc'),
+            frame: $rect(0, 0, width, height)
+        },
+        views: views,
+        layout: (make, view) => {
+          make.left.top.right.inset(0)
+          make.height.equalTo(height)
+        }
+    }
+}
+
 function renderCommentsView(infos) {
     const comments_text = []
     for (let i of infos['comments']) {
@@ -534,117 +609,91 @@ function renderCommentsView(infos) {
     return commentsView
 }
 
-function renderThumbnailView(img_id, thumbnail_url, img_path, url) {
-    const image = {
-        type: "image",
-        props: {
-            source: {
-                url: thumbnail_url,
-                //placeholder: image,
-                header: {
-                    "User-Agent": exhentaiParser.USERAGENT,
-                    "Cookie": exhentaiParser.COOKIE,
-                }
-            },
-            info: {url: url, page: parseInt(img_id)},
-            bgcolor: $color("clear"),
-            borderWidth: 0.0,
-            frame: $rect(1, 0, 137, 195),
-            contentMode: 1,
-            userInteractionEnabled: true
-        }
-    }
-    const label = {
-        type: "label",
-        props: {
-            text: img_id,
-            font: $font(12),
-            align: $align.center,
-            bgcolor: $color("clear"),
-            borderWidth: 0.0,
-            frame: $rect(0, 195, 158, 18)
-        }
-    }
-    const thumbnailView = {
-        type: 'view',
-        props: {
-            size: $size(139, 213)
-        },
-        views: [image, label]
-    }
-    return thumbnailView
-}
-
-function renderThumbnailsView(infos, path) {
-    const nums_in_a_row = 5
-    const interval_width = (695 % 139) / (nums_in_a_row - 1)
-    const thumbnailsView = []
-    for (let n in infos['pics']) {
-        const pic = infos['pics'][n]
-        const p = utility.joinPath(path, 'thumbnails', pic['img_id']+'.jpg')
-        const thumbnailView = renderThumbnailView(pic['img_id'], pic['thumbnail_url'], p, infos['url'])
-        thumbnailView.props.frame = $rect(
-            139 * (n % nums_in_a_row) + interval_width * (n % nums_in_a_row), 
-            213 * Math.floor(n / nums_in_a_row), 139, 213
-        )
-        thumbnailsView.push(thumbnailView)
-    }
-    return {
-        type: 'view',
-        props: {
-            borderWidth: 1,
-            borderColor: $color("#c8c7cc"),
-            size: $size(695, 213 * Math.ceil(infos['pics'].length / nums_in_a_row))
-        },
-        views: thumbnailsView,
-        layout: function(make, view) {
-            make.left.right.inset(0)
-            make.top.equalTo($("commentsView").bottom)
-            make.height.equalTo(view.size.height)
-        }
-    }
-}
-
-function renderScrollContentView(infos, path) {
-    const fullTagTableView = fullTagTableViewGenerator.renderFullTagTableView(695, infos)
+function renderHeaderView(infos, path) {
+    const fullTagTableView = renderFullTagTableView(695, infos)
     const commentsView = renderCommentsView(infos)
-    const thumbnailsView = renderThumbnailsView(infos, path)
-    const scrollContentViewHeight = fullTagTableView.props.frame.height + 150 + thumbnailsView.props.size.height
+    const headerViewHeight = fullTagTableView.props.frame.height + 150
     const views = [
         fullTagTableView,
-        commentsView,
-        thumbnailsView
+        commentsView
     ]
-    const scrollContentView = {
+    const headerView = {
         type: "view",
         props: {
-            id: "scrollContentView"
+            height: headerViewHeight,
+            id: "headerView"
         },
-        views: views,
-        layout: function (make, view) {
-            make.height.equalTo()
-            make.right.equalTo(view.super.super.right)
-            make.left.equalTo(view.super.super.left)
-        }
+        views: views
     }
-    return [scrollContentView, scrollContentViewHeight]
+    return headerView
 }
 
-function renderScrollView(infos, path, contentSizeHeight) {
-    const scrollView = {
-        type: "scroll",
-        props: {
-            id: "scrollView",
-            contentSize: $size(0, contentSizeHeight)
-        },
-        layout: $layout.fill
+function getData(infos) {
+    const data = []
+    for (let pic of infos['pics']) {
+        const itemData = {
+            thumbnail_imageview: {
+                source: {
+                    url: pic['thumbnail_url'],
+                    header: {
+                        "User-Agent": exhentaiParser.USERAGENT,
+                        "Cookie": exhentaiParser.COOKIE,
+                    }
+                },
+                info: {url: infos['url'], page: pic['page']}
+            },
+            label_title: {
+                text: pic['img_id']
+            }
+        }
+        data.push(itemData)
     }
-    const scrollLocationView = {
-        type: "view",
+    return data
+}
+
+function renderMatrixView(infos) {
+    const matrix = {
+        type: "matrix",
         props: {
-            id: "scrollLocationView"
+            id: "thumbnails",
+            borderWidth: 1,
+            borderColor: $color('#c8c7cc'),
+            itemSize: $size(139, 213),
+            template: [
+                {
+                    type: "image",
+                    props: {
+                        id: "thumbnail_imageview",
+                        bgcolor: $color("clear"),
+                        borderWidth: 0.0,
+                        contentMode: 1,
+                        userInteractionEnabled: true
+                    },
+                    layout: function(make, view) {
+                        make.size.equalTo($size(137, 195))
+                        make.top.inset(0)
+                        make.left.inset(1)
+                    }
+                },
+                {
+                    type: "label",
+                    props: {
+                        id: "label_title",
+                        font: $font(12),
+                        align: $align.center,
+                        bgcolor: $color("clear"),
+                        borderWidth: 0.0
+                    },
+                    layout: function(make, view) {
+                        make.size.equalTo($size(158, 18))
+                        make.top.inset(195)
+                        make.left.inset(0)
+                    }
+                }
+            ],
+            data: getData(infos),
+            header: renderHeaderView(infos)
         },
-        views: [scrollView],
         layout: function (make, view) {
             make.bottom.inset(0)
             make.top.equalTo($("galleryInfoView").bottom).inset(1)
@@ -652,17 +701,17 @@ function renderScrollView(infos, path, contentSizeHeight) {
             make.right.inset(57)
         }
     }
-    return scrollLocationView
+    return matrix
 }
 
-function renderGalleryView(infos, path, contentSizeHeight) {
+function renderGalleryView(infos, path) {
     const galleryView = {
         type: "view",
         props: {
             id: "galleryView",
             bgcolor: $color("white")
         },
-        views: [...baseViewsForGalleryView, renderGalleryInfoView(infos, path), renderScrollView(infos, path, contentSizeHeight)],
+        views: [...baseViewsForGalleryView, renderGalleryInfoView(infos, path), renderMatrixView(infos)],
         layout: $layout.fill
     }
     return galleryView
@@ -679,9 +728,7 @@ async function init(url) {
         infos = await exhentaiParser.getGalleryMpvInfosFromUrl(url)
         exhentaiParser.saveMangaInfos(infos, path)
     }
-    const [scrollContentView, scrollContentViewHeight] = renderScrollContentView(infos, path)
-    $("rootView").add(renderGalleryView(infos, path, scrollContentViewHeight))
-    $("rootView").get("galleryView").get("scrollLocationView").get("scrollView").add(scrollContentView)
+    $("rootView").add(renderGalleryView(infos, path))
 }
 
 module.exports = {

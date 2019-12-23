@@ -230,10 +230,8 @@ function getListInfos(rootElement) {
 
 async function getGalleryMpvInfosFromUrl(gallery_url, full_comments=true) {
     const mpv_url = gallery_url.replace(/\/g\//g, '/mpv/')
-    if (full_comments) {
-        gallery_url += '?hc=1'
-    }
-    const galleryHtml = await getHtml(gallery_url)
+    const gallery_url_hc = (full_comments) ? gallery_url + '?hc=1' : gallery_url
+    const galleryHtml = await getHtml(gallery_url_hc)
     const mpvHtml = await getHtml(mpv_url)
     const infos = getGalleryInfos(getRootElement(galleryHtml))
     infos['pics'] = getMpvInfos(getRootElement(mpvHtml))

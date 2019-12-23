@@ -1,6 +1,7 @@
 const utility = require('./utility')
 const mpvGenerator = require('./mpv')
 const tagTableViewGenerator = require('./tagTableView')
+const ratingViewGenerator = require('./ratingView')
 const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
 
@@ -325,12 +326,21 @@ function renderGalleryInfoView(infos, path) {
                 id: "image_fivestars_mask",
                 tintColor: $color("white"),
                 image: $image("assets/icons/fivestars_mask.png").alwaysTemplate,
-                contentMode: 2
+                contentMode: 2,
+                userInteractionEnabled: true
             },
             layout: (make, view) => {
                 make.height.equalTo(30)
                 make.width.equalTo(150)
                 make.center.equalTo($("lowlevel_view_rating"))
+            },
+            events: {
+                tapped: function(sender) {
+                    const ratingView = ratingViewGenerator.renderRatingView(infos.display_rating)
+                    const maskView = utility.renderMaskView()
+                    $('rootView').add(maskView)
+                    $('rootView').add(ratingView)
+                }
             }
         },
         {

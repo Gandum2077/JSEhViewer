@@ -337,6 +337,19 @@ function parseUrl(url) {
     }
 }
 
+function renderMaskView() {
+    const maskRatingView = {
+        type: 'view',
+        props: {
+            id: 'maskView',
+            bgcolor: $color('black'),
+            alpha: 0.2
+        },
+        layout: $layout.fill
+    }
+    return maskRatingView
+}
+
 module.exports = {
     prefixInteger: prefixInteger,
     joinPath: joinPath,
@@ -355,5 +368,6 @@ module.exports = {
     judgeDeviceModel: judgeDeviceModel,
     getSearchUrl: getSearchUrl,
     unparseUrl: unparseUrl,
-    parseUrl: parseUrl
+    parseUrl: parseUrl,
+    renderMaskView: renderMaskView
 }

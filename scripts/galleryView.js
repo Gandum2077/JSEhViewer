@@ -2,6 +2,7 @@ const utility = require('./utility')
 const mpvGenerator = require('./mpv')
 const tagTableViewGenerator = require('./tagTableView')
 const ratingViewGenerator = require('./ratingView')
+const favoriteViewGenerator = require('./favoriteView')
 const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
 
@@ -367,6 +368,7 @@ function renderGalleryInfoView(infos, path) {
                 text: (infos['favcat']) ? infos['favcat_title'] : '未收藏',
                 font: $font("bold", 14),
                 align: $align.center,
+                userInteractionEnabled: true,
                 textColor: (infos['favcat']) ? $color("white") : $color("black"),
                 bgcolor: (infos['favcat']) ? $color(utility.getColorFromFavcat(infos['favcat'])): $color("white")
             },
@@ -375,6 +377,15 @@ function renderGalleryInfoView(infos, path) {
                 make.left.equalTo($("label_review").left)
                 make.top.equalTo($("label_review").bottom).inset(1)
                 make.right.equalTo($("label_review").right)
+            },
+            events: {
+                tapped: async function(sender) {
+                    const favInfos = await exhentaiParser.getFavcatAndFavnote(infos['url'])
+                    const favoriteView = favoriteViewGenerator.renderFavoriteView(favInfos.favcat_titles, favInfos.favcat_selected, favInfos.favnote, favInfos.is_favorited)
+                    const maskView = utility.renderMaskView()
+                    $('rootView').add(maskView)
+                    $('rootView').add(favoriteView)
+                }
             }
         },
         {

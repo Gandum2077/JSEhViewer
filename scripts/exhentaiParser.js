@@ -344,16 +344,16 @@ function extractComments(rootElement) {
                 is_self_comment = false
                 voteable = false
                 my_vote = null
-            } else if (block.firstChild({'xPath': './/*[@c4]/a[2]'})) { // 自己发表的评论
+            } else if (!block.firstChild({'xPath': './/*[contains(@class, "c4")][1]/a[2]'})) { // 自己发表的评论
                 is_self_comment = true
                 voteable = false
                 my_vote = null
             } else { // 可投票的评论
                 is_self_comment = false
                 voteable = true
-                if (block.firstChild({'xPath': './/*[@c4]/a[1]/@style'})) {
+                if (block.firstChild({'xPath': './/*[contains(@class, "c4")]/a[1]/@style'}).string) {
                     my_vote = 1
-                } else if (block.firstChild({'xPath': './/*[@c4]/a[2]/@style'})) {
+                } else if (block.firstChild({'xPath': './/*[contains(@class, "c4")]/a[2]/@style'}).string) {
                     my_vote = -1
                 } else {
                     my_vote = null

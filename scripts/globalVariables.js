@@ -7,7 +7,7 @@ const databaseFile = 'assets/downloads.db'
 const tagTranslationFile = 'assets/ehtagtranslator.json'
 
 const config = JSON.parse($file.read(configPath))
-let default_url = config['default_url'] 
+
 
 module.exports = {
   cachePath: cachePath,
@@ -17,5 +17,5 @@ module.exports = {
   accountFile: accountFile,
   databaseFile: databaseFile,
   tagTranslationFile: tagTranslationFile,
-  default_url: default_url
+  config: config
 }

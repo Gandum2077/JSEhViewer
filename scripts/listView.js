@@ -497,7 +497,7 @@ function refresh(infos){
     
 async function init(url=null) {
     if (!url) {
-        url = glv.default_url
+        url = glv.config.default_url
     }
     const infos = await exhentaiParser.getListInfosFromUrl(url)
     const listView = renderListView(infos)

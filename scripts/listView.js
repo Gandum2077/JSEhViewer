@@ -165,14 +165,6 @@ const baseViewsForListView = [
 
 const baseViewForItemCellView = [
     {
-        type: "view",
-        props: {
-            id: "backgroundView",
-            bgcolor: $color("#c8c7cc")
-        },
-        layout: $layout.fill
-    },
-    {
         type: "image",
         props: {
             id: "thumbnail_imageview",
@@ -387,6 +379,13 @@ const baseViewForItemCellView = [
     }
 ]
 
+const template = {
+    props: {
+        bgcolor: $color("#c8c7cc")
+    },
+    views: baseViewForItemCellView
+}
+
 function getData(infos) {
     const data = []
     for (let item of infos['items']) {
@@ -445,7 +444,15 @@ function renderRealListView(infos) {
             id: "realListView",
             rowHeight: 160,
             separatorHidden: true,
-            template: baseViewForItemCellView,
+            actions: [
+                {
+                    title: "delete",
+                    handler: function(sender, indexPath) {
+                        console.info(indexPath)
+                    }
+                }
+            ],
+            template: template,
             data: getData(infos),
             header: {
                 type: "label",
@@ -472,6 +479,9 @@ function renderRealListView(infos) {
                 const percentage = wrapper.info.display_rating /  5.0;
                 inner.frame = $rect(0, 0, wrapper.frame.width * percentage, wrapper.frame.height);
                 inner.bgcolor = wrapper.info.ratingColor
+            },
+            swipeEnabled: function(sender, indexPath) {
+                return false;
             }
         }
     }

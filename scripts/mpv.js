@@ -1,6 +1,8 @@
 const utility = require('./utility')
 const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
+const settingsForMpvViewGenerator = require('./settingsForMpv')
+
 
 function sliderLayoutFunction(make, view) {
     const t = view.super.size.height - 57 * 6 - 30 * 2 - 2 - 18
@@ -57,6 +59,14 @@ function renderMpv(infos, path, page = 1) {
                 make.width.equalTo(57)
                 make.right.inset(0)
                 make.bottom.inset(57)
+            },
+            events: {
+                tapped: function(sender) {
+                    const settingsForMpvView = settingsForMpvViewGenerator.renderSettingsForMpvView()
+                    const maskView = utility.renderMaskView()
+                    $('rootView').add(maskView)
+                    $('rootView').add(settingsForMpvView)
+                }
             }
         },
         {

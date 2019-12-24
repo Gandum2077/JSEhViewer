@@ -200,6 +200,16 @@ function renderCommentsView(infos) {
                     make.right.inset(16)
                     make.size.equalTo($size(50, 32))
                 }
+            },
+            {
+                type: "view",
+                props: {
+                    bgcolor: $color("#c8c7cc")
+                },
+                layout: function(make, view) {
+                    make.left.right.bottom.inset(0)
+                    make.height.equalTo(1)
+                }
             }
         ]
     }

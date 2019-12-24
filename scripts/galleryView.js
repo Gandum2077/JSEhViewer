@@ -3,6 +3,7 @@ const mpvGenerator = require('./mpv')
 const tagTableViewGenerator = require('./tagTableView')
 const ratingViewGenerator = require('./ratingView')
 const favoriteViewGenerator = require('./favoriteView')
+const commentsViewGenerator = require('./enlargedCommentsView')
 const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
 
@@ -599,6 +600,14 @@ function renderCommentsView(infos) {
             make.size.equalTo($size(32, 32))
             make.centerY.equalTo(view.super)
             make.right.inset(10)
+        },
+        events: {
+            tapped: function(sender) {
+                const commentsView = commentsViewGenerator.renderCommentsView(infos)
+                const maskView = utility.renderMaskView()
+                $('rootView').add(maskView)
+                $('rootView').add(commentsView)
+            }
         }
     }
     const line = {

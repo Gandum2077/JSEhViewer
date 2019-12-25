@@ -4,7 +4,7 @@ const glv = require('./globalVariables')
 const settingsForMpvViewGenerator = require('./settingsForMpv')
 
 
-function sliderLayoutFunction(make, view) {
+const sliderLayoutFunction = (make, view) => {
     const t = view.super.size.height - 57 * 6 - 30 * 2 - 2 - 18
     make.height.equalTo(34)
     make.width.equalTo(t)

@@ -27,9 +27,7 @@ async function init() {
                     scroll.zoomScale = 1
                     $("rootView").get("mpv").get("scroll").get("contentView").frame = $rect(0, 0, scroll.size.width, scroll.size.height)
                     scroll.zoomScale = 1
-                    $("rootView").get("mpv").get("slider1").updateLayout(function (make, view) {
-                        mpvGenerator.sliderLayoutFunction(make, view)
-                    })
+                    $("rootView").get("mpv").get("slider1").updateLayout(mpvGenerator.sliderLayoutFunction)
                 }
             }
         }

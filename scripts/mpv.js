@@ -49,9 +49,10 @@ function renderMpv(infos, path, page = 1) {
             type: "button",
             props: {
                 id: "button_setting",
-                image: $image("assets/icons/more_32_57.png").alwaysTemplate,
+                image: $image("assets/icons/more_64x64.png").alwaysTemplate,
                 tintColor: $color("#0079FF"),
-                bgcolor: $color("white")
+                bgcolor: $color("white"),
+                imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
             },
             layout: function (make, view) {
                 make.height.equalTo(57)
@@ -115,9 +116,10 @@ function renderMpv(infos, path, page = 1) {
             type: "button",
             props: {
                 id: "button_autoload",
-                image: $image("assets/icons/ios7_fastforward_32_57.png").alwaysTemplate,
+                image: $image("assets/icons/ios7_fastforward_64x64.png").alwaysTemplate,
                 tintColor: $color("#0079FF"),
-                bgcolor: $color("white")
+                bgcolor: $color("white"),
+                imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
             },
             layout: function (make, view) {
                 make.height.equalTo(57)
@@ -134,9 +136,10 @@ function renderMpv(infos, path, page = 1) {
             type: "button",
             props: {
                 id: "button_close",
-                image: $image("assets/icons/close_32_57.png").alwaysTemplate,
+                image: $image("assets/icons/close_64x64.png").alwaysTemplate,
                 tintColor: $color("#0079FF"),
-                bgcolor: $color("white")
+                bgcolor: $color("white"),
+                imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
             },
             layout: function (make, view) {
                 make.height.equalTo(57)
@@ -155,9 +158,10 @@ function renderMpv(infos, path, page = 1) {
             type: "button",
             props: {
                 id: "button_refresh",
-                image: $image("assets/icons/refresh_32_57.png").alwaysTemplate,
+                image: $image("assets/icons/refresh_64x64.png").alwaysTemplate,
                 tintColor: $color("#0079FF"),
-                bgcolor: $color("white")
+                bgcolor: $color("white"),
+                imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
             },
             layout: function (make, view) {
                 make.height.equalTo(57)
@@ -170,9 +174,10 @@ function renderMpv(infos, path, page = 1) {
             type: "button",
             props: {
                 id: "button_info",
-                image: $image("assets/icons/information_circled_32_57.png").alwaysTemplate,
+                image: $image("assets/icons/information_circled_64x64.png").alwaysTemplate,
                 tintColor: $color("#0079FF"),
-                bgcolor: $color("white")
+                bgcolor: $color("white"),
+                imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
             },
             layout: function (make, view) {
                 make.height.equalTo(57)

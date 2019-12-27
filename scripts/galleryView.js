@@ -14,9 +14,10 @@ var baseViewsForGalleryView = [
         type: "button",
         props: {
             id: "button_archive",
-            image: $image("assets/icons/archive_32_57.png").alwaysTemplate,
+            image: $image("assets/icons/archive_64x64.png").alwaysTemplate,
             tintColor: $color("#0079FF"),
-            bgcolor: $color("white")
+            bgcolor: $color("white"),
+            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
         },
         layout: function (make, view) {
             make.height.equalTo(57)
@@ -29,9 +30,10 @@ var baseViewsForGalleryView = [
         type: "button",
         props: {
             id: "button_close",
-            image: $image("assets/icons/close_32_57.png").alwaysTemplate,
+            image: $image("assets/icons/close_64x64.png").alwaysTemplate,
             tintColor: $color("#0079FF"),
-            bgcolor: $color("white")
+            bgcolor: $color("white"),
+            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
         },
         layout: function (make, view) {
             make.height.equalTo(57)
@@ -49,9 +51,10 @@ var baseViewsForGalleryView = [
         type: "button",
         props: {
             id: "button_refresh",
-            image: $image("assets/icons/refresh_32_57.png").alwaysTemplate,
+            image: $image("assets/icons/refresh_64x64.png").alwaysTemplate,
             tintColor: $color("#0079FF"),
-            bgcolor: $color("white")
+            bgcolor: $color("white"),
+            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
         },
         layout: function (make, view) {
             make.height.equalTo(57)
@@ -69,9 +72,10 @@ var baseViewsForGalleryView = [
         type: "button",
         props: {
             id: "button_share",
-            image: $image("assets/icons/share_32_57.png").alwaysTemplate,
+            image: $image("assets/icons/share_64x64.png").alwaysTemplate,
             tintColor: $color("#0079FF"),
-            bgcolor: $color("white")
+            bgcolor: $color("white"),
+            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
         },
         layout: function (make, view) {
             make.height.equalTo(57)
@@ -84,9 +88,10 @@ var baseViewsForGalleryView = [
         type: "button",
         props: {
             id: "button_safari",
-            image: $image("assets/icons/ios7_world_32_57.png").alwaysTemplate,
+            image: $image("assets/icons/ios7_world_64x64.png").alwaysTemplate,
             tintColor: $color("#0079FF"),
-            bgcolor: $color("white")
+            bgcolor: $color("white"),
+            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
         },
         layout: function (make, view) {
             make.height.equalTo(57)
@@ -99,9 +104,10 @@ var baseViewsForGalleryView = [
         type: "button",
         props: {
             id: "button_info",
-            image: $image("assets/icons/information_circled_32_57.png").alwaysTemplate,
+            image: $image("assets/icons/information_circled_64x64.png").alwaysTemplate,
             tintColor: $color("#0079FF"),
-            bgcolor: $color("white")
+            bgcolor: $color("white"),
+            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
         },
         layout: function (make, view) {
             make.height.equalTo(57)
@@ -515,7 +521,7 @@ function renderFullTagTableView(width, translated = true) {
             type: "button",
             props: {
                 id: 'buttonTranslate',
-                image: $image('assets/icons/translate_32_32.png').alwaysTemplate,
+                image: $image('assets/icons/language_64x64.png').alwaysTemplate,
                 tintColor: $color("#0079FF"),
                 bgcolor: $color("clear"),
                 //frame: $rect(width - 50 + 8, height * 0.25 - 16, 32, 32)
@@ -530,7 +536,7 @@ function renderFullTagTableView(width, translated = true) {
             type: "button",
             props: {
                 id: 'buttonCopy',
-                image: $image('assets/icons/ios7_copy_32_32.png').alwaysTemplate,
+                image: $image('assets/icons/ios7_copy_64x64.png').alwaysTemplate,
                 tintColor: $color("#0079FF"),
                 bgcolor: $color("clear"),
                 //frame: $rect(width - 50 + 8, height * 0.75 - 16, 32, 32)
@@ -593,7 +599,7 @@ function renderCommentsView() {
         type: "button",
         props: {
             id: "button_enlarge",
-            image: $image('assets/icons/arrow_expand_32_32.png').alwaysTemplate,
+            image: $image('assets/icons/arrow_expand_64x64.png').alwaysTemplate,
             tintColor: $color("#0079FF"),
             bgcolor: $color("clear")
         },

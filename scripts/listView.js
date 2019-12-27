@@ -9,12 +9,13 @@ const baseViewsForListView = [
         type: "button",
         props: {
             id: "button_sidebar",
-            image: $image("assets/icons/navicon_32_45.png").alwaysTemplate,
+            image: $image("assets/icons/navicon_64x64.png").alwaysTemplate,
             tintColor: $color("#0079FF"),
             bgcolor: $color("white"),
             radius: 5,
             borderWidth: 1,
-            borderColor: $color("#c8c7cc")
+            borderColor: $color("#c8c7cc"),
+            imageEdgeInsets: $insets(6.5, 6.5, 6.5, 6.5)
         },
         layout: function (make, view) {
             make.height.equalTo(45)
@@ -32,12 +33,13 @@ const baseViewsForListView = [
         type: "button",
         props: {
             id: "button_storage",
-            image: $image("assets/icons/plus_32_45.png").alwaysTemplate,
+            image: $image("assets/icons/plus_64x64.png").alwaysTemplate,
             tintColor: $color("#0079FF"),
             bgcolor: $color("white"),
             radius: 5,
             borderWidth: 1,
-            borderColor: $color("#c8c7cc")
+            borderColor: $color("#c8c7cc"),
+            imageEdgeInsets: $insets(6.5, 6.5, 6.5, 6.5)
         },
         layout: function (make, view) {
             make.height.equalTo(45)
@@ -50,12 +52,13 @@ const baseViewsForListView = [
         type: "button",
         props: {
             id: "button_search",
-            image: $image("assets/icons/ios7_search_strong_32_45.png").alwaysTemplate,
+            image: $image("assets/icons/ios7_search_strong_64x64.png").alwaysTemplate,
             tintColor: $color("#0079FF"),
             bgcolor: $color("white"),
             radius: 5,
             borderWidth: 1,
-            borderColor: $color("#c8c7cc")
+            borderColor: $color("#c8c7cc"),
+            imageEdgeInsets: $insets(6.5, 6.5, 6.5, 6.5)
         },
         layout: function (make, view) {
             make.height.equalTo(45)
@@ -85,9 +88,10 @@ const baseViewsForListView = [
         type: "button",
         props: {
             id: "button_close",
-            image: $image("assets/icons/close_32_57.png").alwaysTemplate,
+            image: $image("assets/icons/close_64x64.png").alwaysTemplate,
             tintColor: $color("#0079FF"),
-            bgcolor: $color("white")
+            bgcolor: $color("white"),
+            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
         },
         layout: function (make, view) {
             make.height.equalTo(57)
@@ -105,9 +109,10 @@ const baseViewsForListView = [
         type: "button",
         props: {
             id: "button_open_url",
-            image: $image("assets/icons/link_32_57.png").alwaysTemplate,
+            image: $image("assets/icons/link_64x64.png").alwaysTemplate,
             tintColor: $color("#0079FF"),
-            bgcolor: $color("white")
+            bgcolor: $color("white"),
+            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
         },
         layout: function (make, view) {
             make.height.equalTo(57)
@@ -120,9 +125,10 @@ const baseViewsForListView = [
         type: "button",
         props: {
             id: "button_refresh",
-            image: $image("assets/icons/refresh_32_57.png").alwaysTemplate,
+            image: $image("assets/icons/refresh_64x64.png").alwaysTemplate,
             tintColor: $color("#0079FF"),
-            bgcolor: $color("white")
+            bgcolor: $color("white"),
+            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
         },
         layout: function (make, view) {
             make.height.equalTo(57)
@@ -135,9 +141,10 @@ const baseViewsForListView = [
         type: "button",
         props: {
             id: "button_next",
-            image: $image("assets/icons/arrow_right_b_32_57.png").alwaysTemplate,
+            image: $image("assets/icons/arrow_right_b_64x64.png").alwaysTemplate,
             tintColor: $color("#0079FF"),
-            bgcolor: $color("white")
+            bgcolor: $color("white"),
+            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
         },
         layout: function (make, view) {
             make.height.equalTo(57)
@@ -150,9 +157,10 @@ const baseViewsForListView = [
         type: "button",
         props: {
             id: "button_previous",
-            image: $image("assets/icons/arrow_left_b_32_57.png").alwaysTemplate,
+            image: $image("assets/icons/arrow_left_b_64x64.png").alwaysTemplate,
             tintColor: $color("#0079FF"),
-            bgcolor: $color("white")
+            bgcolor: $color("white"),
+            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
         },
         layout: function (make, view) {
             make.height.equalTo(57)
@@ -286,7 +294,7 @@ const baseViewForItemCellView = [
         props: {
             id: "image_fivestars_mask",
             tintColor: $color("white"),
-            image: $image("assets/icons/fivestars_mask.png").alwaysTemplate,
+            image: $image("assets/icons/fivestars_mask_500x100.png").alwaysTemplate,
             contentMode: 2
         },
         layout: (make, view) => {
@@ -367,7 +375,7 @@ const baseViewForItemCellView = [
         type: "button",
         props: {
             id: "button_delete_download",
-            image: $image("assets/icons/ios7_close_outline_32_32.png").alwaysTemplate,
+            image: $image("assets/icons/ios7_close_outline_64x64.png").alwaysTemplate,
             tintColor: $color("#0079FF"),
             bgcolor: $color("clear")
         },

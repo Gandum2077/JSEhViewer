@@ -316,7 +316,7 @@ async function favoriteDialogs(favcat_titles, favcat_selected, favnote, is_favor
             }
         }
         
-        const titleBarView = baseViewsGenerator.defineTitleBarView(title, cancelEvent, confirmEvent)
+        const titleBarView = baseViewsGenerator.defineTitleBarView($l10n("收藏"), cancelEvent, confirmEvent)
         const favcatList = defineFavcatList(favcat_titles, favcat_selected, is_favorited)
         const staticRow = defineStaticRow(is_favorited)
         const favnoteView = defineFavnoteView(favnote)

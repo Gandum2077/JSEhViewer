@@ -1,5 +1,9 @@
 const glv = require('./globalVariables')
-const TAGTRANSLATOR_DICT = JSON.parse($file.read(glv.tagTranslationFile).string);
+let TAGTRANSLATOR_DICT;
+if ($file.exists(glv.tagTranslationFile)) {
+    TAGTRANSLATOR_DICT = JSON.parse($file.read(glv.tagTranslationFile).string)
+}
+
 
 // 数字补零
 function prefixInteger(num, length) {
@@ -163,6 +167,9 @@ async function generateTagTranslatorJson() {
     })
 }
 
+function updateTagTranslatorDict() {
+    TAGTRANSLATOR_DICT = JSON.parse($file.read(glv.tagTranslationFile).string)
+}
 
 function translateTaglist(taglist) {
     const translatedTaglist = {}
@@ -350,153 +357,8 @@ function renderMaskView() {
     return maskRatingView
 }
 
-
-// 获取用户名密码，可用于async/await
-async function getUsernamePassword(title) {
-    return new Promise((resolve, reject) => {
-        if (!title) {
-            title = '登录'
-        }
-        const titleView = {
-            type: "label",
-            props: {
-                id: "title",
-                text: title,
-                align: $align.center,
-                font: $font('bold', 17),
-                bgcolor: $color("clear")
-            },
-            layout: function(make, view) {
-                make.top.left.inset(0)
-                make.size.equalTo($size(270,60))
-            }
-        }
-        
-        const inputs = {
-            type: "view",
-            props: {
-                id: "inputs",
-                borderWidth: 1,
-                borderColor: $color("#c8c7cc"),
-                radius: 5,
-                bgcolor: $rgb(255, 255, 255)
-            },
-            views: [
-                {
-                    type: "input",
-                    props: {
-                        id: "username",
-                        borderWidth: 1,
-                        borderColor: $color("#c8c7cc"),
-                        radius: 0,
-                        bgcolor: $color("white")
-                    },
-                    layout: function(make, view) {
-                        make.size.equalTo($size(240, 30.5))
-                        make.top.left.inset(0)
-                    }
-                },
-                {
-                    type: "input",
-                    props: {
-                        id: "password",
-                        secure: true,
-                        borderWidth: 1,
-                        borderColor: $color("#c8c7cc"),
-                        radius: 0,
-                        bgcolor: $color("white")
-                    },
-                    layout: function(make, view) {
-                        make.size.equalTo($size(240, 30.5))
-                        make.bottom.left.inset(0)
-                    }
-                }
-            ],
-            layout: function(make, view) {
-                make.size.equalTo($size(240, 60))
-                make.center.equalTo(view.super)
-            }
-        }
-        
-        const buttonCancel = {
-            type: "button",
-            props: {
-                id: "buttonCancel",
-                title: "Cancel",
-                type: 1,
-                titleColor: $color("#0079ff"),
-                borderWidth: 1,
-                borderColor: $color("#c8c7cc")
-            },
-            layout: function(make, view) {
-                make.left.bottom.inset(-1)
-                make.size.equalTo($size(136.5, 45))
-            },
-            events: {
-                tapped: function(sender) {
-                    reject('canceled')
-                    sender.super.super.remove()
-                }
-            }
-        }
-        
-        const buttonConfirm = {
-            type: "button",
-            props: {
-                id: "buttonConfirm",
-                title: "OK",
-                type: 1,
-                titleColor: $color("#0079ff"),
-                borderWidth: 1,
-                borderColor: $color("#c8c7cc")
-            },
-            layout: function(make, view) {
-                make.right.bottom.inset(-1)
-                make.size.equalTo($size(136.5, 45))
-            },
-            events: {
-                tapped: function(sender) {
-                    resolve({
-                        account: sender.super.get("username").text,
-                        password: sender.super.get("password").text
-                    })
-                    sender.super.super.remove()
-                }
-            }
-        }
-        
-        const loginViewContent = {
-            props: {
-                radius: 10,
-                bgcolor: $rgb(241, 241, 241)
-            },
-            views: [titleView, inputs, buttonCancel, buttonConfirm],
-            layout: function(make, view) {
-                make.size.equalTo($size(270, 180))
-                make.center.equalTo(view.super)
-            }
-        }
-        
-        const maskView = {
-            props: {
-                bgcolor: $rgba(0, 0, 0, 0.2)
-            },
-            layout: $layout.fill
-        }
-        
-        const loginView = {
-            props: {
-                id: 'loginView'
-            },
-            views: [maskView, loginViewContent],
-            layout: $layout.fill
-        }
-        $ui.window.add(loginView)
-    })
-}
-
 // 冻结屏幕，并播放动画，表示等待状态
-// 这是一个ugly的方法，它要求整个应用中不能再有同id的view（即loadingView_e582da14）
+// ugly - 它要求整个应用中不能再有同id的view（即loadingView_e582da14）
 function startLoading(title) {
     if (!title) {
         title = '请等待……'
@@ -504,7 +366,7 @@ function startLoading(title) {
     const titleView = {
         type: "label",
         props: {
-            id: "title",
+            id: "titleView",
             text: title,
             align: $align.center,
             font: $font('bold', 17),
@@ -550,8 +412,14 @@ function startLoading(title) {
 
 }
 
+// 改变等待画面的标题
+// ugly - 它要求整个应用中不能再有同id的view（即loadingView_e582da14）
+function changeLoadingTitle(title) {
+    $ui.window.get("loadingView_e582da14").get('titleView').text = title
+}
+
 // 结束等待
-// 这是一个ugly的方法，它要求整个应用中不能再有同id的view（即loadingView_e582da14）
+// ugly - 它要求整个应用中不能再有同id的view（即loadingView_e582da14）
 function stopLoading() {
     $ui.window.get("loadingView_e582da14").remove()
 }
@@ -576,7 +444,6 @@ module.exports = {
     unparseUrl: unparseUrl,
     parseUrl: parseUrl,
     renderMaskView: renderMaskView,
-    getUsernamePassword: getUsernamePassword,
     startLoading: startLoading,
     stopLoading: stopLoading
 }

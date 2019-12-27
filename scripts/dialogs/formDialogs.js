@@ -56,6 +56,7 @@
  *          value: string  // url
  *      action:
  *          value: function // 点击后会执行的函数
+ *          buttonType: 0, 1  // 0代表按钮占满整格，1代表按钮在右侧
  * 
  */
 
@@ -306,7 +307,7 @@ function defineFieldView(field, frame = frame) {
             }
         }
     } else if (type === 'slider') {
-        const decimal = field.decimal || 1
+        const decimal = (field.decimal === undefined) ? 1 : field.decimal
         const min = field.min || 0
         const max = field.max || 1
         const minColor = field.minColor || $color('#007aff')
@@ -467,6 +468,7 @@ function defineFieldView(field, frame = frame) {
             }
         }
     } else if (type === 'action') {
+        const buttonType = field.buttonType || 0
         valueView = {
             type: "button",
             props: {

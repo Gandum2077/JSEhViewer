@@ -3,7 +3,6 @@ const mpvGenerator = require('./mpv')
 const tagTableViewGenerator = require('./tagTableView')
 const ratingAlert = require('./dialogs/ratingAlert')
 const favoriteDialogs = require('./dialogs/favoriteDialogs')
-const favoriteViewGenerator = require('./favoriteView')
 const commentsViewGenerator = require('./enlargedCommentsView')
 const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
@@ -385,54 +384,7 @@ function renderGalleryInfoView() {
             },
             events: {
                 tapped: async function(sender) {
-                    //const favInfos = await exhentaiParser.getFavcatAndFavnote(infos['url'])
-                    const favInfos = {
-                        "is_favorited": false,
-                        "favcat_titles": [
-                          {
-                            "title": "Temp",
-                            "favcat": "favcat0"
-                          },
-                          {
-                            "title": "关注的作者",
-                            "favcat": "favcat1"
-                          },
-                          {
-                            "title": "稍后阅读",
-                            "favcat": "favcat2"
-                          },
-                          {
-                            "title": "Favorites 3",
-                            "favcat": "favcat3"
-                          },
-                          {
-                            "title": "Favorites 4",
-                            "favcat": "favcat4"
-                          },
-                          {
-                            "title": "Favorites 5",
-                            "favcat": "favcat5"
-                          },
-                          {
-                            "title": "Favorites 6",
-                            "favcat": "favcat6"
-                          },
-                          {
-                            "title": "Favorites 7",
-                            "favcat": "favcat7"
-                          },
-                          {
-                            "title": "图集",
-                            "favcat": "favcat8"
-                          },
-                          {
-                            "title": "需翻译或连载",
-                            "favcat": "favcat9"
-                          }
-                        ],
-                        "favnote": "",
-                        "favcat_selected": "favcat0"
-                      }
+                    const favInfos = await exhentaiParser.getFavcatAndFavnote(infos['url'])
                     const result = await favoriteDialogs.favoriteDialogs(favInfos.favcat_titles, favInfos.favcat_selected, favInfos.favnote, favInfos.is_favorited)
                     console.info(result)
                 }

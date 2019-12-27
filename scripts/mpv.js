@@ -1,7 +1,7 @@
 const utility = require('./utility')
 const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
-const settingsForMpvViewGenerator = require('./settingsForMpv')
+const formDialogs = require('./dialogs/formDialogs')
 
 const sliderLayoutFunction = (make, view) => {
     const t = view.super.size.height - 57 * 6 - 30 * 2 - 2 - 18
@@ -60,11 +60,54 @@ function renderMpv(infos, path, page = 1) {
                 make.bottom.inset(57)
             },
             events: {
-                tapped: function(sender) {
-                    const settingsForMpvView = settingsForMpvViewGenerator.renderSettingsForMpvView()
-                    const maskView = utility.renderMaskView()
-                    $('rootView').add(maskView)
-                    $('rootView').add(settingsForMpvView)
+                tapped: async function(sender) {
+                    const sections = [{
+                        title: $l10n("设置"),
+                        footer: '',
+                        fields: [
+                            {
+                                type: "action",
+                                key: "share_image",
+                                title: $l10n("分享本页图片"),
+                                value: null
+                            },
+                            {
+                                type: "action",
+                                key: "save_image",
+                                title: $l10n("保存本页图片"),
+                                value: null
+                            },
+                            {
+                                type: "action",
+                                key: "delete_image",
+                                title: $l10n("删除本页图片"),
+                                value: null
+                            },
+                            {
+                                type: "action",
+                                key: "open_in_safari",
+                                title: $l10n("Safari打开"),
+                                value: null
+                            },
+                            {
+                                type: "action",
+                                key: "refresh_infos",
+                                title: $l10n("刷新infos"),
+                                value: null
+                            },
+                            {
+                                type: "slider",
+                                key: "autoload_speed",
+                                title: $l10n("自动翻页速度（秒/页）"),
+                                value: 5,
+                                min: 1,
+                                max: 30,
+                                decimal: 0
+                            }
+                        ]
+                    }]
+                    const result = await formDialogs.formDialogs(sections)
+                    console.info(result)
                 }
             }
         },

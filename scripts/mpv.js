@@ -3,7 +3,6 @@ const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
 const settingsForMpvViewGenerator = require('./settingsForMpv')
 
-
 const sliderLayoutFunction = (make, view) => {
     const t = view.super.size.height - 57 * 6 - 30 * 2 - 2 - 18
     make.height.equalTo(34)
@@ -82,6 +81,10 @@ function renderMpv(infos, path, page = 1) {
                 make.width.equalTo(57)
                 make.right.inset(0)
                 make.bottom.equalTo($("button_setting").top)
+            },
+            events: {
+                tapped: function(sender) {
+                }
             }
         },
         {
@@ -139,7 +142,7 @@ function renderMpv(infos, path, page = 1) {
             type: "label",
             props: {
                 id: "text_total_page",
-                text: "9999",
+                text: "1",
                 align: $align.right,
                 font: $font(15),
                 bgcolor: $color("white")
@@ -155,7 +158,7 @@ function renderMpv(infos, path, page = 1) {
             type: "label",
             props: {
                 id: "text_current_page",
-                text: "9999",
+                text: "1",
                 align: $align.center,
                 font: $font(15),
                 bgcolor: $color("white")

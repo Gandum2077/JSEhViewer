@@ -1,11 +1,14 @@
 const utility = require('./utility')
 const mpvGenerator = require('./mpv')
 const tagTableViewGenerator = require('./tagTableView')
-const ratingViewGenerator = require('./ratingView')
+const ratingAlert = require('./dialogs/ratingAlert')
+const favoriteDialogs = require('./dialogs/favoriteDialogs')
 const favoriteViewGenerator = require('./favoriteView')
 const commentsViewGenerator = require('./enlargedCommentsView')
 const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
+
+let infos;
 
 var baseViewsForGalleryView = [
     {
@@ -56,6 +59,11 @@ var baseViewsForGalleryView = [
             make.width.equalTo(57)
             make.right.inset(0)
             make.bottom.equalTo($("button_close").top)
+        },
+        events: {
+            tapped: async function(sender) {
+                await refresh()
+            }
         }
     },
     {
@@ -139,7 +147,7 @@ var baseViewsForGalleryView = [
     }
 ]
 
-function renderGalleryInfoView(infos, path) {
+function renderGalleryInfoView() {
     const baseViewsForGalleryInfoView = [
         {
             type: "image",
@@ -147,13 +155,11 @@ function renderGalleryInfoView(infos, path) {
                 id: "thumbnail_imageview",
                 source: {
                     url: infos['pics'][0]['thumbnail_url'],
-                    //placeholder: image,
                     header: {
                         "User-Agent": exhentaiParser.USERAGENT,
                         "Cookie": exhentaiParser.COOKIE,
                     }
                 },
-                //src: utility.joinPath(path, 'thumbnails', infos['pics'][0]['img_id'] + '.jpg'),
                 contentMode: 1,
                 bgcolor: $color("#efeff4")
             },
@@ -337,11 +343,9 @@ function renderGalleryInfoView(infos, path) {
                 make.center.equalTo($("lowlevel_view_rating"))
             },
             events: {
-                tapped: function(sender) {
-                    const ratingView = ratingViewGenerator.renderRatingView(infos.display_rating)
-                    const maskView = utility.renderMaskView()
-                    $('rootView').add(maskView)
-                    $('rootView').add(ratingView)
+                tapped: async function(sender) {
+                    const rating = await ratingAlert.ratingAlert(infos.display_rating)
+                    console.info(rating)
                 }
             }
         },
@@ -381,11 +385,56 @@ function renderGalleryInfoView(infos, path) {
             },
             events: {
                 tapped: async function(sender) {
-                    const favInfos = await exhentaiParser.getFavcatAndFavnote(infos['url'])
-                    const favoriteView = favoriteViewGenerator.renderFavoriteView(favInfos.favcat_titles, favInfos.favcat_selected, favInfos.favnote, favInfos.is_favorited)
-                    const maskView = utility.renderMaskView()
-                    $('rootView').add(maskView)
-                    $('rootView').add(favoriteView)
+                    //const favInfos = await exhentaiParser.getFavcatAndFavnote(infos['url'])
+                    const favInfos = {
+                        "is_favorited": false,
+                        "favcat_titles": [
+                          {
+                            "title": "Temp",
+                            "favcat": "favcat0"
+                          },
+                          {
+                            "title": "关注的作者",
+                            "favcat": "favcat1"
+                          },
+                          {
+                            "title": "稍后阅读",
+                            "favcat": "favcat2"
+                          },
+                          {
+                            "title": "Favorites 3",
+                            "favcat": "favcat3"
+                          },
+                          {
+                            "title": "Favorites 4",
+                            "favcat": "favcat4"
+                          },
+                          {
+                            "title": "Favorites 5",
+                            "favcat": "favcat5"
+                          },
+                          {
+                            "title": "Favorites 6",
+                            "favcat": "favcat6"
+                          },
+                          {
+                            "title": "Favorites 7",
+                            "favcat": "favcat7"
+                          },
+                          {
+                            "title": "图集",
+                            "favcat": "favcat8"
+                          },
+                          {
+                            "title": "需翻译或连载",
+                            "favcat": "favcat9"
+                          }
+                        ],
+                        "favnote": "",
+                        "favcat_selected": "favcat0"
+                      }
+                    const result = await favoriteDialogs.favoriteDialogs(favInfos.favcat_titles, favInfos.favcat_selected, favInfos.favnote, favInfos.is_favorited)
+                    console.info(result)
                 }
             }
         },
@@ -482,8 +531,8 @@ function renderGalleryInfoView(infos, path) {
     return galleryInfoView
 }
 
-function renderFullTagTableView(width, info, translated = true) {
-    const bilingualTaglist = utility.getBilingualTaglist(info.taglist, translated = translated)
+function renderFullTagTableView(width, translated = true) {
+    const bilingualTaglist = utility.getBilingualTaglist(infos.taglist, translated = translated)
     const tagTableView = tagTableViewGenerator.renderTagTableView(width - 2 - 50, bilingualTaglist)
     const height = tagTableView.props.frame.height + 2
     const views = [
@@ -557,7 +606,7 @@ function renderFullTagTableView(width, info, translated = true) {
     }
 }
 
-function renderCommentsView(infos) {
+function renderCommentsView() {
     const comments_text = []
     for (let i of infos['comments']) {
         let c4text;
@@ -639,9 +688,9 @@ function renderCommentsView(infos) {
     return commentsView
 }
 
-function renderHeaderView(infos, path) {
-    const fullTagTableView = renderFullTagTableView(695, infos)
-    const commentsView = renderCommentsView(infos)
+function renderHeaderView() {
+    const fullTagTableView = renderFullTagTableView(695)
+    const commentsView = renderCommentsView()
     const headerViewHeight = fullTagTableView.props.frame.height + 150
     const views = [
         fullTagTableView,
@@ -658,7 +707,7 @@ function renderHeaderView(infos, path) {
     return headerView
 }
 
-function getData(infos) {
+function getData() {
     const data = []
     for (let pic of infos['pics']) {
         const itemData = {
@@ -681,11 +730,11 @@ function getData(infos) {
     return data
 }
 
-function renderMatrixView(infos) {
+function renderMatrixView() {
     const matrix = {
         type: "matrix",
         props: {
-            id: "thumbnails",
+            id: "matrixView",
             borderWidth: 1,
             borderColor: $color('#c8c7cc'),
             itemSize: $size(139, 213),
@@ -721,44 +770,65 @@ function renderMatrixView(infos) {
                     }
                 }
             ],
-            data: getData(infos),
-            header: renderHeaderView(infos)
+            data: getData(),
+            header: renderHeaderView()
         },
         layout: function (make, view) {
             make.bottom.inset(0)
             make.top.equalTo($("galleryInfoView").bottom).inset(1)
             make.left.inset(16)
             make.right.inset(57)
+        },
+        events: {
+            didSelect: function(sender, indexPath, data) {
+                mpvGenerator.init(infos, indexPath.item + 1)
+            }
         }
     }
     return matrix
 }
 
-function renderGalleryView(infos, path) {
+function renderGalleryView() {
     const galleryView = {
         type: "view",
         props: {
             id: "galleryView",
             bgcolor: $color("white")
         },
-        views: [...baseViewsForGalleryView, renderGalleryInfoView(infos, path), renderMatrixView(infos)],
+        views: [...baseViewsForGalleryView, renderGalleryInfoView(), renderMatrixView()],
         layout: $layout.fill
     }
     return galleryView
+}
+
+async function refresh(url=null) {
+    if (!url) {
+        url = infos.url
+    }
+    infos = await exhentaiParser.getGalleryMpvInfosFromUrl(url)
+    const filename = utility.verifyUrl(url)
+    const path = utility.joinPath(glv.imagePath, filename)
+    exhentaiParser.saveMangaInfos(infos, path)
+    const galleryInfoView = $('rootView').get('galleryView').get('galleryInfoView')
+    const matrixView = $('rootView').get('galleryView').get('matrixView')
+    galleryInfoView.remove()
+    matrixView.remove()
+    $('rootView').get('galleryView').add(renderGalleryInfoView())
+    $('rootView').get('galleryView').add(renderMatrixView())
 }
 
 async function init(url) {
     const filename = utility.verifyUrl(url)
     const path = utility.joinPath(glv.imagePath, filename)
     const infosFile = utility.joinPath(glv.imagePath, filename, 'manga_infos.json')
-    let infos;
     if ($file.exists(infosFile)) {
         infos = JSON.parse($file.read(infosFile).string)
     } else {
         infos = await exhentaiParser.getGalleryMpvInfosFromUrl(url)
         exhentaiParser.saveMangaInfos(infos, path)
     }
-    $("rootView").add(renderGalleryView(infos, path))
+    glv.infos = infos
+    $("rootView").add(renderGalleryView())
 }
 
 module.exports = {

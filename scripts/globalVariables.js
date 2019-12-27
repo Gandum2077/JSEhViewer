@@ -6,16 +6,26 @@ const accountFile = 'assets/account.json'
 const databaseFile = 'assets/downloads.db'
 const tagTranslationFile = 'assets/ehtagtranslator.json'
 
-const config = JSON.parse($file.read(configPath))
+let config
+if ($file.exists(config)) {
+    config = JSON.parse($file.read(configPath))
+}
 
+function saveConfig() {
+    $file.save({
+        data: $data({string: JSON.stringify(config)}),
+        path: configPath
+    })
+}
 
 module.exports = {
-  cachePath: cachePath,
-  imagePath: imagePath,
-  configPath: configPath,
-  cookieFile: cookieFile,
-  accountFile: accountFile,
-  databaseFile: databaseFile,
-  tagTranslationFile: tagTranslationFile,
-  config: config
+    cachePath: cachePath,
+    imagePath: imagePath,
+    configPath: configPath,
+    cookieFile: cookieFile,
+    accountFile: accountFile,
+    databaseFile: databaseFile,
+    tagTranslationFile: tagTranslationFile,
+    config: config,
+    saveConfig: saveConfig
 }

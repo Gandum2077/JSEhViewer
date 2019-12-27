@@ -1,6 +1,6 @@
 const glv = require('./globalVariables')
 const utility = require('./utility')
-const htmlToText = require('./html-to-text');
+const htmlToText = require('./modules/html-to-text');
 
 function convertHtmlToText(html) {
     const text = htmlToText.fromString(html, {

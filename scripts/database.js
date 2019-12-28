@@ -139,7 +139,7 @@ function handle_f_search(text) {
     if (query_title.length > 3) {
         throw new Error("关键词超过3个")
     }
-    for (const i in query_title) {
+    for (let i in query_title) {
         if (countUtf8Bytes(i.length) < 3) {
             throw new Error("存在过短的关键词")
         }
@@ -151,7 +151,7 @@ function handle_f_search(text) {
 function handleQueryDict(queryDict) {
     const cat_sequence = ['Misc', 'Doujinshi', 'Manga', 'Artist CG', 'Game CG', 'Image Set', 'Cosplay', 'Asian Porn', 'Non-H', 'Western']
     const condition_clauses = []
-    const args
+    const args = []
     const f_search = queryDict['f_search'] // 关键词
     const f_cats = queryDict['f_cats'] // 排除的分类
     const advsearch = queryDict['advsearch'] // 是否启用高级选项，若否下面改为默认选项

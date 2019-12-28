@@ -73,11 +73,12 @@ async function loginAlert(title) {
             reject('canceled')
         })
         const buttonConfirm = baseViewsGenerator.defineButtonConfirm(sender => {
-            resolve({
-                account: sender.super.get("username").text,
+            const result = {
+                username: sender.super.get("username").text,
                 password: sender.super.get("password").text
-            })
+            }
             sender.super.super.remove()
+            resolve(result)
         })
         const maskView = baseViewsGenerator.maskView
         const content = {

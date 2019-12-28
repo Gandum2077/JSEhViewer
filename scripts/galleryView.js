@@ -9,149 +9,6 @@ const glv = require('./globalVariables')
 
 let infos;
 
-var baseViewsForGalleryView = [
-    {
-        type: "button",
-        props: {
-            id: "button_archive",
-            image: $image("assets/icons/archive_64x64.png").alwaysTemplate,
-            tintColor: $color("#0079FF"),
-            bgcolor: $color("white"),
-            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
-        },
-        layout: function (make, view) {
-            make.height.equalTo(57)
-            make.width.equalTo(57)
-            make.right.inset(0)
-            make.bottom.inset(57 * 2)
-        }
-    },
-    {
-        type: "button",
-        props: {
-            id: "button_close",
-            image: $image("assets/icons/close_64x64.png").alwaysTemplate,
-            tintColor: $color("#0079FF"),
-            bgcolor: $color("white"),
-            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
-        },
-        layout: function (make, view) {
-            make.height.equalTo(57)
-            make.width.equalTo(57)
-            make.right.inset(0)
-            make.bottom.equalTo($("button_archive").top)
-        },
-        events: {
-            tapped: function (sender) {
-                $("rootView").get("galleryView").remove()
-            }
-        }
-    },
-    {
-        type: "button",
-        props: {
-            id: "button_refresh",
-            image: $image("assets/icons/refresh_64x64.png").alwaysTemplate,
-            tintColor: $color("#0079FF"),
-            bgcolor: $color("white"),
-            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
-        },
-        layout: function (make, view) {
-            make.height.equalTo(57)
-            make.width.equalTo(57)
-            make.right.inset(0)
-            make.bottom.equalTo($("button_close").top)
-        },
-        events: {
-            tapped: async function(sender) {
-                await refresh()
-            }
-        }
-    },
-    {
-        type: "button",
-        props: {
-            id: "button_share",
-            image: $image("assets/icons/share_64x64.png").alwaysTemplate,
-            tintColor: $color("#0079FF"),
-            bgcolor: $color("white"),
-            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
-        },
-        layout: function (make, view) {
-            make.height.equalTo(57)
-            make.width.equalTo(57)
-            make.right.inset(0)
-            make.bottom.equalTo($("button_refresh").top)
-        }
-    },
-    {
-        type: "button",
-        props: {
-            id: "button_safari",
-            image: $image("assets/icons/ios7_world_64x64.png").alwaysTemplate,
-            tintColor: $color("#0079FF"),
-            bgcolor: $color("white"),
-            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
-        },
-        layout: function (make, view) {
-            make.height.equalTo(57)
-            make.width.equalTo(57)
-            make.right.inset(0)
-            make.bottom.equalTo($("button_share").top)
-        }
-    },
-    {
-        type: "button",
-        props: {
-            id: "button_info",
-            image: $image("assets/icons/information_circled_64x64.png").alwaysTemplate,
-            tintColor: $color("#0079FF"),
-            bgcolor: $color("white"),
-            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
-        },
-        layout: function (make, view) {
-            make.height.equalTo(57)
-            make.width.equalTo(57)
-            make.right.inset(0)
-            make.bottom.equalTo($("button_safari").top)
-        }
-    },
-    {
-        type: "button",
-        props: {
-            id: "button_update",
-            title: "更新版本",
-            align: $align.center,
-            font: $font(13),
-            titleColor: $color("#0079FF"),
-            bgcolor: $color("white")
-        },
-        layout: function (make, view) {
-            make.height.equalTo(57)
-            make.width.equalTo(57)
-            make.right.inset(0)
-            make.bottom.equalTo($("button_info").top)
-        }
-    },
-    {
-        type: "button",
-        props: {
-            id: "button_try_import_old_version",
-            title: "导入旧版",
-            align: $align.center,
-            font: $font(13),
-            titleColor: $color("#0079FF"),
-            bgcolor: $color("white")
-        },
-        layout: function (make, view) {
-            make.height.equalTo(57)
-            make.width.equalTo(57)
-            make.right.inset(0)
-            make.bottom.equalTo($("button_info").top)
-        }
-    }
-]
-
 function renderGalleryInfoView() {
     const baseViewsForGalleryInfoView = [
         {
@@ -747,6 +604,148 @@ function renderMatrixView() {
 }
 
 function renderGalleryView() {
+    var baseViewsForGalleryView = [
+        {
+            type: "button",
+            props: {
+                id: "button_archive",
+                image: $image("assets/icons/archive_64x64.png").alwaysTemplate,
+                tintColor: $color("#0079FF"),
+                bgcolor: $color("white"),
+                imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
+            },
+            layout: function (make, view) {
+                make.height.equalTo(57)
+                make.width.equalTo(57)
+                make.right.inset(0)
+                make.bottom.inset(57 * 2)
+            }
+        },
+        {
+            type: "button",
+            props: {
+                id: "button_close",
+                image: $image("assets/icons/close_64x64.png").alwaysTemplate,
+                tintColor: $color("#0079FF"),
+                bgcolor: $color("white"),
+                imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
+            },
+            layout: function (make, view) {
+                make.height.equalTo(57)
+                make.width.equalTo(57)
+                make.right.inset(0)
+                make.bottom.equalTo($("button_archive").top)
+            },
+            events: {
+                tapped: function (sender) {
+                    $("rootView").get("galleryView").remove()
+                }
+            }
+        },
+        {
+            type: "button",
+            props: {
+                id: "button_refresh",
+                image: $image("assets/icons/refresh_64x64.png").alwaysTemplate,
+                tintColor: $color("#0079FF"),
+                bgcolor: $color("white"),
+                imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
+            },
+            layout: function (make, view) {
+                make.height.equalTo(57)
+                make.width.equalTo(57)
+                make.right.inset(0)
+                make.bottom.equalTo($("button_close").top)
+            },
+            events: {
+                tapped: async function(sender) {
+                    await refresh()
+                }
+            }
+        },
+        {
+            type: "button",
+            props: {
+                id: "button_share",
+                image: $image("assets/icons/share_64x64.png").alwaysTemplate,
+                tintColor: $color("#0079FF"),
+                bgcolor: $color("white"),
+                imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
+            },
+            layout: function (make, view) {
+                make.height.equalTo(57)
+                make.width.equalTo(57)
+                make.right.inset(0)
+                make.bottom.equalTo($("button_refresh").top)
+            }
+        },
+        {
+            type: "button",
+            props: {
+                id: "button_safari",
+                image: $image("assets/icons/ios7_world_64x64.png").alwaysTemplate,
+                tintColor: $color("#0079FF"),
+                bgcolor: $color("white"),
+                imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
+            },
+            layout: function (make, view) {
+                make.height.equalTo(57)
+                make.width.equalTo(57)
+                make.right.inset(0)
+                make.bottom.equalTo($("button_share").top)
+            }
+        },
+        {
+            type: "button",
+            props: {
+                id: "button_info",
+                image: $image("assets/icons/information_circled_64x64.png").alwaysTemplate,
+                tintColor: $color("#0079FF"),
+                bgcolor: $color("white"),
+                imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
+            },
+            layout: function (make, view) {
+                make.height.equalTo(57)
+                make.width.equalTo(57)
+                make.right.inset(0)
+                make.bottom.equalTo($("button_safari").top)
+            }
+        },
+        {
+            type: "button",
+            props: {
+                id: "button_update",
+                title: "更新版本",
+                align: $align.center,
+                font: $font(13),
+                titleColor: $color("#0079FF"),
+                bgcolor: $color("white")
+            },
+            layout: function (make, view) {
+                make.height.equalTo(57)
+                make.width.equalTo(57)
+                make.right.inset(0)
+                make.bottom.equalTo($("button_info").top)
+            }
+        },
+        {
+            type: "button",
+            props: {
+                id: "button_try_import_old_version",
+                title: "导入旧版",
+                align: $align.center,
+                font: $font(13),
+                titleColor: $color("#0079FF"),
+                bgcolor: $color("white")
+            },
+            layout: function (make, view) {
+                make.height.equalTo(57)
+                make.width.equalTo(57)
+                make.right.inset(0)
+                make.bottom.equalTo($("button_info").top)
+            }
+        }
+    ]
     const galleryView = {
         type: "view",
         props: {

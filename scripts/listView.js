@@ -4,6 +4,7 @@ const sidebarViewGenerator = require("./sidebarView");
 const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
 
+
 const baseViewsForListView = [
     {
         type: "button",
@@ -369,20 +370,6 @@ const baseViewForItemCellView = [
             make.bottom.right.inset(1)
             make.top.equalTo($("label_title").bottom).inset(1)
             make.left.equalTo($("label_category").right).inset(1)
-        }
-    },
-    {
-        type: "button",
-        props: {
-            id: "button_delete_download",
-            image: $image("assets/icons/ios7_close_outline_64x64.png").alwaysTemplate,
-            tintColor: $color("#0079FF"),
-            bgcolor: $color("clear")
-        },
-        layout: function (make, view) {
-            make.height.equalTo(32)
-            make.width.equalTo(32)
-            make.right.bottom.inset(0)
         }
     }
 ]

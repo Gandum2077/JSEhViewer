@@ -435,7 +435,7 @@ module.exports = {
     getFavcatFromColor: getFavcatFromColor,
     translateTagType: translateTagType,
     generateTagTranslatorJson: generateTagTranslatorJson,
-    updateTagTranslatorDict: updateTagTranslatorDict
+    updateTagTranslatorDict: updateTagTranslatorDict,
     translateTaglist: translateTaglist,
     renderTaglistToText: renderTaglistToText,
     getBilingualTaglist: getBilingualTaglist,

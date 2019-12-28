@@ -1,10 +1,9 @@
 const utility = require('./utility')
 const formDialogs = require('./dialogs/formDialogs')
 const loginAlert = require('./dialogs/loginAlert')
-const exhentaiParesr = require('./exhentaiParesr')
+const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
 const database = require('./database')
-const utility = require('./utility')
 
 const sections = [{
     title: $l10n("🔻五大诉求，缺一不可"),
@@ -134,7 +133,11 @@ async function init() {
             });
             utility.startLoading()
             utility.changeLoadingTitle('正在登录')
-            await exhentaiParesr.login(login.username, login.password)
+            const success = await exhentaiParser.login(login.username, login.password)
+            if (!success) {
+                utility.stopLoading()
+                return false
+            }
             utility.changeLoadingTitle('获取设置')
             await getFavcat()
             utility.changeLoadingTitle('获取标签翻译')
@@ -142,9 +145,10 @@ async function init() {
             utility.updateTagTranslatorDict()
             utility.stopLoading()
         } catch(err) {
+            console.info(err)
             $ui.toast(err.message);
-            reset()
-            $app.close()
+            //reset()
+            return false
         } 
     }
 }

@@ -31,7 +31,12 @@ function xPathAll(element, pattern) {
     return results;
 }
 
-
+/**
+ * 
+ * @param {string} username 
+ * @param {string} password 
+ * @return {boolean} success
+ */
 async function login(username, password) {
     const data = {
         CookieDate: "1",
@@ -52,6 +57,9 @@ async function login(username, password) {
         body: data,
         header: headerLogin
     })
+    if (resp1.response.statusCode !== 200) {
+        return false
+    }
     let tmp = parseSetCookieString(resp1.response.headers['Set-Cookie'])
     const cookie = {
         ipb_member_id: tmp['ipb_member_id'],
@@ -65,6 +73,9 @@ async function login(username, password) {
             "Cookie": getCookieStringFromObject(cookie)
         }
     })
+    if (resp2.response.statusCode !== 200) {
+        return false
+    }
     Object.assign(cookie, parseSetCookieString(resp2.response.headers['Set-Cookie']))
     const resp3 =  await $http.get({
         url: URL_EXHENTAI_CONFIG,
@@ -73,12 +84,16 @@ async function login(username, password) {
             "Cookie": getCookieStringFromObject(cookie)
         }
     })
+    if (resp3.response.statusCode !== 200) {
+        return false
+    }
     Object.assign(cookie, parseSetCookieString(resp3.response.headers['Set-Cookie']))
     $file.write({
         data: $data({string: JSON.stringify(cookie, null, 2)}),
         path: glv.cookieFile
     });
     COOKIE = getCookieLocal()
+    return true
 }
 
 function parseSetCookieString(setCookieString) {

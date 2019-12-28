@@ -12,7 +12,7 @@
  *          type: string  // 类型，必要。包括'string', 'number', 'integer', 'password', 
  *                           'boolean', 'slider', 'segmentedControl', 'datetime', 
  *                           'info', 'link', 'action'
- *          key: string   // 键，必要。
+ *          key: string   // 键，可选。如没有key则不会返回其值。
  *          title: string // 标题，可选。供人阅读的标题。
  *          value: *      // 缺省值，可选。在下面专项里有详解。
  *          titleColor: $color  // title颜色，可选。
@@ -56,6 +56,7 @@
  *          value: string  // url
  *      action:
  *          value: function // 点击后会执行的函数
+ *          buttonTitle: button的标题
  *          buttonType: 0, 1  // 0代表按钮占满整格，1代表按钮在右侧
  * 
  */
@@ -64,7 +65,7 @@ baseViewsGenerator = require("./baseViews")
 
 // 计算特定字号的文字长度
 // 此函数不应该用于处理超长文本
-function getTextWidth(text, fontSize = 20, fontName = null) {
+function getTextSize(text, fontSize = 20, fontName = null) {
     return $text.sizeThatFits({
         text: text,
         width: 10000,
@@ -119,7 +120,7 @@ function defineFieldView(field, frame = frame) {
         layout: function(make, view) {
             const icon = view.super.get('icon')
             make.height.equalTo(89 / 2)
-            make.width.equalTo(getTextWidth(view.text))
+            make.width.equalTo(getTextSize(view.text).width)
             make.top.inset(0)
             if (icon) {
                 make.left.equalTo(icon.right).inset(10)
@@ -156,10 +157,10 @@ function defineFieldView(field, frame = frame) {
             },
             events: {
                 changed: function(sender) {
-                    sender.super.info = {key: sender.super.info.key, value: sender.text}
+                    sender.super.info = {key: sender.super.info.key, value: sender.text, type: sender.super.info.type}
                 },
                 didEndEditing: function(sender) {
-                    sender.super.info = {key: sender.super.info.key, value: sender.text}
+                    sender.super.info = {key: sender.super.info.key, value: sender.text, type: sender.super.info.type}
                 },
                 returned: function(sender) {
                     sender.blur()
@@ -194,12 +195,12 @@ function defineFieldView(field, frame = frame) {
             events: {
                 changed: function(sender) {
                     const float = parseFloat(sender.text)
-                    sender.super.info = {key: sender.super.info.key, value: float}
+                    sender.super.info = {key: sender.super.info.key, value: float, type: sender.super.info.type}
                 },
                 didEndEditing: function(sender) {
                     const float = parseFloat(sender.text)
                     sender.text = float.toString()
-                    sender.super.info = {key: sender.super.info.key, value: float}
+                    sender.super.info = {key: sender.super.info.key, value: float, type: sender.super.info.type}
                 },
                 returned: function(sender) {
                     sender.blur()
@@ -234,12 +235,12 @@ function defineFieldView(field, frame = frame) {
             events: {
                 changed: function(sender) {
                     const integer = parseInt(sender.text)
-                    sender.super.info = {key: sender.super.info.key, value: integer}
+                    sender.super.info = {key: sender.super.info.key, value: integer, type: sender.super.info.type}
                 },
                 didEndEditing: function(sender) {
                     const integer = parseInt(sender.text)
                     sender.text = integer.toString()
-                    sender.super.info = {key: sender.super.info.key, value: integer}
+                    sender.super.info = {key: sender.super.info.key, value: integer, type: sender.super.info.type}
                 },
                 returned: function(sender) {
                     sender.blur()
@@ -274,10 +275,10 @@ function defineFieldView(field, frame = frame) {
             },
             events: {
                 changed: function(sender) {
-                    sender.super.info = {key: sender.super.info.key, value: sender.text}
+                    sender.super.info = {key: sender.super.info.key, value: sender.text, type: sender.super.info.type}
                 },
                 didEndEditing: function(sender) {
-                    sender.super.info = {key: sender.super.info.key, value: sender.text}
+                    sender.super.info = {key: sender.super.info.key, value: sender.text, type: sender.super.info.type}
                 },
                 returned: function(sender) {
                     sender.blur()
@@ -302,7 +303,7 @@ function defineFieldView(field, frame = frame) {
             },
             events: {
                 changed: function(sender) {
-                    sender.super.info = {key: sender.super.info.key, value: sender.on}
+                    sender.super.info = {key: sender.super.info.key, value: sender.on, type: sender.super.info.type}
                 }
             }
         }
@@ -351,7 +352,7 @@ function defineFieldView(field, frame = frame) {
                         changed: function(sender) {
                             const adjustedValue = sender.value.toFixed(decimal)
                             sender.super.get('sliderValue').text = adjustedValue
-                            sender.super.super.info = {key: sender.super.super.info.key, value: adjustedValue}
+                            sender.super.super.info = {key: sender.super.super.info.key, value: adjustedValue, type: sender.super.super.info.type}
                         }
                     }
                 }
@@ -379,7 +380,7 @@ function defineFieldView(field, frame = frame) {
             },
             events: {
                 changed: function(sender) {
-                    sender.super.info = {key: sender.super.info.key, value: sender.index}
+                    sender.super.info = {key: sender.super.info.key, value: sender.index, type: sender.super.info.type}
                 }
             }
         }
@@ -412,7 +413,7 @@ function defineFieldView(field, frame = frame) {
                     })
                     const date = new Date(result)
                     sender.title = date.toISOString()
-                    sender.super.info = {key: sender.super.info.key, value: date}
+                    sender.super.info = {key: sender.super.info.key, value: date, type: sender.super.info.type}
                 }
             }
         }
@@ -469,27 +470,54 @@ function defineFieldView(field, frame = frame) {
         }
     } else if (type === 'action') {
         const buttonType = field.buttonType || 0
-        valueView = {
-            type: "button",
-            props: {
-                id: 'valueView',
-                title: title,
-                titleColor: $color('#007aff'),
-                bgcolor: $color('white'),
-                align: $align.left,
-                radius: 0
-            },
-            layout: function(make, view) {
-                make.top.bottom.inset(0)
-                make.left.equalTo($('title').left)
-                make.right.inset(15)
-            },
-            events: {
-                tapped: function(sender) {
-                    value()
+        const buttonTitle = field.buttonTitle
+        if (buttonType === 0) {
+            valueView = {
+                type: "button",
+                props: {
+                    id: 'valueView',
+                    title: buttonTitle,
+                    titleColor: $color('#007aff'),
+                    bgcolor: $color('white'),
+                    radius: 0
+                },
+                layout: function(make, view) {
+                    make.top.bottom.inset(0)
+                    make.left.equalTo($('title').left)
+                    make.right.inset(15)
+                },
+                events: {
+                    tapped: function(sender) {
+                        value()
+                    }
+                }
+            }
+        } else if (buttonType === 1) {
+            valueView = {
+                type: "button",
+                props: {
+                    id: 'valueView',
+                    title: buttonTitle,
+                    titleColor: $color('#007aff'),
+                    bgcolor: $color('#f0f1f6'),
+                    radius: 5,
+                    borderWidth: 1,
+                    borderColor: $color('#c8c7cc')
+
+                },
+                layout: function(make, view) {
+                    make.top.bottom.inset(5)
+                    make.width.equalTo(100)
+                    make.right.inset(15)
+                },
+                events: {
+                    tapped: function(sender) {
+                        value()
+                    }
                 }
             }
         }
+        
     }
     const fieldView = {
         type: 'view',
@@ -497,7 +525,8 @@ function defineFieldView(field, frame = frame) {
             bgcolor: $color('white'),
             info: {
                 key: key,
-                value: value
+                value: value,
+                type: type
             },
             frame: frame
         },
@@ -509,19 +538,22 @@ function defineFieldView(field, frame = frame) {
 function defineSectionView(section, frameX, frameY, width = 500) {
     let cumulativeHeight = 0
     const views = []
-    const header = {
-        type: "label",
-        props: {
-            text: section.title,
-            textColor: $color('#6D6D72'),
-            align: $align.left,
-            font: $font(12),
-            bgcolor: $color("clear"),
-            frame: $rect(15, 0, width, 29)
+    if (section.title) {
+        const header = {
+            type: "label",
+            props: {
+                text: section.title,
+                textColor: $color('#6D6D72'),
+                align: $align.left,
+                lines: 1,
+                font: $font(12),
+                bgcolor: $color("clear"),
+                frame: $rect(15, 0, width, 29)
+            }
         }
+        cumulativeHeight += 29
+        views.push(header)
     }
-    cumulativeHeight += 29
-    views.push(header)
     for (let idx in section.fields) {
         const field = section.fields[idx]
         if (parseInt(idx) === 0) {
@@ -568,19 +600,29 @@ function defineSectionView(section, frameX, frameY, width = 500) {
             views.push(line2)
         }
     }
-    const footer = {
-        type: "label",
-        props: {
+    if (section.footer){
+        const footerTextSizeToFit = $text.sizeThatFits({
             text: section.footer,
-            textColor: $color('#6D6D72'),
-            align: $align.left,
+            width: width,
             font: $font(12),
-            bgcolor: $color("clear"),
-            frame: $rect(15, cumulativeHeight, width, 29)
+            lineSpacing: 0
+        })
+        const footerHeight = Math.round(footerTextSizeToFit.height) + 15
+        const footer = {
+            type: "label",
+            props: {
+                text: section.footer,
+                textColor: $color('#6D6D72'),
+                align: $align.left,
+                font: $font(12),
+                bgcolor: $color("clear"),
+                frame: $rect(15, cumulativeHeight, width, footerHeight)
+            }
         }
+        cumulativeHeight += footerHeight
+        views.push(footer)
     }
-    cumulativeHeight += 29
-    views.push(footer)
+
     const sectionView = {
         type: 'view',
         props: {
@@ -621,16 +663,19 @@ function defineScrollView(sections) {
 async function formDialogs(sections, title='') {
     return new Promise((resolve, reject) => {
         const cancelEvent = function(sender) {
-            reject('canceled')
             sender.super.super.super.remove()
+            reject('canceled')
         }
         const confirmEvent = function(sender) {
             const scroll = sender.super.super.super.get('scroll')
             const result = {}
             for (let sectionView of scroll.views) {
+                const excludedTypes = ['action', 'info', 'link']
                 const fieldViews = sectionView.views.filter(n => (n.info && n.info.key))
                 fieldViews.map(n => {
-                    result[n.info.key] = n.info.value
+                    if (n.info.key && !(excludedTypes.indexOf(n.info.type) !== -1)) {
+                        result[n.info.key] = n.info.value
+                    }
                     return
                 })
             }

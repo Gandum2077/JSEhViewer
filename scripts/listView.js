@@ -376,7 +376,7 @@ function getData(infos) {
                     //placeholder: image,
                     header: {
                         "User-Agent": exhentaiParser.USERAGENT,
-                        "Cookie": exhentaiParser.COOKIE,
+                        "Cookie": exhentaiParser.getCookie(),
                     }
                 },
                 //src: utility.joinPath('cache', item['thumbnail_url'].slice(29)),

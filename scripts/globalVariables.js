@@ -24,9 +24,6 @@ const urls = {
 }
 
 let config = {}
-if ($file.exists(config)) {
-    initConfig()
-}
 
 function initConfig() {
     Object.assign(config, JSON.parse($file.read(configPath)))
@@ -34,7 +31,7 @@ function initConfig() {
 
 function saveConfig() {
     $file.write({
-        data: $data({string: JSON.stringify(config)}),
+        data: $data({string: JSON.stringify(config, null, 2)}),
         path: configPath
     })
 }

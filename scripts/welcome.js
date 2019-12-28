@@ -138,6 +138,7 @@ async function init() {
                 utility.stopLoading()
                 return false
             }
+            await $wait(5)
             utility.changeLoadingTitle('获取设置')
             await getFavcat()
             utility.changeLoadingTitle('获取标签翻译')

@@ -40,8 +40,8 @@ async function init() {
             await listViewGenerator.init()
         }
     } else {
-        const listViewGenerator = require("./listView")
         glv.initConfig()
+        const listViewGenerator = require("./listView")
         await listViewGenerator.init()
     }
 }

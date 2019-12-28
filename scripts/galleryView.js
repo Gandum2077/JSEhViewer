@@ -19,7 +19,7 @@ function renderGalleryInfoView() {
                     url: infos['pics'][0]['thumbnail_url'],
                     header: {
                         "User-Agent": exhentaiParser.USERAGENT,
-                        "Cookie": exhentaiParser.COOKIE,
+                        "Cookie": exhentaiParser.getCookie(),
                     }
                 },
                 contentMode: 1,
@@ -531,7 +531,7 @@ function getData() {
                     url: pic['thumbnail_url'],
                     header: {
                         "User-Agent": exhentaiParser.USERAGENT,
-                        "Cookie": exhentaiParser.COOKIE,
+                        "Cookie": exhentaiParser.getCookie(),
                     }
                 },
                 info: {url: infos['url'], page: pic['page']}

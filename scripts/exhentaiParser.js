@@ -2,7 +2,7 @@ const utility = require('./utility')
 const glv = require('./globalVariables')
 const Bottleneck = require("./modules/bottleneck");
 
-const USERAGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36"
+const USERAGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36"
 const URL_LOGIN = 'https://forums.e-hentai.org/index.php?act=Login&CODE=01'
 const URL_EXHENTAI = 'https://exhentai.org/'
 const URL_EXHENTAI_CONFIG = 'https://exhentai.org/uconfig.php'
@@ -29,6 +29,10 @@ function xPathAll(element, pattern) {
         }
     });
     return results;
+}
+
+function getCookie() {
+    return COOKIE
 }
 
 /**
@@ -88,6 +92,13 @@ async function login(username, password) {
         return false
     }
     Object.assign(cookie, parseSetCookieString(resp3.response.headers['Set-Cookie']))
+    const resp4 =  await $http.get({
+        url: URL_EXHENTAI,
+        header:  {
+            "User-Agent": USERAGENT,
+            "Cookie": getCookieStringFromObject(cookie)
+        }
+    })
     $file.write({
         data: $data({string: JSON.stringify(cookie, null, 2)}),
         path: glv.cookieFile
@@ -585,7 +596,7 @@ module.exports = {
     getGalleryMpvInfosFromUrl: getGalleryMpvInfosFromUrl,
     login: login,
     saveMangaInfos: saveMangaInfos,
-    COOKIE: COOKIE,
+    getCookie: getCookie,
     USERAGENT: USERAGENT,
     getFavcatAndFavnote: getFavcatAndFavnote,
     downloadPicsByBottleneck: downloadPicsByBottleneck,

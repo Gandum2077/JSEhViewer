@@ -1,10 +1,10 @@
 # JSEhViewer
 
-本应用尚在开发，进度估计在30%～40%。
+本应用尚在开发，进度估计在50%～60%。
 
 ## 使用方法
 本应用的使用要求和[PyEhViewer](https://github.com/Gandum2077/PyEhViewer)完全一致。当然了，这边需要的是JSBox而非Pythonista 3。  
-登录页面还没有做，请先在[PyEhViewer](https://github.com/Gandum2077/PyEhViewer)登录，把里面的登录信息（`parse/account.json`, `parse/cookie.json`）和配置信息（`conf/config.json`）拷贝到这边的`assets`目录下，就可以使用了。
+目前已经可以登录了。
 
 ## 开发计划
 - 功能方面，实现[PyEhViewer](https://github.com/Gandum2077/PyEhViewer)的所有功能

@@ -195,7 +195,7 @@ function renderGalleryInfoView() {
             props: {
                 id: "image_fivestars_mask",
                 tintColor: $color("white"),
-                image: $image("assets/icons/fivestars_mask.png").alwaysTemplate,
+                image: $image("assets/icons/fivestars_mask_500x100.png").alwaysTemplate,
                 contentMode: 2,
                 userInteractionEnabled: true
             },
@@ -552,6 +552,7 @@ function renderMatrixView() {
             id: "matrixView",
             borderWidth: 1,
             borderColor: $color('#c8c7cc'),
+            bgcolor: $color('#efeff4'),
             itemSize: $size(139, 213),
             template: [
                 {
@@ -746,13 +747,15 @@ function renderGalleryView() {
             }
         }
     ]
+    const matrixView = renderMatrixView()
+    const galleryInfoView = renderGalleryInfoView()
     const galleryView = {
         type: "view",
         props: {
             id: "galleryView",
             bgcolor: $color("white")
         },
-        views: [...baseViewsForGalleryView, renderGalleryInfoView(), renderMatrixView()],
+        views: [...baseViewsForGalleryView, galleryInfoView, matrixView],
         layout: $layout.fill
     }
     return galleryView

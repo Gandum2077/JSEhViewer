@@ -1,6 +1,7 @@
 const utility = require('./utility')
 const galleryViewGenerator = require('./galleryView')
-const sidebarViewGenerator = require("./sidebarView");
+const sidebarViewGenerator = require("./sidebarView")
+const loginAlert = require('./dialogs/loginAlert')
 const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
 
@@ -177,7 +178,6 @@ const baseViewForItemCellView = [
         type: "image",
         props: {
             id: "thumbnail_imageview",
-            //src: utility.joinPath('cache', item['thumbnail_url'].slice(29)),
             contentMode: 1,
             tintColor: $color("#0079FF"),
             bgcolor: $color("#efeff4"),
@@ -190,12 +190,6 @@ const baseViewForItemCellView = [
         events: {
             tapped: async function (sender) {
                 await galleryViewGenerator.init(sender.info.url)
-            },
-            ready: async function (sender) {
-                let flag = false;
-                while (flag) {
-                    await $wait(1);
-                }
             }
         }
     },
@@ -203,7 +197,6 @@ const baseViewForItemCellView = [
         type: "label",
         props: {
             id: "label_title",
-            //text: item['title'],
             font: $font(13),
             align: $align.left,
             textColor: $color("black"),
@@ -219,11 +212,9 @@ const baseViewForItemCellView = [
         type: "label",
         props: {
             id: "label_category",
-            //text: utility.getNameAndColor(item['category'])['string'],
             font: $font("bold", 15),
             align: $align.center,
             textColor: $color("white"),
-            //bgcolor: $color(utility.getNameAndColor(item['category'])['color'])
         },
         layout: function (make, view) {
             make.height.equalTo(24)
@@ -236,7 +227,6 @@ const baseViewForItemCellView = [
         type: "label",
         props: {
             id: "label_length",
-            //text: item['length'] + '页',
             font: $font(12),
             align: $align.center,
             textColor: $color("black"),
@@ -308,7 +298,6 @@ const baseViewForItemCellView = [
         type: "label",
         props: {
             id: "label_uploader",
-            //text: item['uploader'],
             font: $font(12),
             align: $align.center,
             textColor: $color("black"),
@@ -325,13 +314,11 @@ const baseViewForItemCellView = [
         type: "label",
         props: {
             id: "label_posted",
-            //text: item['posted'],
             font: $font(12),
             align: $align.center,
             tintColor: $color("black"),
             bgcolor: $color("white"),
-            borderWidth: 2,
-            //borderColor: $color(utility.getColorFromFavcat(item['favcat']))
+            borderWidth: 2
         },
         layout: function (make, view) {
             make.height.equalTo(24)
@@ -345,8 +332,7 @@ const baseViewForItemCellView = [
         props: {
             id: "delete_line_view",
             bgcolor: $color("black"),
-            alpha: 0.5,
-            //hidden: ((item['visible'] === "Yes") ? true : false)
+            alpha: 0.5
         },
         layout: function (make, view) {
             make.height.equalTo(1)
@@ -358,7 +344,6 @@ const baseViewForItemCellView = [
         type: "text",
         props: {
             id: "textview_taglist",
-            //text: utility.renderTaglistToText(utility.translateTaglist(item['taglist'])),
             font: $font(11),
             align: $align.left,
             editable: false,
@@ -509,6 +494,116 @@ async function init(url=null) {
     const sideBarView = sidebarViewGenerator.renderSidebarView()
     $("rootView").add(listView)
     $("rootView").get("listView").add(sideBarView)
+}
+
+async function settings() {
+    const sections = [
+        {
+            title: 'Default URL',
+            footer: $l10n("只有path为空字符串的url才能作为default url"),
+            fields: [
+                {
+                    type: "boolean",
+                    key: "downloads_on_start",
+                    buttonTitle: $l10n("启动时显示downloads页"),
+                    value: false
+                },
+                {
+                    type: "string",
+                    key: "default_url",
+                    value: glv.config.default_url
+                },
+                {
+                    type: "action",
+                    buttonTitle: $l10n("将当前url作为default url"),
+                    value: null
+                }
+            ]
+        },
+        {
+            title: 'Access',
+            fields: [
+                {
+                    type: "action",
+                    buttonTitle: $l10n("重设账号密码"),
+                    value: async () => {
+                        const login = await loginAlert.loginAlert()
+                        $file.write({
+                            data: $data({string: JSON.stringify(login, null, 2)}),
+                            path: glv.accountFile
+                        });
+                    }
+                },
+                {
+                    type: "action",
+                    buttonTitle: $l10n("重新登录"),
+                    value: async () => {
+                        utility.startLoading()
+                        utility.changeLoadingTitle('正在登录')
+                        const success = await exhentaiParser.login(login.username, login.password)
+                        if (!success) {
+                            utility.stopLoading()
+                            $ui.alert($l10n("失败"))
+                            return false
+                        }
+                        utility.stopLoading()
+                    }
+                }
+            ]
+        },
+        {
+            title: 'Storage',
+            fields: [
+                {
+                    type: "action",
+                    buttonTitle: $l10n("更新标签翻译"),
+                    value: async () => {
+                        await utility.generateTagTranslatorJson()
+                        utility.updateTagTranslatorDict()
+                    }
+                },
+                {
+                    type: "action",
+                    buttonTitle: $l10n("更新数据库"),
+                    value: () => {
+    // TO-DO                    
+                    }
+                },
+                {
+                    type: "action",
+                    buttonTitle: $l10n("清除缓存"),
+                    value: null
+                },
+                {
+                    type: "action",
+                    buttonTitle: $l10n("清除未收藏的下载内容"),
+                    value: null
+                },
+                {
+                    type: "action",
+                    buttonTitle: $l10n("清除全部下载内容"),
+                    value: null
+                }
+            ]
+        },
+        {
+            title: 'Others',
+            fields: [
+                {
+                    type: "segmentedControl",
+                    title: $l10n("Favorites排序方式"),
+                    items: ['Favorited', 'Posted'],
+                    value: null
+                },
+                {
+                    type: "segmentedControl",
+                    title: $l10n("downloads排序方式"),
+                    items: ['序号', '下载时间'],
+                    value: null
+                }
+            ]
+        }
+    ]
 }
 
 

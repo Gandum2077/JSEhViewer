@@ -144,6 +144,7 @@ async function init() {
             await utility.generateTagTranslatorJson()
             utility.updateTagTranslatorDict()
             utility.stopLoading()
+            return true
         } catch(err) {
             console.info(err)
             $ui.toast(err.message);

@@ -68,32 +68,27 @@ function renderMpv(infos, path, page = 1) {
                         fields: [
                             {
                                 type: "action",
-                                key: "share_image",
-                                title: $l10n("分享本页图片"),
+                                buttonTitle: $l10n("分享本页图片"),
                                 value: null
                             },
                             {
                                 type: "action",
-                                key: "save_image",
-                                title: $l10n("保存本页图片"),
+                                buttonTitle: $l10n("保存本页图片"),
                                 value: null
                             },
                             {
                                 type: "action",
-                                key: "delete_image",
-                                title: $l10n("删除本页图片"),
+                                buttonTitle: $l10n("删除本页图片"),
                                 value: null
                             },
                             {
                                 type: "action",
-                                key: "open_in_safari",
-                                title: $l10n("Safari打开"),
+                                buttonTitle: $l10n("Safari打开"),
                                 value: null
                             },
                             {
                                 type: "action",
-                                key: "refresh_infos",
-                                title: $l10n("刷新infos"),
+                                buttonTitle: $l10n("刷新infos"),
                                 value: null
                             },
                             {

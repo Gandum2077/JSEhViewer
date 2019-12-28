@@ -5,9 +5,23 @@ const cookieFile = 'assets/cookie.json'
 const accountFile = 'assets/account.json'
 const databaseFile = 'assets/downloads.db'
 const tagTranslationFile = 'assets/ehtagtranslator.json'
+const userFiles = [
+    cachePath, 
+    imagePath,
+    configPath,
+    accountFile,
+    cookieFile,
+    databaseFile,
+    tagTranslationFile
+]
+
 
 let config
 if ($file.exists(config)) {
+    initConfig()
+}
+
+function initConfig() {
     config = JSON.parse($file.read(configPath))
 }
 
@@ -26,6 +40,8 @@ module.exports = {
     accountFile: accountFile,
     databaseFile: databaseFile,
     tagTranslationFile: tagTranslationFile,
+    userFiles: userFiles,
     config: config,
+    initConfig: initConfig,
     saveConfig: saveConfig
 }

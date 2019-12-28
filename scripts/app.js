@@ -1,7 +1,7 @@
-const listViewGenerator = require("./listView");
-const mpvGenerator = require("./mpv");
-const utility = require("./utility");
-const exhentaiParser = require('./exhentaiParser')
+const listViewGenerator = require("./listView")
+const mpvGenerator = require("./mpv")
+const utility = require("./utility")
+const welcome = require("./welcome")
 const glv = require('./globalVariables')
 
 let GLOBAL_WIDTH = utility.getWindowSize().width;
@@ -34,6 +34,9 @@ async function init() {
     }
     $ui.render(rootView)
     await $wait(0.01)
+    if (glv.userFiles.find(n => !$file.exists(n))) {
+        await welcome.init()
+    }
     listViewGenerator.init()
 }
 

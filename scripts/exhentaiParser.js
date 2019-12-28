@@ -78,7 +78,7 @@ async function login(username, password) {
         data: $data({string: JSON.stringify(cookie, null, 2)}),
         path: glv.cookieFile
     });
-    
+    COOKIE = getCookieLocal()
 }
 
 function parseSetCookieString(setCookieString) {

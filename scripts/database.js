@@ -1,6 +1,5 @@
 const glv = require('./globalVariables')
 const utility = require('./utility')
-const info = JSON.parse($file.read(file).string)
 
 function createDB() {
     if ($file.exists(glv.databaseFile)) {
@@ -235,4 +234,7 @@ function search_by_url(url) {
     foldernames = search(clause, args=args)
     return foldernames
 }
-    
+
+module.exports = {
+    createDB: createDB
+}

@@ -184,12 +184,15 @@ function getListInfos(rootElement) {
             const title = trElement.firstChild({"selector": "div.gl4e.glname > div"}).string;
             const taglist = {}
             const patt = /title="([a-z]+):[0-9a-z |.-]+">([0-9a-z |.-]+)+<\/div>/g
-            const array = [...trElement.firstChild({"selector": "table"}).node.matchAll(patt)]
-            for (let a of array) {
-                if (!(a[1] in taglist)) {
-                    taglist[a[1]] = [a[2]]
-                } else {
-                    taglist[a[1]].push(a[2])
+            const tableElement = trElement.firstChild({"selector": "table"})
+            if (tableElement) {
+                const array = [...tableElement.node.matchAll(patt)]
+                for (let a of array) {
+                    if (!(a[1] in taglist)) {
+                        taglist[a[1]] = [a[2]]
+                    } else {
+                        taglist[a[1]].push(a[2])
+                    }
                 }
             }
             items.push({

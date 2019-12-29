@@ -3,12 +3,13 @@ baseViewsGenerator = require("./baseViews")
 async function textDialogs(title='', text='') {
     return new Promise((resolve, reject) => {
         const cancelEvent = function(sender) {
-            reject('canceled')
             sender.super.super.super.remove()
+            reject('canceled')
         }
         const confrimEvent = function(sender) {
-            resolve(sender.super.super.get("textView").text)
+            const result = sender.super.super.get("textView").text
             sender.super.super.super.remove()
+            resolve(result)
         }
         const titleBarView = baseViewsGenerator.defineTitleBarView(title, cancelEvent, confrimEvent)
         const textView = {

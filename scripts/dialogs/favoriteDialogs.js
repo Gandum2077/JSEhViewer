@@ -292,8 +292,8 @@ async function favoriteDialogs(favcat_titles, favcat_selected, favnote, is_favor
     
     return new Promise((resolve, reject) => {
         const cancelEvent = function(sender) {
-            reject('canceled')
             sender.super.super.super.remove()
+            reject('canceled')
         }
         const confirmEvent = async function(sender) {
             let flagContinue = true
@@ -308,11 +308,12 @@ async function favoriteDialogs(favcat_titles, favcat_selected, favnote, is_favor
                 flagContinue = (answer.index === 1) ? true : false
             }
             if (flagContinue) {
-                resolve({
+                const result = {
                     favcat: favcat,
                     favnote: favnote
-                })
+                }
                 sender.super.super.super.remove()
+                resolve(result)
             }
         }
         

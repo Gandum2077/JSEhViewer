@@ -122,12 +122,13 @@ async function ratingAlert(rating, style=1) {
     return new Promise((resolve, reject) => {
         const titleView = baseViewsGenerator.defineTitleView($l10n('评分'))
         const buttonCancel = baseViewsGenerator.defineButtonCancel(sender => {
-            reject('canceled')
             sender.super.super.remove()
+            reject('canceled')
         })
         const buttonConfirm = baseViewsGenerator.defineButtonConfirm(sender => {
-            resolve(sender.super.get("ratingView").info.rating)
+            const result = sender.super.get("ratingView").info.rating
             sender.super.super.remove()
+            resolve(result)
         })
         
         const maskView = baseViewsGenerator.maskView

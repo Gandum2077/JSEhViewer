@@ -679,8 +679,8 @@ async function formDialogs(sections, title='') {
                     return
                 })
             }
-            resolve(result)
             sender.super.super.super.remove()
+            resolve(result)
         }
         const titleBarView = baseViewsGenerator.defineTitleBarView(title, cancelEvent, confirmEvent)
         const scrollView = defineScrollView(sections)

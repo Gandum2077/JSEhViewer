@@ -29,12 +29,13 @@ async function inputAlert(title='') {
         const titleView = baseViewsGenerator.defineTitleView(title)
         const input = defineInput()
         const buttonCancel = baseViewsGenerator.defineButtonCancel(sender => {
-            reject('canceled')
             sender.super.super.remove()
+            reject('canceled')
         })
         const buttonConfirm = baseViewsGenerator.defineButtonConfirm(sender => {
-            resolve(sender.super.get("input").text)
+            const result = sender.super.get("input").text
             sender.super.super.remove()
+            resolve(result)
         })
         const maskView = baseViewsGenerator.maskView
         const content = {

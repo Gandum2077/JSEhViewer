@@ -71,7 +71,7 @@ const template = {
             type: "image",
             props: {
                 id: "image",
-                tintColor: $color("#0079FF"),
+                tintColor: $color("#007aff"),
                 radius: 0
             },
             layout: function (make, view) {
@@ -83,7 +83,7 @@ const template = {
             type: "button",
             props: {
                 id: "button",
-                titleColor: $color("#0079FF"),
+                titleColor: $color("#007aff"),
                 font: $font(20),
                 align: $align.center,
                 bgcolor: $color("white"),

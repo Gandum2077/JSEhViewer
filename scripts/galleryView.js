@@ -309,7 +309,7 @@ function renderGalleryInfoView() {
             props: {
                 id: "button_start_mpv",
                 title: "阅读",
-                titleColor: $color("#0079FF"),
+                titleColor: $color("#007aff"),
                 bgcolor: $color("white"),
                 font: $font(15),
                 radius: 5,
@@ -379,7 +379,7 @@ function renderFullTagTableView(width, translated = true) {
             props: {
                 id: 'buttonTranslate',
                 image: $image('assets/icons/language_64x64.png').alwaysTemplate,
-                tintColor: $color("#0079FF"),
+                tintColor: $color("#007aff"),
                 bgcolor: $color("clear"),
                 //frame: $rect(width - 50 + 8, height * 0.25 - 16, 32, 32)
             },
@@ -394,7 +394,7 @@ function renderFullTagTableView(width, translated = true) {
             props: {
                 id: 'buttonCopy',
                 image: $image('assets/icons/ios7_copy_64x64.png').alwaysTemplate,
-                tintColor: $color("#0079FF"),
+                tintColor: $color("#007aff"),
                 bgcolor: $color("clear"),
                 //frame: $rect(width - 50 + 8, height * 0.75 - 16, 32, 32)
             },
@@ -457,7 +457,7 @@ function renderCommentsView() {
         props: {
             id: "button_enlarge",
             image: $image('assets/icons/arrow_expand_64x64.png').alwaysTemplate,
-            tintColor: $color("#0079FF"),
+            tintColor: $color("#007aff"),
             bgcolor: $color("clear")
         },
         layout: function (make, view) {
@@ -611,7 +611,7 @@ function renderGalleryView() {
             props: {
                 id: "button_archive",
                 image: $image("assets/icons/archive_64x64.png").alwaysTemplate,
-                tintColor: $color("#0079FF"),
+                tintColor: $color("#007aff"),
                 bgcolor: $color("white"),
                 imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
             },
@@ -627,7 +627,7 @@ function renderGalleryView() {
             props: {
                 id: "button_close",
                 image: $image("assets/icons/close_64x64.png").alwaysTemplate,
-                tintColor: $color("#0079FF"),
+                tintColor: $color("#007aff"),
                 bgcolor: $color("white"),
                 imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
             },
@@ -648,7 +648,7 @@ function renderGalleryView() {
             props: {
                 id: "button_refresh",
                 image: $image("assets/icons/refresh_64x64.png").alwaysTemplate,
-                tintColor: $color("#0079FF"),
+                tintColor: $color("#007aff"),
                 bgcolor: $color("white"),
                 imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
             },
@@ -669,7 +669,7 @@ function renderGalleryView() {
             props: {
                 id: "button_share",
                 image: $image("assets/icons/share_64x64.png").alwaysTemplate,
-                tintColor: $color("#0079FF"),
+                tintColor: $color("#007aff"),
                 bgcolor: $color("white"),
                 imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
             },
@@ -685,7 +685,7 @@ function renderGalleryView() {
             props: {
                 id: "button_safari",
                 image: $image("assets/icons/ios7_world_64x64.png").alwaysTemplate,
-                tintColor: $color("#0079FF"),
+                tintColor: $color("#007aff"),
                 bgcolor: $color("white"),
                 imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
             },
@@ -701,7 +701,7 @@ function renderGalleryView() {
             props: {
                 id: "button_info",
                 image: $image("assets/icons/information_circled_64x64.png").alwaysTemplate,
-                tintColor: $color("#0079FF"),
+                tintColor: $color("#007aff"),
                 bgcolor: $color("white"),
                 imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
             },
@@ -719,7 +719,7 @@ function renderGalleryView() {
                 title: "更新版本",
                 align: $align.center,
                 font: $font(13),
-                titleColor: $color("#0079FF"),
+                titleColor: $color("#007aff"),
                 bgcolor: $color("white")
             },
             layout: function (make, view) {
@@ -736,7 +736,7 @@ function renderGalleryView() {
                 title: "导入旧版",
                 align: $align.center,
                 font: $font(13),
-                titleColor: $color("#0079FF"),
+                titleColor: $color("#007aff"),
                 bgcolor: $color("white")
             },
             layout: function (make, view) {

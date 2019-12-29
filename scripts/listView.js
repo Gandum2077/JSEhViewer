@@ -12,7 +12,7 @@ const baseViewsForListView = [
         props: {
             id: "button_sidebar",
             image: $image("assets/icons/navicon_64x64.png").alwaysTemplate,
-            tintColor: $color("#0079FF"),
+            tintColor: $color("#007aff"),
             bgcolor: $color("white"),
             radius: 5,
             borderWidth: 1,
@@ -36,7 +36,7 @@ const baseViewsForListView = [
         props: {
             id: "button_storage",
             image: $image("assets/icons/plus_64x64.png").alwaysTemplate,
-            tintColor: $color("#0079FF"),
+            tintColor: $color("#007aff"),
             bgcolor: $color("white"),
             radius: 5,
             borderWidth: 1,
@@ -55,7 +55,7 @@ const baseViewsForListView = [
         props: {
             id: "button_search",
             image: $image("assets/icons/ios7_search_strong_64x64.png").alwaysTemplate,
-            tintColor: $color("#0079FF"),
+            tintColor: $color("#007aff"),
             bgcolor: $color("white"),
             radius: 5,
             borderWidth: 1,
@@ -73,7 +73,7 @@ const baseViewsForListView = [
         type: "input",
         props: {
             id: "textfield_search",
-            tintColor: $color("#0079FF"),
+            tintColor: $color("#007aff"),
             bgcolor: $color("white"),
             radius: 5,
             borderWidth: 1,
@@ -91,7 +91,7 @@ const baseViewsForListView = [
         props: {
             id: "button_close",
             image: $image("assets/icons/close_64x64.png").alwaysTemplate,
-            tintColor: $color("#0079FF"),
+            tintColor: $color("#007aff"),
             bgcolor: $color("white"),
             imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
         },
@@ -112,7 +112,7 @@ const baseViewsForListView = [
         props: {
             id: "button_open_url",
             image: $image("assets/icons/link_64x64.png").alwaysTemplate,
-            tintColor: $color("#0079FF"),
+            tintColor: $color("#007aff"),
             bgcolor: $color("white"),
             imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
         },
@@ -128,7 +128,7 @@ const baseViewsForListView = [
         props: {
             id: "button_refresh",
             image: $image("assets/icons/refresh_64x64.png").alwaysTemplate,
-            tintColor: $color("#0079FF"),
+            tintColor: $color("#007aff"),
             bgcolor: $color("white"),
             imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
         },
@@ -144,7 +144,7 @@ const baseViewsForListView = [
         props: {
             id: "button_next",
             image: $image("assets/icons/arrow_right_b_64x64.png").alwaysTemplate,
-            tintColor: $color("#0079FF"),
+            tintColor: $color("#007aff"),
             bgcolor: $color("white"),
             imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
         },
@@ -160,7 +160,7 @@ const baseViewsForListView = [
         props: {
             id: "button_previous",
             image: $image("assets/icons/arrow_left_b_64x64.png").alwaysTemplate,
-            tintColor: $color("#0079FF"),
+            tintColor: $color("#007aff"),
             bgcolor: $color("white"),
             imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
         },
@@ -179,7 +179,7 @@ const baseViewForItemCellView = [
         props: {
             id: "thumbnail_imageview",
             contentMode: 1,
-            tintColor: $color("#0079FF"),
+            tintColor: $color("#007aff"),
             bgcolor: $color("#efeff4"),
             userInteractionEnabled: true
         },

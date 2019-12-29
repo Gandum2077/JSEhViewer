@@ -33,7 +33,7 @@ function renderMpv(infos, path, page = 1) {
             type: "view",
             props: {
                 frame: $rect(711, 18, 57, 1006),
-                tintColor: $color("#0079FF"),
+                tintColor: $color("#007aff"),
                 bgcolor: $color("white")
             }
         },
@@ -41,7 +41,7 @@ function renderMpv(infos, path, page = 1) {
             type: "view",
             props: {
                 frame: $rect(0, 0, 768, 18),
-                tintColor: $color("#0079FF"),
+                tintColor: $color("#007aff"),
                 bgcolor: $color("white")
             }
         },
@@ -50,7 +50,7 @@ function renderMpv(infos, path, page = 1) {
             props: {
                 id: "button_setting",
                 image: $image("assets/icons/more_64x64.png").alwaysTemplate,
-                tintColor: $color("#0079FF"),
+                tintColor: $color("#007aff"),
                 bgcolor: $color("white"),
                 imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
             },
@@ -112,7 +112,7 @@ function renderMpv(infos, path, page = 1) {
             props: {
                 id: "button_autoload",
                 image: $image("assets/icons/ios7_fastforward_64x64.png").alwaysTemplate,
-                tintColor: $color("#0079FF"),
+                tintColor: $color("#007aff"),
                 bgcolor: $color("white"),
                 imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
             },
@@ -132,7 +132,7 @@ function renderMpv(infos, path, page = 1) {
             props: {
                 id: "button_close",
                 image: $image("assets/icons/close_64x64.png").alwaysTemplate,
-                tintColor: $color("#0079FF"),
+                tintColor: $color("#007aff"),
                 bgcolor: $color("white"),
                 imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
             },
@@ -154,7 +154,7 @@ function renderMpv(infos, path, page = 1) {
             props: {
                 id: "button_refresh",
                 image: $image("assets/icons/refresh_64x64.png").alwaysTemplate,
-                tintColor: $color("#0079FF"),
+                tintColor: $color("#007aff"),
                 bgcolor: $color("white"),
                 imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
             },
@@ -170,7 +170,7 @@ function renderMpv(infos, path, page = 1) {
             props: {
                 id: "button_info",
                 image: $image("assets/icons/information_circled_64x64.png").alwaysTemplate,
-                tintColor: $color("#0079FF"),
+                tintColor: $color("#007aff"),
                 bgcolor: $color("white"),
                 imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
             },
@@ -220,7 +220,7 @@ function renderMpv(infos, path, page = 1) {
                 max: 1.0,
                 min: 0.0,
                 continuous: false,
-                tintColor: $color("#0079FF"),
+                tintColor: $color("#007aff"),
                 bgcolor: $color("white")
             },
             events: {

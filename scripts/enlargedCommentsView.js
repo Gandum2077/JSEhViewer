@@ -73,7 +73,7 @@ const baseViewsForCommentsView = [
             id: "button_edit",
             title: "Edit",
             font: $font(15),
-            titleColor: $color("#0079ff"),
+            titleColor: $color("#007aff"),
             bgcolor: $color("clear")
         },
         layout: function(make, view) {
@@ -155,7 +155,7 @@ function renderCommentsView(infos) {
                 type: "button",
                 props: {
                     id: "button_close",
-                    tintColor: $color("#0079ff"),
+                    tintColor: $color("#007aff"),
                     image: $image("assets/icons/cross_32_57.png").alwaysTemplate,
                     bgcolor: $color("clear")
                 },
@@ -192,7 +192,7 @@ function renderCommentsView(infos) {
                     title: "New",
                     font: $font(18),
                     align: $align.right,
-                    titleColor: $color("#0079ff"),
+                    titleColor: $color("#007aff"),
                     bgcolor: $color("clear")
                 },
                 layout: function(make, view) {

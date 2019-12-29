@@ -7,7 +7,7 @@ function defineSliderStyleRatingView(adjustedRating) {
             id: "slider",
             min: 0.1,
             continuous: true,
-            minColor: $color('#0079ff'),
+            minColor: $color('#007aff'),
             value: adjustedRating / 5.0
         },
         layout: function(make, view) {

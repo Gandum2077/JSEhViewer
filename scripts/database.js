@@ -1,6 +1,23 @@
 const glv = require('./globalVariables')
 const utility = require('./utility')
 
+function getUtf8Length(s) {
+    var len = 0;
+    for (var i = 0; i < s.length; i++) {
+        var code = s.charCodeAt(i);
+        if (code <= 0x7f) {
+            len += 1;
+        } else if (code <= 0x7ff) {
+            len += 2;
+        } else if (code >= 0xd800 && code <= 0xdfff) {
+            len += 4; i++;
+        } else {
+            len += 3;
+        }
+    }
+    return len;
+}
+
 function createDB() {
     if ($file.exists(glv.databaseFile)) {
         $file.delete(glv.databaseFile)
@@ -78,9 +95,17 @@ function deleteById(gid) {
     $sqlite.close(db);
 }
 
-function search(clause) {
+function search(clause, args=null) {
     const db = $sqlite.open(glv.databaseFile);
-    const rs = db.query(clause).result;
+    let rs
+    if (args) {
+        rs = db.query({
+            sql: clause,
+            args: args
+        }).result
+    } else {
+        rs = db.query(clause).result;
+    }
     const result = [];
     while (rs.next()) {
         result.push(rs.values)
@@ -90,47 +115,43 @@ function search(clause) {
     return result
 }
 
-function countUtf8Bytes(s) {
-    var b = 0,
-        i = 0,
-        c
-    for (; c = s.charCodeAt(i++); b += c >> 11 ? 3 : c >> 7 ? 2 : 1);
-    return b
-}
-
 function handle_f_search(text) {
     const query_tags = []
     const query_uploader = []
     const query_title = []
 
-    const patternTagDouble = /\w+:"[^:$]+\$"/g
-    const patternTagSingle = /\w+:[^ $]+\$/g
-    const patternMiscDouble = /"[^:$]+\$"/g
-    const patternMiscSingle = /[^ $]+\$/g
-    const patternUploader = /uploader:[^ ]+/g
-    const patternOthers = /[^ ]+/g
-
-    text = text.trim()
-    let querystring;
-    while (text.length > 0) {
-        if ((querystring = patternTagDouble.exec(text)) !== null) {
-            text = text.slice(querystring[0].length).trim()
-            query_tags.push(querystring[0])
-        } else if ((querystring = patternTagSingle.exec(text)) !== null) {
-            text = text.slice(querystring[0].length).trim()
-            query_tags.push(querystring[0])
-        } else if ((querystring = patternMiscDouble.exec(text)) !== null) {
-            text = text.slice(querystring[0].length).trim()
-            query_tags.push(querystring[0])
-        } else if ((querystring = patternMiscSingle.exec(text)) !== null) {
-            text = text.slice(querystring[0].length).trim()
-            query_tags.push(querystring[0])
-        } else if ((querystring = patternUploader.exec(text)) !== null) {
-            text = text.slice(querystring[0].length).trim()
-            query_uploader.push(querystring[0])
-        } else if ((querystring = patternOthers.exec(text)) !== null) {
-            text = text.slice(querystring[0].length).trim()
-            query_title.push(querystring[0])
+    const patternTagDouble = /^\w+:"[^:$]+\$"/
+    const patternTagSingle = /^\w+:[^ $]+\$/
+    const patternMiscDouble = /^"[^:$]+\$"/
+    const patternMiscSingle = /^[^ $]+\$/
+    const patternUploader = /^uploader:[^ ]+/
+    const patternOthers = /^[^ ]+/
+    let remainingText = text.trim();
+    while (remainingText) {
+        if (patternTagDouble.test(remainingText)) {
+            const result = patternTagDouble.exec(remainingText)[0]
+            remainingText = remainingText.slice(result.length).trim()
+            query_tags.push(result)
+        } else if (patternTagSingle.test(remainingText)) {
+            const result = patternTagSingle.exec(remainingText)[0]
+            remainingText = remainingText.slice(result.length).trim()
+            query_tags.push(result)
+        } else if (patternMiscDouble.test(remainingText)) {
+            const result = patternMiscDouble.exec(remainingText)[0]
+            remainingText = remainingText.slice(result.length).trim()
+            query_tags.push(result)
+        } else if (patternMiscSingle.test(remainingText)) {
+            const result = patternMiscSingle.exec(remainingText)[0]
+            remainingText = remainingText.slice(result.length).trim()
+            query_tags.push(result)
+        } else if (patternUploader.test(remainingText)) {
+            const result = patternUploader.exec(remainingText)[0]
+            remainingText = remainingText.slice(result.length).trim()
+            query_uploader.push(result)
+        } else if (patternOthers.test(remainingText)) {
+            const result = patternOthers.exec(remainingText)[0]
+            remainingText = remainingText.slice(result.length).trim()
+            query_title.push(result)
         }
     }
     if (query_uploader.length > 1) {
@@ -139,8 +160,8 @@ function handle_f_search(text) {
     if (query_title.length > 3) {
         throw new Error("关键词超过3个")
     }
-    for (let i in query_title) {
-        if (countUtf8Bytes(i.length) < 3) {
+    for (let i of query_title) {
+        if (getUtf8Length(i) < 3) {
             throw new Error("存在过短的关键词")
         }
     }
@@ -148,33 +169,36 @@ function handle_f_search(text) {
 }
 
 
-function handleQueryDict(queryDict) {
+function handleQuery(query) {
     const cat_sequence = ['Misc', 'Doujinshi', 'Manga', 'Artist CG', 'Game CG', 'Image Set', 'Cosplay', 'Asian Porn', 'Non-H', 'Western']
     const condition_clauses = []
     const args = []
-    const f_search = queryDict['f_search'] // 关键词
-    const f_cats = queryDict['f_cats'] // 排除的分类
-    const advsearch = queryDict['advsearch'] // 是否启用高级选项，若否下面改为默认选项
+    const f_search = query['f_search'] // 关键词
+    const f_cats = query['f_cats'] // 排除的分类
+    const advsearch = query['advsearch'] // 是否启用高级选项，若否下面改为默认选项
     let f_sname, f_stags, f_srdd, f_sp
     // TO-DO 此处advsearch到底为何值尚需确认
-    if (advsearch !== '') {
-        f_sname = queryDict['f_sname'] // 是否搜索name
-        f_stags = queryDict['f_stags'] // 是否搜索tag
-        f_srdd = queryDict['f_srdd'] // 评分
-        f_sp = queryDict['f_sp'] // 是否搜索页数
+    if (advsearch) {
+        f_sname = query['f_sname'] // 是否搜索name
+        f_stags = query['f_stags'] // 是否搜索tag
+        f_srdd = query['f_srdd'] // 评分
+        f_sp = query['f_sp'] // 是否搜索页数
     } else {
         f_sname = 'on'
         f_stags = 'on'
-        f_srdd = null
-        f_sp = null
+        f_srdd = ''
+        f_sp = ''
     }
     if (f_search) {
         const [query_title, query_uploader, query_tags] = handle_f_search(f_search)
         if (query_tags.length && f_stags) {
             for (let i of query_tags) {
                 const i2 = (i.indexOf(':') === -1) ? 'misc:' + i : i
-                condition_clauses.push("EXISTS (SELECT tags.gid FROM tags WHERE downloads.gid=tags.gid AND tags.class=? AND tags.tag=?)")
-                args.push(i2.slice(0, i2.indexOf(':')), /^"?(.*)\$"?/g.exec(i2.slice(i2.indexOf(':') + 1))[1])
+                condition_clauses.push("EXISTS (SELECT tags.gid FROM tags WHERE downloads.gid=tags.gid AND tags.class=? AND (tags.tag=? OR tags.tag like ?))")
+                const tagclass = i2.slice(0, i2.indexOf(':'))
+                const tagname = /^"?(.*)\$"?/.exec(i2.slice(i2.indexOf(':') + 1))[1]
+                const taglike = tagname + ' |%'
+                args.push(tagclass, tagname, taglike)
             }
         }
         if (query_uploader.length) {
@@ -204,8 +228,8 @@ function handleQueryDict(queryDict) {
     }
     let f_spf, f_spt;
     if (f_sp) {
-        f_spf = queryDict['f_spf'] || '1'
-        f_spt = querydict['f_spt']
+        f_spf = query['f_spf'] || '1'
+        f_spt = query['f_spt']
         if (!f_spf.match(/^\d+$/g)) {
             f_spf = '1'
         }
@@ -228,13 +252,18 @@ function handleQueryDict(queryDict) {
     }
 }
 
-function search_by_url(url) {
-    querydict = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(url).query))
-    clause, args = handle_querydict(querydict)
-    foldernames = search(clause, args=args)
+function searchByUrl(url) {
+    const query = utility.parseUrl(url).query
+    const result = handleQuery(query)
+    console.info(result)
+    const foldernames = search(result.clause, args=result.args)
     return foldernames
 }
 
 module.exports = {
-    createDB: createDB
+    search: search,
+    createDB: createDB,
+    insertInfo: insertInfo,
+    deleteById: deleteById,
+    searchByUrl: searchByUrl
 }

@@ -41,7 +41,7 @@ function getTextWidth(text, fontSize = 14) {
 
 // 验证url是否合法，若合法返回foldername
 function verifyUrl(url) {
-    const patt = /https:\/\/e[-x]hentai\.org\/g\/(\d*)\/(\w*)\/?/g
+    const patt = /https:\/\/e[-x]hentai\.org\/g\/(\d*)\/(\w*)\/?/
     const t = patt.exec(url)
     if (t) {
         return t.slice(1).join('_')
@@ -344,6 +344,18 @@ function parseUrl(url) {
     }
 }
 
+/**
+ * 替换参数
+ * @param {string} url 
+ * @param {object} newQuery 
+ */
+function updateQueryOfUrl(url, newQuery) {
+    const result = parseUrl(url)
+    const query = result.query
+    Object.assign(query, newQuery)
+    return unparseUrl(result.scheme, result.netloc, result.path, query)
+}
+
 function renderMaskView() {
     const maskRatingView = {
         type: 'view',
@@ -444,6 +456,7 @@ module.exports = {
     getSearchUrl: getSearchUrl,
     unparseUrl: unparseUrl,
     parseUrl: parseUrl,
+    updateQueryOfUrl: updateQueryOfUrl,
     renderMaskView: renderMaskView,
     startLoading: startLoading,
     stopLoading: stopLoading,

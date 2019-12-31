@@ -173,6 +173,59 @@ const baseViewsForListView = [
     }
 ]
 
+function defineButtonJumpPage() {
+    const button = {
+        type: "button",
+        props: {
+            id: "button_jump_page",
+            bgcolor: $color("white"),
+            borderWidth: 1,
+            borderColor: $color("#c6c6c8")
+    
+        },
+        views: [{
+                type: "label",
+                props: {
+                    id: "label_current_page",
+                    align: $align.center
+                },
+                layout: function(make, view) {
+                    make.left.right.top.inset(0)
+                    make.height.equalTo(view.super).dividedBy(2)
+                }
+            },
+            {
+                type: "label",
+                props: {
+                    id: "label_total_page",
+                    align: $align.center
+                },
+                layout: function(make, view) {
+                    make.left.right.bottom.inset(0)
+                    make.height.equalTo(view.super).dividedBy(2)
+                }
+            },
+            {
+                type: "view",
+                props: {
+                    bgcolor: $color("#c6c6c8")
+                },
+                layout: function(make, view) {
+                    make.left.right.inset(0)
+                    make.centerY.equalTo(view.super)
+                    make.height.equalTo(1)
+                }
+            },
+        ],
+        layout: function(make, view) {
+            make.size.equalTo($size(55, 65))
+            make.bottom.equalTo($("button_previous").top).inset(50)
+        }
+    }
+    return button
+}
+
+
 const baseViewForItemCellView = [
     {
         type: "image",
@@ -474,7 +527,7 @@ function renderListView(infos) {
         props: {
             id: "listView"
         },
-        views: [...baseViewsForListView, renderRealListView(infos)],
+        views: [...baseViewsForListView, renderRealListView(infos), defineButtonJumpPage()],
         layout: $layout.fill
     }
     return listView

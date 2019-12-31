@@ -26,7 +26,7 @@ const urls = {
 let config = {}
 
 function initConfig() {
-    Object.assign(config, JSON.parse($file.read(configPath)))
+    Object.assign(config, JSON.parse($file.read(configPath).string))
 }
 
 function saveConfig() {

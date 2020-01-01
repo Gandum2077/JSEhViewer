@@ -2,8 +2,15 @@ const utility = require('./utility')
 const galleryViewGenerator = require('./galleryView')
 const sidebarViewGenerator = require("./sidebarView")
 const loginAlert = require('./dialogs/loginAlert')
+const formDialogs = require('./dialogs/formDialogs')
 const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
+
+
+let url
+let infos
+
+
 
 
 const baseViewsForListView = [
@@ -137,6 +144,11 @@ const baseViewsForListView = [
             make.width.equalTo(57)
             make.right.inset(0)
             make.bottom.equalTo($("button_open_url").top)
+        },
+        events: {
+            tapped: async function (sender) {
+                await refresh();
+            }
         }
     },
     {
@@ -184,6 +196,9 @@ const baseViewsForListView = [
                 type: "label",
                 props: {
                     id: "label_current_page",
+                    font: $font(13),
+                    lines: 2,
+                    autoFontSize: true,
                     align: $align.center
                 },
                 layout: function(make, view) {
@@ -195,6 +210,7 @@ const baseViewsForListView = [
                 type: "label",
                 props: {
                     id: "label_total_page",
+                    font: $font(13),
                     align: $align.center
                 },
                 layout: function(make, view) {
@@ -248,6 +264,7 @@ const baseViewForItemCellView = [
             id: "label_title",
             font: $font(13),
             align: $align.left,
+            lines: 2,
             textColor: $color("black"),
             bgcolor: $color("white")
         },
@@ -529,23 +546,53 @@ function renderListView(infos) {
     return listView
 }
 
-function refresh(infos){
+async function refresh(newUrl){
+    url = newUrl
+    infos = await exhentaiParser.getListInfosFromUrl(url)
+    const urlCategory = utility.getUrlCategory(url)
     $('rootView').get('listView').get('realListView').data = getData(infos)
     $('rootView').get('listView').get('realListView').header.text = infos['search_result']
-}
-    
-async function init(url=null) {
-    if (!url) {
-        url = glv.config.default_url
-    }
-    const infos = await exhentaiParser.getListInfosFromUrl(url)
-    const listView = renderListView(infos)
-    const sideBarView = sidebarViewGenerator.renderSidebarView()
-    $("rootView").add(listView)
-    $("rootView").get("listView").add(sideBarView)
+    $('rootView').get('listView').get('button_sidebar').image = getSideBarButtonImage(urlCategory)
+    $('rootView').get('listView').get('button_jump_page').get('label_current_page').text = infos['current_page_str']
+    $('rootView').get('listView').get('button_jump_page').get('label_total_page').text = infos['total_pages_str']
 }
 
-async function settings() {
+function getSideBarButtonImage(urlCategory) {
+    const dict = {
+        default: "assets/icons/navicon_64x64.png",
+        popular: "assets/icons/arrow_graph_up_right_64x64.png",
+        watched: "assets/icons/ios7_bell_64x64.png",
+        favorites: "assets/icons/bookmark_64x64.png",
+        downloads: "assets/icons/archive_64x64.png"
+    }
+    return $image(dict[urlCategory]).alwaysTemplate
+}
+
+
+function getInfosFromUrl(url) {
+
+}
+
+
+async function init(listUrl=null) {
+    if (!listUrl) {
+        url = glv.config.default_url
+    } else {
+        url = listUrl
+    }
+    const urlCategory = utility.getUrlCategory(url)
+    infos = await exhentaiParser.getListInfosFromUrl(url)
+    const listView = renderListView(infos) 
+    $("rootView").add(listView)
+    const sideBarView = sidebarViewGenerator.renderSidebarView(refresh, presentSettings)
+    $("rootView").get("listView").add(sideBarView)  
+    $('rootView').get('listView').get('button_sidebar').image = getSideBarButtonImage(urlCategory)
+    $('rootView').get('listView').get('button_jump_page').get('label_current_page').text = infos['current_page_str']
+    $('rootView').get('listView').get('button_jump_page').get('label_total_page').text = infos['total_pages_str']
+    
+}
+
+async function presentSettings() {
     const sections = [
         {
             title: 'Default URL',
@@ -554,7 +601,7 @@ async function settings() {
                 {
                     type: "boolean",
                     key: "downloads_on_start",
-                    buttonTitle: $l10n("启动时显示downloads页"),
+                    title: $l10n("启动时显示downloads页"),
                     value: false
                 },
                 {
@@ -653,6 +700,9 @@ async function settings() {
             ]
         }
     ]
+    console.info(sections)
+    const result = await formDialogs.formDialogs(sections)
+    console.info(result)
 }
 
 

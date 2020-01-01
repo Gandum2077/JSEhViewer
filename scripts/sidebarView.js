@@ -39,8 +39,9 @@ function getData() {
             image: {
                 image: $image(n.src).alwaysTemplate
             },
-            button: {
-                title: n.title
+            label: {
+                text: n.title,
+                info: {url: n.url}
             }
         }
     })
@@ -56,7 +57,7 @@ const template = {
             type: "view",
             props: {
                 id: "view1",
-                bgcolor: $color("white"),
+                bgcolor: $color("clear"),
                 radius: 0,
                 borderWidth: 1,
                 borderColor: $color("#c8c7cc")
@@ -80,13 +81,13 @@ const template = {
             }
         },
         {
-            type: "button",
+            type: "label",
             props: {
-                id: "button",
-                titleColor: $color("#007aff"),
+                id: "label",
+                textColor: $color("#007aff"),
                 font: $font(20),
                 align: $align.center,
-                bgcolor: $color("white"),
+                bgcolor: $color("clear"),
                 radius: 0,
                 borderWidth: 1,
                 borderColor: $color("#c8c7cc")
@@ -100,14 +101,14 @@ const template = {
     ]
 }
 
-function renderSidebarView() {
+function renderSidebarView(refreshListViewEvent, presentSettingEvent) {
     const sidebarView = {
         type: 'list',
         props: {
             id: "sidebarView",
             bgcolor: $color("white"),
             scrollEnabled: false,
-            selectable: false,
+            selectable: true,
             hidden: true,
             rowHeight: 55,
             separatorHidden: true,
@@ -115,9 +116,19 @@ function renderSidebarView() {
             template: template
         },
         layout: function(make, view) {
-            make.size.equalTo($size(163, 325))
+            make.size.equalTo($size(163, 330))
             make.top.equalTo($("button_sidebar").bottom)
             make.left.equalTo($("button_sidebar"))
+        },
+        events: {
+            didSelect: async function(sender, indexPath, data) {
+                
+                if (indexPath.row === 5) {
+                    await presentSettingEvent()
+                } else {
+                    await refreshListViewEvent(data.label.info.url)
+                }
+            }
         }
     }
     return sidebarView

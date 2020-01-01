@@ -239,50 +239,6 @@ function getBilingualTaglist(taglist) {
     return bilingualTaglist
 }
 
-// 给url分类，结果为default, popular, watched, favourite, downloads
-function detectUrlCategory(url) {
-    if (url.indexOf('/popular') === 20) {
-        return 'popular'
-    } else if (url.indexOf('downloads') === 0) {
-        return 'downloads'
-    } else if (url.indexOf('/watched') === 20) {
-        return 'watched'
-    } else if (url.indexOf('/favorites.php') === 20) {
-        return 'favorites'
-    } else {
-        return 'default'
-    }
-}
-
-function judgeDeviceModel() {
-    return $device.isIpad ? 'iPad' : 'iPhone'
-}
-
-function getSearchUrl(querydict, urlCategory = 'default') {
-    let path;
-    if (urlCategory in ['default', 'downloads']) {
-        path = '/'
-    } else if (urlCategory === 'watched') {
-        path = '/watched'
-    } else if (urlCategory === 'favorites') {
-        path = '/favorites.php'
-    }
-    let scheme, netloc;
-    if (urlCategory === 'downloads') {
-        scheme = 'downloads'
-        netloc = 'index'
-    } else {
-        scheme = 'https'
-        netloc = 'exhentai.org'
-    }
-    const query = []
-    for (let k in querydict) {
-        const v = querydict[k]
-        query.push(k + '=' + v)
-    }
-    const url = scheme + '://' + netloc + path + '?' + query.join('&')
-    return url
-}
 /**
  * 组装url
  * @param {string} scheme 限定https, download
@@ -354,6 +310,43 @@ function updateQueryOfUrl(url, newQuery) {
     const query = result.query
     Object.assign(query, newQuery)
     return unparseUrl(result.scheme, result.netloc, result.path, query)
+}
+
+// 给url分类，结果为default, popular, watched, favorites, downloads
+function getUrlCategory(url) {
+    const result = parseUrl(url)
+    if (result.path === '/popular') {
+        return 'popular'
+    } else if (result.scheme === 'downloads') {
+        return 'downloads'
+    } else if (result.path === '/watched') {
+        return 'watched'
+    } else if (result.path === '/favorites.php') {
+        return 'favorites'
+    } else {
+        return 'default'
+    }
+}
+
+function getSearchUrl(query, urlCategory = 'default') {
+    let path;
+    if (urlCategory === 'default' || urlCategory === 'downloads') {
+        path = '/'
+    } else if (urlCategory === 'watched') {
+        path = '/watched'
+    } else if (urlCategory === 'favorites') {
+        path = '/favorites.php'
+    }
+    let scheme, netloc;
+    if (urlCategory === 'downloads') {
+        scheme = 'downloads'
+        netloc = 'index'
+    } else {
+        scheme = 'https'
+        netloc = 'exhentai.org'
+    }
+    const url = unparseUrl(scheme, netloc, path, query)
+    return url
 }
 
 function renderMaskView() {
@@ -451,12 +444,11 @@ module.exports = {
     translateTaglist: translateTaglist,
     renderTaglistToText: renderTaglistToText,
     getBilingualTaglist: getBilingualTaglist,
-    detectUrlCategory: detectUrlCategory,
-    judgeDeviceModel: judgeDeviceModel,
     getSearchUrl: getSearchUrl,
     unparseUrl: unparseUrl,
     parseUrl: parseUrl,
     updateQueryOfUrl: updateQueryOfUrl,
+    getUrlCategory: getUrlCategory,
     renderMaskView: renderMaskView,
     startLoading: startLoading,
     stopLoading: stopLoading,

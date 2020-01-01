@@ -156,9 +156,20 @@ function renderCommentsView(infos) {
                 props: {
                     id: "button_close",
                     tintColor: $color("#007aff"),
-                    image: $image("assets/icons/cross_32_57.png").alwaysTemplate,
                     bgcolor: $color("clear")
                 },
+                views: [
+                    {
+                        type: "image",
+                        props: {
+                            symbol: 'xmark',
+                            tintColor: $color("#007aff")
+                        },
+                        layout: function(make, view) {
+                            make.edges.insets($insets(5, 5, 5, 5))
+                        }
+                    }
+                ],
                 layout: function(make, view) {
                     make.centerY.equalTo(view.super)
                     make.left.inset(16)

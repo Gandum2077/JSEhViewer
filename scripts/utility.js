@@ -370,7 +370,7 @@ function renderMaskView() {
 }
 
 // 冻结屏幕，并播放动画，表示等待状态
-// ugly - 它要求整个应用中不能再有同id的view（即loadingView_e582da14）
+// dirty work - 它要求整个应用中不能再有同id的view（即loadingView_e582da14）
 function startLoading(title) {
     if (!title) {
         title = '请等待……'
@@ -425,13 +425,13 @@ function startLoading(title) {
 }
 
 // 改变等待画面的标题
-// ugly - 它要求整个应用中不能再有同id的view（即loadingView_e582da14）
+// dirty work - 它要求整个应用中不能再有同id的view（即loadingView_e582da14）
 function changeLoadingTitle(title) {
     $ui.window.get("loadingView_e582da14").get('titleView').text = title
 }
 
 // 结束等待
-// ugly - 它要求整个应用中不能再有同id的view（即loadingView_e582da14）
+// dirty work - 它要求整个应用中不能再有同id的view（即loadingView_e582da14）
 function stopLoading() {
     $ui.window.get("loadingView_e582da14").remove()
 }

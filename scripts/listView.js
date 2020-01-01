@@ -170,11 +170,8 @@ const baseViewsForListView = [
             make.right.inset(0)
             make.bottom.equalTo($("button_next").top)
         }
-    }
-]
-
-function defineButtonJumpPage() {
-    const button = {
+    },
+    {
         type: "button",
         props: {
             id: "button_jump_page",
@@ -220,11 +217,10 @@ function defineButtonJumpPage() {
         layout: function(make, view) {
             make.size.equalTo($size(55, 65))
             make.bottom.equalTo($("button_previous").top).inset(50)
+            make.left.equalTo($("button_previous")).inset(1)
         }
     }
-    return button
-}
-
+]
 
 const baseViewForItemCellView = [
     {
@@ -527,7 +523,7 @@ function renderListView(infos) {
         props: {
             id: "listView"
         },
-        views: [...baseViewsForListView, renderRealListView(infos), defineButtonJumpPage()],
+        views: [...baseViewsForListView, renderRealListView(infos)],
         layout: $layout.fill
     }
     return listView

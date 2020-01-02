@@ -1,11 +1,12 @@
 baseViewsGenerator = require("./baseViews")
 
-function defineInput(text) {
+function defineInput(text, type=0) {
     const input = {
         type: "input",
         props: {
             id: "input",
             text: text,
+            type: type,
             borderWidth: 1,
             borderColor: $color("#b4b4b4"),
             radius: 7,
@@ -25,10 +26,10 @@ function defineInput(text) {
     return input
 }
 
-async function inputAlert(title='', text='') {
+async function inputAlert(title='', text='', type=0) {
     return new Promise((resolve, reject) => {
         const titleView = baseViewsGenerator.defineTitleView(title)
-        const input = defineInput(text)
+        const input = defineInput(text, type=type)
         const buttonCancel = baseViewsGenerator.defineButtonCancel(sender => {
             sender.super.super.remove()
             reject('canceled')

@@ -194,6 +194,23 @@ const baseViewsForListView = [
             make.width.equalTo(57)
             make.right.inset(0)
             make.bottom.equalTo($("button_refresh").top)
+        },
+        events: {
+            tapped: async function (sender) {
+                const current_page_str = $('rootView').get('listView').get('button_jump_page').get('label_current_page').text
+                const total_pages_str = $('rootView').get('listView').get('button_jump_page').get('label_total_page').text
+                let nowPage
+                if (/\d+-\d+/.test(current_page_str)) {
+                    nowPage = parseInt(current_page_str.slice(current_page_str.indexOf('-') + 1)) - 1
+                } else {
+                    nowPage = parseInt(current_page_str) - 1
+                }
+                const lastPage = parseInt(total_pages_str) - 1
+                if (nowPage < lastPage) {
+                    const newUrl = utility.updateQueryOfUrl(url, {'page': nowPage + 1})
+                    await refresh(newUrl)
+                }
+            }
         }
     },
     {
@@ -210,6 +227,16 @@ const baseViewsForListView = [
             make.width.equalTo(57)
             make.right.inset(0)
             make.bottom.equalTo($("button_next").top)
+        },
+        events: {
+            tapped: async function (sender) {
+                const current_page_str = $('rootView').get('listView').get('button_jump_page').get('label_current_page').text
+                const nowPage = parseInt(current_page_str) - 1
+                if (nowPage > 0) {
+                    const newUrl = utility.updateQueryOfUrl(url, {'page': nowPage - 1})
+                    await refresh(newUrl)
+                }
+            }
         }
     },
     {
@@ -263,6 +290,20 @@ const baseViewsForListView = [
             make.size.equalTo($size(55, 65))
             make.bottom.equalTo($("button_previous").top).inset(50)
             make.left.equalTo($("button_previous")).inset(1)
+        },
+        events: {
+            tapped: async function (sender) {
+                const total_pages_str = $('rootView').get('listView').get('button_jump_page').get('label_total_page').text
+                if (total_pages_str !== '1') {
+                    const page_str = await inputAlert.inputAlert(title = `输入页码(1-${total_pages_str})`, text='', type = 4)
+                    if (/^\d+$/.test(page_str)) {
+                        const newUrl = utility.updateQueryOfUrl(url, {'page': parseInt(page_str) - 1})
+                        await refresh(newUrl)
+                    } else {
+                        $ui.toast($l10n("输入不合法"))
+                    }
+                }
+            }
         }
     }
 ]

@@ -3,6 +3,7 @@ const galleryViewGenerator = require('./galleryView')
 const sidebarViewGenerator = require("./sidebarView")
 const advancedSearchViewGenerator = require("./advancedSearchView")
 const storedSearchPhrasesViewGenerator = require('./storedSearchPhrasesView')
+const inputAlert = require('./dialogs/inputAlert')
 const loginAlert = require('./dialogs/loginAlert')
 const formDialogs = require('./dialogs/formDialogs')
 const exhentaiParser = require('./exhentaiParser')
@@ -10,10 +11,6 @@ const glv = require('./globalVariables')
 
 
 let url
-let infos
-
-
-
 
 const baseViewsForListView = [
     {
@@ -60,9 +57,12 @@ const baseViewsForListView = [
         },
         events: {
             tapped: function(sender) {
-                const storedSearchPhrasesView = storedSearchPhrasesViewGenerator.defineStoredSearchPhrasesView()
-                $("rootView").get("listView").add(storedSearchPhrasesView)
-                
+                if ($("rootView").get("listView").get("storedSearchPhrasesView")) {
+                    $("rootView").get("listView").get("storedSearchPhrasesView").remove()
+                } else {
+                    const storedSearchPhrasesView = storedSearchPhrasesViewGenerator.defineStoredSearchPhrasesView()
+                    $("rootView").get("listView").add(storedSearchPhrasesView)
+                }
             }
         }
     },
@@ -143,6 +143,20 @@ const baseViewsForListView = [
             make.width.equalTo(57)
             make.right.inset(0)
             make.bottom.equalTo($("button_close").top)
+        },
+        events: {
+            tapped: async function (sender) {
+                let text = $clipboard.link
+                try {
+                    utility.verifyUrl(text)
+                } catch(err) {
+                    text = ''
+                }
+                console.info(1)
+                const url = await inputAlert.inputAlert(title='直接打开',text=text)
+                utility.verifyUrl(url)
+                await galleryViewGenerator.init(url)
+            }
         }
     },
     {
@@ -498,7 +512,7 @@ function getData(infos) {
     return data
 }
 
-function renderRealListView(infos) {
+function renderRealListView() {
     const listView = {
         type: 'list',
         props: {
@@ -514,12 +528,12 @@ function renderRealListView(infos) {
                 }
             ],
             template: template,
-            data: getData(infos),
+            //data: getData(infos),
             header: {
                 type: "label",
                 props: {
                     height: 24,
-                    text: infos['search_result'],
+                    //text: infos['search_result'],
                     textColor: $color("black"),
                     align: $align.center,
                     font: $font(14)
@@ -552,13 +566,13 @@ function renderRealListView(infos) {
     return listView
 }
 
-function renderListView(infos) {
+function renderListView() {
     const listView = {
         type: "view",
         props: {
             id: "listView"
         },
-        views: [...baseViewsForListView, renderRealListView(infos)],
+        views: [...baseViewsForListView, renderRealListView()],
         layout: $layout.fill
     }
     return listView
@@ -580,10 +594,16 @@ function initSubviewsStatus() {
 async function refresh(newUrl){
     url = newUrl
     initSubviewsStatus()
-    infos = await exhentaiParser.getListInfosFromUrl(url)
+    utility.startLoading()
+    const infos = await exhentaiParser.getListInfosFromUrl(url)
+    utility.stopLoading()
     const urlCategory = utility.getUrlCategory(url)
     $('rootView').get('listView').get('realListView').data = getData(infos)
     $('rootView').get('listView').get('realListView').header.text = infos['search_result']
+    $('rootView').get('listView').get('realListView').scrollTo({
+        indexPath: $indexPath(0, 0),
+        animated: true
+      })
     $('rootView').get('listView').get('button_sidebar').image = getSideBarButtonImage(urlCategory)
     $('rootView').get('listView').get('button_jump_page').get('label_current_page').text = infos['current_page_str']
     $('rootView').get('listView').get('button_jump_page').get('label_total_page').text = infos['total_pages_str']
@@ -600,28 +620,15 @@ function getSideBarButtonImage(urlCategory) {
     return $image(dict[urlCategory]).alwaysTemplate
 }
 
-
-function getInfosFromUrl(url) {
-
-}
-
-
 async function init(listUrl=null) {
     if (!listUrl) {
-        url = glv.config.default_url
-    } else {
-        url = listUrl
+        listUrl = glv.config.default_url
     }
-    const urlCategory = utility.getUrlCategory(url)
-    infos = await exhentaiParser.getListInfosFromUrl(url)
-    const listView = renderListView(infos) 
+    const listView = renderListView() 
     $("rootView").add(listView)
     const sideBarView = sidebarViewGenerator.renderSidebarView(refresh, presentSettings)
     $("rootView").get("listView").add(sideBarView)  
-    $('rootView').get('listView').get('button_sidebar').image = getSideBarButtonImage(urlCategory)
-    $('rootView').get('listView').get('button_jump_page').get('label_current_page').text = infos['current_page_str']
-    $('rootView').get('listView').get('button_jump_page').get('label_total_page').text = infos['total_pages_str']
-    
+    refresh(listUrl)
 }
 
 async function presentSettings() {

@@ -86,9 +86,9 @@ function defineStoredSearchPhrasesView() {
             type: 5
         },
         layout: function(make, view) {
-            make.size.equalTo($size(314, 32))
-            make.left.inset(3)
-            make.top.inset(0)
+            make.height.equalTo(32)
+            make.left.right.inset(3)
+            make.top.inset(10)
         },
         events: {
             tapped: async function(sender) {
@@ -138,14 +138,14 @@ function defineStoredSearchPhrasesView() {
             }]
         },
         layout: function(make) {
-            make.size.equalTo($size(314, 410))
-            make.left.inset(3)
+            make.left.right.inset(3)
+            make.bottom.inset(0)
             make.top.equalTo($("buttonAdd").bottom)
         },
         events: {
             didSelect: function(sender, indexPath, data) {
-                glv.config.storage_search_phrases = getRawDataFromListData(sender.data)
-                glv.saveConfig()
+                const text = (data.buttonInfo.hidden) ? data.label.text : data.buttonInfo.info.raw
+                $("rootView").get("listView").get("textfield_search").text = text
             },
             reorderFinished: function(data) {
                 glv.config.storage_search_phrases = getRawDataFromListData(data)

@@ -80,7 +80,7 @@ function updateDefinitionsByConfig(config) {
     return definitions
 }
 
-function defineOptionsFavorites(config={}) {
+function defineOptionsFavorites(layout, config={}) {
     const updatedConfig = getUpdatedConfig(config)
     const definitions = updateDefinitionsByConfig(updatedConfig)
     const views = definitions.map(n => {
@@ -100,10 +100,7 @@ function defineOptionsFavorites(config={}) {
             id: "optionFavorites"
         },
         views: views,
-        layout: function(make, view) {
-            make.center.equalTo(view.super)
-            make.size.equalTo($size(400, 204))
-        }
+        layout: layout
     }
     return optionFavorites
 }

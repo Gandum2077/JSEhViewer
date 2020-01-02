@@ -81,7 +81,9 @@ function defineStoredSearchPhrasesView() {
         type: "button",
         props: {
             id: "buttonAdd",
-            title: "添加新项"
+            title: "添加新项",
+            tintColor: $color("#007aff"),
+            type: 5
         },
         layout: function(make, view) {
             make.size.equalTo($size(314, 32))
@@ -159,8 +161,9 @@ function defineStoredSearchPhrasesView() {
         },
         views: [buttonAdd, list],
         layout: function(make, view) {
+            make.top.equalTo($("button_storage").bottom)
+            make.right.equalTo($("button_storage"))
             make.size.equalTo($size(320, 480))
-            make.center.equalTo(view.super)
         }
     }
     return storedSearchPhrasesView

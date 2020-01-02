@@ -23,21 +23,28 @@ function createDB() {
         $file.delete(glv.databaseFile)
     };
     const db = $sqlite.open(glv.databaseFile);
-    db.update("CREATE TABLE downloads (\
-        gid INTEGER NOT NULL,\
-        token TEXT,\
-        category TEXT,\
-        english_title TEXT,\
-        japanese_title TEXT,\
-        length INTEGER,\
-        posted TEXT,\
-        rating REAL,\
-        uploader TEXT,\
-        PRIMARY KEY(gid))");
-    db.update("CREATE TABLE tags (\
-        gid INTEGER NOT NULL,\
-        class TEXT,\
-        tag TEXT)");
+    db.update(`CREATE TABLE downloads (
+        gid INTEGER NOT NULL,
+        token TEXT,
+        category TEXT,
+        create_time TEXT,
+        display_rating REAL,
+        english_title TEXT,
+        favcat TEXT,
+        is_personal_rating INTEGER,
+        japanese_title TEXT,
+        length INTEGER,
+        posted TEXT,
+        rating REAL,
+        taglist TEXT,
+        thumbnail_url TEXT,
+        uploader TEXT,
+        visible INTEGER,
+        PRIMARY KEY(gid))`);
+    db.update(`CREATE TABLE tags (
+        gid INTEGER NOT NULL,
+        class TEXT,
+        tag TEXT)`);
     $sqlite.close(db);
 }
 
@@ -46,12 +53,18 @@ function insertInfo(info) {
         info['gid'],
         info['token'],
         info['category'],
+        info['display_rating'],
         info['english_title'],
+        info['favcat'],
+        info['is_personal_rating'],
         info['japanese_title'],
         info['length'],
         info['posted'],
         info['rating'],
-        info['uploader']
+        JSON.stringify(info['taglist']),
+        info['thumbnail_url'],
+        info['uploader'],
+        info['visible']
     ];
     const gid = values_downloads[0]
     const values_keys = [];
@@ -70,7 +83,7 @@ function insertInfo(info) {
         args: [gid]
     });
     db.update({
-        sql: "INSERT INTO downloads VALUES (?,?,?,?,?,?,?,?,?)",
+        sql: "INSERT INTO downloads VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         args: values_downloads
     });
     for (let i of values_keys) {

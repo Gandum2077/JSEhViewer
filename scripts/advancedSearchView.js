@@ -42,11 +42,11 @@ function defineASOFavoritesView(rawData) {
     }
     const layoutForOptions = (make, view) => {
         make.centerX.equalTo(view.super)
-        make.top.inset(112)
+        make.top.inset(204)
         make.size.equalTo($size(400, 24))
     }
     const favoriteCategoriesMatrix = favoriteCategoriesView.defineFavoriteCategoriesMatrix(layoutForFavcats, rawData)
-    const options = optionsDownloads.defineOptionsFavorites(layoutForOptions)
+    const options = optionsFavorites.defineOptionsFavorites(layoutForOptions)
     
     const ASOFavoritesView = {
         type: "view",
@@ -92,18 +92,19 @@ function defineASODownloadsView() {
     return ASODownloadsView
 }
 
-function defineAdvancedSearchView(searchPhrases, favcatInfos) {
+function defineAdvancedSearchView() {
     const advancedSearchView = {
         type: 'view',
         props: {
             id: 'advancedSearchView',
+            clipsToBounds: true
         },
         views: [
             {
                 type: "list",
                 props: {
                     id: 'list',
-                    data: searchPhrases
+                    data: glv.config['search_phrases']
                 },
                 layout: (make, view) => {
                     make.left.right.top.inset(0)
@@ -115,7 +116,8 @@ function defineAdvancedSearchView(searchPhrases, favcatInfos) {
                 props: {
                     id: 'tab',
                     index: -1,
-                    items: ['Home', 'Watched', 'Favorites', 'Downloads']
+                    items: ['Home', 'Watched', 'Favorites', 'Downloads'],
+                    bgcolor: $color("white")
                 },
                 layout: (make, view) => {
                     make.left.right.inset(0)
@@ -145,7 +147,8 @@ function defineAdvancedSearchView(searchPhrases, favcatInfos) {
                 type: "view",
                 props: {
                     id: 'advancedSearchOptionsLocationView',
-                    clipsToBounds: true
+                    clipsToBounds: true,
+                    bgcolor: $color("white")
                 },
                 layout: (make, view) => {
                     make.left.right.inset(0)
@@ -155,10 +158,9 @@ function defineAdvancedSearchView(searchPhrases, favcatInfos) {
             },
         ],
         layout: function(make, view) {
-            make.width.equalTo(695 - 45)
             make.height.equalTo(176 + 30)
-            make.centerX.equalTo(view.super)
-            make.top.inset(100)
+            make.left.right.equalTo($("textfield_search"))
+            make.top.equalTo($("textfield_search").bottom)
         }
     }
     return advancedSearchView

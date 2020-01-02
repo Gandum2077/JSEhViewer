@@ -1,6 +1,8 @@
 const utility = require('./utility')
 const galleryViewGenerator = require('./galleryView')
 const sidebarViewGenerator = require("./sidebarView")
+const advancedSearchViewGenerator = require("./advancedSearchView")
+const storedSearchPhrasesViewGenerator = require('./storedSearchPhrasesView')
 const loginAlert = require('./dialogs/loginAlert')
 const formDialogs = require('./dialogs/formDialogs')
 const exhentaiParser = require('./exhentaiParser')
@@ -18,7 +20,7 @@ const baseViewsForListView = [
         type: "button",
         props: {
             id: "button_sidebar",
-            image: $image("assets/icons/navicon_64x64.png").alwaysTemplate,
+            //image: $image("assets/icons/navicon_64x64.png").alwaysTemplate,
             tintColor: $color("#007aff"),
             bgcolor: $color("white"),
             radius: 5,
@@ -55,6 +57,13 @@ const baseViewsForListView = [
             make.width.equalTo(45)
             make.top.inset(18)
             make.right.inset(16)
+        },
+        events: {
+            tapped: function(sender) {
+                const storedSearchPhrasesView = storedSearchPhrasesViewGenerator.defineStoredSearchPhrasesView()
+                $("rootView").get("listView").add(storedSearchPhrasesView)
+                
+            }
         }
     },
     {
@@ -91,6 +100,12 @@ const baseViewsForListView = [
             make.top.inset(18)
             make.right.equalTo($("button_search").left).inset(1)
             make.left.equalTo($("button_sidebar").right).inset(1)
+        },
+        events: {
+            didBeginEditing: function(sender) {
+                const asv = advancedSearchViewGenerator.defineAdvancedSearchView()
+                $("rootView").get("listView").add(asv)
+            }
         }
     },
     {
@@ -528,6 +543,9 @@ function renderRealListView(infos) {
             },
             swipeEnabled: function(sender, indexPath) {
                 return false;
+            },
+            willBeginDragging: function(sender) {
+                initSubviewsStatus()
             }
         }
     }
@@ -546,8 +564,22 @@ function renderListView(infos) {
     return listView
 }
 
+function initSubviewsStatus() {
+    if (!$("rootView").get("listView").get("sidebarView").hidden) {
+        $("rootView").get("listView").get("sidebarView").hidden = true
+    }
+    if ($("rootView").get("listView").get("advancedSearchView")) {
+        $("rootView").get("listView").get("advancedSearchView").remove()
+        $("rootView").get("listView").get("textfield_search").blur()
+    }
+    if ($("rootView").get("listView").get("storedSearchPhrasesView")) {
+        $("rootView").get("listView").get("storedSearchPhrasesView").remove()
+    }
+}
+
 async function refresh(newUrl){
     url = newUrl
+    initSubviewsStatus()
     infos = await exhentaiParser.getListInfosFromUrl(url)
     const urlCategory = utility.getUrlCategory(url)
     $('rootView').get('listView').get('realListView').data = getData(infos)

@@ -1,4 +1,6 @@
 const glv = require('./globalVariables')
+const urlParse = require('./modules/url-parse')
+
 let TAGTRANSLATOR_DICT;
 if ($file.exists(glv.tagTranslationFile)) {
     TAGTRANSLATOR_DICT = JSON.parse($file.read(glv.tagTranslationFile).string)
@@ -241,87 +243,59 @@ function getBilingualTaglist(taglist) {
 
 /**
  * 组装url
- * @param {string} scheme 限定https, download
- * @param {string} netloc 限定exhentai.org, index
- * @param {string} path 理论上有四种：'/', '/watched', '/favorites.php', '/popular', 为增加兼容性若为'/'视为没有
+ * @param {string} protocol 限定https:, downloads:
+ * @param {string} host 限定exhentai.org, index
+ * @param {string} pathname 理论上有五种：'', '/', '/watched', '/favorites.php', '/popular'
  * @param {object} query 类似于{k1: v1, k2: v2}
  * @returns {string} url
  */
-function unparseUrl(scheme, netloc, path, query) {
-    if (!path) { // 防止传入null或者undefined
-        path = ''
-    } else if (path === '/') { // 若为'/'视为没有
-        path = ''
-    } else if (path.indexOf('/') !== 0) { // 如果开头忘记写'/'用这个加上
-        path = '/' + path
-    }
-    const queryStrings= []
-    for (let k in query) {
-        const v = query[k]
-        queryStrings.push(k + '=' + $text.URLEncode(v))
-    }
-    const url = scheme + '://' + netloc + path + '?' + queryStrings.join('&')
-    return url
+function unparseUrl(protocol, host, pathname, query) {
+    const result = new urlparse()
+    result.set('protocol', protocol)
+    result.set('host', host)
+    result.set('pathname', pathname)
+    result.set('query', query)
+    return result.toString()
 }
 
 /**
  * 分解url
- * @param {string} url 传入的url的形式严格限定为scheme://netloc/path?querystring，其中querystring必须是转义过的，整个url不能有空格
- * @returns {object} {scheme: scheme, netloc: netloc, path: path, query: query}，前三个为string，query为object
+ * @param {string} url 传入的url的形式严格限定为protocol//host/pathname?querystring，其中querystring必须是转义过的，整个url不能有空格
+ * @returns {object} {protocol: protocol, host: host, pathname: pathname, query: query}，前三个为string，query为object
  */
 function parseUrl(url) {
-    let remainText = url.trim();
-    const scheme = remainText.slice(0, remainText.indexOf('://'))
-    remainText = remainText.slice(scheme.length + 3)
-    const netlocAndPath = remainText.slice(0, remainText.indexOf('?'))
-    let netloc, path
-    if (netlocAndPath.indexOf('/') === -1) {
-        netloc = netlocAndPath
-        path = '/'
-    } else {
-        const sep = netlocAndPath.indexOf('/')
-        netloc = netlocAndPath.slice(0, sep)
-        path = netlocAndPath.slice(sep)
-    }
-    
-    remainText = remainText.slice(netlocAndPath.length + 1)
-    const queryString = remainText
-    const queryStringsArray = queryString.split('&')
-    const query = {}
-    for (let i of queryStringsArray) {
-        let [k, v] = i.split('=')
-        query[k] = $text.URLDecode(v)
-    }
+    const result = urlParse(url, true)
     return {
-        scheme: scheme,
-        netloc: netloc,
-        path: path,
-        query: query
+        protocol: result.protocol,
+        host: result.host,
+        pathname: result.pathname,
+        query: result.query
     }
 }
 
 /**
- * 替换参数
+ * 替换url参数
  * @param {string} url 
  * @param {object} newQuery 
  */
-function updateQueryOfUrl(url, newQuery) {
-    const result = parseUrl(url)
+function updateQueryOfUrl(url, queryForUpdate) {
+    const result = urlParse(url, true)
     const query = result.query
-    Object.assign(query, newQuery)
-    return unparseUrl(result.scheme, result.netloc, result.path, query)
+    const newQuery = Object.assign(query, queryForUpdate)
+    result.set('query', newQuery)
+    return result.toString()
 }
 
 // 给url分类，结果为default, popular, watched, favorites, downloads
 function getUrlCategory(url) {
     const result = parseUrl(url)
-    if (result.path === '/popular') {
+    if (result.pathname === '/popular') {
         return 'popular'
-    } else if (result.scheme === 'downloads') {
+    } else if (result.protocol === 'downloads:') {
         return 'downloads'
-    } else if (result.path === '/watched') {
+    } else if (result.pathname === '/watched') {
         return 'watched'
-    } else if (result.path === '/favorites.php') {
+    } else if (result.pathname === '/favorites.php') {
         return 'favorites'
     } else {
         return 'default'
@@ -329,23 +303,23 @@ function getUrlCategory(url) {
 }
 
 function getSearchUrl(query, urlCategory = 'default') {
-    let path;
+    let pathname;
     if (urlCategory === 'default' || urlCategory === 'downloads') {
-        path = '/'
+        pathname = '/'
     } else if (urlCategory === 'watched') {
-        path = '/watched'
+        pathname = '/watched'
     } else if (urlCategory === 'favorites') {
-        path = '/favorites.php'
+        pathname = '/favorites.php'
     }
-    let scheme, netloc;
-    if (urlCategory === 'downloads') {
-        scheme = 'downloads'
-        netloc = 'index'
+    let protocol, host;
+    if (urlCategory === 'downloads:') {
+        protocol = 'downloads:'
+        host = 'index'
     } else {
-        scheme = 'https'
-        netloc = 'exhentai.org'
+        protocol = 'https:'
+        host = 'exhentai.org'
     }
-    const url = unparseUrl(scheme, netloc, path, query)
+    const url = unparseUrl(protocol, host, pathname, query)
     return url
 }
 

@@ -20,7 +20,7 @@ const urls = {
     popular: 'https://exhentai.org/popular',
     favorites: 'https://exhentai.org/favorites.php',
     config: 'https://exhentai.org/uconfig.php',
-    downloads: 'downloads://?page=0'
+    downloads: 'downloads://index?page=0'
 }
 
 let config = {}

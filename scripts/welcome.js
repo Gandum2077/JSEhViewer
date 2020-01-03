@@ -98,8 +98,7 @@ function reset() {
 }
 
 async function getFavcat() {
-    const url = 'https://exhentai.org/favorites.php'
-    const infos = await exhentaiParser.getListInfosFromUrl(url)
+    const infos = await exhentaiParser.getListInfosFromUrl(glv.urls.favorites)
     glv.config.favcat_nums_titles = infos.favcat_nums_titles
     glv.config.favorites_order_method = infos.favorites_order_method
     glv.saveConfig()

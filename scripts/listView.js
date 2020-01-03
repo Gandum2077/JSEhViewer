@@ -517,7 +517,7 @@ function getData(items) {
                     url: item['thumbnail_url'],
                     //placeholder: image,
                     header: {
-                        "User-Agent": exhentaiParser.USERAGENT,
+                        "User-Agent": glv.userAgent,
                         "Cookie": exhentaiParser.getCookie(),
                     }
                 },

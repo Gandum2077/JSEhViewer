@@ -2,12 +2,6 @@ const utility = require('./utility')
 const glv = require('./globalVariables')
 const Bottleneck = require("./modules/bottleneck");
 
-const USERAGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36"
-const URL_LOGIN = 'https://forums.e-hentai.org/index.php?act=Login&CODE=01'
-const URL_EXHENTAI = 'https://exhentai.org/'
-const URL_EXHENTAI_CONFIG = 'https://exhentai.org/uconfig.php'
-const URL_API = 'https://exhentai.org/api.php'
-
 let COOKIE = null
 if ($file.exists(glv.cookieFile)) {
     COOKIE = getCookieLocal()
@@ -51,13 +45,13 @@ async function login(username, password) {
         ipb_login_submit: "Login!"
     };
     const headerLogin = {
-        "User-Agent": USERAGENT,
+        "User-Agent": glv.userAgent,
         "Cache-Control": "no-cache",
         "Content-Type": "application/x-www-form-urlencoded",
         "Referer": "https://e-hentai.org/bounce_login.php?b=d&bt=1-1"
     };
     const resp1 =  await $http.post({
-        url: URL_LOGIN,
+        url: glv.urls.login,
         body: data,
         header: headerLogin
     })
@@ -71,9 +65,9 @@ async function login(username, password) {
         yay: 'louder'
     }
     const resp2 =  await $http.get({
-        url: URL_EXHENTAI,
+        url: glv.urls.homepage,
         header:  {
-            "User-Agent": USERAGENT,
+            "User-Agent": glv.userAgent,
             "Cookie": getCookieStringFromObject(cookie)
         }
     })
@@ -82,9 +76,9 @@ async function login(username, password) {
     }
     Object.assign(cookie, parseSetCookieString(resp2.response.headers['Set-Cookie']))
     const resp3 =  await $http.get({
-        url: URL_EXHENTAI_CONFIG,
+        url: glv.urls.config,
         header:  {
-            "User-Agent": USERAGENT,
+            "User-Agent": glv.userAgent,
             "Cookie": getCookieStringFromObject(cookie)
         }
     })
@@ -93,9 +87,9 @@ async function login(username, password) {
     }
     Object.assign(cookie, parseSetCookieString(resp3.response.headers['Set-Cookie']))
     const resp4 =  await $http.get({
-        url: URL_EXHENTAI,
+        url: glv.urls.homepage,
         header:  {
-            "User-Agent": USERAGENT,
+            "User-Agent": glv.userAgent,
             "Cookie": getCookieStringFromObject(cookie)
         }
     })
@@ -141,7 +135,7 @@ async function getHtml(url) {
     var resp = await $http.get({
         url: url,
         header: {
-            "User-Agent": USERAGENT,
+            "User-Agent": glv.userAgent,
             Cookie: COOKIE
         }
     });
@@ -460,7 +454,7 @@ async function addFav(gallery_url, favcat='favcat0', favnote=null, old_is_favori
     const [gid, token] = utility.verifyUrl(gallery_url).split('_')
     const query = {"gid": gid, "t": token, "act": "addfav"}
     const header = {
-        "User-Agent": USERAGENT,
+        "User-Agent": glv.userAgent,
         "Content-Type": "application/x-www-form-urlencoded",
         "Cookie": COOKIE
     };
@@ -478,7 +472,7 @@ async function addFav(gallery_url, favcat='favcat0', favnote=null, old_is_favori
 async function rateGallery(rating, apikey, apiuid, gid, token) {
     rating = parseInt(parseFloat(rating) * 2).toString()
     const header = {
-        "User-Agent": USERAGENT,
+        "User-Agent": glv.userAgent,
         "Content-Type": "application/json",
         "Cookie": COOKIE
     };
@@ -491,7 +485,7 @@ async function rateGallery(rating, apikey, apiuid, gid, token) {
         "token": token
     };
     const resp1 =  await $http.post({
-        url: URL_API,
+        url: glv.urls.api,
         body: payload,
         header: header
     })
@@ -517,7 +511,7 @@ async function rateGallery(rating, apikey, apiuid, gid, token) {
  */
 async function fetchPicAPIResult(gid, key, mpvkey, page) {
     const header = {
-        "User-Agent": USERAGENT,
+        "User-Agent": glv.userAgent,
         "Content-Type": "application/json",
         "Cookie": COOKIE
     };
@@ -529,7 +523,7 @@ async function fetchPicAPIResult(gid, key, mpvkey, page) {
         "mpvkey": mpvkey
     };
     const resp = await $http.post({
-        url: URL_API,
+        url: glv.urls.api,
         header: header,
         body: payload,
         timeout: 20
@@ -555,7 +549,7 @@ async function downloadResizedImage(fullpath, gid, key, mpvkey, page) {
 
 async function downloadOriginalImage(fullpath, gid, key, mpvkey, page) {
     const response = await fetchPicAPIResult(gid, key, mpvkey, page)
-    const fullimg_url = URL_EXHENTAI + response['lf']
+    const fullimg_url = glv.urls.homepage + response['lf']
     await downloadPic(fullpath, fullimg_url)
 }
 
@@ -566,7 +560,7 @@ async function downloadPic(fullpath, url, timeout=20) {
         timeout: timeout,
         showsProgess: false,
         header: {
-            "User-Agent": USERAGENT
+            "User-Agent": glv.userAgent
         }
     });
     const data = resp.data
@@ -601,7 +595,6 @@ module.exports = {
     login: login,
     saveMangaInfos: saveMangaInfos,
     getCookie: getCookie,
-    USERAGENT: USERAGENT,
     getFavcatAndFavnote: getFavcatAndFavnote,
     downloadPicsByBottleneck: downloadPicsByBottleneck,
     stopDownloadTasksCreatedByBottleneck: stopDownloadTasksCreatedByBottleneck

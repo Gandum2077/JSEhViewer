@@ -172,7 +172,7 @@ function renderGalleryInfoView() {
                 source: {
                     url: infos['pics'][0]['thumbnail_url'],
                     header: {
-                        "User-Agent": exhentaiParser.USERAGENT,
+                        "User-Agent": glv.userAgent,
                         "Cookie": exhentaiParser.getCookie(),
                     }
                 },
@@ -683,7 +683,7 @@ function getData() {
                 source: {
                     url: pic['thumbnail_url'],
                     header: {
-                        "User-Agent": exhentaiParser.USERAGENT,
+                        "User-Agent": glv.userAgent,
                         "Cookie": exhentaiParser.getCookie(),
                     }
                 },

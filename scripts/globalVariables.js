@@ -20,8 +20,12 @@ const urls = {
     popular: 'https://exhentai.org/popular',
     favorites: 'https://exhentai.org/favorites.php',
     config: 'https://exhentai.org/uconfig.php',
-    downloads: 'downloads://index?page=0'
+    downloads: 'downloads://index?page=0',
+    login: 'https://forums.e-hentai.org/index.php?act=Login&CODE=01',
+    api: 'https://exhentai.org/api.php',
+    gallerypopups: 'https://exhentai.org/gallerypopups.php'
 }
+const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36"
 
 let config = {}
 
@@ -46,6 +50,7 @@ module.exports = {
     tagTranslationFile: tagTranslationFile,
     userFiles: userFiles,
     urls: urls,
+    userAgent: userAgent,
     config: config,
     initConfig: initConfig,
     saveConfig: saveConfig

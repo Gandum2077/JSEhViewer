@@ -7,13 +7,13 @@ const sliderLayoutFunction = (make, view) => {
     const t = view.super.size.height - 57 * 6 - 30 * 2 - 2 - 18
     make.height.equalTo(34)
     make.width.equalTo(t)
-    make.centerX.equalTo(view.super.right).offset(-17)
+    make.centerX.equalTo(view.super.right).offset(-28.5)
     make.centerY.equalTo(view.super.top).offset(t / 2 + 18)
 }
 
 function renderMpv(infos, path, page = 1) {
 
-    function refreshMpv() {
+    function refreshMpv(ignoreSlider=false) {
         const pic = infos.pics[page - 1]
         const picPath = utility.joinPath(path, pic.img_id + pic.img_name.slice(pic.img_name.lastIndexOf('.')))
         const mpv = $ui.window.get("mpv")
@@ -25,7 +25,9 @@ function renderMpv(infos, path, page = 1) {
             mpv.get("spinner").loading = true
         }
         mpv.get('text_current_page').text = page
-        mpv.get('slider1').value = page / parseInt(infos.length)
+        if (!ignoreSlider) {
+            mpv.get('slider1').value = page
+        }
     }
 
     const baseViewsForMpv = [
@@ -69,7 +71,9 @@ function renderMpv(infos, path, page = 1) {
                             {
                                 type: "action",
                                 buttonTitle: $l10n("分享本页图片"),
-                                value: null
+                                value: () => {
+                                    console.info(page)
+                                }
                             },
                             {
                                 type: "action",
@@ -226,9 +230,9 @@ function renderMpv(infos, path, page = 1) {
             type: "slider",
             props: {
                 id: "slider1",
-                max: 1.0,
-                min: 0.0,
-                continuous: false,
+                max: infos.length,
+                min: 1,
+                continuous: true,
                 tintColor: $color("#007aff"),
                 bgcolor: $color("white")
             },
@@ -238,8 +242,8 @@ function renderMpv(infos, path, page = 1) {
                     sender.updateLayout(sliderLayoutFunction)
                 },
                 changed: function(sender) {
-                    page = Math.max(Math.ceil(sender.value * infos.pics.length), 1)
-                    refreshMpv()
+                    page = Math.round(sender.value)
+                    refreshMpv(true)
                 }
             }
         }

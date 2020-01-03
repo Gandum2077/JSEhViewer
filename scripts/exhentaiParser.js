@@ -426,7 +426,7 @@ function saveMangaInfos(infos, downloadPath) {
 async function getFavcatAndFavnote(gallery_url) {
     const [gid, token] = utility.verifyUrl(gallery_url).split('_')
     const query = {"gid": gid, "t": token, "act": "addfav"}
-    const url = utility.unparseUrl('https', 'exhentai.org', 'gallerypopups.php', query)
+    const url = utility.updateQueryOfUrl(glv.urls.gallerypopups, query)
     const html = await getHtml(url)
     const rootElement = getRootElement(html)
     const favcat_nums_titles_elements = rootElement.firstChild({'selector': 'div.nosel'}).children({"tag": "div"}).slice(0, 10)
@@ -458,7 +458,7 @@ async function addFav(gallery_url, favcat='favcat0', favnote=null, old_is_favori
         "Content-Type": "application/x-www-form-urlencoded",
         "Cookie": COOKIE
     };
-    const url = utility.unparseUrl('https', 'exhentai.org', 'gallerypopups.php', query)
+    const url = utility.updateQueryOfUrl(glv.urls.gallerypopups, query)
     const apply_string = (old_is_favorited) ? 'Apply Changes' : 'Add to Favorites'
     const favcat_string = (favcat === 'favdel') ? 'favdel' : favcat[6]
     const payload = {'favcat': favcat_string, 'favnote': favnote, 'apply': apply_string, 'update': '1'}

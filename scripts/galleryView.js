@@ -6,6 +6,7 @@ const favoriteDialogs = require('./dialogs/favoriteDialogs')
 const commentsViewGenerator = require('./enlargedCommentsView')
 const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
+const database = require('./database')
 
 let GLOBAL_WIDTH = utility.getWindowSize().width;
 let url;
@@ -810,7 +811,12 @@ async function init(newUrl) {
                 if (sender.frame.width !== GLOBAL_WIDTH) {
                     GLOBAL_WIDTH = sender.frame.width
                 }
-            }
+            },
+            disappeared: function() {
+                if ($file.list(utility.joinPath(glv.imagePath, infos.filename)).length > 1) {
+                    database.insertInfo(infos)
+                }
+            },
         }
     }
     $ui.push(rootView)

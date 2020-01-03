@@ -573,6 +573,7 @@ const baseViewForItemCellView = [
             id: "textview_taglist",
             font: $font(11),
             align: $align.left,
+            insets: $insets(2, 5, 5, 0),
             editable: false,
             selectable: false,
             textColor: $color("black"),

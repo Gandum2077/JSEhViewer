@@ -7,6 +7,7 @@ const commentsViewGenerator = require('./enlargedCommentsView')
 const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
 
+let GLOBAL_WIDTH = utility.getWindowSize().width;
 let url;
 let infos;
 
@@ -31,11 +32,20 @@ var baseViewsForGalleryView = [
         type: "button",
         props: {
             id: "button_close",
-            image: $image("assets/icons/close_64x64.png").alwaysTemplate,
-            tintColor: $color("#007aff"),
-            bgcolor: $color("white"),
-            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
+            bgcolor: $color("white")
         },
+        views: [
+            {
+                type: "image",
+                props: {
+                    symbol: 'arrowshape.turn.up.left',
+                    tintColor: $color("#007aff")
+                },
+                layout: function(make, view) {
+                    make.edges.insets($insets(12.5, 12.5, 12.5, 12.5))
+                }
+            }
+        ],
         layout: function (make, view) {
             make.height.equalTo(57)
             make.width.equalTo(57)
@@ -44,7 +54,7 @@ var baseViewsForGalleryView = [
         },
         events: {
             tapped: function (sender) {
-                $("rootView").get("galleryView").remove()
+                $ui.pop()
             }
         }
     },
@@ -525,7 +535,7 @@ function renderFullTagTableView(width, translated = true) {
                 image: $image('assets/icons/language_64x64.png').alwaysTemplate,
                 tintColor: $color("#007aff"),
                 bgcolor: $color("clear"),
-                //frame: $rect(width - 50 + 8, height * 0.25 - 16, 32, 32)
+                imageEdgeInsets: $insets(5, 5, 5, 5)
             },
             layout: function (make, view) {
                 make.size.equalTo($size(32, 32))
@@ -539,8 +549,7 @@ function renderFullTagTableView(width, translated = true) {
                 id: 'buttonCopy',
                 image: $image('assets/icons/ios7_copy_64x64.png').alwaysTemplate,
                 tintColor: $color("#007aff"),
-                bgcolor: $color("clear"),
-                //frame: $rect(width - 50 + 8, height * 0.75 - 16, 32, 32)
+                bgcolor: $color("clear")
             },
             layout: function (make, view) {
                 make.size.equalTo($size(32, 32))
@@ -613,8 +622,8 @@ function renderCommentsView() {
             tapped: function(sender) {
                 const commentsView = commentsViewGenerator.renderCommentsView(infos)
                 const maskView = utility.renderMaskView()
-                $('rootView').add(maskView)
-                $('rootView').add(commentsView)
+                $ui.window.add(maskView)
+                $ui.window.add(commentsView)
             }
         }
     }
@@ -774,20 +783,37 @@ async function refresh(newUrl, getNewInfos=true) {
         const path = utility.joinPath(glv.imagePath, infos.filename)
         exhentaiParser.saveMangaInfos(infos, path)
     }
-    const galleryInfoView = $('rootView').get('galleryView').get('galleryInfoView')
-    const matrixView = $('rootView').get('galleryView').get('matrixView')
+    const galleryView = $ui.window.get('galleryView')
+    const galleryInfoView = galleryView.get('galleryInfoView')
+    const matrixView = galleryView.get('matrixView')
     if (galleryInfoView) {
         galleryInfoView.remove()
     }
     if (matrixView) {
         matrixView.remove()
     }
-    $('rootView').get('galleryView').add(renderGalleryInfoView())
-    $('rootView').get('galleryView').add(renderMatrixView())
+    galleryView.add(renderGalleryInfoView())
+    galleryView.add(renderMatrixView())
 }
 
 async function init(newUrl) {
-    $("rootView").add(renderGalleryView())
+    const galleryView = renderGalleryView()
+    const rootView = {
+        props: {
+            navBarHidden: true,
+            statusBarHidden: false,
+            statusBarStyle: 0
+        },
+        views: [galleryView],
+        events: {
+            layoutSubviews: async function(sender) {
+                if (sender.frame.width !== GLOBAL_WIDTH) {
+                    GLOBAL_WIDTH = sender.frame.width
+                }
+            }
+        }
+    }
+    $ui.push(rootView)
     const filename = utility.verifyUrl(newUrl)
     const infosFile = utility.joinPath(glv.imagePath, filename, 'manga_infos.json')
     console.info($file.exists(infosFile))

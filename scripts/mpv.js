@@ -16,7 +16,7 @@ function renderMpv(infos, path, page = 1) {
     function refreshMpv() {
         const pic = infos.pics[page - 1]
         const picPath = utility.joinPath(path, pic.img_id + pic.img_name.slice(pic.img_name.lastIndexOf('.')))
-        const mpv = $("rootView").get("mpv")
+        const mpv = $ui.window.get("mpv")
         if ($file.exists(picPath)) {
             mpv.get("scroll").get("contentView").get("image").src = picPath
             mpv.get("spinner").loading = false
@@ -131,11 +131,20 @@ function renderMpv(infos, path, page = 1) {
             type: "button",
             props: {
                 id: "button_close",
-                image: $image("assets/icons/close_64x64.png").alwaysTemplate,
-                tintColor: $color("#007aff"),
-                bgcolor: $color("white"),
-                imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
+                bgcolor: $color("white")
             },
+            views: [
+                {
+                    type: "image",
+                    props: {
+                        symbol: 'arrowshape.turn.up.left',
+                        tintColor: $color("#007aff")
+                    },
+                    layout: function(make, view) {
+                        make.edges.insets($insets(12.5, 12.5, 12.5, 12.5))
+                    }
+                }
+            ],
             layout: function (make, view) {
                 make.height.equalTo(57)
                 make.width.equalTo(57)
@@ -145,7 +154,7 @@ function renderMpv(infos, path, page = 1) {
             events: {
                 tapped: function (sender) {
                     exhentaiParser.stopDownloadTasksCreatedByBottleneck()
-                    $("rootView").get("mpv").remove()
+                    $ui.pop()
                 }
             }
         },
@@ -226,6 +235,7 @@ function renderMpv(infos, path, page = 1) {
             events: {
                 ready: function (sender) {
                     sender.rotate(Math.PI / 2)
+                    sender.updateLayout(sliderLayoutFunction)
                 },
                 changed: function(sender) {
                     page = Math.max(Math.ceil(sender.value * infos.pics.length), 1)
@@ -300,10 +310,10 @@ function renderMpv(infos, path, page = 1) {
         layout: $layout.fill,
         events: {
             ready: async function (sender) {
-                $('rootView').get('mpv').get('text_total_page').text = infos.length
+                $ui.window.get('mpv').get('text_total_page').text = infos.length
                 await $wait(0.05)
-                $("rootView").get("mpv").get("scroll").get("contentView").frame = $rect(0, 0, sender.get("scroll").frame.width, sender.get("scroll").frame.height)
-                $("rootView").get("mpv").get("scroll").get("contentView").add(imageView)
+                $ui.window.get("mpv").get("scroll").get("contentView").frame = $rect(0, 0, sender.get("scroll").frame.width, sender.get("scroll").frame.height)
+                $ui.window.get("mpv").get("scroll").get("contentView").add(imageView)
             }
         }
     };
@@ -314,7 +324,28 @@ function init(infos, page = 1) {
     const path = utility.joinPath(glv.imagePath, infos.filename)
     exhentaiParser.downloadPicsByBottleneck(infos)
     const mpv = renderMpv(infos, path, page = page)
-    $('rootView').add(mpv)
+    const rootView = {
+        props: {
+            navBarHidden: true,
+            statusBarHidden: false,
+            statusBarStyle: 0
+        },
+        views: [mpv],
+        events: {
+            layoutSubviews: async function(sender) {
+                if (sender.get("mpv")) {
+                    const scroll = sender.get("mpv").get("scroll")
+                    await $wait(0.05)
+                    scroll.zoomScale = 1
+                    sender.get("mpv").get("scroll").get("contentView").frame = $rect(0, 0, scroll.size.width, scroll.size.height)
+                    scroll.zoomScale = 1
+                    sender.get("mpv").get("slider1").updateLayout(sliderLayoutFunction)
+                }
+            }
+        }
+    }
+    $ui.push(rootView)
+
 }
 
 module.exports = {

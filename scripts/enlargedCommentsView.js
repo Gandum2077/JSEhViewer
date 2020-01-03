@@ -177,8 +177,8 @@ function renderCommentsView(infos) {
                 },
                 events: {
                     tapped: function(sender) {
-                        $('rootView').get('enlargedCommentsView').remove()
-                        $('rootView').get('maskView').remove()
+                        $ui.window.get('enlargedCommentsView').remove()
+                        $ui.window.get('maskView').remove()
                     }
                 }
             },

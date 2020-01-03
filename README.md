@@ -1,6 +1,6 @@
 # JSEhViewer
 
-本应用尚在开发，进度估计在50%～60%。
+本应用尚在开发，进度估计在75%。
 
 ## 使用方法
 本应用的使用要求和[PyEhViewer](https://github.com/Gandum2077/PyEhViewer)完全一致。当然了，这边需要的是JSBox而非Pythonista 3。  

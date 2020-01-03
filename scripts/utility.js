@@ -359,7 +359,7 @@ function startLoading(title) {
     
     const maskView = {
         props: {
-            bgcolor: $rgba(0, 0, 0, 0.2)
+            bgcolor: $rgba(255, 255, 255, 0.5)
         },
         layout: $layout.fill
     }

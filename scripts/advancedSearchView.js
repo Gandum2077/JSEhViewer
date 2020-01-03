@@ -5,6 +5,40 @@ categoriesView = require('./advancedSearch/categoriesView')
 favoriteCategoriesView = require('./advancedSearch/favoriteCategoriesView')
 const glv = require('./globalVariables')
 
+function defineAdvancedSearchOptionSwitchView() {
+    const button = {
+        type: "button",
+        props: {
+            id: "advancedSearchOptionSwitch",
+            title: "高级搜索",
+            symbol: "arrowtriangle.down.fill",
+            titleColor: $color("#6e6eff"),
+            tintColor: $color("#6e6eff"),
+            bgcolor: $color("clear"),
+            info: {'advsearch': '1'}
+        },
+        layout: function(make, view) {
+            make.left.inset(50)
+            make.top.equalTo($("categoriesMatrix").bottom).inset(-20)
+            make.size.equalTo($size(100, 32))
+        },
+        events: {
+            tapped: function(sender) {
+                if (sender.info.advsearch === '1') {
+                    sender.prev.hidden = true
+                    sender.symbol = "arrowtriangle.right.fill",
+                    sender.info = {'advsearch': ''}
+                } else {
+                    sender.prev.hidden = false
+                    sender.symbol = "arrowtriangle.down.fill",
+                    sender.info = {'advsearch': '1'}
+                }
+            }
+        }
+    }
+    return button
+}
+
 function defineASOHomeView() {
     const layoutForCategories = (make, view) => {
         make.centerX.equalTo(view.super)
@@ -13,18 +47,19 @@ function defineASOHomeView() {
     }
     const layoutForOptions = (make, view) => {
         make.centerX.equalTo(view.super)
-        make.top.inset(112)
+        make.top.equalTo($("categoriesMatrix").bottom).inset(12)
         make.size.equalTo($size(400, 204))
     }
     const categoriesMatrix = categoriesView.defineCategoriesMatrix(layoutForCategories)
     const options = optionsHome.defineOptionsHome(layoutForOptions)
-    
+    const ASOSwitch = defineAdvancedSearchOptionSwitchView()
+
     const ASOHomeView = {
         type: "view",
         props: {
             id: "ASOHomeView",
         },
-        views: [categoriesMatrix, options],
+        views: [categoriesMatrix, options, ASOSwitch],
         layout: function(make, view) {
             make.top.inset(3)
             make.top.left.right.inset(0)
@@ -42,7 +77,7 @@ function defineASOFavoritesView(rawData) {
     }
     const layoutForOptions = (make, view) => {
         make.centerX.equalTo(view.super)
-        make.top.inset(204)
+        make.top.equalTo($("favoriteCategoriesMatrix").bottom).inset(12)
         make.size.equalTo($size(400, 24))
     }
     const favoriteCategoriesMatrix = favoriteCategoriesView.defineFavoriteCategoriesMatrix(layoutForFavcats, rawData)
@@ -71,18 +106,19 @@ function defineASODownloadsView() {
     }
     const layoutForOptions = (make, view) => {
         make.centerX.equalTo(view.super)
-        make.top.inset(112)
+        make.top.equalTo($("categoriesMatrix").bottom).inset(12)
         make.size.equalTo($size(400, 84))
     }
     const categoriesMatrix = categoriesView.defineCategoriesMatrix(layoutForCategories)
     const options = optionsDownloads.defineOptionsDownloads(layoutForOptions)
-    
+    const ASOSwitch = defineAdvancedSearchOptionSwitchView()
+
     const ASODownloadsView = {
         type: "view",
         props: {
             id: "ASODownloadsView",
         },
-        views: [categoriesMatrix, options],
+        views: [categoriesMatrix, options, ASOSwitch],
         layout: function(make, view) {
             make.top.inset(3)
             make.top.left.right.inset(0)
@@ -119,7 +155,7 @@ function defineAdvancedSearchView() {
             {
                 type: "tab",
                 props: {
-                    id: 'tab',
+                    id: 'optionsSegmentedControl',
                     index: -1,
                     items: ['Home', 'Watched', 'Favorites', 'Downloads'],
                     bgcolor: $color("white")
@@ -157,7 +193,7 @@ function defineAdvancedSearchView() {
                 },
                 layout: (make, view) => {
                     make.left.right.inset(0)
-                    make.top.equalTo($("tab").bottom).inset(1)
+                    make.top.equalTo($("optionsSegmentedControl").bottom).inset(1)
                     make.height.equalTo(335)
                 }
             },

@@ -248,7 +248,9 @@ function defineOptionsHome(layout, config=null) {
     const optionsHome = {
         tpye: 'view',
         props: {
-            id: "optionsHome"
+            id: "optionsHome",
+            bgcolor: $color("clear"),
+            info: updatedConfig
         },
         views: views,
         layout: layout,

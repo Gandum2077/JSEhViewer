@@ -15,6 +15,7 @@ const userFiles = [
     tagTranslationFile
 ]
 const urls = {
+    default: 'https://exhentai.org/',
     homepage: 'https://exhentai.org/',
     watched: 'https://exhentai.org/watched',
     popular: 'https://exhentai.org/popular',

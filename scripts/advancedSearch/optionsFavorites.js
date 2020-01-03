@@ -97,7 +97,8 @@ function defineOptionsFavorites(layout, config={}) {
     const optionFavorites = {
         tpye: 'view',
         props: {
-            id: "optionFavorites"
+            id: "optionFavorites",
+            info: updatedConfig
         },
         views: views,
         layout: layout

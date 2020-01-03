@@ -457,7 +457,9 @@ function defineFieldView(field, frame = frame) {
                     layout: $layout.fill,
                     events: {
                         tapped: function(sender) {
-                            console.info(2)
+                            $safari.open({
+                                url: value
+                            })
                         }
                     }
                 }

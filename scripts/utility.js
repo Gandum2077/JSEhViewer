@@ -303,24 +303,7 @@ function getUrlCategory(url) {
 }
 
 function getSearchUrl(query, urlCategory = 'default') {
-    let pathname;
-    if (urlCategory === 'default' || urlCategory === 'downloads') {
-        pathname = '/'
-    } else if (urlCategory === 'watched') {
-        pathname = '/watched'
-    } else if (urlCategory === 'favorites') {
-        pathname = '/favorites.php'
-    }
-    let protocol, host;
-    if (urlCategory === 'downloads:') {
-        protocol = 'downloads:'
-        host = 'index'
-    } else {
-        protocol = 'https:'
-        host = 'exhentai.org'
-    }
-    const url = unparseUrl(protocol, host, pathname, query)
-    return url
+    return updateQueryOfUrl(glv.urls[urlCategory], query)
 }
 
 function renderMaskView() {

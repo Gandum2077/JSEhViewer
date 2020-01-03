@@ -137,7 +137,8 @@ function defineOptionsDownloads(layout, config=null) {
     const optionsDownloads = {
         tpye: 'view',
         props: {
-            id: "optionsDownloads"
+            id: "optionsDownloads",
+            info: updatedConfig
         },
         views: views,
         layout: layout

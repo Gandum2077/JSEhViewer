@@ -816,7 +816,6 @@ async function init(newUrl) {
     $ui.push(rootView)
     const filename = utility.verifyUrl(newUrl)
     const infosFile = utility.joinPath(glv.imagePath, filename, 'manga_infos.json')
-    console.info($file.exists(infosFile))
     if ($file.exists(infosFile)) {
         infos = JSON.parse($file.read(infosFile).string)
         await refresh(newUrl, getNewInfos=false)

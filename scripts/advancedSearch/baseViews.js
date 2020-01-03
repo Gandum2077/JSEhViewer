@@ -32,9 +32,15 @@ function defineCheckBox(value='on', layout=null) {
                 if (sender.info.selected) {
                     sender.info = {selected: false}
                     sender.bgcolor = $color("white")
+                    const data = Object.assign({}, sender.super.super.info)
+                    data[sender.super.id] = ''
+                    sender.super.super.info = data
                 } else {
                     sender.info = {selected: true}
                     sender.bgcolor = $color("#ff48c2")
+                    const data = Object.assign({}, sender.super.super.info)
+                    data[sender.super.id] = 'on'
+                    sender.super.super.info = data
                 }
             }
         }
@@ -76,7 +82,14 @@ function defineSegmentedControlForRating(name, layout, value="2", items=["2", "3
             radius: 0,
             bgcolor: $color("#ffd8f2")
         },
-        layout: layout
+        layout: layout,
+        events: {
+            changed: function(sender) {
+                const data = Object.assign({}, sender.super.info)
+                data[sender.id] = sender.items[sender.index]
+                sender.super.info = data
+            }
+        }
     }
     return segmentedControl
 }
@@ -94,7 +107,22 @@ function defineInput(name, layout, value='') {
             borderColor: $color("#c6c6c8"),
             textColor: $color("black")
         },
-        layout: layout
+        layout: layout,
+        events: {
+            changed: function(sender) {
+                const data = Object.assign({}, sender.super.info)
+                data[sender.id] = sender.text
+                sender.super.info = data
+            },
+            didEndEditing: function(sender) {
+                const data = Object.assign({}, sender.super.info)
+                data[sender.id] = sender.text
+                sender.super.info = data
+            },
+            returned: function(sender) {
+                sender.blur()
+            }
+        }
     }
     return input
 }

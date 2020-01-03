@@ -85,8 +85,95 @@ const baseViewsForListView = [
             make.right.equalTo($("button_storage").left).inset(1)
         },
         events: {
-            tapped: function(sender) {
-                getDownloadsInfosFromDB(glv.urls.downloads)
+            tapped: async function(sender) {
+                const asv = $("rootView").get("listView").get("advancedSearchView")
+                if (asv) {
+                    const option = asv.get("optionsSegmentedControl").index
+                    let urlCategory
+                    switch (option) {
+                        case -1:
+                            urlCategory = 'default'
+                            break;
+                        case 0:
+                            urlCategory = 'default'
+                            break;
+                        case 1:
+                            urlCategory = 'watched'
+                            break;
+                        case 2:
+                            urlCategory = 'favorites'
+                            break;
+                        case 3:
+                            urlCategory = 'downloads'
+                            break;
+                        default:
+                            break;
+                    }
+                    const query = {}
+                    const searchPhrase = $("rootView").get("listView").get("textfield_search").text
+                    if (searchPhrase) {
+                        query['f_search'] = searchPhrase
+                    }
+                    if (option === 0 || option === 1) {
+                        const ASOHomeView = asv.get('advancedSearchOptionsLocationView').get('ASOHomeView')
+                        let f_cats = 0
+                        ASOHomeView.get('categoriesMatrix').data.map(n => {
+                            if (!n.label.selected) {
+                                f_cats += Math.pow(2, n.label.categoryIndex)
+                            }
+                        })
+                        if (f_cats) {
+                            query['f_cats'] = f_cats
+                        }
+                        const advsearch = ASOHomeView.get('advancedSearchOptionSwitch').info.advsearch
+                        if (advsearch) {
+                            query['advsearch'] = advsearch
+                            Object.assign(query, ASOHomeView.get('optionsHome').info)
+                        }
+                    } else if (option === 2) {
+                        const ASOFavoritesView = asv.get('advancedSearchOptionsLocationView').get('ASOFavoritesView')
+                        const favcatItem = ASOFavoritesView.get('favoriteCategoriesMatrix').data.find(n => {
+                            if (n.background.borderWidth === 3) {
+                                return true
+                            }
+                        })
+                        if (favcatItem) {
+                            query['favcat'] = favcatItem.name.favcat[6]
+                        }
+                        Object.assign(query, ASOFavoritesView.get('optionFavorites').info)
+                    } else if (option === 3) {
+                        const ASODownloadsView = asv.get('advancedSearchOptionsLocationView').get('ASODownloadsView')
+                        let f_cats = 0
+                        ASODownloadsView.get('categoriesMatrix').data.map(n => {
+                            if (!n.label.selected) {
+                                f_cats += Math.pow(2, n.label.categoryIndex)
+                            }
+                        })
+                        if (f_cats) {
+                            query['f_cats'] = f_cats
+                        }
+                        const advsearch = ASODownloadsView.get('advancedSearchOptionSwitch').info.advsearch
+                        if (advsearch) {
+                            query['advsearch'] = advsearch
+                            Object.assign(query, ASODownloadsView.get('optionsDownloads').info)
+                        }
+                    }
+                    if (!query['f_sr']) {
+                        query['f_srdd'] = undefined
+                    }
+                    if (!query['f_sp']) {
+                        query['f_spf'] = undefined
+                        query['f_spt'] = undefined
+                    }
+                    const sortedQuery = {}
+                    Object.entries(query).map(n => {
+                        if (n[1]) {
+                            sortedQuery[n[0]] = n[1]
+                        }
+                    })
+                    const searchUrl = utility.getSearchUrl(sortedQuery, urlCategory)
+                    await refresh(searchUrl)
+                }
             }
         }
     },
@@ -157,7 +244,6 @@ const baseViewsForListView = [
                 } catch(err) {
                     text = ''
                 }
-                console.info(1)
                 const url = await inputAlert.inputAlert(title='直接打开',text=text)
                 utility.verifyUrl(url)
                 await galleryViewGenerator.init(url)
@@ -572,7 +658,6 @@ function renderRealListView() {
                     handler: function(sender, indexPath) {
                         const deleted = downloads_gid_token[indexPath.row]
                         downloads_gid_token.splice(indexPath.row, 1)
-                        console.info(downloads_gid_token)
                         database.deleteById(deleted.gid)
                         $file.delete(utility.joinPath(glv.imagePath, `${deleted.gid}_${deleted.token}`))
                         const headerText = sender.header.text

@@ -502,7 +502,7 @@ const baseViewForItemCellView = [
 
 const template = {
     props: {
-        bgcolor: $color("#c8c7cc")
+        bgcolor: $color("#c6c6c8")
     },
     views: baseViewForItemCellView
 }
@@ -575,6 +575,9 @@ function renderRealListView() {
                         console.info(downloads_gid_token)
                         database.deleteById(deleted.gid)
                         $file.delete(utility.joinPath(glv.imagePath, `${deleted.gid}_${deleted.token}`))
+                        const headerText = sender.header.text
+                        const num = /\d+/.exec(headerText)[0]
+                        sender.header.text = headerText.replace(/\d+/, num - 1)
                     }
                 }
             ],

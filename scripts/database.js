@@ -39,6 +39,7 @@ function createDB() {
         taglist TEXT,
         thumbnail_url TEXT,
         uploader TEXT,
+        url TEXT,
         visible INTEGER,
         PRIMARY KEY(gid))`);
     db.update(`CREATE TABLE tags (
@@ -53,6 +54,7 @@ function insertInfo(info) {
         info['gid'],
         info['token'],
         info['category'],
+        info['create_time'],
         info['display_rating'],
         info['english_title'],
         info['favcat'],
@@ -64,6 +66,7 @@ function insertInfo(info) {
         JSON.stringify(info['taglist']),
         info['thumbnail_url'],
         info['uploader'],
+        info['url'],
         info['visible']
     ];
     const gid = values_downloads[0]
@@ -83,7 +86,7 @@ function insertInfo(info) {
         args: [gid]
     });
     db.update({
-        sql: "INSERT INTO downloads VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        sql: "INSERT INTO downloads VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         args: values_downloads
     });
     for (let i of values_keys) {
@@ -109,22 +112,19 @@ function deleteById(gid) {
 }
 
 function search(clause, args=null) {
-    const db = $sqlite.open(glv.databaseFile);
-    let rs
-    if (args) {
-        rs = db.query({
-            sql: clause,
-            args: args
-        }).result
-    } else {
-        rs = db.query(clause).result;
-    }
-    const result = [];
-    while (rs.next()) {
-        result.push(rs.values)
-    };
-    rs.close();
-    $sqlite.close(db);
+    const db = $sqlite.open(glv.databaseFile)
+    const result = []
+    db.query({
+        sql: clause,
+        args: args
+    }, (rs, err) => {
+        while (rs.next()) {
+            const values = rs.values
+            result.push(values)
+        }
+        rs.close()
+    })
+    $sqlite.close(db)
     return result
 }
 
@@ -255,12 +255,12 @@ function handleQuery(query) {
             condition_clauses.push(`${f_spf} < downloads.length`)
         }
     }
-    let where_clause;
+    let where_clause = ''
     if (condition_clauses.length) {
         where_clause = ' WHERE ' + condition_clauses.join(' AND ')
     }
     return {
-        clause: "SELECT DISTINCT downloads.gid||'_'||downloads.token FROM downloads" + where_clause,
+        clause: "SELECT DISTINCT * FROM downloads" + where_clause,
         args: args
     }
 }
@@ -268,7 +268,6 @@ function handleQuery(query) {
 function searchByUrl(url) {
     const query = utility.parseUrl(url).query
     const result = handleQuery(query)
-    console.info(result)
     const foldernames = search(result.clause, args=result.args)
     return foldernames
 }

@@ -95,7 +95,7 @@ function getNameAndColor(name) {
             'color': '#AB9F60'
         }
     }
-    return d[name]
+    return d[name.toLowerCase()]
 }
 
 function getColorFromFavcat(name) {

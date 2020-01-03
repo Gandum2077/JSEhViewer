@@ -109,6 +109,11 @@ function defineAdvancedSearchView() {
                 layout: (make, view) => {
                     make.left.right.top.inset(0)
                     make.height.equalTo(176)
+                },
+                events: {
+                    didSelect: function(sender, indexPath, data) {
+                        $("rootView").get("listView").get("textfield_search").text = data
+                    }
                 }
             },
             {

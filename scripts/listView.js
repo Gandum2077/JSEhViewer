@@ -8,16 +8,16 @@ const loginAlert = require('./dialogs/loginAlert')
 const formDialogs = require('./dialogs/formDialogs')
 const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
-
+const database = require('./database')
 
 let url
+let downloads_gid_token
 
 const baseViewsForListView = [
     {
         type: "button",
         props: {
             id: "button_sidebar",
-            //image: $image("assets/icons/navicon_64x64.png").alwaysTemplate,
             tintColor: $color("#007aff"),
             bgcolor: $color("white"),
             radius: 5,
@@ -83,6 +83,11 @@ const baseViewsForListView = [
             make.width.equalTo(45)
             make.top.inset(18)
             make.right.equalTo($("button_storage").left).inset(1)
+        },
+        events: {
+            tapped: function(sender) {
+                getDownloadsInfosFromDB(glv.urls.downloads)
+            }
         }
     },
     {
@@ -176,7 +181,7 @@ const baseViewsForListView = [
         },
         events: {
             tapped: async function (sender) {
-                await refresh();
+                await refresh(url);
             }
         }
     },
@@ -502,9 +507,10 @@ const template = {
     views: baseViewForItemCellView
 }
 
-function getData(infos) {
+function getData(items) {
     const data = []
-    for (let item of infos['items']) {
+    for (let item of items) {
+        const taglist = (typeof(item["taglist"]) === 'string') ? JSON.parse(item["taglist"]) : item["taglist"]
         const itemData = {
             thumbnail_imageview: {
                 source: {
@@ -519,7 +525,7 @@ function getData(infos) {
                 info: {url: item['url']}
             },
             label_title: {
-                text: item['title']
+                text: item['title'] || item['japanese_title'] || item['english_title']
             },
             label_category: {
                 text: utility.getNameAndColor(item['category'])['string'],
@@ -545,7 +551,7 @@ function getData(infos) {
                 hidden: ((item['visible'] === "Yes") ? true : false)
             },
             textview_taglist: {
-                text: utility.renderTaglistToText(utility.translateTaglist(item['taglist']))
+                text: utility.renderTaglistToText(utility.translateTaglist(taglist))
             }
         }
         data.push(itemData)
@@ -564,17 +570,19 @@ function renderRealListView() {
                 {
                     title: "delete",
                     handler: function(sender, indexPath) {
-                        console.info(indexPath)
+                        const deleted = downloads_gid_token[indexPath.row]
+                        downloads_gid_token.splice(indexPath.row, 1)
+                        console.info(downloads_gid_token)
+                        database.deleteById(deleted.gid)
+                        $file.delete(utility.joinPath(glv.imagePath, `${deleted.gid}_${deleted.token}`))
                     }
                 }
             ],
             template: template,
-            //data: getData(infos),
             header: {
                 type: "label",
                 props: {
                     height: 24,
-                    //text: infos['search_result'],
                     textColor: $color("black"),
                     align: $align.center,
                     font: $font(14)
@@ -597,7 +605,9 @@ function renderRealListView() {
                 inner.bgcolor = wrapper.info.ratingColor
             },
             swipeEnabled: function(sender, indexPath) {
-                return false;
+                if (utility.getUrlCategory(url) === 'downloads') {
+                    return true
+                }
             },
             willBeginDragging: function(sender) {
                 initSubviewsStatus()
@@ -619,6 +629,19 @@ function renderListView() {
     return listView
 }
 
+function getDownloadsInfosFromDB(url) {
+    const result = database.searchByUrl(url)
+    const page = parseInt(utility.parseUrl(url).query.page)
+    return {
+        items: result.slice(page * 50, (page + 1) * 50),
+        current_page_str: (page + 1).toString(),
+        total_pages_str: Math.ceil(result.length / 50),
+        favcat_nums_titles: null,
+        favorites_order_method: null,
+        search_result: 'Showing ' + result.length + ' results'
+    }
+}
+
 function initSubviewsStatus() {
     if (!$("rootView").get("listView").get("sidebarView").hidden) {
         $("rootView").get("listView").get("sidebarView").hidden = true
@@ -635,11 +658,22 @@ function initSubviewsStatus() {
 async function refresh(newUrl){
     url = newUrl
     initSubviewsStatus()
-    utility.startLoading()
-    const infos = await exhentaiParser.getListInfosFromUrl(url)
-    utility.stopLoading()
     const urlCategory = utility.getUrlCategory(url)
-    $('rootView').get('listView').get('realListView').data = getData(infos)
+    let infos
+    if (urlCategory === 'downloads') {
+        infos = getDownloadsInfosFromDB(url)
+        downloads_gid_token = infos['items'].map(n => {
+            return {
+                gid: n.gid,
+                token: n.token
+            }
+        })
+    } else {
+        utility.startLoading()
+        infos = await exhentaiParser.getListInfosFromUrl(url)
+        utility.stopLoading()
+    }
+    $('rootView').get('listView').get('realListView').data = getData(infos['items'])
     $('rootView').get('listView').get('realListView').header.text = infos['search_result']
     $('rootView').get('listView').get('realListView').scrollTo({
         indexPath: $indexPath(0, 0),
@@ -661,15 +695,19 @@ function getSideBarButtonImage(urlCategory) {
     return $image(dict[urlCategory]).alwaysTemplate
 }
 
-async function init(listUrl=null) {
-    if (!listUrl) {
-        listUrl = glv.config.default_url
+async function init(newUrl) {
+    if (!newUrl) {
+        if (glv.config.display_downloads_on_start) {
+            newUrl = glv.urls.downloads
+        } else {
+            newUrl = glv.config.default_url
+        }
     }
     const listView = renderListView() 
     $("rootView").add(listView)
     const sideBarView = sidebarViewGenerator.renderSidebarView(refresh, presentSettings)
     $("rootView").get("listView").add(sideBarView)  
-    refresh(listUrl)
+    refresh(newUrl)
 }
 
 async function presentSettings() {
@@ -679,20 +717,21 @@ async function presentSettings() {
             footer: $l10n("只有path为空字符串的url才能作为default url"),
             fields: [
                 {
-                    type: "boolean",
-                    key: "downloads_on_start",
-                    title: $l10n("启动时显示downloads页"),
-                    value: false
-                },
-                {
                     type: "string",
                     key: "default_url",
+                    title: "url",
                     value: glv.config.default_url
                 },
                 {
                     type: "action",
                     buttonTitle: $l10n("将当前url作为default url"),
                     value: null
+                },
+                {
+                    type: "boolean",
+                    key: "downloads_on_start",
+                    title: $l10n("启动时显示downloads页"),
+                    value: glv.config.display_downloads_on_start
                 }
             ]
         },
@@ -734,15 +773,36 @@ async function presentSettings() {
                     type: "action",
                     buttonTitle: $l10n("更新标签翻译"),
                     value: async () => {
-                        await utility.generateTagTranslatorJson()
-                        utility.updateTagTranslatorDict()
+                        const alert = await $ui.alert({
+                            title: "确定要更新标签翻译？",
+                            actions: [{title: "Cancel"}, {title: "OK"}]
+                        })
+                        if (alert.index) {
+                            utility.startLoading()
+                            await utility.generateTagTranslatorJson()
+                            utility.stopLoading()
+                            utility.updateTagTranslatorDict()
+                        }
                     }
                 },
                 {
                     type: "action",
                     buttonTitle: $l10n("更新数据库"),
-                    value: () => {
-    // TO-DO                    
+                    value: async () => {
+                        const alert = await $ui.alert({
+                            title: "确定要更新数据库？",
+                            actions: [{title: "Cancel"}, {title: "OK"}]
+                        })
+                        if (alert.index) {
+                            database.createDB()
+                            for (let filename of $file.list(glv.imagePath)) {
+                                if ($file.list(utility.joinPath(glv.imagePath, filename)).length > 1) {
+                                    const infosFile = utility.joinPath(glv.imagePath, filename, 'manga_infos.json')
+                                    const infos = JSON.parse($file.read(infosFile).string)
+                                    database.insertInfo(infos)
+                                }
+                            }
+                        }
                     }
                 },
                 {
@@ -767,20 +827,21 @@ async function presentSettings() {
             fields: [
                 {
                     type: "segmentedControl",
+                    key: "favorites_order_method",
                     title: $l10n("Favorites排序方式"),
                     items: ['Favorited', 'Posted'],
                     value: null
                 },
                 {
                     type: "segmentedControl",
+                    key: "downloads_order_method",
                     title: $l10n("downloads排序方式"),
-                    items: ['序号', '下载时间'],
+                    items: ['序号', '创建时间'], // gid, st_mtime
                     value: null
                 }
             ]
         }
     ]
-    console.info(sections)
     const result = await formDialogs.formDialogs(sections)
     console.info(result)
 }

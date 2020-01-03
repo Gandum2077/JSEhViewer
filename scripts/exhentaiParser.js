@@ -265,6 +265,7 @@ async function getGalleryMpvInfosFromUrl(gallery_url, full_comments=true) {
     const infos = getGalleryInfos(getRootElement(galleryHtml))
     infos['pics'] = getMpvInfos(getRootElement(mpvHtml))
     infos['url'] = gallery_url
+    infos['create_time'] = new Date().toISOString()
     return infos
 }
 

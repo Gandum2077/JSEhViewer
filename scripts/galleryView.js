@@ -7,6 +7,7 @@ const commentsViewGenerator = require('./enlargedCommentsView')
 const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
 
+let url;
 let infos;
 
 var baseViewsForGalleryView = [
@@ -748,48 +749,54 @@ function renderMatrixView() {
 }
 
 function renderGalleryView() {
-    const matrixView = renderMatrixView()
-    const galleryInfoView = renderGalleryInfoView()
     const galleryView = {
         type: "view",
         props: {
             id: "galleryView",
             bgcolor: $color("white")
         },
-        views: [...baseViewsForGalleryView, galleryInfoView, matrixView],
+        views: baseViewsForGalleryView,
         layout: $layout.fill
     }
     return galleryView
 }
 
-async function refresh(url=null) {
-    if (!url) {
+async function refresh(newUrl, getNewInfos=true) {
+    if (!newUrl) {
         url = infos.url
+    } else {
+        url = newUrl
     }
-    infos = await exhentaiParser.getGalleryMpvInfosFromUrl(url)
-    const filename = utility.verifyUrl(url)
-    const path = utility.joinPath(glv.imagePath, filename)
-    exhentaiParser.saveMangaInfos(infos, path)
+    if (getNewInfos) {
+        utility.startLoading()
+        infos = await exhentaiParser.getGalleryMpvInfosFromUrl(url)
+        utility.stopLoading()
+        const path = utility.joinPath(glv.imagePath, infos.filename)
+        exhentaiParser.saveMangaInfos(infos, path)
+    }
     const galleryInfoView = $('rootView').get('galleryView').get('galleryInfoView')
     const matrixView = $('rootView').get('galleryView').get('matrixView')
-    galleryInfoView.remove()
-    matrixView.remove()
+    if (galleryInfoView) {
+        galleryInfoView.remove()
+    }
+    if (matrixView) {
+        matrixView.remove()
+    }
     $('rootView').get('galleryView').add(renderGalleryInfoView())
     $('rootView').get('galleryView').add(renderMatrixView())
 }
 
-async function init(url) {
-    const filename = utility.verifyUrl(url)
-    const path = utility.joinPath(glv.imagePath, filename)
+async function init(newUrl) {
+    $("rootView").add(renderGalleryView())
+    const filename = utility.verifyUrl(newUrl)
     const infosFile = utility.joinPath(glv.imagePath, filename, 'manga_infos.json')
+    console.info($file.exists(infosFile))
     if ($file.exists(infosFile)) {
         infos = JSON.parse($file.read(infosFile).string)
+        await refresh(newUrl, getNewInfos=false)
     } else {
-        infos = await exhentaiParser.getGalleryMpvInfosFromUrl(url)
-        exhentaiParser.saveMangaInfos(infos, path)
+        await refresh(newUrl)
     }
-    glv.infos = infos
-    $("rootView").add(renderGalleryView())
 }
 
 module.exports = {

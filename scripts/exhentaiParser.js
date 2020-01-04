@@ -498,7 +498,7 @@ async function addFav(gallery_url, favcat='favcat0', favnote=null, old_is_favori
 }
 
 async function rateGallery(rating, apikey, apiuid, gid, token) {
-    rating = parseInt(parseFloat(rating) * 2).toString()
+    const ratingForUpload = parseInt(parseFloat(rating) * 2).toString()
     const header = {
         "User-Agent": glv.userAgent,
         "Content-Type": "application/json",
@@ -509,14 +509,17 @@ async function rateGallery(rating, apikey, apiuid, gid, token) {
         "apikey": apikey,
         "apiuid": apiuid,
         "gid": gid,
-        "rating": rating,
+        "rating": ratingForUpload,
         "token": token
     };
-    const resp1 =  await $http.post({
+    const resp =  await $http.post({
         url: glv.urls.api,
         body: payload,
         header: header
     })
+    if (resp.response.statusCode === 200) {
+        return true
+    }
 }
 
 /**
@@ -624,6 +627,7 @@ module.exports = {
     setFavoritesUsingFavorited: setFavoritesUsingFavorited,
     setFavoritesUsingPosted: setFavoritesUsingPosted,
     getFavcatAndFavnote: getFavcatAndFavnote,
+    rateGallery: rateGallery,
     downloadPicsByBottleneck: downloadPicsByBottleneck,
     stopDownloadTasksCreatedByBottleneck: stopDownloadTasksCreatedByBottleneck
 }

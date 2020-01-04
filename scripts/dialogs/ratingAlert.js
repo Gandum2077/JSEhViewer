@@ -19,7 +19,7 @@ function defineSliderStyleRatingView(adjustedRating) {
             changed: function(sender) {
                 const rating = (parseInt(sender.value * 10) / 2)
                 sender.super.get('label_rating').text = rating.toString()
-                sender.super.info = {rating: rating}
+                sender.super.info = {rating: rating.toString()}
             }
         }
     }
@@ -43,7 +43,7 @@ function defineSliderStyleRatingView(adjustedRating) {
         type: 'view',
         props: {
             id: 'ratingView',
-            info: {rating: null}
+            info: {rating: adjustedRating.toString()}
         },
         views: [slider, label],
         layout: function(make, view) {
@@ -56,7 +56,7 @@ function defineSliderStyleRatingView(adjustedRating) {
 }
 
 
-function defineImageStyleRatingView(params) {
+function defineImageStyleRatingView(adjustedRating) {
     const bgview = {
         type: "view",
         props: {
@@ -69,7 +69,8 @@ function defineImageStyleRatingView(params) {
                 type: "view",
                 props: {
                     id: "colorView",
-                    bgcolor: $color("#ffd217")
+                    bgcolor: $color("#ffd217"),
+                    frame: $rect(0, 0, adjustedRating * 50, 50)
                 }
             }
         ]
@@ -89,7 +90,7 @@ function defineImageStyleRatingView(params) {
         props: {
             id: 'ratingView',
             userInteractionEnabled: true,
-            info: {rating: null}
+            info: {rating: adjustedRating.toString()}
         },
         views: [bgview, image],
         layout: function(make, view) {
@@ -110,7 +111,7 @@ function defineImageStyleRatingView(params) {
                 const width = Math.min(250, Math.max(location.x, 25))
                 const rating = Math.round(width / 25) /2
                 sender.get('colorView').frame = $rect(0, 0, rating * 50, 50)
-                sender.info = {rating: rating}
+                sender.info = {rating: rating.toString()}
             }
         }
     }
@@ -118,7 +119,7 @@ function defineImageStyleRatingView(params) {
 }
 //  slider: 0, stars_image: 1
 async function ratingAlert(rating, style=1) {
-    const adjustedRating = Math.round(parseFloat(rating) * 2)/2
+    const adjustedRating = Math.max(1, Math.round(parseFloat(rating) * 2)) / 2
     return new Promise((resolve, reject) => {
         const titleView = baseViewsGenerator.defineTitleView($l10n('评分'))
         const buttonCancel = baseViewsGenerator.defineButtonCancel(sender => {

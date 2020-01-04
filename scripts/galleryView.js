@@ -321,11 +321,7 @@ function renderGalleryInfoView() {
         {
             type: "canvas",
             props: {
-                id: "canvas_rating",
-                info: {
-                    display_rating: parseFloat(infos['display_rating']), 
-                    ratingColor: $color((infos['is_personal_rating']) ? "#5eacff" : "#ffd217")
-                }
+                id: "canvas_rating"
             },
             layout: (make, view) => {
                 make.height.equalTo(30)
@@ -334,9 +330,9 @@ function renderGalleryInfoView() {
             },
             events: {
                 draw: function(view, ctx) {
-                    const width = view.frame.width * view.info.display_rating / 5;
+                    const width = view.frame.width * parseFloat(infos['display_rating']) / 5;
                     const height = view.frame.height;
-                    ctx.fillColor = view.info.ratingColor;
+                    ctx.fillColor = $color((infos['is_personal_rating']) ? "#5eacff" : "#ffd217");
                     ctx.addRect($rect(0, 0, width, height));
                     ctx.fillPath();
                     ctx.fillColor = $color('#efeff4');
@@ -362,7 +358,19 @@ function renderGalleryInfoView() {
             events: {
                 tapped: async function(sender) {
                     const rating = await ratingAlert.ratingAlert(infos.display_rating)
-                    console.info(rating)
+                    utility.startLoading()
+                    const success = await exhentaiParser.rateGallery(rating, infos.apikey, infos.apiuid, infos.gid, infos.token)
+                    utility.stopLoading()
+                    if (success) {
+                        infos['is_personal_rating'] = true
+                        infos['display_rating'] = rating
+                        const canvas = sender.super.get('canvas_rating')
+                        canvas.runtimeValue().invoke("setNeedsDisplay")
+                        const path = utility.joinPath(glv.imagePath, infos.filename)
+                        exhentaiParser.saveMangaInfos(infos, path)
+                    } else {
+                        $ui.toast($l10n("评分失败"))
+                    }
                 }
             }
         },

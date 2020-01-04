@@ -423,6 +423,34 @@ function saveMangaInfos(infos, downloadPath) {
     });
 }
 
+async function setFavoritesUsingFavorited() {
+    const url = utility.updateQueryOfUrl(glv.urls.favorites, {'inline_set': 'fs_f'})
+    var resp = await $http.get({
+        url: url,
+        header: {
+            "User-Agent": glv.userAgent,
+            Cookie: COOKIE
+        }
+    });
+    if (resp.response.statusCode === 200) {
+        return true
+    }
+}
+
+async function setFavoritesUsingPosted() {
+    const url = utility.updateQueryOfUrl(glv.urls.favorites, {'inline_set': 'fs_p'})
+    var resp = await $http.get({
+        url: url,
+        header: {
+            "User-Agent": glv.userAgent,
+            Cookie: COOKIE
+        }
+    });
+    if (resp.response.statusCode === 200) {
+        return true
+    }
+}
+
 async function getFavcatAndFavnote(gallery_url) {
     const [gid, token] = utility.verifyUrl(gallery_url).split('_')
     const query = {"gid": gid, "t": token, "act": "addfav"}
@@ -588,13 +616,13 @@ function stopDownloadTasksCreatedByBottleneck() {
 }
 
 module.exports = {
-    downloadResizedImage: downloadResizedImage,
-    fetchPicAPIResult: fetchPicAPIResult,
+    getCookie: getCookie,
+    login: login,
     getListInfosFromUrl: getListInfosFromUrl,
     getGalleryMpvInfosFromUrl: getGalleryMpvInfosFromUrl,
-    login: login,
     saveMangaInfos: saveMangaInfos,
-    getCookie: getCookie,
+    setFavoritesUsingFavorited: setFavoritesUsingFavorited,
+    setFavoritesUsingPosted: setFavoritesUsingPosted,
     getFavcatAndFavnote: getFavcatAndFavnote,
     downloadPicsByBottleneck: downloadPicsByBottleneck,
     stopDownloadTasksCreatedByBottleneck: stopDownloadTasksCreatedByBottleneck

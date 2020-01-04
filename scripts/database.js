@@ -182,7 +182,7 @@ function handle_f_search(text) {
 }
 
 
-function handleQuery(query) {
+function handleQuery(query, downloads_order_method = "gid") {
     const cat_sequence = ['Misc', 'Doujinshi', 'Manga', 'Artist CG', 'Game CG', 'Image Set', 'Cosplay', 'Asian Porn', 'Non-H', 'Western']
     const condition_clauses = []
     const args = []
@@ -259,15 +259,20 @@ function handleQuery(query) {
     if (condition_clauses.length) {
         where_clause = ' WHERE ' + condition_clauses.join(' AND ')
     }
+    if (downloads_order_method === "gid") {
+        sort_clause = ' ORDER BY gid DESC'
+    } else {
+        sort_clause = ' ORDER BY create_time DESC'
+    }
     return {
-        clause: "SELECT DISTINCT * FROM downloads" + where_clause,
+        clause: "SELECT DISTINCT * FROM downloads" + where_clause + sort_clause,
         args: args
     }
 }
 
-function searchByUrl(url) {
+function searchByUrl(url, downloads_order_method = "gid") {
     const query = utility.parseUrl(url).query
-    const result = handleQuery(query)
+    const result = handleQuery(query, downloads_order_method = downloads_order_method)
     const foldernames = search(result.clause, args=result.args)
     return foldernames
 }

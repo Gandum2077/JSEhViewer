@@ -365,7 +365,7 @@ function defineFieldView(field, frame = frame) {
         }
     } else if (type === 'segmentedControl') {
         const items = field.items
-        const index = value || -1
+        const index = (value === undefined) ? -1 : value
         valueView = {
             type: "tab",
             props: {

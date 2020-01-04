@@ -719,7 +719,7 @@ function renderListView() {
 }
 
 function getDownloadsInfosFromDB(url) {
-    const result = database.searchByUrl(url)
+    const result = database.searchByUrl(url, glv.config.downloads_order_method)
     const page = parseInt(utility.parseUrl(url).query.page)
     return {
         items: result.slice(page * 50, (page + 1) * 50),
@@ -762,6 +762,12 @@ async function refresh(newUrl){
         infos = await exhentaiParser.getListInfosFromUrl(url)
         utility.stopLoading()
     }
+    // 在此时机插入更新favcat的信息
+    if (infos.favcat_nums_titles && infos.favorites_order_method) {
+        glv.config.favcat_nums_titles = infos.favcat_nums_titles
+        glv.config.favorites_order_method = infos.favorites_order_method
+        glv.saveConfig()
+    }
     $('rootView').get('listView').get('realListView').data = getData(infos['items'])
     $('rootView').get('listView').get('realListView').header.text = infos['search_result']
     $('rootView').get('listView').get('realListView').scrollTo({
@@ -803,22 +809,32 @@ async function presentSettings() {
     const sections = [
         {
             title: 'Default URL',
-            footer: $l10n("只有path为空字符串的url才能作为default url"),
+            footer: $l10n("推荐pathname为空字符串的url作为default url"),
             fields: [
                 {
                     type: "string",
                     key: "default_url",
-                    title: "url",
+                    title: "URL",
                     value: glv.config.default_url
                 },
                 {
                     type: "action",
                     buttonTitle: $l10n("将当前url作为default url"),
-                    value: null
+                    value: async () => {  // I'm hacking myself
+                        const scroll = $('formDialogs').views[1].views[1]
+                        const target = scroll.views[2].views[2]
+                        const valueView = target.views[1]
+                        valueView.text = url
+                        target.info = {
+                            "key": "default_url",
+                            "value": url,
+                            "type": "string"
+                        }
+                    }
                 },
                 {
                     type: "boolean",
-                    key: "downloads_on_start",
+                    key: "display_downloads_on_start",
                     title: $l10n("启动时显示downloads页"),
                     value: glv.config.display_downloads_on_start
                 }
@@ -836,21 +852,29 @@ async function presentSettings() {
                             data: $data({string: JSON.stringify(login, null, 2)}),
                             path: glv.accountFile
                         });
+                        $ui.toast($l10n("完成"))
                     }
                 },
                 {
                     type: "action",
                     buttonTitle: $l10n("重新登录"),
                     value: async () => {
-                        utility.startLoading()
-                        utility.changeLoadingTitle('正在登录')
-                        const success = await exhentaiParser.login(login.username, login.password)
-                        if (!success) {
+                        const alert = await $ui.alert({
+                            title: "确定要重新登录？",
+                            actions: [{title: "Cancel"}, {title: "OK"}]
+                        })
+                        if (alert.index) {
+                            const login = JSON.parse($file.read(glv.accountFile).string)
+                            utility.startLoading()
+                            utility.changeLoadingTitle('正在登录')
+                            const success = await exhentaiParser.login(login.username, login.password)
+                            if (!success) {
+                                utility.stopLoading()
+                                $ui.alert($l10n("失败"))
+                            }
                             utility.stopLoading()
-                            $ui.alert($l10n("失败"))
-                            return false
+                            $ui.toast($l10n("完成"))
                         }
-                        utility.stopLoading()
                     }
                 }
             ]
@@ -871,6 +895,7 @@ async function presentSettings() {
                             await utility.generateTagTranslatorJson()
                             utility.stopLoading()
                             utility.updateTagTranslatorDict()
+                            $ui.toast($l10n("完成"))
                         }
                     }
                 },
@@ -891,23 +916,48 @@ async function presentSettings() {
                                     database.insertInfo(infos)
                                 }
                             }
+                            $ui.toast($l10n("完成"))
+                        }
+                    }
+                },
+                //{
+                //    type: "action",
+                //    buttonTitle: $l10n("清除缓存"),
+                //    value: null
+                //},
+                {
+                    type: "action",
+                    buttonTitle: $l10n("清除未收藏的下载内容"),
+                    value: async () => {
+                        const alert = await $ui.alert({
+                            title: "确定要清除全部下载内容？",
+                            actions: [{title: "Cancel"}, {title: "OK"}]
+                        })
+                        if (alert.index) {
+                            for (let folder of $file.list(glv.imagePath)) {
+                                const infos = JSON.parse($file.read(utility.joinPath(glv.imagePath, folder, 'manga_infos.json')).string)
+                                if (!infos['favcat']) {
+                                    $file.delete(utility.joinPath(glv.imagePath, folder))
+                                }
+                            }
+                            $ui.toast($l10n("完成"))
                         }
                     }
                 },
                 {
                     type: "action",
-                    buttonTitle: $l10n("清除缓存"),
-                    value: null
-                },
-                {
-                    type: "action",
-                    buttonTitle: $l10n("清除未收藏的下载内容"),
-                    value: null
-                },
-                {
-                    type: "action",
                     buttonTitle: $l10n("清除全部下载内容"),
-                    value: null
+                    value: async () => {
+                        const alert = await $ui.alert({
+                            title: "确定要清除全部下载内容？",
+                            actions: [{title: "Cancel"}, {title: "OK"}]
+                        })
+                        if (alert.index) {
+                            $file.delete(glv.imagePath)
+                            $file.mkdir(glv.imagePath)
+                            $ui.toast($l10n("完成"))
+                        }
+                    }
                 }
             ]
         },
@@ -918,21 +968,40 @@ async function presentSettings() {
                     type: "segmentedControl",
                     key: "favorites_order_method",
                     title: $l10n("Favorites排序方式"),
-                    items: ['Favorited', 'Posted'],
-                    value: null
+                    items: ['按收藏时间', '按发布时间'],
+                    value: (glv.config.favorites_order_method === 'Posted') ? 1 : 0
                 },
                 {
                     type: "segmentedControl",
                     key: "downloads_order_method",
                     title: $l10n("downloads排序方式"),
-                    items: ['序号', '创建时间'], // gid, st_mtime
-                    value: null
+                    items: ['按序号', '按创建时间'], // gid, st_mtime
+                    value: (glv.config.downloads_order_method === 'st_mtime') ? 1 : 0
                 }
             ]
         }
     ]
     const result = await formDialogs.formDialogs(sections)
-    console.info(result)
+    const favorites_order_method_items = ['Favorited', 'Posted']
+    const downloads_order_method_items = ['gid', 'st_mtime']
+    const favorites_order_method = favorites_order_method_items[result.favorites_order_method]
+    if (!(glv.config.favorites_order_method === favorites_order_method)) {
+        let success
+        if (favorites_order_method === 'Favorited') {
+            success = await exhentaiParser.setFavoritesUsingFavorited()
+        } else {
+            success = await exhentaiParser.setFavoritesUsingPosted()
+        }
+        if (!success) {
+            $ui.toast($l10n("改变favorites排序方式失败"))
+        } else {
+            glv.config.favorites_order_method = favorites_order_method
+        }
+    }
+    glv.config.downloads_order_method = downloads_order_method_items[result.downloads_order_method]
+    glv.config.display_downloads_on_start = result.display_downloads_on_start
+    glv.config.default_url = result.default_url
+    glv.saveConfig()
 }
 
 

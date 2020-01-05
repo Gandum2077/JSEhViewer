@@ -3,7 +3,7 @@ baseViews = require('./baseViews')
 function getDefaultConfig() {
     const defaultConfig = {
         f_sname: "on",
-        f_tags: "on",
+        f_stags: "on",
         f_sdesc: "",
         f_storr: "",
         f_sr: "",
@@ -37,7 +37,7 @@ function getStandardDefinitions() {
         },
         {
             type: 'label',
-            name: 'f_tags',
+            name: 'f_stags',
             text: '搜索图册标签',
             layout: (make, view) => {
                 make.left.right.equalTo($("f_sname"))
@@ -50,8 +50,8 @@ function getStandardDefinitions() {
             name: 'f_sdesc',
             text: '搜索图册描述',
             layout: (make, view) => {
-                make.left.right.equalTo($("f_tags"))
-                make.top.equalTo($("f_tags").bottom).inset(6)
+                make.left.right.equalTo($("f_stags"))
+                make.top.equalTo($("f_stags").bottom).inset(6)
                 make.height.equalTo(24)
             }
         },

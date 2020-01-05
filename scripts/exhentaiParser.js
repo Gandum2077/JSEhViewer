@@ -7,11 +7,7 @@ if ($file.exists(glv.cookieFile)) {
     COOKIE = getCookieLocal()
 }
 
-const limiter = new Bottleneck({
-  maxConcurrent: 5,
-  minTime: 100
-});
-
+let limiter
 
 // 获取xPath全部结果
 function xPathAll(element, pattern) {
@@ -490,11 +486,14 @@ async function addFav(gallery_url, favcat='favcat0', favnote=null, old_is_favori
     const apply_string = (old_is_favorited) ? 'Apply Changes' : 'Add to Favorites'
     const favcat_string = (favcat === 'favdel') ? 'favdel' : favcat[6]
     const payload = {'favcat': favcat_string, 'favnote': favnote, 'apply': apply_string, 'update': '1'}
-    const resp1 =  await $http.post({
+    const resp =  await $http.post({
         url: url,
         body: payload,
         header: header
     })
+    if (resp.response.statusCode === 200) {
+        return true
+    }
 }
 
 async function rateGallery(rating, apikey, apiuid, gid, token) {
@@ -606,6 +605,11 @@ async function downloadPic(fullpath, url, timeout=20) {
 }
 
 function downloadPicsByBottleneck(infos) {
+    console.info(1)
+    limiter = new Bottleneck({
+        maxConcurrent: 5,
+        minTime: 100
+      });
     for (let pic of infos['pics']) {
         const fullpath = utility.joinPath(glv.imagePath, infos.filename, pic.img_id + pic.img_name.slice(pic.img_name.lastIndexOf('.')))
         if (!$file.exists(fullpath)) {
@@ -615,6 +619,7 @@ function downloadPicsByBottleneck(infos) {
 }
 
 function stopDownloadTasksCreatedByBottleneck() {
+    console.info(2)
     limiter.stop()
 }
 
@@ -627,6 +632,7 @@ module.exports = {
     setFavoritesUsingFavorited: setFavoritesUsingFavorited,
     setFavoritesUsingPosted: setFavoritesUsingPosted,
     getFavcatAndFavnote: getFavcatAndFavnote,
+    addFav: addFav,
     rateGallery: rateGallery,
     downloadPicsByBottleneck: downloadPicsByBottleneck,
     stopDownloadTasksCreatedByBottleneck: stopDownloadTasksCreatedByBottleneck

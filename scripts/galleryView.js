@@ -7,6 +7,7 @@ const commentsViewGenerator = require('./enlargedCommentsView')
 const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
 const database = require('./database')
+const infosViewGenerator = require('./infosView')
 
 let GLOBAL_WIDTH = utility.getWindowSize().width;
 let url;
@@ -27,6 +28,27 @@ var baseViewsForGalleryView = [
             make.width.equalTo(57)
             make.right.inset(0)
             make.bottom.inset(57 * 2)
+        },
+        events: {
+            tapped: async function(sender) {
+                let alertTitle
+                if (parseInt(infos.length) === $file.list(utility.joinPath(glv.imagePath, infos.filename)).length - 1) {
+                    alertTitle = "是否保存为压缩包？"
+                } else {
+                    alertTitle = "本图库尚未下载完成，是否保存为压缩包？"
+                }
+                const alert = await $ui.alert({
+                    title: alertTitle,
+                    actions: [{title: "Cancel"}, {title: "OK"}]
+                })
+                if (alert.index) {
+                    await $archiver.zip({
+                        directory: utility.joinPath(glv.imagePath, infos.filename),
+                        dest: infos.filename + '.zip'
+                    });
+                    $ui.toast($l10n("完成"))
+                }
+            }
         }
     },
     {
@@ -94,22 +116,42 @@ var baseViewsForGalleryView = [
             make.width.equalTo(57)
             make.right.inset(0)
             make.bottom.equalTo($("button_refresh").top)
+        },
+        events: {
+            tapped: function(sender) {
+                const title = infos.japanese_title || infos.english_title
+                $share.sheet(title + '\n' + infos.url)
+            }
         }
     },
     {
         type: "button",
         props: {
             id: "button_safari",
-            image: $image("assets/icons/ios7_world_64x64.png").alwaysTemplate,
-            tintColor: $color("#007aff"),
-            bgcolor: $color("white"),
-            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
+            bgcolor: $color("white")
         },
+        views: [
+            {
+                type: "image",
+                props: {
+                    symbol: 'safari',
+                    tintColor: $color("#007aff")
+                },
+                layout: function(make, view) {
+                    make.edges.insets($insets(12.5, 12.5, 12.5, 12.5))
+                }
+            }
+        ],
         layout: function (make, view) {
             make.height.equalTo(57)
             make.width.equalTo(57)
             make.right.inset(0)
             make.bottom.equalTo($("button_share").top)
+        },
+        events: {
+            tapped: function(sender) {
+                $app.openURL(infos.url)
+            }
         }
     },
     {
@@ -126,6 +168,16 @@ var baseViewsForGalleryView = [
             make.width.equalTo(57)
             make.right.inset(0)
             make.bottom.equalTo($("button_safari").top)
+        },
+        events: {
+            tapped: function(sender) {
+                $ui.push({
+                    props: {
+                        navBarHidden: true
+                    },
+                    views: [infosViewGenerator.defineInfosView(infos)]
+                })
+            }
         }
     },
     {
@@ -410,9 +462,25 @@ function renderGalleryInfoView() {
             },
             events: {
                 tapped: async function(sender) {
+                    utility.startLoading()
                     const favInfos = await exhentaiParser.getFavcatAndFavnote(infos['url'])
+                    utility.stopLoading()
                     const result = await favoriteDialogs.favoriteDialogs(favInfos.favcat_titles, favInfos.favcat_selected, favInfos.favnote, favInfos.is_favorited)
-                    console.info(result)
+                    const old_is_favorited = favInfos.is_favorited
+                    utility.startLoading()
+                    const success = await exhentaiParser.addFav(infos['url'], result.favcat, result.favnote, old_is_favorited)
+                    utility.stopLoading()
+                    if (success) {
+                        infos['favcat_title'] = result.favcat_title
+                        infos['favcat'] = (result.favcat === "favdel") ? null : result.favcat
+                        sender.text = (infos['favcat']) ? infos['favcat_title'] : '未收藏'
+                        sender.textColor = (infos['favcat']) ? $color("white") : $color("black")
+                        sender.bgcolor = (infos['favcat']) ? $color(utility.getColorFromFavcat(infos['favcat'])) : $color("white")
+                        const path = utility.joinPath(glv.imagePath, infos.filename)
+                        exhentaiParser.saveMangaInfos(infos, path)
+                    } else {
+                        $ui.toast($l10n("收藏失败"))
+                    }
                 }
             }
         },

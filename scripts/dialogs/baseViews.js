@@ -46,7 +46,7 @@ function defineTitleBarView(title, cancelEvent, confirmEvent) {
                 type: "label",
                 props: {
                     text: title,
-                    font: $font('bold', 20),
+                    font: $font('bold', 17),
                     align: $align.center
                 },
                 layout: function(make, view) {

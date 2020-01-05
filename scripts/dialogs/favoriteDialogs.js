@@ -54,7 +54,7 @@ function defineFavnoteView(favnote) {
         type: "label",
         props: {
             id: "footer",
-            text: "此处最多只能写200个字节（utf-8编码后的长度，英文1字节，汉字一般3字节）。中间换行无效。",
+            text: "此处最多只能写200字节（utf-8编码后的长度，英文1字节，汉字一般3字节）。中间换行无效",
             align: $align.left,
             font: $font(12),
             lines: 2,
@@ -120,7 +120,7 @@ function defineStaticRow(is_favorited) {
                     {
                         type: "image",
                         props: {
-                            symbol: 'xmark.circle',
+                            symbol: 'delete.right.fill',
                             bgcolor: $color("clear")
                         },
                         layout: function(make, view) {
@@ -159,7 +159,10 @@ function defineStaticRow(is_favorited) {
                 sender.bgcolor = $color("#ccc")
                 const favcatList = sender.super.get('favcatList')
                 favcatList.data = getDataWithSelection(favcatList.data, -1)
-                favcatList.info = {favcat: "favdel"}
+                favcatList.info = {
+                    favcat: "favdel",
+                    favcat_title: null
+                }
             }
         }
     }
@@ -179,29 +182,16 @@ const template = {
             layout: $layout.fill
         },
         {
-            type: "canvas",
+            type: 'image',
             props: {
-                id: "canvas",
-                bgcolor: $color("clear")
+                id: 'canvas',
+                symbol: 'suit.diamond.fill',
+                contentMode: 1
             },
             layout: (make, view) => {
-                make.size.equalTo($size(32, 32));
+                make.size.equalTo($size(30, 30));
                 make.left.inset(15);
-            },
-            events: {
-                draw: function(view, ctx) {
-                    var centerX = view.frame.width * 0.5;
-                    var centerY = view.frame.height * 0.5;
-                    var radius = (40 / 50) * 16;
-                    ctx.fillColor = view.tintColor;
-                    ctx.moveToPoint(centerX, centerY - radius);
-                    for (var i = 1; i < 4; ++i) {
-                        var x = radius * Math.sin(i * Math.PI * 0.5);
-                        var y = radius * Math.cos(i * Math.PI * 0.5);
-                        ctx.addLineToPoint(x + centerX, centerY - y);
-                    }
-                    ctx.fillPath();
-                }
+                make.centerY.equalTo(view.super);
             }
         },
         {
@@ -258,6 +248,8 @@ function defineFavcatList(favcat_titles, favcat_selected, is_favorited) {
     } else {
         data = getDataWithSelection(data, 0)
     }
+    const favcat = (is_favorited) ? favcat_selected  : "favcat0"
+    const favcat_title = favcat_titles.find(n => n.favcat === favcat).title
     const favcatList = {
         type: "list",
         props: {
@@ -269,7 +261,10 @@ function defineFavcatList(favcat_titles, favcat_selected, is_favorited) {
             bgcolor: $color("white"),
             template: template,
             data: data,
-            info: {favcat: (is_favorited) ? favcat_selected  : "favcat0"}
+            info: {
+                favcat: favcat,
+                favcat_title: favcat_title
+            }
         },
         layout: (make, view) => {
             make.left.inset(10);
@@ -281,7 +276,10 @@ function defineFavcatList(favcat_titles, favcat_selected, is_favorited) {
             didSelect: function(sender, indexPath, data) {
                 sender.data = getDataWithSelection(sender.data, indexPath.item)
                 sender.super.get('staticRow').bgcolor = $color("white")
-                sender.info = {favcat: "favcat" + indexPath.item}
+                sender.info = {
+                    favcat: "favcat" + indexPath.item,
+                    favcat_title: favcat_titles.find(n => n.favcat === "favcat" + indexPath.item).title
+                }
             }
         }
     };
@@ -298,6 +296,7 @@ async function favoriteDialogs(favcat_titles, favcat_selected, favnote, is_favor
         const confirmEvent = async function(sender) {
             let flagContinue = true
             const favcat = sender.super.super.get("favcatList").info.favcat
+            const favcat_title = sender.super.super.get("favcatList").info.favcat_title
             const favnote = sender.super.super.get("text").text
             if (getUtf8Length(favnote) > 200) {
                 const answer = await $ui.alert({
@@ -310,7 +309,8 @@ async function favoriteDialogs(favcat_titles, favcat_selected, favnote, is_favor
             if (flagContinue) {
                 const result = {
                     favcat: favcat,
-                    favnote: favnote
+                    favnote: favnote,
+                    favcat_title: favcat_title
                 }
                 sender.super.super.super.remove()
                 resolve(result)

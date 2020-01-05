@@ -331,13 +331,26 @@ function renderGalleryInfoView() {
                 font: $font(12),
                 align: $align.center,
                 textColor: $color("black"),
-                bgcolor: $color("white")
+                bgcolor: $color("white"),
+                userInteractionEnabled: true,
+                info: {selected: false}
             },
             layout: function (make, view) {
                 make.height.equalTo(36)
                 make.left.equalTo($("label_length").left)
                 make.top.equalTo($("label_length").bottom).inset(1)
                 make.right.equalTo($("label_length").right)
+            },
+            events: {
+                tapped: function(sender) {
+                    if (!sender.info.selected) {
+                        sender.bgcolor = $color("gray")
+                        sender.info = {selected: true}
+                    } else {
+                        sender.bgcolor = $color("white")
+                        sender.info = {selected: false}
+                    }
+                }
             }
         },
         {
@@ -437,7 +450,7 @@ function renderGalleryInfoView() {
                 bgcolor: $color("white")
             },
             layout: function (make, view) {
-                make.height.equalTo(34)
+                make.height.equalTo(36)
                 make.left.equalTo($("lowlevel_view_rating").left)
                 make.top.equalTo($("lowlevel_view_rating").bottom).inset(1)
                 make.right.equalTo($("lowlevel_view_rating").right)
@@ -579,17 +592,17 @@ function renderGalleryInfoView() {
 
 function renderFullTagTableView(width, translated = true) {
     const bilingualTaglist = utility.getBilingualTaglist(infos.taglist, translated = translated)
-    const tagTableView = tagTableViewGenerator.renderTagTableView(width - 2 - 50, bilingualTaglist)
-    const height = tagTableView.props.frame.height + 2
+    const tagTableView = tagTableViewGenerator.renderTagTableView(width - 51, bilingualTaglist)
+    const height = tagTableView.props.info.height
     const views = [
         {
             type: "scroll",
             props: {
                 id: "scroll",
-                contentSize: $size(0, height-2)
+                contentSize: $size(width - 51, height)
             },
             layout: function (make, view) {
-                make.top.bottom.left.inset(1)
+                make.top.bottom.left.inset(0)
                 make.right.inset(51)
             },
             views: [tagTableView]
@@ -612,12 +625,34 @@ function renderFullTagTableView(width, translated = true) {
                 image: $image('assets/icons/language_64x64.png').alwaysTemplate,
                 tintColor: $color("#007aff"),
                 bgcolor: $color("clear"),
-                imageEdgeInsets: $insets(5, 5, 5, 5)
+                imageEdgeInsets: $insets(5, 5, 5, 5),
+                info: {translated: translated}
             },
             layout: function (make, view) {
                 make.size.equalTo($size(32, 32))
                 make.top.inset(height * 0.25 - 16)
                 make.right.inset(10)
+            },
+            events: {
+                tapped: function(sender) {
+                    if (sender.info.translated) {
+                        const newTagTableView = tagTableViewGenerator.renderTagTableView(width - 51, bilingualTaglist, false)
+                        const height = newTagTableView.props.info.height
+                        const scroll = sender.super.get("scroll")
+                        scroll.get("tagTableView").remove()
+                        scroll.add(newTagTableView)
+                        scroll.contentSize = $size(width - 51, height)
+                        sender.info = {translated: false}
+                    } else {
+                        const newTagTableView = tagTableViewGenerator.renderTagTableView(width - 51, bilingualTaglist, true)
+                        const height = newTagTableView.props.info.height
+                        const scroll = sender.super.get("scroll")
+                        scroll.get("tagTableView").remove()
+                        scroll.add(newTagTableView)
+                        scroll.contentSize = $size(width - 51, height)
+                        sender.info = {translated: true}
+                    }
+                }
             }
         },
         {
@@ -632,6 +667,40 @@ function renderFullTagTableView(width, translated = true) {
                 make.size.equalTo($size(32, 32))
                 make.bottom.inset(height * 0.25 - 16)
                 make.right.inset(10)
+            },
+            events: {
+                tapped: function(sender) {
+                    const label_uploader = $ui.window.get("galleryView").get("galleryInfoView").get("label_uploader")
+                    const selectedTags = []
+                    const tagTableView = sender.super.get("scroll").get("tagTableView")
+                    const tagsViews = tagTableView.views.filter(n => n.views.length)
+                    for (let tagsView of tagsViews) {
+                        tagsView.views.map(n => {
+                            if (n.info.selected) {
+                                selectedTags.push(n.info)
+                            }
+                        })
+                    }
+                    const texts = []
+                    if (selectedTags.length === 0 && !label_uploader.info.selected) {
+                        $ui.toast($l10n("未选中任何标签"))
+                    } else {
+                        if (label_uploader.info.selected) {
+                            texts.push('uploader:' + label_uploader.text.slice(10))
+                        }
+                        if (selectedTags.length) {
+                            selectedTags.map(n => {
+                                if (n.originalText.indexOf(' ') !== -1) {
+                                    texts.push(`${n.tagType }:"${n.originalText }$"`)
+                                } else {
+                                    texts.push(`${n.tagType }:${n.originalText }$`)
+                                }
+                            })
+                        }
+                    }
+                    $clipboard.text = texts.join(' ')
+                    $ui.toast($l10n("已复制标签"))
+                }
             }
         }
     ]
@@ -727,7 +796,7 @@ function renderCommentsView() {
         layout: function (make, view) {
             make.height.equalTo(150)
             make.left.right.inset(0)
-            make.top.equalTo($("fullTagTableView").bottom)
+            make.top.equalTo($("fullTagTableView").bottom).offset(-1)
         }
     }
     return commentsView
@@ -736,7 +805,7 @@ function renderCommentsView() {
 function renderHeaderView() {
     const fullTagTableView = renderFullTagTableView(695)
     const commentsView = renderCommentsView()
-    const headerViewHeight = fullTagTableView.props.frame.height + 150
+    const headerViewHeight = fullTagTableView.props.frame.height + 150 - 1
     const views = [
         fullTagTableView,
         commentsView

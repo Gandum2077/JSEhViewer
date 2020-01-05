@@ -2,7 +2,7 @@ const utility = require('./utility')
 
 // 此函数用于获取调整过的tag尺寸
 function adjustSize(size) {
-    return $size(((size.width < 26) ? 30 : size.width + 4), size.height + 4)
+    return $size(((size.width < 26) ? 30 : Math.ceil(size.width + 4)), Math.ceil(size.height + 4))
 }
 
 /**
@@ -14,9 +14,9 @@ function adjustSize(size) {
  * @param {?string} tagType 
  * @param {boolean} translated
  * @returns {object} label - label定义 
- * props.info还有一个choosen变量，用于规定label是否被选中，默认为false
+ * props.info还有一个selected变量，用于规定label是否被选中，默认为false
  */
-function renderTouchableLabel(text, frame, originalText, translatedText, tagType, translated) {
+function defineTouchableLabel(text, frame, originalText, translatedText, tagType, translated) {
     const label = {
         type: "label",
         props: {
@@ -27,11 +27,26 @@ function renderTouchableLabel(text, frame, originalText, translatedText, tagType
             userInteractionEnabled: true,
             frame: frame,
             info: {
-                orginalText: originalText,
+                originalText: originalText,
                 translatedText: translatedText,
                 translated: translated,
                 tagType: tagType,
-                choosen: false
+                selected: false
+            }
+        },
+        events: {
+            tapped: function(sender) {
+                if (!sender.info.selected) {
+                    const data = Object.assign({}, sender.info)
+                    data.selected = true
+                    sender.bgcolor = $color("gray")
+                    sender.info = data
+                } else {
+                    const data = Object.assign({}, sender.info)
+                    data.selected = false
+                    sender.bgcolor = $color("#bcffc3")
+                    sender.info = data
+                }
             }
         }
     }
@@ -50,7 +65,7 @@ function renderTouchableLabel(text, frame, originalText, translatedText, tagType
  * 为了方便查找，此view的props.info加入class='tagsView'
  */
 
-function renderTagsView(width, bilingualTags, tagType, translated = true) {
+function defineTagsView(width, bilingualTags, tagType, translated = true) {
     const labels = []
     let x = 0;
     let y = 0;
@@ -69,14 +84,15 @@ function renderTagsView(width, bilingualTags, tagType, translated = true) {
             x = 0 + size.width + inset
             y = y + size.height + inset
         }
-        label = renderTouchableLabel(text, frame, originalText, translatedText, tagType, translated)
+        label = defineTouchableLabel(text, frame, originalText, translatedText, tagType, translated)
         labels.push(label)
     }
     const tagsView = {
         type: "view",
         props: {
+            id: "tagsView",
             bgcolor: $color("clear"),
-            frame: $rect(0, 0, width, y + labels[labels.length - 1].props.frame.height),
+            size: $size(width, y + labels[labels.length - 1].props.frame.height),
             info: {
                 class: 'tagsView',
                 tagType: tagType
@@ -89,10 +105,10 @@ function renderTagsView(width, bilingualTags, tagType, translated = true) {
 
 /**
  * 此函数返回tagTableView的定义
- * tagTypeLabel宽度90，tagsView占据其余全部的宽度，但两者之间有inset=1
+ * tagTypeLabel宽度90，tagsView占据其余全部的宽度
  * 每个tagsView上下各有verticalMargin=5，两个之间再间隔inset=1
  * 此处不负责处理border问题，同时frame的x，y都将为0
- * @param {!number} width 此处的width应为fullTagTableView的width - 50 - 2（2的意思是2个inset）
+ * @param {!number} idealWidth 宽度采用自动布局，但是对于tagsView，目前无法做到自动布局，因此提出idealWidth的概念，意为最常用的宽度，将用于tagsView的生成
  * @param {!object} bilingualTaglist 
  * @param {boolean=true} translated 
  * @param {number=1} inset 此变量用于tagTypeLabel、lowlevelView相互之间的间距
@@ -100,11 +116,11 @@ function renderTagsView(width, bilingualTags, tagType, translated = true) {
  * @param {number=0} rightMargin 此变量用于给tagsView右边留白
  */
 
-function renderTagTableView(width, bilingualTaglist, translated = true, inset = 1, verticalMargin = 5, rightMargin = 0) {
+function defineTagTableView(idealWidth, bilingualTaglist, translated = true, verticalMargin = 5) {
     const tagsViewsArray = [] // 先获得全部的tagsView，其中frame的x, y未调整
     for (let tagType in bilingualTaglist) {
         const bilingualTags = bilingualTaglist[tagType]
-        const tagsView = renderTagsView(width - 90 - inset - rightMargin, bilingualTags, tagType, translated = translated)
+        const tagsView = defineTagsView(idealWidth - 90 - 2 * verticalMargin, bilingualTags, tagType, translated = translated)
         tagsViewsArray.push(tagsView)
     }
     // 然后去获得辅助tagsView的其他View，每个tagsView对应一个底层view和一个tagTypeLabel
@@ -112,8 +128,7 @@ function renderTagTableView(width, bilingualTaglist, translated = true, inset = 
     let cumulatedHeight = 0
     for (let idx in tagsViewsArray) {
         const tagsView = tagsViewsArray[idx]
-        tagsView.props.frame.x = 90 + inset
-        tagsView.props.frame.y = cumulatedHeight + verticalMargin
+        tagsView.props.frame = $rect(90 + 5, cumulatedHeight + verticalMargin, tagsView.props.size.width, tagsView.props.size.height)
         const tagType = tagsView.props.info.tagType
         const tagTypeLabel = {
             type: "label",
@@ -121,6 +136,8 @@ function renderTagTableView(width, bilingualTaglist, translated = true, inset = 
                 text: (translated) ? utility.translateTagType(tagType) : tagType,
                 font: $font(14),
                 align: $align.center,
+                borderWidth: 0.5,
+                borderColor: $color("#c6c6c8"),
                 bgcolor: $color("white"),
                 frame: $rect(0, cumulatedHeight, 90, tagsView.props.frame.height + verticalMargin * 2)
             }
@@ -128,23 +145,37 @@ function renderTagTableView(width, bilingualTaglist, translated = true, inset = 
         const lowlevelView = {
             type: "view",
             props: {
-                bgcolor: $color("white"),
-                frame: $rect(90 + inset, cumulatedHeight, width - 90 - inset, tagsView.props.frame.height + verticalMargin * 2)
+                bgcolor: $color("clear"),
+                borderWidth: 0.5,
+                borderColor: $color("#c6c6c8"),
+                info: {cumulatedHeight: cumulatedHeight, height: tagsView.props.frame.height + verticalMargin * 2}
+            },
+            layout: function(make, view) {
+                make.left.inset(90)
+                make.width.equalTo(view.super.width).offset(-90 + 0.5)
+                make.top.inset(view.info.cumulatedHeight)
+                make.height.equalTo(view.info.height)
             }
         }
-        cumulatedHeight += 2 * verticalMargin + inset + tagsView.props.frame.height
+        cumulatedHeight += 2 * verticalMargin + tagsView.props.frame.height
         views.push(tagTypeLabel, lowlevelView, tagsView)
     }
     return {
         props: {
             id: "tagTableView",
-            bgcolor: $color("#c8c7cc"),
-            frame: $rect(0, 0, width, cumulatedHeight - inset)
+            bgcolor: $color("clear"),
+            info: {height: cumulatedHeight}
         },
-        views: views
+        views: views,
+        layout: function(make, view) {
+            make.left.top.inset(0)
+            make.width.equalTo(view.super).priority(999)
+            make.width.greaterThanOrEqualTo(idealWidth)
+            make.height.equalTo(cumulatedHeight)
+        }
     }
 }
 
 module.exports = {
-    renderTagTableView: renderTagTableView
+    renderTagTableView: defineTagTableView
 }

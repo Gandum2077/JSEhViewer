@@ -352,7 +352,7 @@ function defineFieldView(field, frame = frame) {
                         changed: function(sender) {
                             const adjustedValue = sender.value.toFixed(decimal)
                             sender.super.get('sliderValue').text = adjustedValue
-                            sender.super.super.info = {key: sender.super.super.info.key, value: adjustedValue, type: sender.super.super.info.type}
+                            sender.super.super.info = {key: sender.super.super.info.key, value: parseFloat(adjustedValue), type: sender.super.super.info.type}
                         }
                     }
                 }

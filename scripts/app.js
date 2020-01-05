@@ -1,7 +1,5 @@
-const utility = require("./utility")
-const welcome = require("./welcome")
 const glv = require('./globalVariables')
-const mpvGenerator = require("./mpv")
+const welcome = require("./welcome")
 
 async function init() {
     const rootView = {

@@ -4,7 +4,7 @@ const glv = require('./globalVariables')
 const formDialogs = require('./dialogs/formDialogs')
 
 let TIMER
-let AUTOLOAD_SPPED = glv.config.autopage_interval
+let AUTOLOAD_SPPED
 let INFOS
 let PAGE
 
@@ -26,6 +26,9 @@ const baseViewsForMpv = [
         },
         events: {
             tapped: async function(sender) {
+                if (TIMER) {
+                    TIMER.invalidate()
+                }
                 const sections = [{
                     title: $l10n("设置"),
                     footer: '',
@@ -86,15 +89,31 @@ const baseViewsForMpv = [
                             type: "slider",
                             key: "autoload_speed",
                             title: $l10n("自动翻页速度（秒/页）"),
-                            value: 5,
+                            value: AUTOLOAD_SPPED,
                             min: 1,
                             max: 30,
                             decimal: 0
                         }
                     ]
                 }]
-                const result = await formDialogs.formDialogs(sections)
-                console.info(result)
+                try {
+                    const result = await formDialogs.formDialogs(sections)
+                    AUTOLOAD_SPPED = result.autoload_speed
+                } catch(err) {
+
+                }
+                if (sender.super.get("button_autoload").info.selected) {
+                    TIMER = $timer.schedule({
+                        interval: AUTOLOAD_SPPED,
+                        handler: function() {
+                            const newPage = Math.min(PAGE + 1, INFOS.pics.length)
+                            if (PAGE !== newPage) {
+                                PAGE = newPage
+                                refreshMpv()
+                            }
+                        }
+                    })
+                }
             }
         }
     },
@@ -105,7 +124,8 @@ const baseViewsForMpv = [
             image: $image("assets/icons/ios7_fastforward_64x64.png").alwaysTemplate,
             tintColor: $color("#007aff"),
             bgcolor: $color("white"),
-            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
+            imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5),
+            info: {selected: false}
         },
         layout: function (make, view) {
             make.height.equalTo(57)
@@ -115,6 +135,24 @@ const baseViewsForMpv = [
         },
         events: {
             tapped: function(sender) {
+                if (!sender.info.selected) {
+                    sender.info = {selected: true}
+                    sender.tintColor = $color("red")
+                    TIMER = $timer.schedule({
+                        interval: AUTOLOAD_SPPED,
+                        handler: function() {
+                            const newPage = Math.min(PAGE + 1, INFOS.pics.length)
+                            if (PAGE !== newPage) {
+                                PAGE = newPage
+                                refreshMpv()
+                            }
+                        }
+                    })
+                } else {
+                    sender.info = {selected: false}
+                    sender.tintColor = $color("#007aff")
+                    TIMER.invalidate()
+                }
             }
         }
     },
@@ -178,6 +216,16 @@ const baseViewsForMpv = [
             make.width.equalTo(57)
             make.right.inset(0)
             make.bottom.equalTo($("button_refresh").top)
+        },
+        events: {
+            tapped: function(sender) {
+                $ui.push({
+                    props: {
+                        navBarHidden: true
+                    },
+                    views: [infosViewGenerator.defineInfosView(INFOS)]
+                })
+            }
         }
     },
     {
@@ -319,7 +367,7 @@ function defineSlider() {
     }
     const slider = defineCustomSlider(layout, {
         id: 'slider1',
-        max: INFOS.length,
+        max: INFOS.pics.length,
         value: PAGE
     }, changedEvent, finishedEvent)
     return slider
@@ -355,10 +403,6 @@ function refreshMpv(ignoreSlider=false) {
     }
 }
 
-function autoload() {
-    
-}
-
 function defineMpv() {
     const imageView = {
         type: "image",
@@ -382,8 +426,11 @@ function defineMpv() {
         events: {
             touchesEnded: function (sender, location, locations) {
                 if (sender.super.zoomScale === 1) {
-                    PAGE = (location.y <= sender.frame.height / 2) ? Math.max(PAGE - 1, 1): Math.min(PAGE + 1, INFOS.pics.length)
-                    refreshMpv()
+                    const newPage = (location.y <= sender.frame.height / 2) ? Math.max(PAGE - 1, 1): Math.min(PAGE + 1, INFOS.pics.length)
+                    if (PAGE !== newPage) {
+                        PAGE = newPage
+                        refreshMpv()
+                    }
                 } else {
                     sender.super.zoomScale = 1
                 }
@@ -428,8 +475,8 @@ function defineMpv() {
         events: {
             ready: async function (sender) {
                 const mpv = $ui.window.get('mpv')
-                mpv.get('text_total_page').text = INFOS.length
-                mpv.get('slider1').max = INFOS.length
+                mpv.get('text_total_page').text = INFOS.pics.length
+                mpv.get('slider1').max = INFOS.pics.length
                 await $wait(0.05)
                 mpv.get("scroll").get("contentView").frame = $rect(0, 0, sender.get("scroll").frame.width, sender.get("scroll").frame.height)
                 mpv.get("scroll").get("contentView").add(imageView)
@@ -442,6 +489,7 @@ function defineMpv() {
 function init(infos, page = 1) {
     INFOS = infos
     PAGE = page
+    AUTOLOAD_SPPED = glv.config['autopage_interval']
     exhentaiParser.downloadPicsByBottleneck(INFOS)
     const mpv = defineMpv()
     const rootView = {
@@ -463,6 +511,9 @@ function init(infos, page = 1) {
             },
             disappeared: function() {
                 exhentaiParser.stopDownloadTasksCreatedByBottleneck()
+                if (TIMER) {
+                    TIMER.invalidate()
+                }
             }
         }
     }

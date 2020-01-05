@@ -1,8 +1,11 @@
 const utility = require('./utility')
 
 // 此函数用于获取调整过的tag尺寸
-function adjustSize(size) {
-    return $size(((size.width < 26) ? 30 : Math.ceil(size.width + 4)), Math.ceil(size.height + 4))
+function adjustSize(size, maxWidth) {
+    const width = Math.min(((size.width < 26) ? 30 : Math.ceil(size.width + 4)), maxWidth)
+    //const height = Math.ceil(size.height + 4)
+    const height = 21
+    return $size(width, height)
 }
 
 /**
@@ -57,7 +60,7 @@ function defineTouchableLabel(text, frame, originalText, translatedText, tagType
  * 此函数的作用为获取width不定的label放置在width确定的view容器中，返回view容器定义
  * 此处不负责上下左右的inset，即都是0。
  * 字体为$font(14)，label之间的inset为6。
- * @param {!number} width - 注意传入的width要已经减掉fullTagTableView左右其他部件的width，即width - 90 - 50 - 3
+ * @param {!number} width - 注意传入的width要已经减掉fullTagTableView左右其他部件的width，即width - 90 - 50 - 10
  * @param {!object} tags - bilingualTaglist['tagType']
  * @param {!string} tagType - 上一条中的tagType
  * @param {!boolean} translated 
@@ -74,7 +77,7 @@ function defineTagsView(width, bilingualTags, tagType, translated = true) {
         const originalText = tag[0]
         const translatedText = tag[1]
         const text = (translated) ? translatedText : originalText
-        const size = adjustSize(utility.getTextWidth(text))
+        const size = adjustSize(utility.getTextWidth(text), width)
         let frame;
         if (x + size.width <= width) {
             frame = $rect(x, y, size.width, size.height)
@@ -106,8 +109,7 @@ function defineTagsView(width, bilingualTags, tagType, translated = true) {
 /**
  * 此函数返回tagTableView的定义
  * tagTypeLabel宽度90，tagsView占据其余全部的宽度
- * 每个tagsView上下各有verticalMargin=5，两个之间再间隔inset=1
- * 此处不负责处理border问题，同时frame的x，y都将为0
+ * 每个tagsView上下各有verticalMargin=5
  * @param {!number} idealWidth 宽度采用自动布局，但是对于tagsView，目前无法做到自动布局，因此提出idealWidth的概念，意为最常用的宽度，将用于tagsView的生成
  * @param {!object} bilingualTaglist 
  * @param {boolean=true} translated 

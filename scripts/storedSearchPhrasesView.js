@@ -52,7 +52,8 @@ const template = {
         {
             type: "label",
             props: {
-                id: "label"
+                id: "label",
+                lines: 2
             },
             layout: function(make, view) {
                 make.right.equalTo($("buttonInfo").left)
@@ -129,13 +130,29 @@ function defineStoredSearchPhrasesView() {
             reorder: true,
             template: template,
             data: getData(glv.config.storage_search_phrases),
-            actions: [{
-                title: "delete",
-                handler: function(sender, indexPath) {
-                    glv.config.storage_search_phrases = getRawDataFromListData(sender.data)
-                    glv.saveConfig()
+            actions: [
+                {
+                    title: "delete",
+                    handler: function(sender, indexPath) {
+                        glv.config.storage_search_phrases = getRawDataFromListData(sender.data)
+                        glv.saveConfig()
+                    }
+                },
+                {
+                    title: $l10n("追加"),
+                    handler: function(sender, indexPath) {
+                        const data = sender.data[indexPath.row]
+                        const text = (data.buttonInfo.hidden) ? data.label.text : data.buttonInfo.info.raw
+                        const textfield_search = $("rootView").get("listView").get("textfield_search")
+                        if (textfield_search.text) {
+                            textfield_search.text += " " + text
+                        } else {
+                            textfield_search.text = text
+                        }
+                         
+                    }
                 }
-            }]
+            ]
         },
         layout: function(make) {
             make.left.right.inset(3)

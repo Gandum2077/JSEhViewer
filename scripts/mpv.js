@@ -391,6 +391,9 @@ function refreshMpv(ignoreSlider=false) {
     const picPath = getPicPath()
     const mpv = $ui.window.get("mpv")
     if ($file.exists(picPath)) {
+        if (mpv.get("scroll").zoomScale !== 1) {
+            mpv.get("scroll").zoomScale = 1
+        }
         mpv.get("scroll").get("contentView").get("image").src = picPath
         mpv.get("spinner").loading = false
     } else {

@@ -2,6 +2,7 @@ const utility = require('./utility')
 const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
 const formDialogs = require('./dialogs/formDialogs')
+const infosViewGenerator = require('./infosView')
 
 let TIMER
 let AUTOLOAD_SPPED
@@ -187,12 +188,71 @@ const baseViewsForMpv = [
         }
     },
     {
+        type: "view",
+        props: {
+            id: "downloadProgressCanvas",
+            bgcolor: $color("white")
+        },
+        views: [
+            {
+                type: "canvas",
+                props: {
+                    id: "inner",
+                    tintColor: $color("#ffcb0f"),
+                    bgcolor: $color("clear"),
+                    info: {progress: 0}
+                },
+                layout: function(make, view) {
+                    make.size.equalTo($size(16.5, 16.5))
+                    make.center.equalTo(view.super)
+                },
+                events: {
+                    draw: function(view, ctx) {
+                        const progress = view.info.progress
+                        ctx.fillColor = view.tintColor
+                        const radius = view.frame.width
+                        ctx.setLineWidth(1)
+                        ctx.setLineCap(0)
+                        ctx.setLineJoin(1)
+                        ctx.moveToPoint(radius / 2, radius / 2)
+                        ctx.addLineToPoint(radius / 2, 0)
+                        ctx.addArc(radius / 2, radius / 2, radius / 2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress)
+                        ctx.addLineToPoint(radius / 2, radius / 2)
+                        ctx.fillPath()
+                    }
+                }
+            }
+        ],
+        layout: function (make, view) {
+            make.height.equalTo(57)
+            make.width.equalTo(57)
+            make.right.inset(0)
+            make.bottom.equalTo($("button_close").top)
+        },
+        events: {
+            ready: async function(sender) {
+                const length = parseInt(INFOS.pics.length)
+                const path = utility.joinPath(glv.imagePath, INFOS.filename)
+                await $wait(0.1)
+                while(sender.super && $file.list(path).length - 1 < length) {
+                    sender.get("inner").info = {progress: downloaded / length}
+                    sender.get("inner").runtimeValue().invoke("setNeedsDisplay")
+                }
+                if (sender.super && $file.list(path).length - 1 === length) {
+                    sender.get("inner").tintColor = $color("#b4ffbb")
+                    sender.get("inner").info = {progress: 1}
+                    sender.get("inner").runtimeValue().invoke("setNeedsDisplay")
+                }
+            }
+        }
+    },
+    {
         type: "button",
         props: {
             id: "button_refresh",
             image: $image("assets/icons/refresh_64x64.png").alwaysTemplate,
             tintColor: $color("#007aff"),
-            bgcolor: $color("white"),
+            bgcolor: $color("clear"),
             imageEdgeInsets: $insets(12.5, 12.5, 12.5, 12.5)
         },
         layout: function (make, view) {
@@ -464,6 +524,17 @@ function defineMpv() {
         },
         layout: function(make, view) {
             make.center.equalTo($("scroll").center)
+        },
+        events: {
+            ready: async function(sender) {
+                await $wait(0.1)
+                while(sender.super) {
+                    if (sender.loading) {
+                      refreshMpv()
+                    }
+                    await $wait(1)
+                }
+            }
         }
     }
 

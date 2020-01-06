@@ -307,6 +307,42 @@ function renderGalleryInfoView() {
             }
         },
         {
+            type: "view",
+            props: {
+                id: "downloadProgressView",
+                bgcolor: $color("white")
+            },
+            views: [
+                {
+                    type: "view",
+                    props: {
+                    id: "inner",
+                    bgcolor: $color("#ffffb6")
+                    }
+                }
+            ],
+            layout: function (make, view) {
+                make.height.equalTo(36)
+                make.left.equalTo($("label_category").left)
+                make.top.equalTo($("label_category").bottom).inset(1)
+                make.right.equalTo($("label_category").right)
+            },
+            events: {
+                ready: async function(sender) {
+                    const path = utility.joinPath(glv.imagePath, infos.filename)
+                    await $wait(0.1)
+                    while (sender.super && $file.list(path).length - 1 < parseInt(infos.pics.length)) {
+                        sender.get("inner").frame = $rect(0, 0, sender.frame.width * ($file.list(path).length - 1) / parseInt(infos.pics.length), 36)
+                        await $wait(1)
+                    }
+                    if (sender.super && $file.list(path).length - 1 === parseInt(infos.pics.length)) {
+                        sender.get("inner").frame = $rect(0, 0, sender.frame.width, 36)
+                        sender.get("inner").bgcolor = $color("#b4ffbb")
+                    }
+                }
+            }
+        },
+        {
             type: "label",
             props: {
                 id: "label_length",
@@ -314,7 +350,7 @@ function renderGalleryInfoView() {
                 font: $font(12),
                 align: $align.center,
                 textColor: $color("black"),
-                bgcolor: $color("white")
+                bgcolor: $color("clear")
             },
             layout: function (make, view) {
                 make.height.equalTo(36)

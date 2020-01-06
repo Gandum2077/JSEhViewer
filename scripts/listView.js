@@ -181,6 +181,7 @@ const baseViewsForListView = [
         type: "input",
         props: {
             id: "textfield_search",
+            placeholder: "JSEhViewer",
             tintColor: $color("#007aff"),
             bgcolor: $color("white"),
             radius: 5,

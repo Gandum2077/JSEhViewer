@@ -84,7 +84,14 @@ const baseViewsForMpv = [
                         {
                             type: "action",
                             buttonTitle: $l10n("刷新infos"),
-                            value: null
+                            value: async () => {
+                                const path = utility.joinPath(glv.imagePath, INFOS.filename)
+                                utility.startLoading()
+                                const newInfos =  await exhentaiParser.getMpvInfosFromUrl(INFOS.url)
+                                utility.stopLoading()
+                                INFOS.pics = newInfos['pics']
+                                exhentaiParser.saveMangaInfos(INFOS, path)
+                            }
                         },
                         {
                             type: "slider",

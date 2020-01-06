@@ -1,23 +1,6 @@
 const glv = require('./globalVariables')
 const utility = require('./utility')
 
-function getUtf8Length(s) {
-    var len = 0;
-    for (var i = 0; i < s.length; i++) {
-        var code = s.charCodeAt(i);
-        if (code <= 0x7f) {
-            len += 1;
-        } else if (code <= 0x7ff) {
-            len += 2;
-        } else if (code >= 0xd800 && code <= 0xdfff) {
-            len += 4; i++;
-        } else {
-            len += 3;
-        }
-    }
-    return len;
-}
-
 function createDB() {
     if ($file.exists(glv.databaseFile)) {
         $file.delete(glv.databaseFile)
@@ -174,7 +157,7 @@ function handle_f_search(text) {
         throw new Error("关键词超过3个")
     }
     for (let i of query_title) {
-        if (getUtf8Length(i) < 3) {
+        if (utility.getUtf8Length(i) < 3) {
             throw new Error("存在过短的关键词")
         }
     }

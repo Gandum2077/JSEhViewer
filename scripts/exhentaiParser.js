@@ -259,6 +259,21 @@ async function getGalleryMpvInfosFromUrl(gallery_url, full_comments=true) {
     return infos
 }
 
+async function getGalleryInfosFromUrl(gallery_url, full_comments=true) {
+    const gallery_url_hc = (full_comments) ? gallery_url + '?hc=1' : gallery_url
+    const galleryHtml = await getHtml(gallery_url_hc)
+    const infos = getGalleryInfos(getRootElement(galleryHtml))
+    return infos
+}
+
+async function getMpvInfosFromUrl(gallery_url) {
+    const mpv_url = gallery_url.replace(/\/g\//g, '/mpv/')
+    const mpvHtml = await getHtml(mpv_url)
+    const infos = {}
+    infos['pics'] = getMpvInfos(getRootElement(mpvHtml))
+    return infos
+}
+
 function getMpvInfos(rootElement) {
     let t = rootElement.firstChild({"xPath": '//script[2]'}).string
     const gid = /var gid=(\d*);/g.exec(t)[1]
@@ -521,6 +536,130 @@ async function rateGallery(rating, apikey, apiuid, gid, token) {
     }
 }
 
+async function postNewComment(gallery_url, text) {
+    const payload = {"commenttext_new": text}
+    const header = {
+        "User-Agent": glv.userAgent,
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Cookie": COOKIE
+    }
+    const resp =  await $http.post({
+        url: gallery_url,
+        body: payload,
+        header: header
+    })
+    if (resp.response.statusCode === 200) {
+        const rootElement = getRootElement(resp.data)
+        const t = rootElement.firstChild({"selector": "#formdiv"}).value({'attribute': 'style'})
+        if (t === "display:") {
+            return 
+        } else {
+            const infos = getGalleryInfos(getRootElement(resp.data))
+            return infos
+        }
+    }
+}
+/**
+ * 
+ * @param {*} apikey 
+ * @param {*} apiuid 
+ * @param {*} gid 
+ * @param {*} token 
+ * @param {*} comment_id 
+ * @returns {object} data返回值如下：
+ *      editable_comment: string // html
+ *      comment_id: number
+ */
+async function getEditComment(apikey, apiuid, gid, token, comment_id) {
+    const payload = {
+        "method": "geteditcomment",
+        "apiuid": apiuid,
+        "apikey": apikey,
+        "gid": gid,
+        "token": token,
+        "comment_id": comment_id
+    }
+    const header = {
+        "User-Agent": glv.userAgent,
+        "Content-Type": "application/json",
+        "Cookie": COOKIE
+    }
+    const resp =  await $http.post({
+        url: glv.urls.api,
+        body: payload,
+        header: header
+    })
+    if (resp.response.statusCode === 200) {
+        return resp.data
+    }
+}
+
+/**
+ * 
+ * @param {*} gallery_url 
+ * @param {*} comment_id 
+ * @param {*} text 
+ * @returns {object} infos
+ */
+async function postEditComment(gallery_url, comment_id, text) {
+    const payload = {
+        "edit_comment": comment_id,
+        "commenttext_edit": text
+    }
+    const header = {
+        "User-Agent": glv.userAgent,
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Cookie": COOKIE
+    }
+    const resp =  await $http.post({
+        url: gallery_url,
+        body: payload,
+        header: header
+    })
+    if (resp.response.statusCode === 200) {
+        const infos = getGalleryInfos(getRootElement(resp.data))
+        return infos
+    }
+}
+
+/**
+ * 
+ * @param {*} apikey 
+ * @param {*} apiuid 
+ * @param {*} gid 
+ * @param {*} token 
+ * @param {*} comment_id 
+ * @param {*} comment_vote 
+ * @returns {object} 返回值如下：
+ *      "comment_vote": number  // 一共1, 0, -1三种，代表vote+，不打分，vote-
+ *      "comment_id": number    // id
+ *      "comment_score": number // 打分
+ */
+async function voteComment(apikey, apiuid, gid, token, comment_id, comment_vote) {
+    payload = {
+        "method": "votecomment",
+        "apiuid": apiuid,
+        "apikey": apikey,
+        "gid": gid,
+        "token": token,
+        "comment_id": comment_id,
+        "comment_vote": comment_vote
+    }
+    const header = {
+        "User-Agent": glv.userAgent,
+        "Content-Type": "application/json",
+        "Cookie": COOKIE
+    }
+    const resp =  await $http.post({
+        url: glv.urls.api,
+        body: payload,
+        header: header
+    })
+    if (resp.response.statusCode === 200) {
+        return resp.data
+    }
+}
+
 /**
  * 
  * @param {string} gid 
@@ -628,12 +767,18 @@ module.exports = {
     login: login,
     getListInfosFromUrl: getListInfosFromUrl,
     getGalleryMpvInfosFromUrl: getGalleryMpvInfosFromUrl,
+    getGalleryInfosFromUrl: getGalleryInfosFromUrl,
+    getMpvInfosFromUrl: getMpvInfosFromUrl,
     saveMangaInfos: saveMangaInfos,
     setFavoritesUsingFavorited: setFavoritesUsingFavorited,
     setFavoritesUsingPosted: setFavoritesUsingPosted,
     getFavcatAndFavnote: getFavcatAndFavnote,
     addFav: addFav,
     rateGallery: rateGallery,
+    postNewComment: postNewComment,
+    getEditComment: getEditComment,
+    postEditComment: postEditComment,
+    voteComment: voteComment,
     downloadPicsByBottleneck: downloadPicsByBottleneck,
     stopDownloadTasksCreatedByBottleneck: stopDownloadTasksCreatedByBottleneck
 }

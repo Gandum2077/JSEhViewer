@@ -3,7 +3,7 @@ const mpvGenerator = require('./mpv')
 const tagTableViewGenerator = require('./tagTableView')
 const ratingAlert = require('./dialogs/ratingAlert')
 const favoriteDialogs = require('./dialogs/favoriteDialogs')
-const commentsViewGenerator = require('./enlargedCommentsView')
+const commentDialogs = require('./dialogs/commentDialogs')
 const exhentaiParser = require('./exhentaiParser')
 const glv = require('./globalVariables')
 const database = require('./database')
@@ -756,7 +756,7 @@ function renderFullTagTableView(width, translated = true) {
     }
 }
 
-function renderCommentsView() {
+function getCommentsViewHtml() {
     const comments_text = []
     for (let i of infos['comments']) {
         let c4text;
@@ -770,11 +770,15 @@ function renderCommentsView() {
         const text = '<p>' + i['posted_time'] + ' by ' + i['commenter'] + ', ' + c4text + '</p>' + i['comment_div'] + '<hr>'
         comments_text.push(text)
     }
-    const textview = {
+    return comments_text.join([...Array(30)].map((n,i)=>'-').join(''))
+}
+
+function renderCommentsView() {
+    const textView = {
         type: "text",
         props: {
-            id: "textview_taglist",
-            html: comments_text.join([...Array(30)].map((n,i)=>'-').join('')),
+            id: "textView",
+            html: getCommentsViewHtml(),
             font: $font(12),
             align: $align.left,
             editable: false,
@@ -801,11 +805,15 @@ function renderCommentsView() {
             make.right.inset(10)
         },
         events: {
-            tapped: function(sender) {
-                const commentsView = commentsViewGenerator.renderCommentsView(infos)
-                const maskView = utility.renderMaskView()
-                $ui.window.add(maskView)
-                $ui.window.add(commentsView)
+            tapped: async function(sender) {
+                utility.startLoading()
+                const newInfos = await exhentaiParser.getGalleryInfosFromUrl(url)
+                utility.stopLoading()
+                infos.comments = newInfos['comments']
+                await commentDialogs.commentDialogs(infos)
+                sender.super.get("textView").html = getCommentsViewHtml()
+                const path = utility.joinPath(glv.imagePath, infos.filename)
+                exhentaiParser.saveMangaInfos(infos, path)
             }
         }
     }
@@ -828,7 +836,7 @@ function renderCommentsView() {
             borderColor: $color("#c8c7cc"),
             bgcolor: $color("white")
         },
-        views: [textview, button, line],
+        views: [textView, button, line],
         layout: function (make, view) {
             make.height.equalTo(150)
             make.left.right.inset(0)

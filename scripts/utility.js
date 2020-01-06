@@ -23,6 +23,24 @@ function joinPath(...args) {
     }).filter(x => x.length).join('/')
 }
 
+// 获取UTF-8编码后的长度
+function getUtf8Length(s) {
+    var len = 0;
+    for (var i = 0; i < s.length; i++) {
+        var code = s.charCodeAt(i);
+        if (code <= 0x7f) {
+            len += 1;
+        } else if (code <= 0x7ff) {
+            len += 2;
+        } else if (code >= 0xd800 && code <= 0xdfff) {
+            len += 4; i++;
+        } else {
+            len += 3;
+        }
+    }
+    return len;
+}
+
 // 立即获得window size
 function getWindowSize() {
     const window = $objc("UIWindow").$keyWindow().jsValue();
@@ -306,19 +324,6 @@ function getSearchUrl(query, urlCategory = 'default') {
     return updateQueryOfUrl(glv.urls[urlCategory], query)
 }
 
-function renderMaskView() {
-    const maskRatingView = {
-        type: 'view',
-        props: {
-            id: 'maskView',
-            bgcolor: $color('black'),
-            alpha: 0.2
-        },
-        layout: $layout.fill
-    }
-    return maskRatingView
-}
-
 // 冻结屏幕，并播放动画，表示等待状态
 // dirty work - 它要求整个应用中不能再有同id的view（即loadingView_e582da14）
 function startLoading(title) {
@@ -389,6 +394,7 @@ function stopLoading() {
 module.exports = {
     prefixInteger: prefixInteger,
     joinPath: joinPath,
+    getUtf8Length: getUtf8Length,
     getWindowSize: getWindowSize,
     getTextWidth: getTextWidth,
     verifyUrl: verifyUrl,
@@ -406,7 +412,6 @@ module.exports = {
     parseUrl: parseUrl,
     updateQueryOfUrl: updateQueryOfUrl,
     getUrlCategory: getUrlCategory,
-    renderMaskView: renderMaskView,
     startLoading: startLoading,
     stopLoading: stopLoading,
     changeLoadingTitle: changeLoadingTitle

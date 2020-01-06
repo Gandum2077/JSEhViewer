@@ -198,8 +198,6 @@ const baseViewsForMpv = [
                 type: "canvas",
                 props: {
                     id: "inner",
-                    tintColor: $color("#ffcb0f"),
-                    bgcolor: $color("clear"),
                     info: {progress: 0}
                 },
                 layout: function(make, view) {
@@ -235,8 +233,10 @@ const baseViewsForMpv = [
                 const path = utility.joinPath(glv.imagePath, INFOS.filename)
                 await $wait(0.1)
                 while(sender.super && $file.list(path).length - 1 < length) {
-                    sender.get("inner").info = {progress: downloaded / length}
+                    sender.get("inner").tintColor = $color("#ffcb0f")
+                    sender.get("inner").info = {progress: ($file.list(path).length - 1) / length}
                     sender.get("inner").runtimeValue().invoke("setNeedsDisplay")
+                    await $wait(1)
                 }
                 if (sender.super && $file.list(path).length - 1 === length) {
                     sender.get("inner").tintColor = $color("#b4ffbb")

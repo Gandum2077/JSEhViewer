@@ -751,23 +751,14 @@ function defineFullTagTableView(width, translated = true) {
             },
             events: {
                 tapped: function(sender) {
-                    if (sender.info.translated) {
-                        const newTagTableView = tagTableViewGenerator.defineTagTableView(width - 51, bilingualTaglist, false)
-                        const height = newTagTableView.props.info.height
-                        const scroll = sender.super.get("scroll")
-                        scroll.get("tagTableView").remove()
-                        scroll.add(newTagTableView)
-                        scroll.contentSize = $size(width - 51, height)
-                        sender.info = {translated: false}
-                    } else {
-                        const newTagTableView = tagTableViewGenerator.defineTagTableView(width - 51, bilingualTaglist, true)
-                        const height = newTagTableView.props.info.height
-                        const scroll = sender.super.get("scroll")
-                        scroll.get("tagTableView").remove()
-                        scroll.add(newTagTableView)
-                        scroll.contentSize = $size(width - 51, height)
-                        sender.info = {translated: true}
-                    }
+                    const translated = !sender.info.translated
+                    const newTagTableView = tagTableViewGenerator.defineTagTableView(width - 51, bilingualTaglist, translated)
+                    const height = newTagTableView.props.info.height
+                    const scroll = sender.super.get("scroll")
+                    scroll.get("tagTableView").remove()
+                    scroll.add(newTagTableView)
+                    scroll.contentSize = $size(width - 51, height)
+                    sender.info = {translated: translated}
                 }
             }
         },

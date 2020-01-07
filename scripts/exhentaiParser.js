@@ -743,13 +743,21 @@ async function downloadPic(fullpath, url, timeout=20) {
     }
 }
 
-function downloadPicsByBottleneck(infos) {
-    console.info(1)
+function downloadPicsByBottleneck(infos, page = 1) {
     limiter = new Bottleneck({
         maxConcurrent: 5,
         minTime: 100
       });
-    for (let pic of infos['pics']) {
+    const pics = infos['pics'].map(n => {
+        return Object.assign({}, n)
+    })
+    const length = pics.length
+    pics.sort((a, b) => {
+        const ap = (a.page < page) ? (a.page + length) : a.page
+        const bp = (b.page < page) ? (b.page + length) : b.page
+        return ap - bp
+    })
+    for (let pic of pics) {
         const fullpath = utility.joinPath(glv.imagePath, infos.filename, pic.img_id + pic.img_name.slice(pic.img_name.lastIndexOf('.')))
         if (!$file.exists(fullpath)) {
             limiter.schedule(()=>downloadResizedImage(fullpath, pic.gid, pic.key, pic.mpvkey, pic.page))
@@ -757,8 +765,20 @@ function downloadPicsByBottleneck(infos) {
     }
 }
 
+/**
+ * 
+ * @returns {object} 
+ *      "EXECUTING": number,
+ *      "RUNNING": number,
+ *      "QUEUED": number,
+ *      "RECEIVED": number
+ */
+function checkDownloadTasksCreatedByBottleneck() {
+    const counts = limiter.counts()
+    return counts
+}
+
 function stopDownloadTasksCreatedByBottleneck() {
-    console.info(2)
     limiter.stop()
 }
 
@@ -780,5 +800,6 @@ module.exports = {
     postEditComment: postEditComment,
     voteComment: voteComment,
     downloadPicsByBottleneck: downloadPicsByBottleneck,
+    checkDownloadTasksCreatedByBottleneck: checkDownloadTasksCreatedByBottleneck,
     stopDownloadTasksCreatedByBottleneck: stopDownloadTasksCreatedByBottleneck
 }

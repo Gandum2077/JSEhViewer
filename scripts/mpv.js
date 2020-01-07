@@ -267,6 +267,24 @@ const baseViewsForMpv = [
             make.width.equalTo(57)
             make.right.inset(0)
             make.bottom.equalTo($("button_close").top)
+        },
+        events: {
+            tapped: function(sender) {
+                const path = utility.joinPath(glv.imagePath, INFOS.filename)
+                const counts = exhentaiParser.checkDownloadTasksCreatedByBottleneck()
+                const length = INFOS.pics.length
+                const downloaded = $file.list(path).length - 1
+                const running = counts.EXECUTING + counts.QUEUED
+                const failed = length - downloaded - running
+                if (downloaded === length) {
+                    $ui.toast("已完成")
+                } else if (running) {
+                    $ui.toast(`还有${running + failed}张未完成，${failed}张已失败`)
+                } else {
+                    $ui.toast(`重启${failed}张`)
+                    exhentaiParser.downloadPicsByBottleneck(INFOS, PAGE)
+                }
+            }
         }
     },
     {
@@ -573,7 +591,7 @@ function init(infos, page = 1) {
     INFOS = infos
     PAGE = page
     AUTOLOAD_SPPED = glv.config['autopage_interval']
-    exhentaiParser.downloadPicsByBottleneck(INFOS)
+    exhentaiParser.downloadPicsByBottleneck(INFOS, PAGE)
     const mpv = defineMpv()
     const rootView = {
         props: {

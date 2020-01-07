@@ -474,6 +474,20 @@ function renderGalleryInfoView() {
         {
             type: "view",
             props: {
+                id: "delete_line_view",
+                bgcolor: $color("black"),
+                alpha: 0.5,
+                hidden: ((infos['visible'] === "Yes") ? true : false)
+            },
+            layout: function (make, view) {
+                make.height.equalTo(1)
+                make.center.equalTo($("label_posted"))
+                make.width.equalTo(105)
+            }
+        },
+        {
+            type: "view",
+            props: {
                 id: "lowlevel_view_rating",
                 bgcolor: $color("white")
             },

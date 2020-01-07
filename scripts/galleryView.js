@@ -756,7 +756,7 @@ function renderFullTagTableView(width, translated = true) {
     }
 }
 
-function getCommentsViewHtml() {
+function getCommentsViewText() {
     const comments_text = []
     for (let i of infos['comments']) {
         let c4text;
@@ -767,10 +767,12 @@ function getCommentsViewHtml() {
         } else {
             c4text = ''
         }
-        const text = '<p>' + i['posted_time'] + ' by ' + i['commenter'] + ', ' + c4text + '</p>' + i['comment_div'] + '<hr>'
-        comments_text.push(text)
+        const title = i['posted_time'] + ' by ' + i['commenter'] + ', ' + c4text
+        const content = utility.convertHtmlToText(i['comment_div'])
+        const seperator = '\n' + '——'.repeat(15)
+        comments_text.push(title, content, seperator)
     }
-    return comments_text.join([...Array(30)].map((n,i)=>'-').join(''))
+    return comments_text.slice(0, -1).join('\n')
 }
 
 function renderCommentsView() {
@@ -778,12 +780,11 @@ function renderCommentsView() {
         type: "text",
         props: {
             id: "textView",
-            html: getCommentsViewHtml(),
+            text: getCommentsViewText(),
             font: $font(12),
-            align: $align.left,
             editable: false,
             selectable: false,
-            textColor: $color("black"),
+            //textColor: $color("black"),
             bgcolor: $color("white")
         },
         layout: function (make, view) {
@@ -811,7 +812,7 @@ function renderCommentsView() {
                 utility.stopLoading()
                 infos.comments = newInfos['comments']
                 await commentDialogs.commentDialogs(infos)
-                sender.super.get("textView").html = getCommentsViewHtml()
+                sender.super.get("textView").text = getCommentsViewText()
                 const path = utility.joinPath(glv.imagePath, infos.filename)
                 exhentaiParser.saveMangaInfos(infos, path)
             }

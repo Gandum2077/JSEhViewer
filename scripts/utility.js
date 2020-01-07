@@ -1,5 +1,6 @@
 const glv = require('./globalVariables')
 const urlParse = require('./modules/url-parse')
+const htmlToText = require('./modules/html-to-text')
 
 let TAGTRANSLATOR_DICT;
 if ($file.exists(glv.tagTranslationFile)) {
@@ -39,6 +40,16 @@ function getUtf8Length(s) {
         }
     }
     return len;
+}
+
+// html2text
+function convertHtmlToText(html) {
+    const text = htmlToText.fromString(html, {
+        wordwrap: false,
+        hideLinkHrefIfSameAsText: true,
+        ignoreImage: false
+      });
+    return text
 }
 
 // 立即获得window size
@@ -395,6 +406,7 @@ module.exports = {
     prefixInteger: prefixInteger,
     joinPath: joinPath,
     getUtf8Length: getUtf8Length,
+    convertHtmlToText: convertHtmlToText,
     getWindowSize: getWindowSize,
     getTextWidth: getTextWidth,
     verifyUrl: verifyUrl,

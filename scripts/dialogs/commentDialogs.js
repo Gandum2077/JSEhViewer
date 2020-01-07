@@ -5,18 +5,7 @@ const exhentaiParser = require('../exhentaiParser')
 baseViewsGenerator = require("./baseViews")
 const textDialogs = require('./textDialogs')
 
-const htmlToText = require('../modules/html-to-text')
-
 let INFOS
-
-function convertHtmlToText(html) {
-    const text = htmlToText.fromString(html, {
-        wordwrap: false,
-        hideLinkHrefIfSameAsText: true,
-        ignoreImage: true
-      });
-    return text
-}
 
 function getHeightOfSizeToFitText(text, width=600) {
     const textView = $ui.create({
@@ -30,6 +19,26 @@ function getHeightOfSizeToFitText(text, width=600) {
     })
     textView.sizeToFit()
     return textView.size.height
+}
+
+function getCommentsViewHtml(infos) {
+    const comments_text = []
+    for (let i of infos['comments']) {
+        let c4text;
+        if (i['is_uploader']) {
+            c4text = 'uploader'
+        } else if (i['score']) {
+            c4text = i['score']
+        } else {
+            c4text = ''
+        }
+        const text = '<p>' + i['posted_time'] + ' by '
+            + i['commenter'] + ', ' + c4text + '</p>' + i['comment_div']
+            + ((i['votes']) ? '</p>' + i['votes'] : '')
+            + '<hr>'
+        comments_text.push(text)
+    }
+    return comments_text.join('')
 }
 
 function defineTitleBarView(title, closeEvent) {
@@ -110,6 +119,43 @@ function defineTitleBarView(title, closeEvent) {
                         } else {
                             $ui.toast($l10n("评论发表失败"))
                         }
+                    }
+                }
+            },
+            {
+                type: "button",
+                props: {
+                    id: "buttonHtml",
+                    title: "Html",
+                    font: $font(17),
+                    radius: 0,
+                    titleColor: $color("#007aff"),
+                    bgcolor: $color("clear")
+                },
+                layout: function(make, view) {
+                    make.centerY.equalTo(view.super).offset(-0.25)
+                    make.size.equalTo($size(50, 32))
+                    make.right.equalTo($("buttonNewPost").left).inset(15)
+                },
+                events: {
+                    tapped: async function(sender) {
+                        const html = getCommentsViewHtml(INFOS)
+                        $ui.push({
+                            props: {
+                                navBarHidden: true,
+                                statusBarHidden: false,
+                                statusBarStyle: 0
+                            },
+                            views: [
+                                {
+                                    type: "web",
+                                    props: {
+                                        html: html
+                                    },
+                                    layout: $layout.fill
+                                }
+                            ]
+                        })
                     }
                 }
             },
@@ -303,7 +349,7 @@ function getData(infos) {
                 hidden: (item['is_self_comment']) ? false : true
             },
             textView: {
-                text: convertHtmlToText(item['comment_div'])
+                text: utility.convertHtmlToText(item['comment_div'])
             }
         }
         data.push(itemData)

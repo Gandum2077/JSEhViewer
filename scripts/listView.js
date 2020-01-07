@@ -175,6 +175,10 @@ const baseViewsForListView = [
                     await refresh(searchUrl)
                     // 更新search_phrases
                     if (searchPhrase) {
+                        const index = glv.config.search_phrases.indexOf(searchPhrase)
+                        if (index !== -1) {
+                            glv.config.search_phrases.splice(index, 1)
+                        }
                         glv.config.search_phrases.unshift(searchPhrase)
                         if (glv.config.search_phrases.length > 10) {
                             glv.config.search_phrases.pop()

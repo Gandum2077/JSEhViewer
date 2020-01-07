@@ -101,7 +101,7 @@ const template = {
     ]
 }
 
-function renderSidebarView(refreshListViewEvent, presentSettingEvent) {
+function defineSidebarView(refreshListViewEvent, presentSettingEvent) {
     const sidebarView = {
         type: 'list',
         props: {
@@ -135,6 +135,6 @@ function renderSidebarView(refreshListViewEvent, presentSettingEvent) {
 }
 
   module.exports = {
-    renderSidebarView: renderSidebarView
+    defineSidebarView: defineSidebarView
   }
   

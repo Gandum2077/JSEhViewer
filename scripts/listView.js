@@ -659,7 +659,7 @@ function getData(items) {
     return data
 }
 
-function renderRealListView() {
+function defineRealListView() {
     const listView = {
         type: 'list',
         props: {
@@ -719,13 +719,13 @@ function renderRealListView() {
     return listView
 }
 
-function renderListView() {
+function defineListView() {
     const listView = {
         type: "view",
         props: {
             id: "listView"
         },
-        views: [...baseViewsForListView, renderRealListView()],
+        views: [...baseViewsForListView, defineRealListView()],
         layout: $layout.fill
     }
     return listView
@@ -811,9 +811,9 @@ async function init(newUrl) {
             newUrl = glv.config.default_url
         }
     }
-    const listView = renderListView() 
+    const listView = defineListView() 
     $("rootView").add(listView)
-    const sideBarView = sidebarViewGenerator.renderSidebarView(refresh, presentSettings)
+    const sideBarView = sidebarViewGenerator.defineSidebarView(refresh, presentSettings)
     $("rootView").get("listView").add(sideBarView)  
     refresh(newUrl)
 }

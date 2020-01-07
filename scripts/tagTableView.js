@@ -179,5 +179,5 @@ function defineTagTableView(idealWidth, bilingualTaglist, translated = true, ver
 }
 
 module.exports = {
-    renderTagTableView: defineTagTableView
+    defineTagTableView: defineTagTableView
 }

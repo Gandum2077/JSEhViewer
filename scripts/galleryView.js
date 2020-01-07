@@ -281,7 +281,7 @@ var baseViewsForGalleryView = [
     }
 ]
 
-function renderGalleryInfoView() {
+function defineGalleryInfoView() {
     const baseViewsForGalleryInfoView = [
         {
             type: "image",
@@ -706,9 +706,9 @@ function renderGalleryInfoView() {
     return galleryInfoView
 }
 
-function renderFullTagTableView(width, translated = true) {
+function defineFullTagTableView(width, translated = true) {
     const bilingualTaglist = utility.getBilingualTaglist(infos.taglist, translated = translated)
-    const tagTableView = tagTableViewGenerator.renderTagTableView(width - 51, bilingualTaglist)
+    const tagTableView = tagTableViewGenerator.defineTagTableView(width - 51, bilingualTaglist)
     const height = Math.max(tagTableView.props.info.height, 100)
     const views = [
         {
@@ -752,7 +752,7 @@ function renderFullTagTableView(width, translated = true) {
             events: {
                 tapped: function(sender) {
                     if (sender.info.translated) {
-                        const newTagTableView = tagTableViewGenerator.renderTagTableView(width - 51, bilingualTaglist, false)
+                        const newTagTableView = tagTableViewGenerator.defineTagTableView(width - 51, bilingualTaglist, false)
                         const height = newTagTableView.props.info.height
                         const scroll = sender.super.get("scroll")
                         scroll.get("tagTableView").remove()
@@ -760,7 +760,7 @@ function renderFullTagTableView(width, translated = true) {
                         scroll.contentSize = $size(width - 51, height)
                         sender.info = {translated: false}
                     } else {
-                        const newTagTableView = tagTableViewGenerator.renderTagTableView(width - 51, bilingualTaglist, true)
+                        const newTagTableView = tagTableViewGenerator.defineTagTableView(width - 51, bilingualTaglist, true)
                         const height = newTagTableView.props.info.height
                         const scroll = sender.super.get("scroll")
                         scroll.get("tagTableView").remove()
@@ -855,7 +855,7 @@ function getCommentsViewText() {
     return comments_text.slice(0, -1).join('\n')
 }
 
-function renderCommentsView() {
+function defineCommentsView() {
     const textView = {
         type: "text",
         props: {
@@ -927,10 +927,10 @@ function renderCommentsView() {
     return commentsView
 }
 
-function renderHeaderView() {
+function defineHeaderView() {
     const width = Math.min($device.info.screen.width, $device.info.screen.height) - 57 - 16
-    const fullTagTableView = renderFullTagTableView(width)
-    const commentsView = renderCommentsView()
+    const fullTagTableView = defineFullTagTableView(width)
+    const commentsView = defineCommentsView()
     const headerViewHeight = fullTagTableView.props.frame.height + 150 - 1
     const views = [
         fullTagTableView,
@@ -970,7 +970,7 @@ function getData() {
     return data
 }
 
-function renderMatrixView() {
+function defineMatrixView() {
     const matrix = {
         type: "matrix",
         props: {
@@ -1012,7 +1012,7 @@ function renderMatrixView() {
                 }
             ],
             data: getData(),
-            header: renderHeaderView()
+            header: defineHeaderView()
         },
         layout: function (make, view) {
             make.bottom.inset(0)
@@ -1029,7 +1029,7 @@ function renderMatrixView() {
     return matrix
 }
 
-function renderGalleryView() {
+function defineGalleryView() {
     const galleryView = {
         type: "view",
         props: {
@@ -1064,8 +1064,8 @@ async function refresh(newUrl, getNewInfos=true) {
     if (matrixView) {
         matrixView.remove()
     }
-    galleryView.add(renderGalleryInfoView())
-    galleryView.add(renderMatrixView())
+    galleryView.add(defineGalleryInfoView())
+    galleryView.add(defineMatrixView())
     // 更新版本按钮
     const path = utility.joinPath(glv.imagePath, infos.filename)
     const button_update = $ui.window.get("galleryView").get("button_update")
@@ -1118,7 +1118,7 @@ async function refresh(newUrl, getNewInfos=true) {
 }
 
 async function init(newUrl) {
-    const galleryView = renderGalleryView()
+    const galleryView = defineGalleryView()
     const rootView = {
         props: {
             navBarHidden: true,

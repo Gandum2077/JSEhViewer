@@ -1,4 +1,4 @@
-baseViewsGenerator = require("./baseViews")
+const baseViewsGenerator = require("./baseViews")
 
 function defineInputs() {
     const inputs = {

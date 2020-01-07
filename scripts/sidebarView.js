@@ -1,5 +1,5 @@
-const utility = require('./utility')
 const glv = require('./globalVariables')
+
 const rawData = [
     {
         title: "Default",

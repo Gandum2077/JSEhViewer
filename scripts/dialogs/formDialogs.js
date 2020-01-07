@@ -61,7 +61,7 @@
  * 
  */
 
-baseViewsGenerator = require("./baseViews")
+const baseViewsGenerator = require("./baseViews")
 
 // 计算特定字号的文字长度
 // 此函数不应该用于处理超长文本

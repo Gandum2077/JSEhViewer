@@ -1,4 +1,4 @@
-baseViewsGenerator = require("./baseViews")
+const baseViewsGenerator = require("./baseViews")
 
 async function textDialogs(title='', text='') {
     return new Promise((resolve, reject) => {

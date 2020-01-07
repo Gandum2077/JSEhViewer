@@ -1,9 +1,10 @@
-optionsHome = require('./advancedSearch/optionsHome')
-optionsFavorites = require('./advancedSearch/optionsFavorites')
-optionsDownloads = require('./advancedSearch/optionsDownloads')
-categoriesView = require('./advancedSearch/categoriesView')
-favoriteCategoriesView = require('./advancedSearch/favoriteCategoriesView')
 const glv = require('./globalVariables')
+const optionsHome = require('./advancedSearch/optionsHome')
+const optionsFavorites = require('./advancedSearch/optionsFavorites')
+const optionsDownloads = require('./advancedSearch/optionsDownloads')
+const categoriesView = require('./advancedSearch/categoriesView')
+const favoriteCategoriesView = require('./advancedSearch/favoriteCategoriesView')
+
 
 function defineAdvancedSearchOptionSwitchView() {
     const button = {

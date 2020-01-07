@@ -1,13 +1,13 @@
+const glv = require('./globalVariables')
 const utility = require('./utility')
+const exhentaiParser = require('./exhentaiParser')
+const database = require('./database')
 const mpvGenerator = require('./mpv')
+const infosViewGenerator = require('./infosView')
 const tagTableViewGenerator = require('./tagTableView')
 const ratingAlert = require('./dialogs/ratingAlert')
 const favoriteDialogs = require('./dialogs/favoriteDialogs')
 const commentDialogs = require('./dialogs/commentDialogs')
-const exhentaiParser = require('./exhentaiParser')
-const glv = require('./globalVariables')
-const database = require('./database')
-const infosViewGenerator = require('./infosView')
 
 let GLOBAL_WIDTH = utility.getWindowSize().width;
 let url;
@@ -173,7 +173,9 @@ var baseViewsForGalleryView = [
             tapped: function(sender) {
                 $ui.push({
                     props: {
-                        navBarHidden: true
+                        navBarHidden: true,
+                        statusBarHidden: false,
+                        statusBarStyle: 0
                     },
                     views: [infosViewGenerator.defineInfosView(infos)]
                 })

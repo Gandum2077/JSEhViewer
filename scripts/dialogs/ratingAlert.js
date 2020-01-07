@@ -1,4 +1,4 @@
-baseViewsGenerator = require("./baseViews")
+const baseViewsGenerator = require("./baseViews")
 
 function defineSliderStyleRatingView(adjustedRating) {
     const slider = {

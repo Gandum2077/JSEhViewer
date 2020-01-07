@@ -1,4 +1,7 @@
+const glv = require('./globalVariables')
 const utility = require('./utility')
+const exhentaiParser = require('./exhentaiParser')
+const database = require('./database')
 const galleryViewGenerator = require('./galleryView')
 const sidebarViewGenerator = require("./sidebarView")
 const advancedSearchViewGenerator = require("./advancedSearchView")
@@ -6,9 +9,6 @@ const storedSearchPhrasesViewGenerator = require('./storedSearchPhrasesView')
 const inputAlert = require('./dialogs/inputAlert')
 const loginAlert = require('./dialogs/loginAlert')
 const formDialogs = require('./dialogs/formDialogs')
-const exhentaiParser = require('./exhentaiParser')
-const glv = require('./globalVariables')
-const database = require('./database')
 
 let url
 let downloads_gid_token
@@ -173,6 +173,14 @@ const baseViewsForListView = [
                     })
                     const searchUrl = utility.getSearchUrl(sortedQuery, urlCategory)
                     await refresh(searchUrl)
+                    // 更新search_phrases
+                    if (searchPhrase) {
+                        glv.config.search_phrases.unshift(searchPhrase)
+                        if (glv.config.search_phrases.length > 10) {
+                            glv.config.search_phrases.pop()
+                        }
+                        glv.saveConfig()
+                    }
                 }
             }
         }
@@ -773,7 +781,7 @@ async function refresh(newUrl){
     $('rootView').get('listView').get('realListView').header.text = infos['search_result']
     $('rootView').get('listView').get('realListView').scrollTo({
         indexPath: $indexPath(0, 0),
-        animated: true
+        animated: false
       })
     $('rootView').get('listView').get('button_sidebar').image = getSideBarButtonImage(urlCategory)
     $('rootView').get('listView').get('button_jump_page').get('label_current_page').text = infos['current_page_str']

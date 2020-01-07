@@ -1,8 +1,8 @@
+const glv = require('./globalVariables')
 const utility = require('./utility')
 const exhentaiParser = require('./exhentaiParser')
-const glv = require('./globalVariables')
-const formDialogs = require('./dialogs/formDialogs')
 const infosViewGenerator = require('./infosView')
+const formDialogs = require('./dialogs/formDialogs')
 
 let TIMER
 let AUTOLOAD_SPPED
@@ -288,7 +288,9 @@ const baseViewsForMpv = [
             tapped: function(sender) {
                 $ui.push({
                     props: {
-                        navBarHidden: true
+                        navBarHidden: true,
+                        statusBarHidden: false,
+                        statusBarStyle: 0
                     },
                     views: [infosViewGenerator.defineInfosView(INFOS)]
                 })

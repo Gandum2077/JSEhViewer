@@ -1,4 +1,4 @@
-baseViews = require('./baseViews')
+const baseViews = require('./baseViews')
 
 function getDefaultConfig() {
     const defaultConfig = {

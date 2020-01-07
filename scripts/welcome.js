@@ -1,9 +1,9 @@
+const glv = require('./globalVariables')
 const utility = require('./utility')
+const exhentaiParser = require('./exhentaiParser')
+const database = require('./database')
 const formDialogs = require('./dialogs/formDialogs')
 const loginAlert = require('./dialogs/loginAlert')
-const exhentaiParser = require('./exhentaiParser')
-const glv = require('./globalVariables')
-const database = require('./database')
 
 const sections = [{
     title: $l10n("🔻五大诉求，缺一不可"),
@@ -53,7 +53,9 @@ const sections = [{
             value: () => {
                 $ui.push({
                     props: {
-                        navBarHidden: true
+                        navBarHidden: true,
+                        statusBarHidden: false,
+                        statusBarStyle: 0
                     },
                     views: [{
                         type: "markdown",
@@ -74,7 +76,9 @@ const sections = [{
             value: () => {
                 $ui.push({
                     props: {
-                        navBarHidden: true
+                        navBarHidden: true,
+                        statusBarHidden: false,
+                        statusBarStyle: 0
                     },
                     views: [{
                         type: "markdown",

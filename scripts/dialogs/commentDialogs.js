@@ -1,8 +1,7 @@
 const glv = require('../globalVariables')
 const utility = require('../utility')
 const exhentaiParser = require('../exhentaiParser')
-
-baseViewsGenerator = require("./baseViews")
+const baseViewsGenerator = require("./baseViews")
 const textDialogs = require('./textDialogs')
 
 let INFOS

@@ -1,4 +1,4 @@
-baseViewsGenerator = require("./baseViews")
+const baseViewsGenerator = require("./baseViews")
 
 function getUtf8Length(s) {
     var len = 0;

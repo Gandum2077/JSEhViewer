@@ -9,7 +9,6 @@ const ratingAlert = require('./dialogs/ratingAlert')
 const favoriteDialogs = require('./dialogs/favoriteDialogs')
 const commentDialogs = require('./dialogs/commentDialogs')
 
-let GLOBAL_WIDTH = utility.getWindowSize().width;
 let url;
 let infos;
 
@@ -190,13 +189,48 @@ var baseViewsForGalleryView = [
             align: $align.center,
             font: $font(13),
             titleColor: $color("#007aff"),
-            bgcolor: $color("white")
+            bgcolor: $color("white"),
+            hidden: true
         },
         layout: function (make, view) {
             make.height.equalTo(57)
             make.width.equalTo(57)
             make.right.inset(0)
             make.bottom.equalTo($("button_info").top)
+        },
+        events: {
+            tapped: async function(sender) {
+                const old_gid = infos.gid
+                const old_filename = infos.filename
+                const old_pics_dict = {}
+                infos.pics.map(n => {
+                    old_pics_dict[n.key] = utility.joinPath(glv.imagePath, infos.filename, n.img_id + n.img_name.slice(n.img_name.lastIndexOf('.')))
+                })
+                const newUrl = sender.info.url
+                const filename = utility.verifyUrl(newUrl)
+                const infosFile = utility.joinPath(glv.imagePath, filename, 'manga_infos.json')
+                if ($file.exists(infosFile)) {
+                    infos = JSON.parse($file.read(infosFile).string)
+                    await refresh(newUrl, getNewInfos=false)
+                } else {
+                    await refresh(newUrl)
+                }
+                new_pics_dict = {}
+                infos.pics.map(n => {
+                    new_pics_dict[n.key] = utility.joinPath(glv.imagePath, infos.filename, n.img_id + n.img_name.slice(n.img_name.lastIndexOf('.')))
+                })
+                for (let key in old_pics_dict) {
+                    if ($file.exists(old_pics_dict[key]) && key in new_pics_dict && !$file.exists(new_pics_dict[key])) {
+                        $file.move({
+                            src: old_pics_dict[key],
+                            dst: new_pics_dict[key]
+                        })
+                    }
+                }
+                database.deleteById(old_gid)
+                $file.delete(utility.joinPath(glv.imagePath, old_filename))
+                $ui.window.get("galleryView").get("button_try_import_old_version").hidden = true
+            }
         }
     },
     {
@@ -207,13 +241,42 @@ var baseViewsForGalleryView = [
             align: $align.center,
             font: $font(13),
             titleColor: $color("#007aff"),
-            bgcolor: $color("white")
+            bgcolor: $color("white"),
+            hidden: true
         },
         layout: function (make, view) {
             make.height.equalTo(57)
             make.width.equalTo(57)
             make.right.inset(0)
             make.bottom.equalTo($("button_info").top)
+        },
+        events: {
+            tapped: function(sender) {
+                const old_filename = sender.info.filename
+                const old_gid = old_filename.split('_')[0]
+                const old_infosFile = utility.joinPath(glv.imagePath, old_filename, 'manga_infos.json')
+                const old_infos = JSON.parse($file.read(old_infosFile).string)
+                const old_pics_dict = {}
+                old_infos.pics.map(n => {
+                    old_pics_dict[n.key] = utility.joinPath(glv.imagePath, old_filename, n.img_id + n.img_name.slice(n.img_name.lastIndexOf('.')))
+                })
+                new_pics_dict = {}
+                infos.pics.map(n => {
+                    new_pics_dict[n.key] = utility.joinPath(glv.imagePath, infos.filename, n.img_id + n.img_name.slice(n.img_name.lastIndexOf('.')))
+                })
+                for (let key in old_pics_dict) {
+                    if ($file.exists(old_pics_dict[key]) && key in new_pics_dict && !$file.exists(new_pics_dict[key])) {
+                        console.info(key)
+                        $file.move({
+                            src: old_pics_dict[key],
+                            dst: new_pics_dict[key]
+                        })
+                    }
+                }
+                database.deleteById(old_gid)
+                $file.delete(utility.joinPath(glv.imagePath, old_filename))
+                $ui.window.get("galleryView").get("button_try_import_old_version").hidden = true
+            }
         }
     }
 ]
@@ -606,6 +669,7 @@ function renderGalleryInfoView() {
             },
             events : {
                 tapped: function(sender) {
+                    $ui.window.get("galleryView").get("button_try_import_old_version").hidden = true
                     mpvGenerator.init(infos)
                 }
             }
@@ -631,7 +695,7 @@ function renderGalleryInfoView() {
 function renderFullTagTableView(width, translated = true) {
     const bilingualTaglist = utility.getBilingualTaglist(infos.taglist, translated = translated)
     const tagTableView = tagTableViewGenerator.renderTagTableView(width - 51, bilingualTaglist)
-    const height = tagTableView.props.info.height
+    const height = Math.max(tagTableView.props.info.height, 100)
     const views = [
         {
             type: "scroll",
@@ -786,7 +850,7 @@ function renderCommentsView() {
             font: $font(12),
             editable: false,
             selectable: false,
-            //textColor: $color("black"),
+            textColor: $color("black"),
             bgcolor: $color("white")
         },
         layout: function (make, view) {
@@ -850,7 +914,8 @@ function renderCommentsView() {
 }
 
 function renderHeaderView() {
-    const fullTagTableView = renderFullTagTableView(695)
+    const width = Math.min($device.info.screen.width, $device.info.screen.height) - 57 - 16
+    const fullTagTableView = renderFullTagTableView(width)
     const commentsView = renderCommentsView()
     const headerViewHeight = fullTagTableView.props.frame.height + 150 - 1
     const views = [
@@ -987,6 +1052,55 @@ async function refresh(newUrl, getNewInfos=true) {
     }
     galleryView.add(renderGalleryInfoView())
     galleryView.add(renderMatrixView())
+    // 更新版本按钮
+    const path = utility.joinPath(glv.imagePath, infos.filename)
+    const button_update = $ui.window.get("galleryView").get("button_update")
+    if ($file.list(path).length > 1 && infos.newer_versions) {
+        button_update.hidden = false
+        button_update.info = {url: infos.newer_versions[infos.newer_versions.length - 1][0]}
+    } else {
+        button_update.hidden = true
+    }
+    // 导入旧版按钮
+    const button_try_import_old_version = $ui.window.get("galleryView").get("button_try_import_old_version")
+    if ($file.list(path).length === 1 && infos.parent_url) {
+        let filename
+        const clause = `SELECT DISTINCT gid||'_'||token
+                        FROM downloads
+                        WHERE gid = ?
+                        LIMIT 1`
+        const args = [utility.verifyUrl(infos.parent_url).split('_')[0]]
+        const result = database.search(clause, args)
+        if (result.length) {
+            filename = result[0]["gid||'_'||token"]
+        } else {
+            const clause = `SELECT DISTINCT gid||'_'||token
+                            FROM downloads
+                            WHERE uploader=?
+                            AND english_title=?
+                            AND gid < ?
+                            ORDER BY gid DESC
+                            LIMIT 1
+                            `
+            const args = [
+                infos['uploader'],
+                infos['english_title'],
+                infos['gid']
+            ]
+            const result = database.search(clause, args)
+            if (result.length) {
+                filename = result[0]["gid||'_'||token"]
+            }
+        }
+        if (filename) {
+            button_try_import_old_version.hidden = false
+            button_try_import_old_version.info = {filename: filename}
+        } else {
+            button_try_import_old_version.hidden = true
+        }
+    } else {
+        button_try_import_old_version.hidden = true
+    }
 }
 
 async function init(newUrl) {
@@ -999,16 +1113,11 @@ async function init(newUrl) {
         },
         views: [galleryView],
         events: {
-            layoutSubviews: async function(sender) {
-                if (sender.frame.width !== GLOBAL_WIDTH) {
-                    GLOBAL_WIDTH = sender.frame.width
-                }
-            },
             disappeared: function() {
                 if ($file.list(utility.joinPath(glv.imagePath, infos.filename)).length > 1) {
                     database.insertInfo(infos)
                 }
-            },
+            }
         }
     }
     $ui.push(rootView)

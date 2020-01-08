@@ -226,10 +226,10 @@ function handleQuery(query, downloads_order_method = "gid") {
     if (f_sp) {
         f_spf = query['f_spf'] || '1'
         f_spt = query['f_spt']
-        if (!f_spf.match(/^\d+$/g)) {
+        if (!/^\d+$/.test(f_spf)) {
             f_spf = '1'
         }
-        if (f_spt && !f_spt.match(/^\d+$/g)) {
+        if (/^\d+$/.test(f_spt)) {
             f_spt = null
         }
         if (f_spt) {

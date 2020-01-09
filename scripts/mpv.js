@@ -239,13 +239,13 @@ const baseViewsForMpv = [
                 const length = parseInt(INFOS.pics.length)
                 const path = utility.joinPath(glv.imagePath, INFOS.filename)
                 await $wait(0.1)
-                while(sender.super && $file.list(path).length - 1 < length) {
+                while(sender.super && $file.list(path).length - 2 < length) {
                     sender.get("inner").tintColor = $color("#ffcb0f")
-                    sender.get("inner").info = {progress: ($file.list(path).length - 1) / length}
+                    sender.get("inner").info = {progress: ($file.list(path).length - 2) / length}
                     sender.get("inner").runtimeValue().invoke("setNeedsDisplay")
                     await $wait(1)
                 }
-                if (sender.super && $file.list(path).length - 1 === length) {
+                if (sender.super && $file.list(path).length - 2 === length) {
                     sender.get("inner").tintColor = $color("#b4ffbb")
                     sender.get("inner").info = {progress: 1}
                     sender.get("inner").runtimeValue().invoke("setNeedsDisplay")
@@ -273,7 +273,7 @@ const baseViewsForMpv = [
                 const path = utility.joinPath(glv.imagePath, INFOS.filename)
                 const counts = exhentaiParser.checkDownloadTasksCreatedByBottleneck()
                 const length = INFOS.pics.length
-                const downloaded = $file.list(path).length - 1
+                const downloaded = $file.list(path).length - 2
                 const unfinished = counts.EXECUTING + counts.QUEUED + counts.RUNNING + counts.RECEIVED
                 const failed = length - downloaded - unfinished
                 if (downloaded === length) {

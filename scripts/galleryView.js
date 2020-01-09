@@ -31,7 +31,7 @@ var baseViewsForGalleryView = [
         events: {
             tapped: async function(sender) {
                 let alertTitle
-                if (parseInt(infos.length) === $file.list(utility.joinPath(glv.imagePath, infos.filename)).length - 1) {
+                if (parseInt(infos.length) === $file.list(utility.joinPath(glv.imagePath, infos.filename)).length - 2) {
                     alertTitle = "是否保存为压缩包？"
                 } else {
                     alertTitle = "本图库尚未下载完成，是否保存为压缩包？"
@@ -396,11 +396,11 @@ function defineGalleryInfoView() {
                 ready: async function(sender) {
                     const path = utility.joinPath(glv.imagePath, infos.filename)
                     await $wait(0.1)
-                    while (sender.super && $file.list(path).length - 1 < parseInt(infos.pics.length)) {
-                        sender.get("inner").frame = $rect(0, 0, sender.frame.width * ($file.list(path).length - 1) / parseInt(infos.pics.length), 36)
+                    while (sender.super && $file.list(path).length - 2 < parseInt(infos.pics.length)) {
+                        sender.get("inner").frame = $rect(0, 0, sender.frame.width * ($file.list(path).length - 2) / parseInt(infos.pics.length), 36)
                         await $wait(1)
                     }
-                    if (sender.super && $file.list(path).length - 1 === parseInt(infos.pics.length)) {
+                    if (sender.super && $file.list(path).length - 2 === parseInt(infos.pics.length)) {
                         sender.get("inner").frame = $rect(0, 0, sender.frame.width, 36)
                         sender.get("inner").bgcolor = $color("#b4ffbb")
                     }
@@ -1060,7 +1060,7 @@ async function refresh(newUrl, getNewInfos=true) {
     // 更新版本按钮
     const path = utility.joinPath(glv.imagePath, infos.filename)
     const button_update = $ui.window.get("galleryView").get("button_update")
-    if ($file.list(path).length > 1 && infos.newer_versions) {
+    if ($file.list(path).length - 2 > 0 && infos.newer_versions) {
         button_update.hidden = false
         button_update.info = {url: infos.newer_versions[infos.newer_versions.length - 1][0]}
     } else {
@@ -1068,7 +1068,7 @@ async function refresh(newUrl, getNewInfos=true) {
     }
     // 导入旧版按钮
     const button_try_import_old_version = $ui.window.get("galleryView").get("button_try_import_old_version")
-    if ($file.list(path).length === 1 && infos.parent_url) {
+    if ($file.list(path).length - 2 === 0 && infos.parent_url) {
         let filename
         const clause = `SELECT DISTINCT gid||'_'||token
                         FROM downloads
@@ -1119,7 +1119,7 @@ async function init(newUrl) {
         views: [galleryView],
         events: {
             disappeared: function() {
-                if ($file.list(utility.joinPath(glv.imagePath, infos.filename)).length > 1) {
+                if ($file.list(utility.joinPath(glv.imagePath, infos.filename)).length - 2 > 0) {
                     database.insertInfo(infos)
                 }
             }

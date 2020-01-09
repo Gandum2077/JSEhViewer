@@ -430,6 +430,10 @@ function saveMangaInfos(infos, downloadPath) {
     if (!$file.exists(downloadPath)) {
         $file.mkdir(downloadPath)
     }
+    const thumbnailPath = utility.joinPath(downloadPath, 'thumbnails')
+    if (!$file.exists(thumbnailPath)) {
+        $file.mkdir(thumbnailPath)
+    }
     $file.write({
         data: $data({string: JSON.stringify(infos, null, 2)}),
         path: utility.joinPath(downloadPath, 'manga_infos.json')

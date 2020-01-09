@@ -11,7 +11,8 @@ const loginAlert = require('./dialogs/loginAlert')
 const formDialogs = require('./dialogs/formDialogs')
 
 let url
-let downloads_gid_token
+let INFOS
+let FLAG_RELOAD = false
 
 const baseViewsForListView = [
     {
@@ -613,15 +614,7 @@ function getData(items) {
         const taglist = (typeof(item["taglist"]) === 'string') ? JSON.parse(item["taglist"]) : item["taglist"]
         const itemData = {
             thumbnail_imageview: {
-                source: {
-                    url: item['thumbnail_url'],
-                    //placeholder: image,
-                    header: {
-                        "User-Agent": glv.userAgent,
-                        "Cookie": exhentaiParser.getCookie(),
-                    }
-                },
-                //src: utility.joinPath('cache', item['thumbnail_url'].slice(29)),
+                src: utility.joinPath(glv.cachePath, item['thumbnail_url'].split('/').pop()),
                 info: {url: item['url']}
             },
             label_title: {
@@ -670,13 +663,15 @@ function defineRealListView() {
                 {
                     title: "delete",
                     handler: function(sender, indexPath) {
-                        const deleted = downloads_gid_token[indexPath.row]
-                        downloads_gid_token.splice(indexPath.row, 1)
+                        const deleted = INFOS.items[indexPath.row]
+                        INFOS.items.splice(indexPath.row, 1)
                         database.deleteById(deleted.gid)
                         $file.delete(utility.joinPath(glv.imagePath, `${deleted.gid}_${deleted.token}`))
                         const headerText = sender.header.text
                         const num = /\d+/.exec(headerText)[0]
-                        sender.header.text = headerText.replace(/\d+/, num - 1)
+                        const newHeaderText = headerText.replace(/\d+/, num - 1)
+                        sender.header.text = newHeaderText
+                        INFOS.search_result = newHeaderText
                     }
                 }
             ],
@@ -713,6 +708,18 @@ function defineRealListView() {
             },
             willBeginDragging: function(sender) {
                 initSubviewsStatus()
+            },
+            ready: async function(sender) {
+                while(sender.super) {
+                    if (FLAG_RELOAD) {
+                        sender.data = getData(INFOS['items'])
+                        let unfinished = checkIsDownloadUnfinished()
+                        if (!unfinished) {
+                            FLAG_RELOAD = false
+                        }
+                    }
+                    await $wait(1)
+                }
             }
         }
     }
@@ -758,18 +765,13 @@ function initSubviewsStatus() {
 }
 
 async function refresh(newUrl){
+    FLAG_RELOAD = false
     url = newUrl
     initSubviewsStatus()
     const urlCategory = utility.getUrlCategory(url)
     let infos
     if (urlCategory === 'downloads') {
         infos = getDownloadsInfosFromDB(url)
-        downloads_gid_token = infos['items'].map(n => {
-            return {
-                gid: n.gid,
-                token: n.token
-            }
-        })
     } else {
         utility.startLoading()
         infos = await exhentaiParser.getListInfosFromUrl(url)
@@ -790,6 +792,9 @@ async function refresh(newUrl){
     $('rootView').get('listView').get('button_sidebar').image = getSideBarButtonImage(urlCategory)
     $('rootView').get('listView').get('button_jump_page').get('label_current_page').text = infos['current_page_str']
     $('rootView').get('listView').get('button_jump_page').get('label_total_page').text = infos['total_pages_str']
+    startDownloadthumbnails(infos)
+    INFOS = infos
+    FLAG_RELOAD = true
 }
 
 function getSideBarButtonImage(urlCategory) {
@@ -816,6 +821,27 @@ async function init(newUrl) {
     const sideBarView = sidebarViewGenerator.defineSidebarView(refresh, presentSettings)
     $("rootView").get("listView").add(sideBarView)  
     refresh(newUrl)
+}
+
+function startDownloadthumbnails(infos) {
+    const thumbnails = infos['items'].map(n => {
+        const url = n['thumbnail_url']
+        return {
+            url: url,
+            path: utility.joinPath(glv.cachePath, url.split('/').pop())
+        }
+    })
+    exhentaiParser.downloadListThumbnailsByBottleneck(thumbnails)
+}
+
+function checkIsDownloadUnfinished() {
+    const counts = exhentaiParser.checkDownloadListThumbnailsByBottleneck()
+    const unfinished = counts.EXECUTING + counts.QUEUED + counts.RUNNING + counts.RECEIVED
+    if (unfinished) {
+        return true
+    } else {
+        return false
+    }
 }
 
 async function presentSettings() {
@@ -981,7 +1007,7 @@ async function presentSettings() {
                     type: "segmentedControl",
                     key: "favorites_order_method",
                     title: $l10n("Favorites排序方式"),
-                    items: ['按收藏时间', '按发布时间'],
+                    items: ['按收藏时间', '按发布时间'], // Favorited, Posted
                     value: (glv.config.favorites_order_method === 'Posted') ? 1 : 0
                 },
                 {

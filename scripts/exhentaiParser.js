@@ -7,7 +7,9 @@ if ($file.exists(glv.cookieFile)) {
     COOKIE = getCookieLocal()
 }
 
-let limiter
+let LIMITER_PICS
+let LIMITER_LIST_THUMBNAILS
+let LIMITER_GALLERY_THUMBNAILS
 
 // 获取xPath全部结果
 function xPathAll(element, pattern) {
@@ -722,6 +724,99 @@ async function downloadOriginalImage(fullpath, gid, key, mpvkey, page) {
     await downloadPic(fullpath, fullimg_url)
 }
 
+/**
+ * download thumbnail
+ * $http.get in order to use sharedSession
+ * @param {string} url thumbnail url
+ * @param {string} path path where thumbnail will be stored in
+ */
+async function downloadThumbnail(url, path, timeout = 10) {
+    const resp = await $http.get({
+        url: url,
+        timeout: timeout,
+        header: {
+            "User-Agent": glv.userAgent,
+            "Cookie": COOKIE
+        }
+    });
+    let success
+    const data = resp.rawData
+    if (data) {
+        success = $file.write({
+            data: data,
+            path: path
+        })
+    } else {
+        success = false
+    }
+    //console.info(success, path)
+}
+
+/**
+ * 
+ * @param {object} thumbails {url: string, path: string}
+ */
+function downloadListThumbnailsByBottleneck(thumbails) {
+    LIMITER_LIST_THUMBNAILS = new Bottleneck({
+        maxConcurrent: 10,
+        minTime: 100
+      });
+    for (let n of thumbails) {
+        if (!$file.exists(n.path)) {
+            LIMITER_LIST_THUMBNAILS.schedule(()=>downloadThumbnail(n.url, n.path))
+        }
+    }
+}
+
+/**
+ * 
+ * @returns {object} 
+ *      "EXECUTING": number,
+ *      "RUNNING": number,
+ *      "QUEUED": number,
+ *      "RECEIVED": number
+ */
+function checkDownloadListThumbnailsByBottleneck() {
+    const counts = LIMITER_LIST_THUMBNAILS.counts()
+    return counts
+}
+
+function stopDownloadListThumbnailsByBottleneck() {
+    LIMITER_LIST_THUMBNAILS.stop()
+}
+
+/**
+ * 
+ * @param {object} thumbails {url: string, path: string}
+ */
+function downloadGalleryThumbnailsByBottleneck(thumbails) {
+    LIMITER_GALLERY_THUMBNAILS = new Bottleneck({
+        maxConcurrent: 10,
+        minTime: 100
+      });
+    for (let n of thumbails) {
+        if (!$file.exists(n.path)) {
+            LIMITER_GALLERY_THUMBNAILS.schedule(()=>downloadThumbnail(n.url, n.path))
+        }
+    }
+}
+
+/**
+ * 
+ * @returns {object} 
+ *      "EXECUTING": number,
+ *      "RUNNING": number,
+ *      "QUEUED": number,
+ *      "RECEIVED": number
+ */
+function checkDownloadGalleryThumbnailsByBottleneck() {
+    const counts = LIMITER_GALLERY_THUMBNAILS.counts()
+    return counts
+}
+
+function stopDownloadGalleryThumbnailsByBottleneck() {
+    LIMITER_GALLERY_THUMBNAILS.stop()
+}
 // 此函数将专用于下载大图片
 async function downloadPic(fullpath, url, timeout=20) {
     const resp = await $http.download({
@@ -744,7 +839,7 @@ async function downloadPic(fullpath, url, timeout=20) {
 }
 
 function downloadPicsByBottleneck(infos, page = 1) {
-    limiter = new Bottleneck({
+    LIMITER_PICS = new Bottleneck({
         maxConcurrent: 5,
         minTime: 100
       });
@@ -760,7 +855,7 @@ function downloadPicsByBottleneck(infos, page = 1) {
     for (let pic of pics) {
         const fullpath = utility.joinPath(glv.imagePath, infos.filename, pic.img_id + pic.img_name.slice(pic.img_name.lastIndexOf('.')))
         if (!$file.exists(fullpath)) {
-            limiter.schedule(()=>downloadResizedImage(fullpath, pic.gid, pic.key, pic.mpvkey, pic.page))
+            LIMITER_PICS.schedule(()=>downloadResizedImage(fullpath, pic.gid, pic.key, pic.mpvkey, pic.page))
         }
     }
 }
@@ -774,12 +869,12 @@ function downloadPicsByBottleneck(infos, page = 1) {
  *      "RECEIVED": number
  */
 function checkDownloadTasksCreatedByBottleneck() {
-    const counts = limiter.counts()
+    const counts = LIMITER_PICS.counts()
     return counts
 }
 
 function stopDownloadTasksCreatedByBottleneck() {
-    limiter.stop()
+    LIMITER_PICS.stop()
 }
 
 module.exports = {
@@ -799,6 +894,12 @@ module.exports = {
     getEditComment: getEditComment,
     postEditComment: postEditComment,
     voteComment: voteComment,
+    downloadListThumbnailsByBottleneck: downloadListThumbnailsByBottleneck,
+    checkDownloadListThumbnailsByBottleneck: checkDownloadListThumbnailsByBottleneck,
+    stopDownloadListThumbnailsByBottleneck: stopDownloadListThumbnailsByBottleneck,
+    downloadGalleryThumbnailsByBottleneck: downloadGalleryThumbnailsByBottleneck,
+    checkDownloadGalleryThumbnailsByBottleneck: checkDownloadGalleryThumbnailsByBottleneck,
+    stopDownloadGalleryThumbnailsByBottleneck: stopDownloadGalleryThumbnailsByBottleneck,
     downloadPicsByBottleneck: downloadPicsByBottleneck,
     checkDownloadTasksCreatedByBottleneck: checkDownloadTasksCreatedByBottleneck,
     stopDownloadTasksCreatedByBottleneck: stopDownloadTasksCreatedByBottleneck

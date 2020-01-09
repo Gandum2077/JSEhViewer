@@ -274,12 +274,12 @@ const baseViewsForMpv = [
                 const counts = exhentaiParser.checkDownloadTasksCreatedByBottleneck()
                 const length = INFOS.pics.length
                 const downloaded = $file.list(path).length - 1
-                const running = counts.EXECUTING + counts.QUEUED
-                const failed = length - downloaded - running
+                const unfinished = counts.EXECUTING + counts.QUEUED + counts.RUNNING + counts.RECEIVED
+                const failed = length - downloaded - unfinished
                 if (downloaded === length) {
                     $ui.toast("已完成")
-                } else if (running) {
-                    $ui.toast(`还有${running + failed}张未完成，${failed}张已失败`)
+                } else if (unfinished) {
+                    $ui.toast(`还有${unfinished + failed}张未完成，${failed}张已失败`)
                 } else {
                     $ui.toast(`重启${failed}张`)
                     exhentaiParser.downloadPicsByBottleneck(INFOS, PAGE)

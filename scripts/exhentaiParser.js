@@ -157,7 +157,11 @@ async function getListInfosFromUrl(list_url) {
 function getListInfos(rootElement) {
     function extractItem(rootElement) {
         const items = []
-        for (let trElement of xPathAll(rootElement, '//table[@class="itg glte"]/tr')) {
+        const trElements = xPathAll(rootElement, '//table[@class="itg glte"]/tr')
+        if (trElements.length === 1 && !(trElements[0].firstChild({"selector": "td.gl1e > div > a > img"}))) {
+            return items
+        }
+        for (let trElement of trElements) {
             const thumbnail_url = trElement.firstChild({"selector": "td.gl1e > div > a > img"}).value({"attribute": "src"});
             const category = trElement.firstChild({"xPath": 'td[@class="gl2e"]/div/div[@class="gl3e"]/div'}).string.toLowerCase();
             const posted_div = trElement.firstChild({"xPath": 'td[@class="gl2e"]/div/div[@class="gl3e"]/div[2]'});

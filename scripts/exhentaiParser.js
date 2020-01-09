@@ -786,7 +786,9 @@ function checkDownloadListThumbnailsByBottleneck() {
 }
 
 function stopDownloadListThumbnailsByBottleneck() {
-    LIMITER_LIST_THUMBNAILS.stop()
+    if (LIMITER_LIST_THUMBNAILS) {
+        LIMITER_LIST_THUMBNAILS.stop()
+    }
 }
 
 /**
@@ -819,8 +821,11 @@ function checkDownloadGalleryThumbnailsByBottleneck() {
 }
 
 function stopDownloadGalleryThumbnailsByBottleneck() {
-    LIMITER_GALLERY_THUMBNAILS.stop()
+    if (LIMITER_GALLERY_THUMBNAILS) {
+        LIMITER_GALLERY_THUMBNAILS.stop()
+    }
 }
+
 // 此函数将专用于下载大图片
 async function downloadPic(fullpath, url, timeout=20) {
     const resp = await $http.download({

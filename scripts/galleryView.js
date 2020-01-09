@@ -9,8 +9,9 @@ const ratingAlert = require('./dialogs/ratingAlert')
 const favoriteDialogs = require('./dialogs/favoriteDialogs')
 const commentDialogs = require('./dialogs/commentDialogs')
 
-let url;
-let infos;
+let url
+let infos
+let FLAG_RELOAD = false
 
 var baseViewsForGalleryView = [
     {
@@ -287,19 +288,26 @@ function defineGalleryInfoView() {
             type: "image",
             props: {
                 id: "thumbnail_imageview",
-                source: {
-                    url: infos['pics'][0]['thumbnail_url'],
-                    header: {
-                        "User-Agent": glv.userAgent,
-                        "Cookie": exhentaiParser.getCookie(),
-                    }
-                },
+                src: utility.joinPath(glv.imagePath, infos.filename, 'thumbnails', infos.pics[0].img_id + '.jpg'),
                 contentMode: 1,
                 bgcolor: $color("#efeff4")
             },
             layout: function (make, view) {
                 make.top.left.bottom.inset(1)
                 make.right.equalTo(view.super.right).multipliedBy(182 / 695)
+            },
+            events: {
+                ready: async function(sender) {
+                    await $wait(0.1)
+                    const src = utility.joinPath(glv.imagePath, infos.filename, 'thumbnails', infos.pics[0].img_id + '.jpg')
+                    sender.src = src
+                    while(sender.super && !$file.exists(src)) {
+                        await $wait(0.5)
+                    }
+                    if (sender.super && $file.exists(src)) {
+                        sender.src = src
+                    }
+                }
             }
         },
         {
@@ -943,13 +951,7 @@ function getData() {
     for (let pic of infos['pics']) {
         const itemData = {
             thumbnail_imageview: {
-                source: {
-                    url: pic['thumbnail_url'],
-                    header: {
-                        "User-Agent": glv.userAgent,
-                        "Cookie": exhentaiParser.getCookie(),
-                    }
-                },
+                src: utility.joinPath(glv.imagePath, infos.filename, 'thumbnails', pic.img_id + '.jpg'),
                 info: {url: infos['url'], page: pic['page']}
             },
             label_title: {
@@ -1014,6 +1016,18 @@ function defineMatrixView() {
         events: {
             didSelect: function(sender, indexPath, data) {
                 mpvGenerator.init(infos, indexPath.item + 1)
+            },
+            ready: async function(sender) {
+                while(sender.super) {
+                    if (FLAG_RELOAD) {
+                        sender.data = getData()
+                        let unfinished = checkIsDownloadUnfinished()
+                        if (!unfinished) {
+                            FLAG_RELOAD = false
+                        }
+                    }
+                    await $wait(1)
+                }
             }
         }
     }
@@ -1034,6 +1048,9 @@ function defineGalleryView() {
 }
 
 async function refresh(newUrl, getNewInfos=true) {
+    // 停止下载缩略图
+    FLAG_RELOAD = false
+    exhentaiParser.stopDownloadGalleryThumbnailsByBottleneck()
     if (!newUrl) {
         url = infos.url
     } else {
@@ -1057,6 +1074,9 @@ async function refresh(newUrl, getNewInfos=true) {
     }
     galleryView.add(defineGalleryInfoView())
     galleryView.add(defineMatrixView())
+    // 下载缩略图
+    startDownloadthumbnails()
+    FLAG_RELOAD = true
     // 更新版本按钮
     const path = utility.joinPath(glv.imagePath, infos.filename)
     const button_update = $ui.window.get("galleryView").get("button_update")
@@ -1108,6 +1128,27 @@ async function refresh(newUrl, getNewInfos=true) {
     }
 }
 
+function startDownloadthumbnails() {
+    const thumbnails = infos.pics.map(n => {
+        return {
+            url: n.thumbnail_url,
+            path: utility.joinPath(glv.imagePath, infos.filename, 'thumbnails', n.img_id + '.jpg')
+        }
+    })
+    //console.info(thumbnails)
+    exhentaiParser.downloadGalleryThumbnailsByBottleneck(thumbnails)
+}
+
+function checkIsDownloadUnfinished() {
+    const counts = exhentaiParser.checkDownloadGalleryThumbnailsByBottleneck()
+    const unfinished = counts.EXECUTING + counts.QUEUED + counts.RUNNING + counts.RECEIVED
+    if (unfinished) {
+        return true
+    } else {
+        return false
+    }
+}
+
 async function init(newUrl) {
     const galleryView = defineGalleryView()
     const rootView = {
@@ -1119,6 +1160,9 @@ async function init(newUrl) {
         views: [galleryView],
         events: {
             disappeared: function() {
+                // 停止下载缩略图
+                exhentaiParser.stopDownloadGalleryThumbnailsByBottleneck()
+                // 存入数据库
                 if ($file.list(utility.joinPath(glv.imagePath, infos.filename)).length - 2 > 0) {
                     database.insertInfo(infos)
                 }

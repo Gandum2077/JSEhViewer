@@ -201,13 +201,15 @@ var baseViewsForGalleryView = [
         },
         events: {
             tapped: async function(sender) {
+                const newUrl = sender.info.url
                 const old_gid = infos.gid
                 const old_filename = infos.filename
                 const old_pics_dict = {}
+                const old_thumbnails_dict = {}
                 infos.pics.map(n => {
                     old_pics_dict[n.key] = utility.joinPath(glv.imagePath, infos.filename, n.img_id + n.img_name.slice(n.img_name.lastIndexOf('.')))
+                    old_thumbnails_dict[n.key] = utility.joinPath(glv.imagePath, infos.filename, 'thumbnails', n.img_id + '.jpg')
                 })
-                const newUrl = sender.info.url
                 const filename = utility.verifyUrl(newUrl)
                 const infosFile = utility.joinPath(glv.imagePath, filename, 'manga_infos.json')
                 if ($file.exists(infosFile)) {
@@ -216,15 +218,24 @@ var baseViewsForGalleryView = [
                 } else {
                     await refresh(newUrl)
                 }
-                new_pics_dict = {}
+                const new_pics_dict = {}
+                const new_thumbnails_dict = {}
                 infos.pics.map(n => {
                     new_pics_dict[n.key] = utility.joinPath(glv.imagePath, infos.filename, n.img_id + n.img_name.slice(n.img_name.lastIndexOf('.')))
+                    new_thumbnails_dict[n.key] = utility.joinPath(glv.imagePath, infos.filename, 'thumbnails', n.img_id + '.jpg')
+
                 })
                 for (let key in old_pics_dict) {
                     if ($file.exists(old_pics_dict[key]) && key in new_pics_dict && !$file.exists(new_pics_dict[key])) {
                         $file.move({
                             src: old_pics_dict[key],
                             dst: new_pics_dict[key]
+                        })
+                    }
+                    if ($file.exists(old_thumbnails_dict[key]) && key in new_thumbnails_dict && !$file.exists(new_thumbnails_dict[key])) {
+                        $file.move({
+                            src: old_thumbnails_dict[key],
+                            dst: new_thumbnails_dict[key]
                         })
                     }
                 }
@@ -258,12 +269,16 @@ var baseViewsForGalleryView = [
                 const old_infosFile = utility.joinPath(glv.imagePath, old_filename, 'manga_infos.json')
                 const old_infos = JSON.parse($file.read(old_infosFile).string)
                 const old_pics_dict = {}
+                const old_thumbnails_dict = {}
                 old_infos.pics.map(n => {
                     old_pics_dict[n.key] = utility.joinPath(glv.imagePath, old_filename, n.img_id + n.img_name.slice(n.img_name.lastIndexOf('.')))
+                    old_thumbnails_dict[n.key] = utility.joinPath(glv.imagePath, old_filename, 'thumbnails', n.img_id + '.jpg')
                 })
-                new_pics_dict = {}
+                const new_pics_dict = {}
+                const new_thumbnails_dict = {}
                 infos.pics.map(n => {
                     new_pics_dict[n.key] = utility.joinPath(glv.imagePath, infos.filename, n.img_id + n.img_name.slice(n.img_name.lastIndexOf('.')))
+                    new_thumbnails_dict[n.key] = utility.joinPath(glv.imagePath, infos.filename, 'thumbnails', n.img_id + '.jpg')
                 })
                 for (let key in old_pics_dict) {
                     if ($file.exists(old_pics_dict[key]) && key in new_pics_dict && !$file.exists(new_pics_dict[key])) {
@@ -271,6 +286,12 @@ var baseViewsForGalleryView = [
                         $file.move({
                             src: old_pics_dict[key],
                             dst: new_pics_dict[key]
+                        })
+                    }
+                    if ($file.exists(old_thumbnails_dict[key]) && key in new_thumbnails_dict && !$file.exists(new_thumbnails_dict[key])) {
+                        $file.move({
+                            src: old_thumbnails_dict[key],
+                            dst: new_thumbnails_dict[key]
                         })
                     }
                 }
@@ -1135,7 +1156,6 @@ function startDownloadthumbnails() {
             path: utility.joinPath(glv.imagePath, infos.filename, 'thumbnails', n.img_id + '.jpg')
         }
     })
-    //console.info(thumbnails)
     exhentaiParser.downloadGalleryThumbnailsByBottleneck(thumbnails)
 }
 
@@ -1159,6 +1179,11 @@ async function init(newUrl) {
         },
         views: [galleryView],
         events: {
+            appeared: function() {
+                if (infos) {
+                    startDownloadthumbnails()
+                }
+            },
             disappeared: function() {
                 // 停止下载缩略图
                 exhentaiParser.stopDownloadGalleryThumbnailsByBottleneck()

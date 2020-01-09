@@ -949,7 +949,7 @@ async function presentSettings() {
                         if (alert.index) {
                             database.createDB()
                             for (let filename of $file.list(glv.imagePath)) {
-                                if ($file.list(utility.joinPath(glv.imagePath, filename)).length > 1) {
+                                if ($file.list(utility.joinPath(glv.imagePath, filename)).length - 2 > 0) {
                                     const infosFile = utility.joinPath(glv.imagePath, filename, 'manga_infos.json')
                                     const infos = JSON.parse($file.read(infosFile).string)
                                     database.insertInfo(infos)
@@ -959,11 +959,26 @@ async function presentSettings() {
                         }
                     }
                 },
-                //{
-                //    type: "action",
-                //    buttonTitle: $l10n("清除缓存"),
-                //    value: null
-                //},
+                {
+                    type: "action",
+                    buttonTitle: $l10n("清除缓存"),
+                    value: async () => {
+                        const alert = await $ui.alert({
+                            title: "确定要清除缓存？",
+                            actions: [{title: "Cancel"}, {title: "OK"}]
+                        })
+                        if (alert.index) {
+                            $file.delete(glv.cachePath)
+                            $file.mkdir(glv.cachePath)
+                            for (let filename of $file.list(glv.imagePath)) {
+                                if ($file.list(utility.joinPath(glv.imagePath, filename)).length - 2 > 0) {
+                                    $file.delete(utility.joinPath(glv.imagePath, filename))
+                                }
+                            }
+                            $ui.toast($l10n("完成"))
+                        }
+                    }
+                },
                 {
                     type: "action",
                     buttonTitle: $l10n("清除未收藏的下载内容"),

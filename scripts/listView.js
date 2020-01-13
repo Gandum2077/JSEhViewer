@@ -792,6 +792,7 @@ async function refresh(newUrl){
     $('rootView').get('listView').get('button_sidebar').image = getSideBarButtonImage(urlCategory)
     $('rootView').get('listView').get('button_jump_page').get('label_current_page').text = infos['current_page_str']
     $('rootView').get('listView').get('button_jump_page').get('label_total_page').text = infos['total_pages_str']
+    $('rootView').get('listView').get('textfield_search').text = utility.parseUrl(url).query.f_search || ''
     startDownloadthumbnails(infos)
     INFOS = infos
     FLAG_RELOAD = true

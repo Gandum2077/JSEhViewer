@@ -767,7 +767,7 @@ async function downloadThumbnail(url, path, timeout = 10) {
 function downloadListThumbnailsByBottleneck(thumbails) {
     LIMITER_LIST_THUMBNAILS = new Bottleneck({
         maxConcurrent: 10,
-        minTime: 100
+        minTime: 50
       });
     for (let n of thumbails) {
         if (!$file.exists(n.path)) {
@@ -802,7 +802,7 @@ function stopDownloadListThumbnailsByBottleneck() {
 function downloadGalleryThumbnailsByBottleneck(thumbails) {
     LIMITER_GALLERY_THUMBNAILS = new Bottleneck({
         maxConcurrent: 10,
-        minTime: 100
+        minTime: 50
       });
     for (let n of thumbails) {
         if (!$file.exists(n.path)) {

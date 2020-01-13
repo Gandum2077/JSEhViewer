@@ -15,7 +15,7 @@
   },
   "settings" : {
     "minOSVer" : "11.0.0",
-    "minSDKVer" : "2.0.0",
+    "minSDKVer" : "1.60.0",
     "rotateDisabled" : false,
     "autoKeyboardEnabled" : false,
     "keyboardToolbarEnabled" : false,

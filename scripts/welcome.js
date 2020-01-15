@@ -16,7 +16,7 @@ const sections = [{
         },
         {
             type: "action",
-            title: $l10n("2. 科学的网络环境"),
+            title: $l10n("2. 科学上网"),
             buttonTitle: $l10n("帮我测试"),
             buttonType: 1,
             value: async () => {
@@ -37,17 +37,17 @@ const sections = [{
         },
         {
             type: "info",
-            title: $l10n("3. 可以访问exhentai.org的账号"),
+            title: $l10n("3. exhentai.org访问权限"),
             icon: $image("assets/icons/ios7_unlocked_64x64.png")
         },
         {
             type: "info",
-            title: "4. Hath Perk: Multi-Page Viewer",
+            title: "4. Multi-Page Viewer",
             icon: $image("assets/icons/star_64x64.png")
         },
         {
             type: "action",
-            title: $l10n("5. 在设置页面进行相关设置"),
+            title: $l10n("5. 详细设置"),
             buttonTitle: $l10n("详情"),
             buttonType: 1,
             value: () => {
@@ -121,8 +121,8 @@ async function init() {
     let flagContinue = true
     if (!$device.isIpad) {
         const alert = await $ui.alert({
-            title: "本App只适配iPad，是否继续？",
-            actions: [{title: "Cancel"}, {title: "OK", disabled: true}]
+            title: "本App尚未适配iPhone，是否继续？",
+            actions: [{title: "Cancel"}, {title: "OK", disabled: false}]
         })
         flagContinue = (alert.index) ? true : false
     }

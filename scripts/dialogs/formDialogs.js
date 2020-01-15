@@ -329,7 +329,7 @@ function defineFieldView(field, frame = frame) {
                     },
                     layout: function(make, view) {
                         make.top.right.bottom.inset(0)
-                        make.width.equalTo(50)
+                        make.width.equalTo(30)
                     }
                 },
                 {
@@ -346,7 +346,7 @@ function defineFieldView(field, frame = frame) {
                     },
                     layout: function(make, view) {
                         make.top.left.bottom.inset(0)
-                        make.width.equalTo(200)
+                        make.right.equalTo($("sliderValue").left)
                     },
                     events: {
                         changed: function(sender) {
@@ -359,7 +359,7 @@ function defineFieldView(field, frame = frame) {
             ],
             layout: function(make, view) {
                 make.top.bottom.inset(0)
-                make.width.equalTo(250)
+                make.left.equalTo($('title').right).inset(10)
                 make.right.inset(15)
             }
         }
@@ -374,9 +374,10 @@ function defineFieldView(field, frame = frame) {
                 index: index
             },
             layout: function(make, view) {
-                make.right.inset(15)
                 make.centerY.equalTo(view.super)
-                make.size.equalTo($size(200, 40))
+                make.height.equalTo(40)
+                make.left.equalTo($('title').right).inset(10)
+                make.right.inset(15)
             },
             events: {
                 changed: function(sender) {
@@ -400,7 +401,8 @@ function defineFieldView(field, frame = frame) {
             layout: function(make, view) {
                 make.right.inset(15)
                 make.centerY.equalTo(view.super)
-                make.size.equalTo($size(200, 40))
+                make.left.equalTo($('title').right).inset(10)
+                make.right.inset(15)
             },
             events: {
                 tapped: async function(sender) {
@@ -637,12 +639,12 @@ function defineSectionView(section, frameX, frameY, width = 500) {
     
 }
 
-function defineScrollView(sections) {
+function defineScrollView(sections, width = 500) {
     const sectionViews = []
     let frameX = 0
     let frameY = 20
     for (let section of sections) {
-        const sectionView = defineSectionView(section, frameX, frameY, width = 500)
+        const sectionView = defineSectionView(section, frameX, frameY, width = width)
         frameY += sectionView.props.frame.height
         sectionViews.push(sectionView)
         frameY += 20
@@ -663,6 +665,23 @@ function defineScrollView(sections) {
 }
 
 async function formDialogs(sections, title='') {
+    let layout
+    let width
+    if ($device.isIpad) {
+        width = 500
+        layout = function(make, view) {
+            make.width.equalTo(width)
+            make.height.equalTo(556)
+            make.center.equalTo(view.super)
+        }
+    } else {
+        width = $device.info.screen.width
+        layout = function(make, view) {
+            make.width.equalTo(width)
+            make.top.bottom.inset(18)
+            make.center.equalTo(view.super)
+        }
+    }
     return new Promise((resolve, reject) => {
         const cancelEvent = function(sender) {
             sender.super.super.super.remove()
@@ -685,17 +704,14 @@ async function formDialogs(sections, title='') {
             resolve(result)
         }
         const titleBarView = baseViewsGenerator.defineTitleBarView(title, cancelEvent, confirmEvent)
-        const scrollView = defineScrollView(sections)
+        const scrollView = defineScrollView(sections, width)
         const maskView = baseViewsGenerator.maskView
         const formDialogsContent = {
             props: {
                 radius: 10
             },
             views: [titleBarView, scrollView],
-            layout: function(make, view) {
-                make.size.equalTo($size(500, 556))
-                make.center.equalTo(view.super)
-            }
+            layout: layout
         }
         
         const formDialogs = {
@@ -703,7 +719,7 @@ async function formDialogs(sections, title='') {
                 id: 'formDialogs'
             },
             views: [maskView, formDialogsContent],
-            layout: $layout.fill
+            layout: $layout.fillSafeArea
         }
         $ui.window.add(formDialogs)
     })

@@ -1,6 +1,23 @@
 const baseViewsGenerator = require("./baseViews")
 
 async function textDialogs(title='', text='') {
+    let layout
+    let width
+    if ($device.isIpad) {
+        width = 500
+        layout = function(make, view) {
+            make.width.equalTo(width)
+            make.height.equalTo(556)
+            make.center.equalTo(view.super)
+        }
+    } else {
+        width = $device.info.screen.width
+        layout = function(make, view) {
+            make.width.equalTo(width)
+            make.top.bottom.inset(18)
+            make.center.equalTo(view.super)
+        }
+    }
     return new Promise((resolve, reject) => {
         const cancelEvent = function(sender) {
             sender.super.super.super.remove()
@@ -31,17 +48,14 @@ async function textDialogs(title='', text='') {
                 radius: 10
             },
             views: [titleBarView, textView],
-            layout: function(make, view) {
-                make.size.equalTo($size(500, 556))
-                make.center.equalTo(view.super)
-            }
+            layout: layout
         }
         const textDialogs = {
             props: {
                 id: 'textDialogs'
             },
             views: [maskView, content],
-            layout: $layout.fill
+            layout: $layout.fillSafeArea
         }
         $ui.window.add(textDialogs)
     })

@@ -500,9 +500,12 @@ const baseViewForItemCellView = [
             bgcolor: $color("#efeff4")
         },
         layout: (make, view) => {
-            make.height.equalTo(24)
-            make.width.equalTo(120)
-            make.center.equalTo($("lowlevel_view_rating"))
+            const lowlevel = $("lowlevel_view_rating")
+            make.center.equalTo(lowlevel)
+            make.height.lessThanOrEqualTo(lowlevel)
+            make.width.lessThanOrEqualTo(lowlevel.height).multipliedBy(5)
+            make.width.equalTo(lowlevel).priority(999)
+            make.height.equalTo(view.width).multipliedBy(1/5)
         },
         views: [
             {
@@ -518,6 +521,7 @@ const baseViewForItemCellView = [
                 const bounds = sender.frame;
                 const percentage = sender.info.display_rating / 5.0
                 inner.frame = $rect(0, 0, bounds.width * percentage, bounds.height);
+                inner.bgcolor = sender.info.ratingColor
               }
         }
     },
@@ -530,9 +534,8 @@ const baseViewForItemCellView = [
             contentMode: 2
         },
         layout: (make, view) => {
-            make.height.equalTo(24)
-            make.width.equalTo(120)
-            make.center.equalTo($("lowlevel_view_rating"))
+            make.center.equalTo($("maskview_grey_for_fivestars"))
+            make.size.equalTo($("maskview_grey_for_fivestars"))
         }
     },
     {
@@ -733,7 +736,7 @@ function defineListView() {
             id: "listView"
         },
         views: [...baseViewsForListView, defineRealListView()],
-        layout: $layout.fill
+        layout: $layout.fillSafeArea
     }
     return listView
 }

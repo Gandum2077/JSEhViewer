@@ -396,7 +396,7 @@ function defineGalleryInfoView() {
             layout: function (make, view) {
                 make.height.equalTo(36)
                 make.left.equalTo($("label_url").left)
-                make.top.equalTo($("label_url").bottom).inset(2)
+                make.top.equalTo($("label_url").bottom).inset(1)
                 make.right.multipliedBy((183 + 170) / 695)
             }
         },
@@ -523,31 +523,40 @@ function defineGalleryInfoView() {
             layout: function (make, view) {
                 make.height.equalTo(36)
                 make.left.equalTo($("label_category").right).inset(1)
-                make.top.equalTo($("label_url").bottom).inset(2)
+                make.top.equalTo($("label_url").bottom).inset(1)
                 make.right.multipliedBy((354 + 170) / 695)
             }
         },
         {
-            type: "canvas",
+            type: "view",
             props: {
-                id: "canvas_rating"
+                id: "maskview_grey_for_fivestars",
+                bgcolor: $color("#efeff4")
             },
             layout: (make, view) => {
-                make.height.equalTo(30)
-                make.width.equalTo(150)
-                make.center.equalTo($("lowlevel_view_rating"))
+                const lowlevel = $("lowlevel_view_rating")
+                make.center.equalTo(lowlevel)
+                make.height.lessThanOrEqualTo(lowlevel)
+                make.width.lessThanOrEqualTo(lowlevel.height).multipliedBy(5)
+                make.width.equalTo(lowlevel).priority(999)
+                make.height.equalTo(view.width).multipliedBy(1/5)
             },
-            events: {
-                draw: function(view, ctx) {
-                    const width = view.frame.width * parseFloat(infos['display_rating']) / 5;
-                    const height = view.frame.height;
-                    ctx.fillColor = $color((infos['is_personal_rating']) ? "#5eacff" : "#ffd217");
-                    ctx.addRect($rect(0, 0, width, height));
-                    ctx.fillPath();
-                    ctx.fillColor = $color('#efeff4');
-                    ctx.addRect($rect(width, 0, view.frame.width - width, height));
-                    ctx.fillPath()
+            views: [
+                {
+                    type: "view",
+                    props: {
+                        id: "maskview_colored_for_fivestars"
+                    }
                 }
+            ],
+            events: {
+                layoutSubviews: sender => {
+                    const inner = sender.get("maskview_colored_for_fivestars");
+                    const bounds = sender.frame;
+                    const percentage = infos.display_rating / 5.0
+                    inner.frame = $rect(0, 0, bounds.width * percentage, bounds.height);
+                    inner.bgcolor = $color((infos['is_personal_rating']) ? "#5eacff" : "#ffd217")
+                  }
             }
         },
         {
@@ -560,9 +569,8 @@ function defineGalleryInfoView() {
                 userInteractionEnabled: true
             },
             layout: (make, view) => {
-                make.height.equalTo(30)
-                make.width.equalTo(150)
-                make.center.equalTo($("lowlevel_view_rating"))
+                make.center.equalTo($("maskview_grey_for_fivestars"))
+                make.size.equalTo($("maskview_grey_for_fivestars"))
             },
             events: {
                 tapped: async function(sender) {
@@ -573,8 +581,11 @@ function defineGalleryInfoView() {
                     if (success) {
                         infos['is_personal_rating'] = true
                         infos['display_rating'] = rating
-                        const canvas = sender.super.get('canvas_rating')
-                        canvas.runtimeValue().invoke("setNeedsDisplay")
+                        const wrapper = sender.super.get('maskview_grey_for_fivestars')
+                        const inner = wrapper.get("maskview_colored_for_fivestars");
+                        const percentage = infos.display_rating /  5.0;
+                        inner.frame = $rect(0, 0, wrapper.frame.width * percentage, wrapper.frame.height);
+                        inner.bgcolor = $color((infos['is_personal_rating']) ? "#5eacff" : "#ffd217")
                         const path = utility.joinPath(glv.imagePath, infos.filename)
                         exhentaiParser.saveMangaInfos(infos, path)
                     } else {
@@ -671,7 +682,7 @@ function defineGalleryInfoView() {
             layout: function (make, view) {
                 make.height.equalTo(36)
                 make.left.equalTo($("lowlevel_view_rating").right).inset(1)
-                make.top.equalTo($("label_url").bottom).inset(2)
+                make.top.equalTo($("label_url").bottom).inset(1)
                 make.right.inset(1)
             }
         },
@@ -726,7 +737,7 @@ function defineGalleryInfoView() {
         },
         views: baseViewsForGalleryInfoView,
         layout: function (make, view) {
-            make.height.equalTo(257)
+            make.height.equalTo(256)
             make.left.inset(16)
             make.top.inset(18)
             make.right.inset(57)
@@ -1063,7 +1074,7 @@ function defineGalleryView() {
             bgcolor: $color("white")
         },
         views: baseViewsForGalleryView,
-        layout: $layout.fill
+        layout: $layout.fillSafeArea
     }
     return galleryView
 }

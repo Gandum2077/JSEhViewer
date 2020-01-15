@@ -572,7 +572,7 @@ function defineMpv() {
             bgcolor: $color("white")
         },
         views: [...baseViewsForMpv, scroll, spinner, slider],
-        layout: $layout.fill,
+        layout: $layout.fillSafeArea,
         events: {
             ready: async function (sender) {
                 const mpv = $ui.window.get('mpv')

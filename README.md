@@ -40,7 +40,7 @@
 ## 安装和更新
 
 - 安装  
-建议使用git进行安装。比如你可以用[gitCloneDownloader](https://github.com/Gandum2077/jsbox-gitclone-downloader)
+建议使用git进行安装。比如你可以用[gitCloneDownloader](https://github.com/Gandum2077/jsbox-gitclone-downloader)  
 也可以直接下载releases的源代码包并导入JSBox。
 
 - 更新  

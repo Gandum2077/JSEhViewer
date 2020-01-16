@@ -239,6 +239,7 @@ function handleQuery(query, downloads_order_method = "gid") {
         }
     }
     let where_clause = ''
+    let sort_clause
     if (condition_clauses.length) {
         where_clause = ' WHERE ' + condition_clauses.join(' AND ')
     }

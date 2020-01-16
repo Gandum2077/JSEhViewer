@@ -739,7 +739,7 @@ function defineGalleryInfoView() {
         layout: function (make, view) {
             make.height.equalTo(256)
             make.left.inset(16)
-            make.top.inset(18)
+            make.top.inset(0)
             make.right.inset(57)
         }
     }

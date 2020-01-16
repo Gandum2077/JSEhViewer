@@ -440,7 +440,7 @@ function defineCustomSlider(layout, obj, changedEvent, finishedEvent) {
 function defineSlider() {
     const layout = (make, view) => {
         make.width.equalTo(57)
-        make.top.inset(18)
+        make.top.inset(0)
         make.bottom.equalTo($("text_current_page").top)
         make.centerX.equalTo($("button_info"))
     }
@@ -538,7 +538,7 @@ function defineMpv() {
             maxZoomScale: 3 // Optional, default is 2
         },
         layout: (make, view) => {
-            make.edges.insets($insets(18, 0, 0, 57))
+            make.edges.insets($insets(0, 0, 0, 57))
         },
         views: [contentView]
     }

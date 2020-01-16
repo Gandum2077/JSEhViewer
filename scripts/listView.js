@@ -29,7 +29,7 @@ const baseViewsForListView = [
         layout: function (make, view) {
             make.height.equalTo(45)
             make.width.equalTo(45)
-            make.top.inset(18)
+            make.top.inset(0)
             make.left.inset(16)
         },
         events: {
@@ -53,7 +53,7 @@ const baseViewsForListView = [
         layout: function (make, view) {
             make.height.equalTo(45)
             make.width.equalTo(45)
-            make.top.inset(18)
+            make.top.inset(0)
             make.right.inset(16)
         },
         events: {
@@ -82,7 +82,7 @@ const baseViewsForListView = [
         layout: function (make, view) {
             make.height.equalTo(45)
             make.width.equalTo(45)
-            make.top.inset(18)
+            make.top.inset(0)
             make.right.equalTo($("button_storage").left).inset(1)
         },
         events: {
@@ -203,7 +203,7 @@ const baseViewsForListView = [
         },
         layout: function (make, view) {
             make.height.equalTo(45)
-            make.top.inset(18)
+            make.top.inset(0)
             make.right.equalTo($("button_search").left).inset(1)
             make.left.equalTo($("button_sidebar").right).inset(1)
         },

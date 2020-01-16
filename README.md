@@ -1,7 +1,7 @@
 # JSEhViewer
 
 提升[exhentai.org](https://exhentai.org)在iOS平台的阅读体验，并尽情使用其强大的搜索、评分、收藏、评论等诸多功能！  
-本应用在功能上对标Android平台的EhViewer。另外，本应用是[PyEhViewer](https://github.com/Gandum2077/PyEhViewer)在JSBox平台的实现。
+本应用基于JSBox平台。在功能上对标Android平台的EhViewer。另外，也选择在Pythonista 3平台的孪生应用[PyEhViewer](https://github.com/Gandum2077/PyEhViewer)。
 
 ## Features
 
@@ -40,7 +40,8 @@
 ## 安装和更新
 
 - 安装  
-建议使用git进行安装。也可以直接下载压缩包导入JSBox。
+建议使用git进行安装。比如你可以用[gitCloneDownloader](https://github.com/Gandum2077/jsbox-gitclone-downloader)
+也可以直接下载releases的源代码包并导入JSBox。
 
 - 更新  
 不删除原应用的情况下直接安装同名应用，JSBox不会删除用户自行添加的文件。因此，直接重装即可更新。
@@ -51,11 +52,10 @@
 
 ## TO-DO
 
-- [x] 缓存缩略图
+- [ ] 适配iPhone
 - [ ] 让没有 Multi-Page Viewer 权限的账号也能使用
 - [ ] 缓存搜索支持‘-’号过滤语法
 - [ ] 让游客也能使用
-- [ ] 适配iPhone
 
 
 ## Contributing

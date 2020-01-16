@@ -174,6 +174,24 @@ function translateTagType(eng) {
     return d[eng]
 }
 
+function getLatestVersion() {
+    const current_version = JSON.parse($file.read(glv.appConfigPath).string).info.version
+    const url = 'https://api.github.com/repos/Gandum2077/JSEhViewer/releases/latest'
+    $http.get({
+        url: url,
+        timeout: 10,
+        handler: function(resp) {
+            if (resp.data && resp.response.statusCode === 200) {
+                const info = resp.data
+                const latest_version = info['tag_name']
+                if (current_version !== latest_version) {
+                    $ui.toast('可更新，请从Github更新')
+                }
+            }
+        }
+    })
+}
+
 async function generateTagTranslatorJson() {
     const url = 'https://api.github.com/repos/EhTagTranslation/Database/releases/latest'
     const resp = await $http.get({url: url})
@@ -414,6 +432,7 @@ module.exports = {
     getColorFromFavcat: getColorFromFavcat,
     getFavcatFromColor: getFavcatFromColor,
     translateTagType: translateTagType,
+    getLatestVersion: getLatestVersion,
     generateTagTranslatorJson: generateTagTranslatorJson,
     updateTagTranslatorDict: updateTagTranslatorDict,
     translateTaglist: translateTaglist,

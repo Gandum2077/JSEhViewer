@@ -5,6 +5,7 @@ const cookieFile = 'assets/cookie.json'
 const accountFile = 'assets/account.json'
 const databaseFile = 'assets/downloads.db'
 const tagTranslationFile = 'assets/ehtagtranslator.json'
+const appConfigPath = 'config.json'
 const userFiles = [
     cachePath, 
     imagePath,
@@ -49,6 +50,7 @@ module.exports = {
     accountFile: accountFile,
     databaseFile: databaseFile,
     tagTranslationFile: tagTranslationFile,
+    appConfigPath: appConfigPath,
     userFiles: userFiles,
     urls: urls,
     userAgent: userAgent,

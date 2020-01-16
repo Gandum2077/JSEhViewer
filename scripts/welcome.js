@@ -121,7 +121,7 @@ async function init() {
     let flagContinue = true
     if (!$device.isIpad) {
         const alert = await $ui.alert({
-            title: "本App尚未适配iPhone，是否继续？",
+            title: "本App尚未完全适配iPhone，是否继续？",
             actions: [{title: "Cancel"}, {title: "OK", disabled: false}]
         })
         flagContinue = (alert.index) ? true : false

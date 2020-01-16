@@ -23,6 +23,8 @@ async function init() {
         const listViewGenerator = require("./listView")
         await listViewGenerator.init()
     }
+    const utility = require('./utility')
+    utility.getLatestVersion()
 }
 
 module.exports = {

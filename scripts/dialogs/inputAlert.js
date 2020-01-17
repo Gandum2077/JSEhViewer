@@ -56,7 +56,7 @@ async function inputAlert(title='', text='', type=0) {
                 id: 'inputAlert'
             },
             views: [maskView, content],
-            layout: $layout.fill
+            layout: $layout.fillSafeArea
         }
         $ui.window.add(view)
     })

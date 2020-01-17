@@ -402,7 +402,7 @@ function startLoading(title) {
             id: 'loadingView_e582da14'
         },
         views: [maskView, lottieView, titleView],
-        layout: $layout.fill
+        layout: $layout.fillSafeArea
     }
     $ui.window.add(loadingView)
 

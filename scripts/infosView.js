@@ -24,7 +24,7 @@ function defineInfosView(infos) {
             text: texts.join('\n'),
             editable: false
         },
-        layout: $layout.fill
+        layout: $layout.fillSafeArea
     }
     return text
 }

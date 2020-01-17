@@ -340,7 +340,7 @@ async function favoriteDialogs(favcat_titles, favcat_selected, favnote, is_favor
                 id: 'favoriteDialogs'
             },
             views: [maskView, content],
-            layout: $layout.fill
+            layout: $layout.fillSafeArea
         }
         $ui.window.add(view)
     })

@@ -97,7 +97,7 @@ async function loginAlert(title) {
                 id: 'loginView'
             },
             views: [maskView, content],
-            layout: $layout.fill
+            layout: $layout.fillSafeArea
         }
         $ui.window.add(loginView)
     })

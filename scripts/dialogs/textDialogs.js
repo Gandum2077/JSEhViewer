@@ -14,7 +14,7 @@ async function textDialogs(title='', text='') {
         width = $device.info.screen.width
         layout = function(make, view) {
             make.width.equalTo(width)
-            make.top.bottom.inset(18)
+            make.top.bottom.inset(0)
             make.center.equalTo(view.super)
         }
     }

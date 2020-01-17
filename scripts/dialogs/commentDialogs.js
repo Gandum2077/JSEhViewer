@@ -151,7 +151,7 @@ function defineTitleBarView(title, closeEvent) {
                                     props: {
                                         html: html
                                     },
-                                    layout: $layout.fill
+                                    layout: $layout.fillSafeArea
                                 }
                             ]
                         })
@@ -411,7 +411,7 @@ async function commentDialogs(infos) {
                 id: 'formDialogs'
             },
             views: [maskView, commentDialogsContent],
-            layout: $layout.fill
+            layout: $layout.fillSafeArea
         }
         $ui.window.add(commentDialogs)
     })

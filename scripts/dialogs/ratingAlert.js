@@ -155,7 +155,7 @@ async function ratingAlert(rating, style=1) {
                 id: 'ratingAlert'
             },
             views: [maskView, content],
-            layout: $layout.fill
+            layout: $layout.fillSafeArea
         }
         $ui.window.add(view)
     })

@@ -62,7 +62,7 @@ const sections = [{
                         props: {
                             content: "- (必须)Front Page Settings设为Extended\n- (必须)Thumbnail Settings中的Size设为Large\n- (可选)Gallery Name Display 设为 Japanese Title (if available)\n- (可选)Search Result Count 设为 50 results",
                         },
-                        layout: $layout.fill
+                        layout: $layout.fillSafeArea
                     }]
                 })
             },
@@ -85,7 +85,7 @@ const sections = [{
                         props: {
                             content: $file.read("README.md").string
                         },
-                        layout: $layout.fill
+                        layout: $layout.fillSafeArea
                     }]
                 })
             }

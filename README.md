@@ -1,7 +1,7 @@
 # JSEhViewer
 
 提升[exhentai.org](https://exhentai.org)在iOS平台的阅读体验，并尽情使用其强大的搜索、评分、收藏、评论等诸多功能！  
-本应用基于JSBox平台。在功能上对标Android平台的EhViewer。另外，也选择在Pythonista 3平台的孪生应用[PyEhViewer](https://github.com/Gandum2077/PyEhViewer)。
+本应用基于JSBox平台。在功能上对标Android平台的EhViewer。另外，也可以选择在Pythonista 3平台的孪生应用[PyEhViewer](https://github.com/Gandum2077/PyEhViewer)。
 
 ## Features
 

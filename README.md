@@ -27,9 +27,7 @@
 1. (必要) [JSBox](https://apps.apple.com/us/app/jsbox-learn-to-code/id1312014438)>=1.60.0
 2. (必要) iPad，**不完全适配iPhone**
 3. (必要) 可以访问[e-hentai.org](https://e-hentai.org)和[exhentai.org](https://exhentai.org)的网络环境
-4. (必要) 注册[e-hentai.org](https://e-hentai.org)账号，并确保可以访问[exhentai.org](https://exhentai.org)（刚注册的账号需要等待两星期左右才能访问）  
-然后请去[Hath Perks页面](https://e-hentai.org/hathperks.php)点亮Multi-Page Viewer的Hath Perk，需要300Hath币或者在[捐款页面](https://e-hentai.org/bitcoin.php)捐价值100美元的Bitcoin或Bitcoin Cash
-
+4. (必要) 注册[e-hentai.org](https://e-hentai.org)账号，并确保可以访问[exhentai.org](https://exhentai.org)，然后请去[Hath Perks页面](https://e-hentai.org/hathperks.php)点亮Multi-Page Viewer的Hath Perk
 5. [设置界面](https://exhentai.org/uconfig.php)做以下设置：
 
 - (必要)Front Page Settings 设为 Extended

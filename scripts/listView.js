@@ -10,7 +10,7 @@ const inputAlert = require('./dialogs/inputAlert')
 const loginAlert = require('./dialogs/loginAlert')
 const formDialogs = require('./dialogs/formDialogs')
 
-let url
+let URL
 let INFOS
 let FLAG_RELOAD = false
 
@@ -281,7 +281,7 @@ const baseViewsForListView = [
         },
         events: {
             tapped: async function (sender) {
-                await refresh(url);
+                await refresh(URL);
             }
         }
     },
@@ -312,7 +312,7 @@ const baseViewsForListView = [
                 }
                 const lastPage = parseInt(total_pages_str) - 1
                 if (nowPage < lastPage) {
-                    const newUrl = utility.updateQueryOfUrl(url, {'page': nowPage + 1})
+                    const newUrl = utility.updateQueryOfUrl(URL, {'page': nowPage + 1})
                     await refresh(newUrl)
                 }
             }
@@ -338,7 +338,7 @@ const baseViewsForListView = [
                 const current_page_str = $('rootView').get('listView').get('button_jump_page').get('label_current_page').text
                 const nowPage = parseInt(current_page_str) - 1
                 if (nowPage > 0) {
-                    const newUrl = utility.updateQueryOfUrl(url, {'page': nowPage - 1})
+                    const newUrl = utility.updateQueryOfUrl(URL, {'page': nowPage - 1})
                     await refresh(newUrl)
                 }
             }
@@ -402,7 +402,7 @@ const baseViewsForListView = [
                 if (total_pages_str !== '1') {
                     const page_str = await inputAlert.inputAlert(title = `输入页码(1-${total_pages_str})`, text='', type = 4)
                     if (/^\d+$/.test(page_str)) {
-                        const newUrl = utility.updateQueryOfUrl(url, {'page': parseInt(page_str) - 1})
+                        const newUrl = utility.updateQueryOfUrl(URL, {'page': parseInt(page_str) - 1})
                         await refresh(newUrl)
                     } else {
                         $ui.toast($l10n("输入不合法"))
@@ -705,7 +705,7 @@ function defineRealListView() {
                 inner.bgcolor = wrapper.info.ratingColor
             },
             swipeEnabled: function(sender, indexPath) {
-                if (utility.getUrlCategory(url) === 'downloads') {
+                if (utility.getUrlCategory(URL) === 'downloads') {
                     return true
                 }
             },
@@ -769,15 +769,15 @@ function initSubviewsStatus() {
 
 async function refresh(newUrl){
     FLAG_RELOAD = false
-    url = newUrl
+    URL = newUrl
     initSubviewsStatus()
-    const urlCategory = utility.getUrlCategory(url)
+    const urlCategory = utility.getUrlCategory(URL)
     let infos
     if (urlCategory === 'downloads') {
-        infos = getDownloadsInfosFromDB(url)
+        infos = getDownloadsInfosFromDB(URL)
     } else {
         utility.startLoading()
-        infos = await exhentaiParser.getListInfosFromUrl(url)
+        infos = await exhentaiParser.getListInfosFromUrl(URL)
         utility.stopLoading()
     }
     // 在此时机插入更新favcat的信息
@@ -795,7 +795,7 @@ async function refresh(newUrl){
     $('rootView').get('listView').get('button_sidebar').image = getSideBarButtonImage(urlCategory)
     $('rootView').get('listView').get('button_jump_page').get('label_current_page').text = infos['current_page_str']
     $('rootView').get('listView').get('button_jump_page').get('label_total_page').text = infos['total_pages_str']
-    $('rootView').get('listView').get('textfield_search').text = utility.parseUrl(url).query.f_search || ''
+    $('rootView').get('listView').get('textfield_search').text = utility.parseUrl(URL).query.f_search || ''
     startDownloadthumbnails(infos)
     INFOS = infos
     FLAG_RELOAD = true
@@ -867,10 +867,10 @@ async function presentSettings() {
                         const scroll = $('formDialogs').views[1].views[1]
                         const target = scroll.views[2].views[2]
                         const valueView = target.views[1]
-                        valueView.text = url
+                        valueView.text = URL
                         target.info = {
                             "key": "default_url",
-                            "value": url,
+                            "value": URL,
                             "type": "string"
                         }
                     }

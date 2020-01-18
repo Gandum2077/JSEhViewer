@@ -9,8 +9,8 @@ const ratingAlert = require('./dialogs/ratingAlert')
 const favoriteDialogs = require('./dialogs/favoriteDialogs')
 const commentDialogs = require('./dialogs/commentDialogs')
 
-let url
-let infos
+let URL
+let INFOS
 let FLAG_RELOAD = false
 
 var baseViewsForGalleryView = [
@@ -32,7 +32,7 @@ var baseViewsForGalleryView = [
         events: {
             tapped: async function(sender) {
                 let alertTitle
-                if (parseInt(infos.length) === $file.list(utility.joinPath(glv.imagePath, infos.filename)).length - 2) {
+                if (parseInt(INFOS.length) === $file.list(utility.joinPath(glv.imagePath, INFOS.filename)).length - 2) {
                     alertTitle = "是否保存为压缩包？"
                 } else {
                     alertTitle = "本图库尚未下载完成，是否保存为压缩包？"
@@ -43,8 +43,8 @@ var baseViewsForGalleryView = [
                 })
                 if (alert.index) {
                     await $archiver.zip({
-                        directory: utility.joinPath(glv.imagePath, infos.filename),
-                        dest: infos.filename + '.zip'
+                        directory: utility.joinPath(glv.imagePath, INFOS.filename),
+                        dest: INFOS.filename + '.zip'
                     });
                     $ui.toast($l10n("完成"))
                 }
@@ -119,8 +119,8 @@ var baseViewsForGalleryView = [
         },
         events: {
             tapped: function(sender) {
-                const title = infos.japanese_title || infos.english_title
-                $share.sheet(title + '\n' + infos.url)
+                const title = INFOS.japanese_title || INFOS.english_title
+                $share.sheet(title + '\n' + INFOS.url)
             }
         }
     },
@@ -150,7 +150,7 @@ var baseViewsForGalleryView = [
         },
         events: {
             tapped: function(sender) {
-                $app.openURL(infos.url)
+                $app.openURL(INFOS.url)
             }
         }
     },
@@ -177,7 +177,7 @@ var baseViewsForGalleryView = [
                         statusBarHidden: false,
                         statusBarStyle: 0
                     },
-                    views: [infosViewGenerator.defineInfosView(infos)]
+                    views: [infosViewGenerator.defineInfosView(INFOS)]
                 })
             }
         }
@@ -202,27 +202,27 @@ var baseViewsForGalleryView = [
         events: {
             tapped: async function(sender) {
                 const newUrl = sender.info.url
-                const old_gid = infos.gid
-                const old_filename = infos.filename
+                const old_gid = INFOS.gid
+                const old_filename = INFOS.filename
                 const old_pics_dict = {}
                 const old_thumbnails_dict = {}
-                infos.pics.map(n => {
-                    old_pics_dict[n.key] = utility.joinPath(glv.imagePath, infos.filename, n.img_id + n.img_name.slice(n.img_name.lastIndexOf('.')))
-                    old_thumbnails_dict[n.key] = utility.joinPath(glv.imagePath, infos.filename, 'thumbnails', n.img_id + '.jpg')
+                INFOS.pics.map(n => {
+                    old_pics_dict[n.key] = utility.joinPath(glv.imagePath, INFOS.filename, n.img_id + n.img_name.slice(n.img_name.lastIndexOf('.')))
+                    old_thumbnails_dict[n.key] = utility.joinPath(glv.imagePath, INFOS.filename, 'thumbnails', n.img_id + '.jpg')
                 })
                 const filename = utility.verifyUrl(newUrl)
                 const infosFile = utility.joinPath(glv.imagePath, filename, 'manga_infos.json')
                 if ($file.exists(infosFile)) {
-                    infos = JSON.parse($file.read(infosFile).string)
+                    INFOS = JSON.parse($file.read(infosFile).string)
                     await refresh(newUrl, getNewInfos=false)
                 } else {
                     await refresh(newUrl)
                 }
                 const new_pics_dict = {}
                 const new_thumbnails_dict = {}
-                infos.pics.map(n => {
-                    new_pics_dict[n.key] = utility.joinPath(glv.imagePath, infos.filename, n.img_id + n.img_name.slice(n.img_name.lastIndexOf('.')))
-                    new_thumbnails_dict[n.key] = utility.joinPath(glv.imagePath, infos.filename, 'thumbnails', n.img_id + '.jpg')
+                INFOS.pics.map(n => {
+                    new_pics_dict[n.key] = utility.joinPath(glv.imagePath, INFOS.filename, n.img_id + n.img_name.slice(n.img_name.lastIndexOf('.')))
+                    new_thumbnails_dict[n.key] = utility.joinPath(glv.imagePath, INFOS.filename, 'thumbnails', n.img_id + '.jpg')
 
                 })
                 for (let key in old_pics_dict) {
@@ -276,9 +276,9 @@ var baseViewsForGalleryView = [
                 })
                 const new_pics_dict = {}
                 const new_thumbnails_dict = {}
-                infos.pics.map(n => {
-                    new_pics_dict[n.key] = utility.joinPath(glv.imagePath, infos.filename, n.img_id + n.img_name.slice(n.img_name.lastIndexOf('.')))
-                    new_thumbnails_dict[n.key] = utility.joinPath(glv.imagePath, infos.filename, 'thumbnails', n.img_id + '.jpg')
+                INFOS.pics.map(n => {
+                    new_pics_dict[n.key] = utility.joinPath(glv.imagePath, INFOS.filename, n.img_id + n.img_name.slice(n.img_name.lastIndexOf('.')))
+                    new_thumbnails_dict[n.key] = utility.joinPath(glv.imagePath, INFOS.filename, 'thumbnails', n.img_id + '.jpg')
                 })
                 for (let key in old_pics_dict) {
                     if ($file.exists(old_pics_dict[key]) && key in new_pics_dict && !$file.exists(new_pics_dict[key])) {
@@ -309,7 +309,7 @@ function defineGalleryInfoView() {
             type: "image",
             props: {
                 id: "thumbnail_imageview",
-                src: utility.joinPath(glv.imagePath, infos.filename, 'thumbnails', infos.pics[0].img_id + '.jpg'),
+                src: utility.joinPath(glv.imagePath, INFOS.filename, 'thumbnails', INFOS.pics[0].img_id + '.jpg'),
                 contentMode: 1,
                 bgcolor: $color("#efeff4")
             },
@@ -320,7 +320,7 @@ function defineGalleryInfoView() {
             events: {
                 ready: async function(sender) {
                     await $wait(0.1)
-                    const src = utility.joinPath(glv.imagePath, infos.filename, 'thumbnails', infos.pics[0].img_id + '.jpg')
+                    const src = utility.joinPath(glv.imagePath, INFOS.filename, 'thumbnails', INFOS.pics[0].img_id + '.jpg')
                     sender.src = src
                     while(sender.super && !$file.exists(src)) {
                         await $wait(0.5)
@@ -335,7 +335,7 @@ function defineGalleryInfoView() {
             type: "label",
             props: {
                 id: "label_japanese_title",
-                text: infos['japanese_title'],
+                text: INFOS['japanese_title'],
                 font: $font(14),
                 align: $align.left,
                 lines: 0,
@@ -352,7 +352,7 @@ function defineGalleryInfoView() {
             type: "label",
             props: {
                 id: "label_english_title",
-                text: infos['english_title'],
+                text: INFOS['english_title'],
                 font: $font(14),
                 align: $align.left,
                 lines: 0,
@@ -370,7 +370,7 @@ function defineGalleryInfoView() {
             type: "label",
             props: {
                 id: "label_url",
-                text: infos['url'],
+                text: INFOS['url'],
                 font: $font(12),
                 align: $align.left,
                 textColor: $color("black"),
@@ -387,11 +387,11 @@ function defineGalleryInfoView() {
             type: "label",
             props: {
                 id: "label_category",
-                text: infos['category'],
+                text: INFOS['category'],
                 font: $font('bold', 15),
                 align: $align.center,
                 textColor: $color("white"),
-                bgcolor: $color(utility.getNameAndColor(infos['category'].toLowerCase())['color'])
+                bgcolor: $color(utility.getNameAndColor(INFOS['category'].toLowerCase())['color'])
             },
             layout: function (make, view) {
                 make.height.equalTo(36)
@@ -423,13 +423,13 @@ function defineGalleryInfoView() {
             },
             events: {
                 ready: async function(sender) {
-                    const path = utility.joinPath(glv.imagePath, infos.filename)
+                    const path = utility.joinPath(glv.imagePath, INFOS.filename)
                     await $wait(0.1)
-                    while (sender.super && $file.list(path).length - 2 < parseInt(infos.pics.length)) {
-                        sender.get("inner").frame = $rect(0, 0, sender.frame.width * ($file.list(path).length - 2) / parseInt(infos.pics.length), 36)
+                    while (sender.super && $file.list(path).length - 2 < parseInt(INFOS.pics.length)) {
+                        sender.get("inner").frame = $rect(0, 0, sender.frame.width * ($file.list(path).length - 2) / parseInt(INFOS.pics.length), 36)
                         await $wait(1)
                     }
-                    if (sender.super && $file.list(path).length - 2 === parseInt(infos.pics.length)) {
+                    if (sender.super && $file.list(path).length - 2 === parseInt(INFOS.pics.length)) {
                         sender.get("inner").frame = $rect(0, 0, sender.frame.width, 36)
                         sender.get("inner").bgcolor = $color("#b4ffbb")
                     }
@@ -440,7 +440,7 @@ function defineGalleryInfoView() {
             type: "label",
             props: {
                 id: "label_length",
-                text: infos['length'] + ' pages',
+                text: INFOS['length'] + ' pages',
                 font: $font(12),
                 align: $align.center,
                 textColor: $color("black"),
@@ -457,7 +457,7 @@ function defineGalleryInfoView() {
             type: "label",
             props: {
                 id: "label_uploader",
-                text: 'uploader: ' + infos['uploader'],
+                text: 'uploader: ' + INFOS['uploader'],
                 font: $font(12),
                 align: $align.center,
                 textColor: $color("black"),
@@ -487,7 +487,7 @@ function defineGalleryInfoView() {
             type: "label",
             props: {
                 id: "label_posted",
-                text: infos['posted'],
+                text: INFOS['posted'],
                 font: $font(12),
                 align: $align.center,
                 textColor: $color("black"),
@@ -506,7 +506,7 @@ function defineGalleryInfoView() {
                 id: "delete_line_view",
                 bgcolor: $color("black"),
                 alpha: 0.5,
-                hidden: ((infos['visible'] === "Yes") ? true : false)
+                hidden: ((INFOS['visible'] === "Yes") ? true : false)
             },
             layout: function (make, view) {
                 make.height.equalTo(1)
@@ -553,9 +553,9 @@ function defineGalleryInfoView() {
                 layoutSubviews: sender => {
                     const inner = sender.get("maskview_colored_for_fivestars");
                     const bounds = sender.frame;
-                    const percentage = infos.display_rating / 5.0
+                    const percentage = INFOS.display_rating / 5.0
                     inner.frame = $rect(0, 0, bounds.width * percentage, bounds.height);
-                    inner.bgcolor = $color((infos['is_personal_rating']) ? "#5eacff" : "#ffd217")
+                    inner.bgcolor = $color((INFOS['is_personal_rating']) ? "#5eacff" : "#ffd217")
                   }
             }
         },
@@ -574,20 +574,20 @@ function defineGalleryInfoView() {
             },
             events: {
                 tapped: async function(sender) {
-                    const rating = await ratingAlert.ratingAlert(infos.display_rating)
+                    const rating = await ratingAlert.ratingAlert(INFOS.display_rating)
                     utility.startLoading()
-                    const success = await exhentaiParser.rateGallery(rating, infos.apikey, infos.apiuid, infos.gid, infos.token)
+                    const success = await exhentaiParser.rateGallery(rating, INFOS.apikey, INFOS.apiuid, INFOS.gid, INFOS.token)
                     utility.stopLoading()
                     if (success) {
-                        infos['is_personal_rating'] = true
-                        infos['display_rating'] = rating
+                        INFOS['is_personal_rating'] = true
+                        INFOS['display_rating'] = rating
                         const wrapper = sender.super.get('maskview_grey_for_fivestars')
                         const inner = wrapper.get("maskview_colored_for_fivestars");
-                        const percentage = infos.display_rating /  5.0;
+                        const percentage = INFOS.display_rating /  5.0;
                         inner.frame = $rect(0, 0, wrapper.frame.width * percentage, wrapper.frame.height);
-                        inner.bgcolor = $color((infos['is_personal_rating']) ? "#5eacff" : "#ffd217")
-                        const path = utility.joinPath(glv.imagePath, infos.filename)
-                        exhentaiParser.saveMangaInfos(infos, path)
+                        inner.bgcolor = $color((INFOS['is_personal_rating']) ? "#5eacff" : "#ffd217")
+                        const path = utility.joinPath(glv.imagePath, INFOS.filename)
+                        exhentaiParser.saveMangaInfos(INFOS, path)
                     } else {
                         $ui.toast($l10n("评分失败"))
                     }
@@ -598,7 +598,7 @@ function defineGalleryInfoView() {
             type: "label",
             props: {
                 id: "label_review",
-                text: infos['rating'] + ' on ' + infos['number of reviews'] + ' reviews',
+                text: INFOS['rating'] + ' on ' + INFOS['number of reviews'] + ' reviews',
                 font: $font(12),
                 align: $align.center,
                 textColor: $color("black"),
@@ -615,12 +615,12 @@ function defineGalleryInfoView() {
             type: "label",
             props: {
                 id: "label_favorite_title",
-                text: (infos['favcat']) ? infos['favcat_title'] : '未收藏',
+                text: (INFOS['favcat']) ? INFOS['favcat_title'] : '未收藏',
                 font: $font("bold", 14),
                 align: $align.center,
                 userInteractionEnabled: true,
-                textColor: (infos['favcat']) ? $color("white") : $color("black"),
-                bgcolor: (infos['favcat']) ? $color(utility.getColorFromFavcat(infos['favcat'])): $color("white")
+                textColor: (INFOS['favcat']) ? $color("white") : $color("black"),
+                bgcolor: (INFOS['favcat']) ? $color(utility.getColorFromFavcat(INFOS['favcat'])): $color("white")
             },
             layout: function (make, view) {
                 make.height.equalTo(36)
@@ -631,21 +631,21 @@ function defineGalleryInfoView() {
             events: {
                 tapped: async function(sender) {
                     utility.startLoading()
-                    const favInfos = await exhentaiParser.getFavcatAndFavnote(infos['url'])
+                    const favInfos = await exhentaiParser.getFavcatAndFavnote(INFOS['url'])
                     utility.stopLoading()
                     const result = await favoriteDialogs.favoriteDialogs(favInfos.favcat_titles, favInfos.favcat_selected, favInfos.favnote, favInfos.is_favorited)
                     const old_is_favorited = favInfos.is_favorited
                     utility.startLoading()
-                    const success = await exhentaiParser.addFav(infos['url'], result.favcat, result.favnote, old_is_favorited)
+                    const success = await exhentaiParser.addFav(INFOS['url'], result.favcat, result.favnote, old_is_favorited)
                     utility.stopLoading()
                     if (success) {
-                        infos['favcat_title'] = result.favcat_title
-                        infos['favcat'] = (result.favcat === "favdel") ? null : result.favcat
-                        sender.text = (infos['favcat']) ? infos['favcat_title'] : '未收藏'
-                        sender.textColor = (infos['favcat']) ? $color("white") : $color("black")
-                        sender.bgcolor = (infos['favcat']) ? $color(utility.getColorFromFavcat(infos['favcat'])) : $color("white")
-                        const path = utility.joinPath(glv.imagePath, infos.filename)
-                        exhentaiParser.saveMangaInfos(infos, path)
+                        INFOS['favcat_title'] = result.favcat_title
+                        INFOS['favcat'] = (result.favcat === "favdel") ? null : result.favcat
+                        sender.text = (INFOS['favcat']) ? INFOS['favcat_title'] : '未收藏'
+                        sender.textColor = (INFOS['favcat']) ? $color("white") : $color("black")
+                        sender.bgcolor = (INFOS['favcat']) ? $color(utility.getColorFromFavcat(INFOS['favcat'])) : $color("white")
+                        const path = utility.joinPath(glv.imagePath, INFOS.filename)
+                        exhentaiParser.saveMangaInfos(INFOS, path)
                     } else {
                         $ui.toast($l10n("收藏失败"))
                     }
@@ -656,7 +656,7 @@ function defineGalleryInfoView() {
             type: "label",
             props: {
                 id: "label_favorite_num",
-                text: 'favorited: ' + infos['favorited'],
+                text: 'favorited: ' + INFOS['favorited'],
                 font: $font(12),
                 align: $align.center,
                 textColor: $color("black"),
@@ -673,7 +673,7 @@ function defineGalleryInfoView() {
             type: "label",
             props: {
                 id: "label_language",
-                text: infos['language'],
+                text: INFOS['language'],
                 font: $font(12),
                 align: $align.center,
                 textColor: $color("black"),
@@ -690,7 +690,7 @@ function defineGalleryInfoView() {
             type: "label",
             props: {
                 id: "label_filesize",
-                text: infos['file size'],
+                text: INFOS['file size'],
                 font: $font(12),
                 align: $align.center,
                 textColor: $color("black"),
@@ -724,7 +724,7 @@ function defineGalleryInfoView() {
             events : {
                 tapped: function(sender) {
                     $ui.window.get("galleryView").get("button_try_import_old_version").hidden = true
-                    mpvGenerator.init(infos)
+                    mpvGenerator.init(INFOS)
                 }
             }
         }
@@ -747,7 +747,7 @@ function defineGalleryInfoView() {
 }
 
 function defineFullTagTableView(width, translated = true) {
-    const bilingualTaglist = utility.getBilingualTaglist(infos.taglist, translated = translated)
+    const bilingualTaglist = utility.getBilingualTaglist(INFOS.taglist, translated = translated)
     const tagTableView = tagTableViewGenerator.defineTagTableView(width - 51, bilingualTaglist)
     const height = Math.max(tagTableView.props.info.height, 100)
     const views = [
@@ -869,7 +869,7 @@ function defineFullTagTableView(width, translated = true) {
 
 function getCommentsViewText() {
     const comments_text = []
-    for (let i of infos['comments']) {
+    for (let i of INFOS['comments']) {
         let c4text;
         if (i['is_uploader']) {
             c4text = 'uploader'
@@ -919,13 +919,13 @@ function defineCommentsView() {
         events: {
             tapped: async function(sender) {
                 utility.startLoading()
-                const newInfos = await exhentaiParser.getGalleryInfosFromUrl(url)
+                const newInfos = await exhentaiParser.getGalleryInfosFromUrl(URL)
                 utility.stopLoading()
-                infos.comments = newInfos['comments']
-                await commentDialogs.commentDialogs(infos)
+                INFOS.comments = newInfos['comments']
+                await commentDialogs.commentDialogs(INFOS)
                 sender.super.get("textView").text = getCommentsViewText()
-                const path = utility.joinPath(glv.imagePath, infos.filename)
-                exhentaiParser.saveMangaInfos(infos, path)
+                const path = utility.joinPath(glv.imagePath, INFOS.filename)
+                exhentaiParser.saveMangaInfos(INFOS, path)
             }
         }
     }
@@ -980,11 +980,11 @@ function defineHeaderView() {
 
 function getData() {
     const data = []
-    for (let pic of infos['pics']) {
+    for (let pic of INFOS['pics']) {
         const itemData = {
             thumbnail_imageview: {
-                src: utility.joinPath(glv.imagePath, infos.filename, 'thumbnails', pic.img_id + '.jpg'),
-                info: {url: infos['url'], page: pic['page']}
+                src: utility.joinPath(glv.imagePath, INFOS.filename, 'thumbnails', pic.img_id + '.jpg'),
+                info: {url: INFOS['url'], page: pic['page']}
             },
             label_title: {
                 text: pic['img_id']
@@ -1047,7 +1047,7 @@ function defineMatrixView() {
         },
         events: {
             didSelect: function(sender, indexPath, data) {
-                mpvGenerator.init(infos, indexPath.item + 1)
+                mpvGenerator.init(INFOS, indexPath.item + 1)
             },
             ready: async function(sender) {
                 while(sender.super) {
@@ -1084,20 +1084,20 @@ async function refresh(newUrl, getNewInfos=true) {
     FLAG_RELOAD = false
     exhentaiParser.stopDownloadGalleryThumbnailsByBottleneck()
     if (!newUrl) {
-        url = infos.url
+        URL = INFOS.url
     } else {
-        url = newUrl
+        URL = newUrl
     }
     if (getNewInfos) {
-        const create_time = (infos) ? infos.create_time : undefined
+        const create_time = (INFOS) ? INFOS.create_time : undefined
         utility.startLoading()
-        infos = await exhentaiParser.getGalleryMpvInfosFromUrl(url)
+        INFOS = await exhentaiParser.getGalleryMpvInfosFromUrl(URL)
         utility.stopLoading()
         if (create_time) {
-            infos.create_time = create_time
+            INFOS.create_time = create_time
         }
-        const path = utility.joinPath(glv.imagePath, infos.filename)
-        exhentaiParser.saveMangaInfos(infos, path)
+        const path = utility.joinPath(glv.imagePath, INFOS.filename)
+        exhentaiParser.saveMangaInfos(INFOS, path)
     }
     const galleryView = $ui.window.get('galleryView')
     const galleryInfoView = galleryView.get('galleryInfoView')
@@ -1114,23 +1114,23 @@ async function refresh(newUrl, getNewInfos=true) {
     startDownloadthumbnails()
     FLAG_RELOAD = true
     // 更新版本按钮
-    const path = utility.joinPath(glv.imagePath, infos.filename)
+    const path = utility.joinPath(glv.imagePath, INFOS.filename)
     const button_update = $ui.window.get("galleryView").get("button_update")
-    if ($file.list(path).length - 2 > 0 && infos.newer_versions) {
+    if ($file.list(path).length - 2 > 0 && INFOS.newer_versions) {
         button_update.hidden = false
-        button_update.info = {url: infos.newer_versions[infos.newer_versions.length - 1][0]}
+        button_update.info = {url: INFOS.newer_versions[INFOS.newer_versions.length - 1][0]}
     } else {
         button_update.hidden = true
     }
     // 导入旧版按钮
     const button_try_import_old_version = $ui.window.get("galleryView").get("button_try_import_old_version")
-    if ($file.list(path).length - 2 === 0 && infos.parent_url) {
+    if ($file.list(path).length - 2 === 0 && INFOS.parent_url) {
         let filename
         const clause = `SELECT DISTINCT gid||'_'||token
                         FROM downloads
                         WHERE gid = ?
                         LIMIT 1`
-        const args = [utility.verifyUrl(infos.parent_url).split('_')[0]]
+        const args = [utility.verifyUrl(INFOS.parent_url).split('_')[0]]
         const result = database.search(clause, args)
         if (result.length) {
             filename = result[0]["gid||'_'||token"]
@@ -1144,9 +1144,9 @@ async function refresh(newUrl, getNewInfos=true) {
                             LIMIT 1
                             `
             const args = [
-                infos['uploader'],
-                infos['english_title'],
-                infos['gid']
+                INFOS['uploader'],
+                INFOS['english_title'],
+                INFOS['gid']
             ]
             const result = database.search(clause, args)
             if (result.length) {
@@ -1165,10 +1165,10 @@ async function refresh(newUrl, getNewInfos=true) {
 }
 
 function startDownloadthumbnails() {
-    const thumbnails = infos.pics.map(n => {
+    const thumbnails = INFOS.pics.map(n => {
         return {
             url: n.thumbnail_url,
-            path: utility.joinPath(glv.imagePath, infos.filename, 'thumbnails', n.img_id + '.jpg')
+            path: utility.joinPath(glv.imagePath, INFOS.filename, 'thumbnails', n.img_id + '.jpg')
         }
     })
     exhentaiParser.downloadGalleryThumbnailsByBottleneck(thumbnails)
@@ -1195,7 +1195,7 @@ async function init(newUrl) {
         views: [galleryView],
         events: {
             appeared: function() {
-                if (infos) {
+                if (INFOS) {
                     startDownloadthumbnails()
                 }
             },
@@ -1203,8 +1203,8 @@ async function init(newUrl) {
                 // 停止下载缩略图
                 exhentaiParser.stopDownloadGalleryThumbnailsByBottleneck()
                 // 存入数据库
-                if ($file.list(utility.joinPath(glv.imagePath, infos.filename)).length - 2 > 0) {
-                    database.insertInfo(infos)
+                if ($file.list(utility.joinPath(glv.imagePath, INFOS.filename)).length - 2 > 0) {
+                    database.insertInfo(INFOS)
                 }
             }
         }
@@ -1213,7 +1213,7 @@ async function init(newUrl) {
     const filename = utility.verifyUrl(newUrl)
     const infosFile = utility.joinPath(glv.imagePath, filename, 'manga_infos.json')
     if ($file.exists(infosFile)) {
-        infos = JSON.parse($file.read(infosFile).string)
+        INFOS = JSON.parse($file.read(infosFile).string)
         await refresh(newUrl, getNewInfos=false)
     } else {
         await refresh(newUrl)

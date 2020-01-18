@@ -1206,6 +1206,9 @@ async function init(newUrl) {
                 if ($file.list(utility.joinPath(glv.imagePath, INFOS.filename)).length - 2 > 0) {
                     database.insertInfo(INFOS)
                 }
+            },
+            dealloc: function() {
+                INFOS = undefined
             }
         }
     }

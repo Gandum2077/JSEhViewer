@@ -1089,9 +1089,13 @@ async function refresh(newUrl, getNewInfos=true) {
         url = newUrl
     }
     if (getNewInfos) {
+        const create_time = (infos) ? infos.create_time : undefined
         utility.startLoading()
         infos = await exhentaiParser.getGalleryMpvInfosFromUrl(url)
         utility.stopLoading()
+        if (create_time) {
+            infos.create_time = create_time
+        }
         const path = utility.joinPath(glv.imagePath, infos.filename)
         exhentaiParser.saveMangaInfos(infos, path)
     }

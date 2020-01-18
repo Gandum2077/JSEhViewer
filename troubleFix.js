@@ -21,6 +21,17 @@ function rebuildDB() {
     }
 }
 
+function rmCache() {
+    $file.delete(glv.cachePath)
+    $file.mkdir(glv.cachePath)
+    for (let filename of $file.list(glv.imagePath)) {
+        if ($file.list(utility.joinPath(glv.imagePath, filename)).length - 2 === 0) {
+            $file.delete(utility.joinPath(glv.imagePath, filename))
+            console.info(utility.joinPath(glv.imagePath, filename))
+       }
+    }
+}
+
 const items = [
     {
         name: "删除用户文件（初始化）",
@@ -29,13 +40,24 @@ const items = [
     {
         name: "修复数据库",
         action: rebuildDB
+    },
+    {
+        name: "删除缓存",
+        action: rmCache
     }
 ]
 
-var result = await $ui.menu({
+const result = await $ui.menu({
     items: items.map(n => n.name)
 })
-const action = items.find(n => n.name === result.title).action
-if (action) {
-    action()
+const item = items.find(n => n.name === result.title)
+if (item) {
+    await $wait(0.5)
+    const alert = await $ui.alert({
+        title: "确定要" + item.name + "？",
+        actions: [{title: "Cancel"}, {title: "OK"}]
+    })
+    if (alert.index) {
+        item.action()
+    }
 }

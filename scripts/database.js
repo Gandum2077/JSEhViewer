@@ -229,13 +229,13 @@ function handleQuery(query, downloads_order_method = "gid") {
         if (!/^\d+$/.test(f_spf)) {
             f_spf = '1'
         }
-        if (/^\d+$/.test(f_spt)) {
+        if (!/^\d+$/.test(f_spt)) {
             f_spt = null
         }
         if (f_spt) {
-            condition_clauses.push(`(${f_spf} < downloads.length AND downloads.length < ${f_spt})`)
+            condition_clauses.push(`(${f_spf} <= downloads.length AND downloads.length <= ${f_spt})`)
         } else{
-            condition_clauses.push(`${f_spf} < downloads.length`)
+            condition_clauses.push(`${f_spf} <= downloads.length`)
         }
     }
     let where_clause = ''

@@ -141,7 +141,17 @@ function defineAdvancedSearchView() {
                 type: "list",
                 props: {
                     id: 'list',
-                    data: glv.config['search_phrases']
+                    data: glv.config['search_phrases'],
+                    actions: [
+                        {
+                            title: "delete",
+                            handler: function(sender, indexPath) {
+                                const removedIndex = indexPath.row
+                                glv.config.search_phrases.splice(removedIndex, 1)
+                                glv.saveConfig()
+                            }
+                        }
+                    ]
                 },
                 layout: (make, view) => {
                     make.left.right.top.inset(0)

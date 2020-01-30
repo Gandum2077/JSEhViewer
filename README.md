@@ -24,7 +24,7 @@
 
 **你必须满足以下前提才能使用JSEhViewer:**
 
-1. (必要) [JSBox](https://apps.apple.com/us/app/jsbox-learn-to-code/id1312014438)>=1.60.0
+1. (必要) [JSBox](https://apps.apple.com/us/app/jsbox-learn-to-code/id1312014438)>=2.1.0
 2. (必要) iPad，**不完全适配iPhone**
 3. (必要) 可以访问[e-hentai.org](https://e-hentai.org)和[exhentai.org](https://exhentai.org)的网络环境
 4. (必要) 注册[e-hentai.org](https://e-hentai.org)账号，并确保可以访问[exhentai.org](https://exhentai.org)，然后请去[Hath Perks页面](https://e-hentai.org/hathperks.php)点亮Multi-Page Viewer的Hath Perk
@@ -51,16 +51,12 @@
 ## TO-DO
 
 - [ ] 适配iPhone
-- [ ] 让没有 Multi-Page Viewer 权限的账号也能使用
 - [ ] 缓存搜索支持‘-’号过滤语法
-- [ ] 让游客也能使用
-
 
 ## Contributing
 如果你想帮助本项目，请考虑以下方面：
 - 针对iPhone的适配工作，需要将部分自定义控件针对iPhone进行界面和操作逻辑的重构
 - 实现完整的配置功能，需要获取[设置界面](https://exhentai.org/uconfig.php)的完全解析
-- 使本应用适用于没有Multi-Page Viewer权限的账号，需要parser模块的升级
 
 ## 截图
 ![0.png](https://github.com/Gandum2077/JSEhViewer/blob/master/assets/screenshots/0.png)  

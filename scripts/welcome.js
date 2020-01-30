@@ -118,44 +118,52 @@ async function init() {
         dst: glv.configPath
     });
     glv.initConfig()
-    let flagContinue = true
     if (!$device.isIpad) {
         const alert = await $ui.alert({
             title: "本App尚未完全适配iPhone，是否继续？",
             actions: [{title: "Cancel"}, {title: "OK", disabled: false}]
         })
-        flagContinue = (alert.index) ? true : false
+        if (!alert.index) {
+            $app.close()
+        }
     }
-    if (flagContinue) {
-        try {
-            await formDialogs.formDialogs(sections, title=$l10n("初始设置"))
-            const login = await loginAlert.loginAlert()
-            $file.write({
-                data: $data({string: JSON.stringify(login, null, 2)}),
-                path: glv.accountFile
-            });
-            utility.startLoading()
-            utility.changeLoadingTitle('正在登录')
-            const success = await exhentaiParser.login(login.username, login.password)
-            if (!success) {
-                utility.stopLoading()
-                return false
-            }
-            await $wait(5)
-            utility.changeLoadingTitle('获取设置')
-            await getFavcat()
-            utility.changeLoadingTitle('获取标签翻译')
-            await utility.generateTagTranslatorJson()
-            utility.updateTagTranslatorDict()
-            utility.stopLoading()
-            return true
-        } catch(err) {
-            console.info(err)
-            $ui.toast(err.message);
-            //reset()
-            return false
-        } 
+    try {
+        await formDialogs.formDialogs(sections, title=$l10n("初始设置"))
+    } catch(err) {
+        $app.close()
     }
+    let login
+    try {
+        login = await loginAlert.loginAlert()
+    } catch(err) {
+        $app.close()
+    }
+    $file.write({
+        data: $data({string: JSON.stringify(login, null, 2)}),
+        path: glv.accountFile
+    })
+    try {
+        utility.startLoading()
+        utility.changeLoadingTitle('正在登录')
+        await exhentaiParser.login(login.username, login.password)
+        await $wait(5)
+        utility.changeLoadingTitle('获取设置')
+        await getFavcat()
+        utility.changeLoadingTitle('获取标签翻译')
+        await utility.generateTagTranslatorJson()
+        utility.updateTagTranslatorDict()
+        utility.stopLoading()
+        return true
+    } catch(err) {
+        utility.stopLoading()
+        console.error(err)
+        await $ui.alert({
+            title: "Error",
+            message: err.message,
+            actions: [{title: "Cancel"}]
+          })
+        return
+    } 
 }
 
 module.exports = {

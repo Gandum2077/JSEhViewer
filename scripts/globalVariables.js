@@ -27,7 +27,7 @@ const urls = {
     api: 'https://exhentai.org/api.php',
     gallerypopups: 'https://exhentai.org/gallerypopups.php'
 }
-const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36"
+const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36"
 
 const config = {}
 

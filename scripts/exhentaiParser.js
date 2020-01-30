@@ -34,29 +34,34 @@ function getCookie() {
  * @return {boolean} success
  */
 async function login(username, password) {
-    const data = {
-        CookieDate: "1",
-        b: "d",
-        bt: "1-1",
-        UserName: username,
-        PassWord: password,
-        ipb_login_submit: "Login!"
-    };
-    const headerLogin = {
-        "User-Agent": glv.userAgent,
-        "Cache-Control": "no-cache",
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Referer": "https://e-hentai.org/bounce_login.php?b=d&bt=1-1"
-    };
-    const resp1 =  await $http.post({
+    const resp1 = await $http.post({
         url: glv.urls.login,
-        body: data,
-        header: headerLogin
+        body: {
+            CookieDate: "1",
+            b: "d",
+            bt: "1-1",
+            UserName: username,
+            PassWord: password,
+            ipb_login_submit: "Login!"
+        },
+        header: {
+            "User-Agent": glv.userAgent,
+            "Cache-Control": "no-cache",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Referer": "https://e-hentai.org/bounce_login.php?b=d&bt=1-1"
+        },
+        timeout: 30
     })
-    if (resp1.response.statusCode !== 200) {
-        return false
+    if (resp1.error || resp1.response.statusCode !== 200) {
+        throw new Error("Network Error")
     }
-    let tmp = parseSetCookieString(resp1.response.headers['Set-Cookie'])
+    if (!resp1.response.headers['Set-Cookie']) {
+        throw new Error("Wrong username or password")
+    }
+    const tmp = parseSetCookieString(resp1.response.headers['Set-Cookie'])
+    if (!tmp['ipb_pass_hash']) {
+        throw new Error("Wrong username or password")
+    }
     const cookie = {
         ipb_member_id: tmp['ipb_member_id'],
         ipb_pass_hash: tmp['ipb_pass_hash'],
@@ -67,10 +72,11 @@ async function login(username, password) {
         header:  {
             "User-Agent": glv.userAgent,
             "Cookie": getCookieStringFromObject(cookie)
-        }
+        },
+        timeout: 30
     })
-    if (resp2.response.statusCode !== 200) {
-        return false
+    if (resp2.error || resp2.response.statusCode !== 200) {
+        throw new Error("Network Error")
     }
     Object.assign(cookie, parseSetCookieString(resp2.response.headers['Set-Cookie']))
     const resp3 =  await $http.get({
@@ -78,29 +84,40 @@ async function login(username, password) {
         header:  {
             "User-Agent": glv.userAgent,
             "Cookie": getCookieStringFromObject(cookie)
-        }
+        },
+        timeout: 30
     })
-    if (resp3.response.statusCode !== 200) {
-        return false
+    if (resp3.error || resp3.response.statusCode !== 200) {
+        throw new Error("Network Error")
+    }
+    if (!resp3.response.headers['Set-Cookie']) {
+        throw new Error("Invalid Settings")
     }
     Object.assign(cookie, parseSetCookieString(resp3.response.headers['Set-Cookie']))
-    const resp4 =  await $http.get({
+    if (!cookie.hath_perks) {
+        throw new Error("no hath perks")
+    }
+    const hath_perks = [...cookie.hath_perks.matchAll(/[^.-]+/g)].map(n=>n[0]).slice(0, -1)
+    if (hath_perks.indexOf('q') === -1) {
+        throw new Error("no hath perk: multi-page viewer")
+    }
+    await $http.get({
         url: glv.urls.homepage,
         header:  {
             "User-Agent": glv.userAgent,
             "Cookie": getCookieStringFromObject(cookie)
-        }
+        },
+        timeout: 30
     })
     $file.write({
         data: $data({string: JSON.stringify(cookie, null, 2)}),
         path: glv.cookieFile
     });
     COOKIE = getCookieLocal()
-    return true
 }
 
 function parseSetCookieString(setCookieString) {
-    const regex0 = /^([^;=]+)=([^;]+);/g
+    const regex0 = /^([^;=]+)=([^;]+);/
     const regex = /, ([^;=]+)=([^;]+);/g;
     const found0 = regex0.exec(setCookieString).slice(1);
     const found = [...setCookieString.matchAll(regex)].map(n=>[n[1], n[2]])

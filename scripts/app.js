@@ -17,14 +17,16 @@ async function init() {
         if (success) {
             const listViewGenerator = require("./listView")
             await listViewGenerator.init()
+            const utility = require('./utility')
+            utility.getLatestVersion()
         }
     } else {
         glv.initConfig()
         const listViewGenerator = require("./listView")
         await listViewGenerator.init()
+        const utility = require('./utility')
+        utility.getLatestVersion()
     }
-    const utility = require('./utility')
-    utility.getLatestVersion()
 }
 
 module.exports = {

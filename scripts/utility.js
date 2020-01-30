@@ -417,7 +417,9 @@ function changeLoadingTitle(title) {
 // 结束等待
 // dirty work - 它要求整个应用中不能再有同id的view（即loadingView_e582da14）
 function stopLoading() {
-    $ui.window.get("loadingView_e582da14").remove()
+    if ($ui.window && $ui.window.get("loadingView_e582da14")) {
+        $ui.window.get("loadingView_e582da14").remove()
+    }
 }
 
 const bgImage = $imagekit.render({

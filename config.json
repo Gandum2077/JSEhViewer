@@ -11,11 +11,11 @@
     "website" : "https://github.com/Gandum2077/",
     "name" : "JSEhViewer",
     "url" : "https://github.com/Gandum2077/JSEhViewer",
-    "version" : "2.0.1"
+    "version" : "2.0.2"
   },
   "settings" : {
     "minOSVer" : "11.0.0",
-    "minSDKVer" : "1.60.0",
+    "minSDKVer" : "2.1.0",
     "rotateDisabled" : false,
     "autoKeyboardEnabled" : false,
     "keyboardToolbarEnabled" : false,

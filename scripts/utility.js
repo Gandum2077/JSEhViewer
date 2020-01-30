@@ -421,15 +421,15 @@ function stopLoading() {
 }
 
 const bgImage = $imagekit.render({
-    size: $size(124, 24),
+    size: $size(120, 24),
     color: $color("#f2f2f7")
 })
 const yellowImage = $imagekit.render({
-    size: $size(124, 24),
+    size: $size(120, 24),
     color: $color("#ffd217")
 })
 const blueImage = $imagekit.render({
-    size: $size(124, 24),
+    size: $size(120, 24),
     color: $color("#5eacff")
 })
 
@@ -439,15 +439,12 @@ function createRatingStarsImage({
 }) {
     const colorImage = (is_personal_rating) ? blueImage : yellowImage
     const colorRectWidth = Math.round(display_rating / 5 * 120) // $imagekit中不能使用存在小于1的值的size，会返回null
-    if (0 < colorRectWidth && colorRectWidth < 120) { 
+    if (0 < colorRectWidth) { 
         const image1 = $imagekit.scaleTo(colorImage, $size(colorRectWidth, 24), 0)
-        const image2 = $imagekit.scaleTo(bgImage, $size(120 - colorRectWidth, 24), 0)
-        const output = $imagekit.concatenate([image1, image2], 0, 1)
+        const output = $imagekit.combine(bgImage, image1, 0)
         return output
-    } else if (colorRectWidth === 0) {
-        return bgImage
     } else {
-        return colorImage
+        return bgImage
     }
 }
 

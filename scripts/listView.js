@@ -494,10 +494,10 @@ const baseViewForItemCellView = [
         }
     },
     {
-        type: "view",
+        type: "image",
         props: {
-            id: "maskview_grey_for_fivestars",
-            bgcolor: $color("#efeff4")
+            id: "maskview_color",
+            contentMode: 2
         },
         layout: (make, view) => {
             const lowlevel = $("lowlevel_view_rating")
@@ -506,23 +506,6 @@ const baseViewForItemCellView = [
             make.width.lessThanOrEqualTo(lowlevel.height).multipliedBy(5)
             make.width.equalTo(lowlevel).priority(999)
             make.height.equalTo(view.width).multipliedBy(1/5)
-        },
-        views: [
-            {
-                type: "view",
-                props: {
-                    id: "maskview_colored_for_fivestars"
-                }
-            }
-        ],
-        events: {
-            layoutSubviews: sender => {
-                const inner = sender.get("maskview_colored_for_fivestars");
-                const bounds = sender.frame;
-                const percentage = sender.info.display_rating / 5.0
-                inner.frame = $rect(0, 0, bounds.width * percentage, bounds.height);
-                inner.bgcolor = sender.info.ratingColor
-              }
         }
     },
     {
@@ -534,8 +517,8 @@ const baseViewForItemCellView = [
             contentMode: 2
         },
         layout: (make, view) => {
-            make.center.equalTo($("maskview_grey_for_fivestars"))
-            make.size.equalTo($("maskview_grey_for_fivestars"))
+            make.center.equalTo($("maskview_color"))
+            make.size.equalTo($("maskview_color"))
         }
     },
     {
@@ -630,11 +613,11 @@ function getData(items) {
             label_length: {
                 text: item['length'] + '页'
             },
-            maskview_grey_for_fivestars: {
-                info: {
-                    display_rating: parseFloat(item['display_rating']), 
-                    ratingColor: $color((item['is_personal_rating']) ? "#5eacff" : "#ffd217")
-                }
+            maskview_color: {
+                image: utility.createRatingStarsImage({
+                    display_rating: parseFloat(item['display_rating']),
+                    is_personal_rating: item['is_personal_rating']
+                })
             },
             label_uploader: {
                 text: item['uploader']
@@ -697,13 +680,6 @@ function defineRealListView() {
             make.right.inset(57)
         },
         events: {
-            forEachItem: (view, indexPath) => {
-                const wrapper = view.get("maskview_grey_for_fivestars");
-                const inner = wrapper.get("maskview_colored_for_fivestars");
-                const percentage = wrapper.info.display_rating /  5.0;
-                inner.frame = $rect(0, 0, wrapper.frame.width * percentage, wrapper.frame.height);
-                inner.bgcolor = wrapper.info.ratingColor
-            },
             swipeEnabled: function(sender, indexPath) {
                 if (utility.getUrlCategory(URL) === 'downloads') {
                     return true

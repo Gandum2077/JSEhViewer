@@ -1004,38 +1004,36 @@ function defineMatrixView() {
             borderColor: $color('#c8c7cc'),
             bgcolor: $color('#efeff4'),
             itemSize: $size(139, 213),
-            template: [
-                {
-                    type: "image",
-                    props: {
-                        id: "thumbnail_imageview",
-                        bgcolor: $color("clear"),
-                        borderWidth: 0.0,
-                        contentMode: 1,
-                        userInteractionEnabled: true
+            template: {
+                props: {},
+                views: [
+                    {
+                        type: "image",
+                        props: {
+                            id: "thumbnail_imageview",
+                            contentMode: 1
+                        },
+                        layout: function(make, view) {
+                            make.size.equalTo($size(137, 195))
+                            make.top.inset(0)
+                            make.left.inset(1)
+                        }
                     },
-                    layout: function(make, view) {
-                        make.size.equalTo($size(137, 195))
-                        make.top.inset(0)
-                        make.left.inset(1)
+                    {
+                        type: "label",
+                        props: {
+                            id: "label_title",
+                            font: $font(12),
+                            align: $align.center
+                        },
+                        layout: function(make, view) {
+                            make.size.equalTo($size(158, 18))
+                            make.top.inset(195)
+                            make.left.inset(0)
+                        }
                     }
-                },
-                {
-                    type: "label",
-                    props: {
-                        id: "label_title",
-                        font: $font(12),
-                        align: $align.center,
-                        bgcolor: $color("clear"),
-                        borderWidth: 0.0
-                    },
-                    layout: function(make, view) {
-                        make.size.equalTo($size(158, 18))
-                        make.top.inset(195)
-                        make.left.inset(0)
-                    }
-                }
-            ],
+                ]
+            },
             data: getData(),
             header: defineHeaderView()
         },

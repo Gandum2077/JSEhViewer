@@ -1,7 +1,6 @@
 const glv = require('./globalVariables')
 const urlParse = require('./modules/url-parse')
 const htmlToText = require('./modules/html-to-text')
-const createImage = require('./utils/createImage')
 
 let TAGTRANSLATOR_DICT;
 if ($file.exists(glv.tagTranslationFile)) {
@@ -421,9 +420,18 @@ function stopLoading() {
     $ui.window.get("loadingView_e582da14").remove()
 }
 
-const bgImage = createImage($size(120, 24), "#f2f2f7")
-const yellowImage = createImage($size(120, 24), "#ffd217")
-const blueImage = createImage($size(120, 24), "#5eacff")
+const bgImage = $imagekit.render({
+    size: $size(124, 24),
+    color: $color("#f2f2f7")
+})
+const yellowImage = $imagekit.render({
+    size: $size(124, 24),
+    color: $color("#ffd217")
+})
+const blueImage = $imagekit.render({
+    size: $size(124, 24),
+    color: $color("#5eacff")
+})
 
 function createRatingStarsImage({
     display_rating = 5,

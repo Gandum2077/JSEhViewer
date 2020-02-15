@@ -5,7 +5,7 @@ const database = require("scripts/database");
 function initAll() {
   for (let path of glv.userFiles) {
     if (!$file.exists(path)) {
-      $file.delete(thumbnailPath);
+      $file.delete(path);
     }
   }
 }

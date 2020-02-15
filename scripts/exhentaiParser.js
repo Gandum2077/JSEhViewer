@@ -851,7 +851,7 @@ async function voteComment(
   comment_id,
   comment_vote
 ) {
-  payload = {
+  const payload = {
     method: "votecomment",
     apiuid: apiuid,
     apikey: apikey,
@@ -952,17 +952,10 @@ async function downloadThumbnail(url, path, timeout = 10) {
       Cookie: COOKIE
     }
   });
-  let success;
   const data = resp.rawData;
   if (data) {
-    success = $file.write({
-      data: data,
-      path: path
-    });
-  } else {
-    success = false;
+    $file.write({ data, path });
   }
-  //console.info(success, path)
 }
 
 /**
@@ -1120,6 +1113,7 @@ module.exports = {
   getEditComment,
   postEditComment,
   voteComment,
+  downloadOriginalImage,
   downloadListThumbnailsByBottleneck,
   checkDownloadListThumbnailsByBottleneck,
   stopDownloadListThumbnailsByBottleneck,

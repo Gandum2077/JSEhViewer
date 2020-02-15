@@ -231,7 +231,7 @@ var baseViewsForGalleryView = [
         );
         if ($file.exists(infosFile)) {
           INFOS = JSON.parse($file.read(infosFile).string);
-          await refresh(newUrl, (getNewInfos = false));
+          await refresh(newUrl, false);
         } else {
           await refresh(newUrl);
         }
@@ -874,10 +874,7 @@ function defineGalleryInfoView() {
 }
 
 function defineFullTagTableView(width, translated = true) {
-  const bilingualTaglist = utility.getBilingualTaglist(
-    INFOS.taglist,
-    (translated = translated)
-  );
+  const bilingualTaglist = utility.getBilingualTaglist(INFOS.taglist);
   const tagTableView = tagTableViewGenerator.defineTagTableView(
     width - 51,
     bilingualTaglist
@@ -1372,7 +1369,7 @@ async function init(newUrl) {
   );
   if ($file.exists(infosFile)) {
     INFOS = JSON.parse($file.read(infosFile).string);
-    await refresh(newUrl, (getNewInfos = false));
+    await refresh(newUrl, false);
   } else {
     await refresh(newUrl);
   }

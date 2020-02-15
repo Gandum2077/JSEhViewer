@@ -277,11 +277,8 @@ function handleQuery(query, downloads_order_method = "gid") {
 
 function searchByUrl(url, downloads_order_method = "gid") {
   const query = utility.parseUrl(url).query;
-  const result = handleQuery(
-    query,
-    (downloads_order_method = downloads_order_method)
-  );
-  const foldernames = search(result.clause, (args = result.args));
+  const result = handleQuery(query, downloads_order_method);
+  const foldernames = search(result.clause, result.args);
   return foldernames;
 }
 

@@ -3,9 +3,9 @@ const utility = require("./utility");
 const exhentaiParser = require("./exhentaiParser");
 const database = require("./database");
 const galleryViewGenerator = require("./galleryView");
-const sidebarViewGenerator = require("./sidebarView");
-const advancedSearchViewGenerator = require("./advancedSearchView");
-const storedSearchPhrasesViewGenerator = require("./storedSearchPhrasesView");
+const { defineSidebarView } = require("./sidebarView");
+const { defineAdvancedSearchView } = require("./advancedSearchView");
+const { defineStoredSearchPhrasesView } = require("./storedSearchPhrasesView");
 const inputAlert = require("./dialogs/inputAlert");
 const loginAlert = require("./dialogs/loginAlert");
 const formDialogs = require("./dialogs/formDialogs");
@@ -72,7 +72,7 @@ const baseViewsForListView = [
             .get("storedSearchPhrasesView")
             .remove();
         } else {
-          const storedSearchPhrasesView = storedSearchPhrasesViewGenerator.defineStoredSearchPhrasesView();
+          const storedSearchPhrasesView = defineStoredSearchPhrasesView();
           $("rootView")
             .get("listView")
             .add(storedSearchPhrasesView);
@@ -239,7 +239,7 @@ const baseViewsForListView = [
     },
     events: {
       didBeginEditing: function(sender) {
-        const asv = advancedSearchViewGenerator.defineAdvancedSearchView();
+        const asv = defineAdvancedSearchView();
         $("rootView")
           .get("listView")
           .add(asv);
@@ -447,11 +447,10 @@ const baseViewsForListView = [
           .get("button_jump_page")
           .get("label_total_page").text;
         if (total_pages_str !== "1") {
-          const page_str = await inputAlert(
-            (title = `输入页码(1-${total_pages_str})`),
-            (text = ""),
-            (type = 4)
-          );
+          const page_str = await inputAlert({
+            title: `输入页码(1-${total_pages_str})`,
+            type: 4
+          });
           if (/^\d+$/.test(page_str)) {
             const newUrl = utility.updateQueryOfUrl(URL, {
               page: parseInt(page_str) - 1
@@ -900,7 +899,7 @@ async function init(newUrl) {
   }
   const listView = defineListView();
   $("rootView").add(listView);
-  const sideBarView = sidebarViewGenerator.defineSidebarView(
+  const sideBarView = defineSidebarView(
     refresh,
     presentSettings
   );

@@ -1,12 +1,11 @@
-const glv = require("../globalVariables");
 const utility = require("../utility");
 const exhentaiParser = require("../exhentaiParser");
-const baseViewsGenerator = require("./baseViews");
+const { maskView } = require("./baseViews");
 const textDialogs = require("./textDialogs");
 
 let INFOS;
 
-function getHeightOfSizeToFitText(text, width = 600) {
+function getHeightOfSizeToFitText({ text, width = 600 }) {
   const textView = $ui.create({
     type: "text",
     props: {
@@ -427,10 +426,10 @@ function defineCommentListView(infos) {
       rowHeight: function(sender, indexPath) {
         const textView = sender.get("textView");
         if (textView && textView.text) {
-          const height = getHeightOfSizeToFitText(
-            textView.text,
-            (width = sender.super.frame.width)
-          );
+          const height = getHeightOfSizeToFitText({
+            text: textView.text,
+            width: sender.super.frame.width
+          });
           return Math.max(height, 64) + 32;
         }
       }
@@ -449,7 +448,6 @@ async function commentDialogs(infos) {
 
     const titleBarView = defineTitleBarView($l10n("评论"), closeEvent);
     const commentListView = defineCommentListView(infos);
-    const maskView = baseViewsGenerator.maskView;
     const commentDialogsContent = {
       props: {
         radius: 10

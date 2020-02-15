@@ -97,7 +97,7 @@ function defineTagsView(width, bilingualTags, tagType, translated = true) {
       x = 0 + size.width + inset;
       y = y + size.height + inset;
     }
-    label = defineTouchableLabel(
+    const label = defineTouchableLabel(
       text,
       frame,
       originalText,
@@ -148,7 +148,7 @@ function defineTagTableView(
       idealWidth - 90 - 2 * verticalMargin,
       bilingualTags,
       tagType,
-      (translated = translated)
+      translated
     );
     tagsViewsArray.push(tagsView);
   }

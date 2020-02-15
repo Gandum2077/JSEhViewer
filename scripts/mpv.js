@@ -111,7 +111,9 @@ const baseViewsForMpv = [
         try {
           const result = await formDialogs({ sections });
           AUTOLOAD_SPPED = result.autoload_speed;
-        } catch (err) {}
+        } catch (err) {
+          console.info(err)
+        }
         if (sender.super.get("button_autoload").info.selected) {
           TIMER = $timer.schedule({
             interval: AUTOLOAD_SPPED,

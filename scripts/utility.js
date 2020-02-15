@@ -307,7 +307,7 @@ function getBilingualTaglist(taglist) {
  * @returns {string} url
  */
 function unparseUrl(protocol, host, pathname, query) {
-  const result = new urlparse();
+  const result = new urlParse();
   result.set("protocol", protocol);
   result.set("host", host);
   result.set("pathname", pathname);

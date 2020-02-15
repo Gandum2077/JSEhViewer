@@ -1,4 +1,4 @@
-function defineCheckBox(value = "on", layout = null) {
+function defineCheckBox({ value = "on", layout = null }) {
   if (!layout) {
     layout = (make, view) => {
       make.size.equalTo($size(24, 24));
@@ -48,8 +48,8 @@ function defineCheckBox(value = "on", layout = null) {
   return checkBox;
 }
 
-function defineLabelWithCheckBox(name, text, layout, value = "") {
-  const checkBox = defineCheckBox((value = value));
+function defineLabelWithCheckBox({ name, text, layout, value = "" }) {
+  const checkBox = defineCheckBox({ value });
   const label = {
     type: "label",
     props: {
@@ -72,12 +72,12 @@ function defineLabelWithCheckBox(name, text, layout, value = "") {
   return labelWithCheckBox;
 }
 
-function defineSegmentedControlForRating(
+function defineSegmentedControlForRating({
   name,
   layout,
   value = "2",
   items = ["2", "3", "4", "5"]
-) {
+}) {
   const segmentedControl = {
     type: "tab",
     props: {
@@ -99,7 +99,7 @@ function defineSegmentedControlForRating(
   return segmentedControl;
 }
 
-function defineInput(name, layout, value = "") {
+function defineInput({ name, layout, value = "" }) {
   const input = {
     type: "input",
     props: {
@@ -132,7 +132,7 @@ function defineInput(name, layout, value = "") {
   return input;
 }
 
-function definePlainLabel(name, text, layout) {
+function definePlainLabel({ name, text, layout }) {
   const label = {
     type: "label",
     props: {

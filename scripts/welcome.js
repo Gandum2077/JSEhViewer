@@ -147,7 +147,7 @@ async function init() {
   }
   let login;
   try {
-    login = await loginAlert();
+    login = await loginAlert({ title: "登录" });
   } catch (err) {
     $app.close();
   }

@@ -240,22 +240,30 @@ function defineOptionsHome(layout, config = null) {
   const definitions = updateDefinitionsByConfig(updatedConfig);
   const views = definitions.map(n => {
     if (n.type === "label") {
-      return baseViews.defineLabelWithCheckBox(
-        n.name,
-        n.text,
-        n.layout,
-        (value = n.value)
-      );
+      return baseViews.defineLabelWithCheckBox({
+        name: n.name,
+        text: n.text,
+        layout: n.layout,
+        value: n.value
+      });
     } else if (n.type === "plainLabel") {
-      return baseViews.definePlainLabel(n.name, n.text, n.layout);
+      return baseViews.definePlainLabel({
+        name: n.name,
+        text: n.text,
+        layout: n.layout
+      });
     } else if (n.type === "segmentedControl") {
-      return baseViews.defineSegmentedControlForRating(
-        n.name,
-        n.layout,
-        (value = n.value)
-      );
+      return baseViews.defineSegmentedControlForRating({
+        name: n.name,
+        layout: n.layout,
+        value: n.value
+      });
     } else if (n.type === "input") {
-      return baseViews.defineInput(n.name, n.layout, (value = n.value));
+      return baseViews.defineInput({
+        name: n.name,
+        layout: n.layout,
+        value: n.value
+      });
     }
   });
   const optionsHome = {

@@ -1,2 +1,2 @@
 const app = require("./scripts/app");
-await app.init()
+await app.init();

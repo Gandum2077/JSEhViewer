@@ -4,3 +4,6 @@ assets/cookie.json
 assets/downloads.db
 .output
 scripts/test*.js
+node_modules
+package-lock.json
+package.json

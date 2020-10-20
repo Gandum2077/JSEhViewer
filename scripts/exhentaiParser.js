@@ -504,7 +504,7 @@ function extractComments(rootElement) {
   );
   const comments = [];
   for (let block of comment_blocks) {
-    const posted_time = /Posted on (.*UTC)/g.exec(
+    const posted_time = /Posted on (.*) by/.exec(
       block.firstChild({ selector: ".c3" }).string
     )[1];
     const commenter = block.firstChild({ selector: ".c3 > a" }).string;

@@ -557,6 +557,7 @@ function defineMpv() {
   const imageView = {
     type: "image",
     props: {
+      id: "image",
       contentMode: 1
     },
     layout: $layout.fill,

@@ -9,6 +9,7 @@ function defineCheckBox({ value = "on", layout = null }) {
   const checkBox = {
     type: "button",
     props: {
+      id: "button",
       radius: 5,
       borderWidth: 2,
       borderColor: $color("black"),

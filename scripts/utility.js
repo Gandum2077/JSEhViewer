@@ -165,6 +165,7 @@ function getFavcatFromColor(name) {
 }
 
 function translateTagType(eng) {
+  if (eng === "misc") eng = "other";
   const d = {
     artist: "作者",
     female: "女性",
@@ -174,7 +175,7 @@ function translateTagType(eng) {
     group: "团队",
     language: "语言",
     reclass: "归类",
-    misc: "杂项"
+    other: "其他"
   };
   return d[eng];
 }
@@ -230,6 +231,10 @@ function updateTagTranslatorDict() {
 }
 
 function translateTaglist(taglist) {
+  if (taglist["misc"]) {
+    taglist["other"] = taglist["misc"]
+    delete taglist["misc"]
+  }
   const translatedTaglist = {};
   for (let tagType in taglist) {
     const tags = taglist[tagType];
@@ -264,8 +269,10 @@ var sortFunc = (a, b) => {
     作者: 13,
     misc: 14,
     杂项: 15,
-    reclass: 16,
-    归类: 17
+    other: 16,
+    其他: 17,
+    reclass: 18,
+    归类: 19
   };
   const x = a.slice(0, a.indexOf(":"));
   const y = b.slice(0, b.indexOf(":"));
@@ -283,6 +290,10 @@ function renderTaglistToText(taglist) {
 }
 
 function getBilingualTaglist(taglist) {
+  if (taglist["misc"]) {
+    taglist["other"] = taglist["misc"]
+    delete taglist["misc"]
+  }
   const bilingualTaglist = {};
   for (let tagType in taglist) {
     const tags = taglist[tagType];

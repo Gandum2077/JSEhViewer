@@ -127,6 +127,10 @@ function getNameAndColor(name) {
     western: {
       string: "Western",
       color: "#AB9F60"
+    },
+    private: {
+      string: "Private",
+      color: "#000"
     }
   };
   return d[name.toLowerCase()];

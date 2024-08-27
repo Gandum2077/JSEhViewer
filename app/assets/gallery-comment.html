@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"
+    />
+    <title>评论</title>
+    <style>
+      :root {
+        --text-color: #333;
+        --secondary-text-color: #666;
+        --list-background-color: #fff;
+        --separator-color: #ddd;
+        --chevron-color: #c5c4c7;
+        --switch-on-color: #34c85a;
+        --switch-thumb-color: #e9e8ea;
+        --segmented-controls-background-color: #eeedef;
+        --segmented-controls-color: #fff;
+      }
+
+      [data-theme="dark"] {
+        --text-color: #fff;
+        --list-background-color: #212121;
+        --separator-color: #282828;
+        --secondary-text-color: #acacac;
+        --chevron-color: #59595e;
+        --switch-on-color: #68ce67;
+        --swtich-thumb-color: #39393d;
+        --segmented-controls-background-color: #1c1b1f;
+        --segmented-controls-color: #5b595f;
+      }
+
+      body {
+        background-color: transparent;
+        color: var(--text-color);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue",
+          sans-serif;
+        margin: 0;
+        font-size: 16px;
+        padding: 10px 20px 10px 20px;
+        transition: background-color 0.3s, color 0.3s;
+      }
+
+      section {
+        display: flex;
+        font-size: 14px;
+        height: 50px;
+
+        -webkit-tap-highlight-color: transparent; /* 禁用触摸高亮 */
+        border-bottom: 0.5px solid var(--separator-color);
+      }
+
+      /* Container*/
+      .segmented-controls {
+        text-align: center;
+        display: flex;
+        margin: 0 auto;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        border-radius: 0.5rem;
+        background: var(--segmented-controls-background-color);
+        height: 30px;
+        width: 200px;
+        padding: 0.125rem;
+      }
+
+      /*Vissualy hidden radiobuttons*/
+      .segmented-controls input {
+        position: absolute !important;
+        height: 1px;
+        width: 1px;
+        overflow: hidden;
+        clip: rect(1px, 1px, 1px, 1px);
+        white-space: nowrap; /* added line */
+      }
+
+      /* Labels need to be the same size*/
+      .segmented-controls label {
+        grid-row: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        cursor: pointer;
+        flex: 1 1 0px;
+        position: relative;
+        z-index: 2;
+        transition: inherit;
+        font-weight: normal;
+      }
+
+      /* 
+* Adjust z-index of last label since that contains 
+* the paddle that needs to go beneath all other labels 
+*/
+      .segmented-controls label:last-of-type {
+        z-index: 1;
+      }
+
+      /* Paddle */
+      .segmented-controls label:last-of-type::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: -2;
+        background-color: black;
+        transition: inherit;
+        background: var(--segmented-controls-color);
+        border-radius: 0.4275rem;
+        border: 0.5px solid rgba(0, 0, 0, 0.04);
+        box-shadow: 0px 3px 1px rgba(0, 0, 0, 0.04),
+          0px 3px 8px rgba(0, 0, 0, 0.12);
+      }
+
+      /*Move paddle depending on which option is selected*/
+      .segmented-controls
+        input:nth-last-of-type(2):checked
+        ~ label:last-of-type::after {
+        transform: translateX(-100%);
+      }
+
+      .segmented-controls
+        input:nth-last-of-type(3):checked
+        ~ label:last-of-type::after {
+        transform: translateX(-200%);
+      }
+
+      /*Selected option*/
+      .segmented-controls input:checked + label {
+        font-weight: bold;
+      }
+
+      /*Hide dividers before and after the selected option*/
+      .segmented-controls input:checked + label::before,
+      .segmented-controls input:checked + label + input + label::before {
+        opacity: 0;
+      }
+
+      .comment {
+        border-bottom: 0.5px solid var(--separator-color);
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .comment-header {
+        font-weight: bold;
+        font-size: 16px;
+      }
+
+      .comment-identity {
+        background-color: gold;
+        color: black;
+        font-size: 12px;
+        padding: 2px 5px 0px 5px;
+        margin-left: 5px;
+        border-radius: 3px;
+      }
+
+      .comment-time {
+        margin-left: 10px;
+        color: var(--secondary-text-color);
+        font-size: 14px;
+      }
+
+      .comment-body {
+        margin-top: 10px;
+        font-size: 16px;
+        word-wrap: break-word;
+        /* 允许在长单词或URL内部进行断行 */
+        overflow-wrap: break-word;
+        /* 确保长单词或URL在边界内断行 */
+      }
+
+      .comment-controls {
+        display: flex;
+        height: 30px;
+        margin-top: 20px;
+      }
+
+      .comment-controls.uploader {
+        display: none;
+      }
+
+      .button-container {
+        display: flex;
+        align-items: center;
+        background-color: none;
+        border-radius: 10px;
+        padding: 0px;
+        width: 120px;
+        height: 30px;
+      }
+
+      .vote-button {
+        width: 80px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 1px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        fill: currentColor;
+        -webkit-tap-highlight-color: transparent; /* 禁用触摸高亮 */
+      }
+
+      .vote-button.upvote.active {
+        fill: var(--switch-on-color);
+      }
+
+      .vote-button.downvote.active {
+        fill: red;
+      }
+
+      .icon {
+        width: 20px;
+        height: 20px;
+      }
+
+      .score {
+        width: 120px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 16px;
+        margin-left: auto;
+        margin-right: 50px;
+        border: none;
+        border-radius: 15px;
+        background-color: var(--segmented-controls-background-color);
+        -webkit-tap-highlight-color: transparent; /* 禁用触摸高亮 */
+      }
+    </style>
+  </head>
+  <body>
+    <section>
+      <div class="segmented-controls">
+        <input id="sort-1" name="sort" type="radio" checked />
+        <label for="sort-1">按时间排序</label>
+        <input id="sort-2" name="sort" type="radio" />
+        <label for="sort-2">按分数排序</label>
+      </div>
+    </section>
+    <div id="commentsList">
+      <!-- 评论内容将通过JavaScript动态加载 -->
+    </div>
+    <script>
+      const arrowUpSvg =
+        "M12.877 19H7.123A1.125 1.125 0 0 1 6 17.877V11H2.126a1.114 1.114 0 0 1-1.007-.7 1.249 1.249 0 0 1 .171-1.343L9.166.368a1.128 1.128 0 0 1 1.668.004l7.872 8.581a1.25 1.25 0 0 1 .176 1.348 1.113 1.113 0 0 1-1.005.7H14v6.877A1.125 1.125 0 0 1 12.877 19ZM7.25 17.75h5.5v-8h4.934L10 1.31 2.258 9.75H7.25v8ZM2.227 9.784l-.012.016c.01-.006.014-.01.012-.016Z";
+      const arrowUpFillSvg =
+        "M18.706 8.953 10.834.372A1.123 1.123 0 0 0 10 0a1.128 1.128 0 0 0-.833.368L1.29 8.957a1.249 1.249 0 0 0-.171 1.343 1.114 1.114 0 0 0 1.007.7H6v6.877A1.125 1.125 0 0 0 7.123 19h5.754A1.125 1.125 0 0 0 14 17.877V11h3.877a1.114 1.114 0 0 0 1.005-.7 1.251 1.251 0 0 0-.176-1.347Z";
+      const arrowDownSvg =
+        "M10 20a1.122 1.122 0 0 1-.834-.372l-7.872-8.581A1.251 1.251 0 0 1 1.118 9.7 1.114 1.114 0 0 1 2.123 9H6V2.123A1.125 1.125 0 0 1 7.123 1h5.754A1.125 1.125 0 0 1 14 2.123V9h3.874a1.114 1.114 0 0 1 1.007.7 1.25 1.25 0 0 1-.171 1.345l-7.876 8.589A1.128 1.128 0 0 1 10 20Zm-7.684-9.75L10 18.69l7.741-8.44H12.75v-8h-5.5v8H2.316Zm15.469-.05c-.01 0-.014.007-.012.013l.012-.013Z";
+      const arrowDownFillSvg =
+        "M18.88 9.7a1.114 1.114 0 0 0-1.006-.7H14V2.123A1.125 1.125 0 0 0 12.877 1H7.123A1.125 1.125 0 0 0 6 2.123V9H2.123a1.114 1.114 0 0 0-1.005.7 1.25 1.25 0 0 0 .176 1.348l7.872 8.581a1.124 1.124 0 0 0 1.667.003l7.876-8.589A1.248 1.248 0 0 0 18.88 9.7Z";
+
+      const formatTime = (timeStr) => {
+        const [t1, t2] = timeStr.split("T");
+        const [hour, minute] = t2.split(":");
+        return `${t1} ${hour}:${minute}`;
+      };
+
+      function displayComments({ comments }) {
+        const commentsList = document.getElementById("commentsList");
+        commentsList.innerHTML = "";
+        comments.forEach((comment) => {
+          const commentElement = document.createElement("div");
+          commentElement.classList.add("comment");
+          const voteupButton = `
+      <button class="vote-button upvote" onclick="vote('up', '${
+        comment.comment_id
+      }', this)">
+        <svg class="icon" fill="none" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+          <path d="${
+            comment.my_vote === 1 ? arrowDownFillSvg : arrowUpSvg
+          }" fill="currentColor"/>
+        </svg>
+      </button>
+      `;
+          const votedownButton = `
+      <button class="vote-button downvote" onclick="vote('down', '${
+        comment.comment_id
+      }', this)">
+        <svg class="icon" fill="none" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+          <path d="${
+            comment.my_vote === -1 ? arrowDownFillSvg : arrowDownSvg
+          }" fill="currentColor"/>
+        </svg>
+      </button>
+      `;
+          const editButton = `
+      <button class="vote-button" onclick="edit('${comment.comment_id}', this)>
+        <svg class="icon" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M21.2799 6.40005L11.7399 15.94C10.7899 16.89 7.96987 17.33 7.33987 16.7C6.70987 16.07 7.13987 13.25 8.08987 12.3L17.6399 2.75002C17.8754 2.49308 18.1605 2.28654 18.4781 2.14284C18.7956 1.99914 19.139 1.92124 19.4875 1.9139C19.8359 1.90657 20.1823 1.96991 20.5056 2.10012C20.8289 2.23033 21.1225 2.42473 21.3686 2.67153C21.6147 2.91833 21.8083 3.21243 21.9376 3.53609C22.0669 3.85976 22.1294 4.20626 22.1211 4.55471C22.1128 4.90316 22.0339 5.24635 21.8894 5.5635C21.7448 5.88065 21.5375 6.16524 21.2799 6.40005V6.40005Z" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M11 4H6C4.93913 4 3.92178 4.42142 3.17163 5.17157C2.42149 5.92172 2 6.93913 2 8V18C2 19.0609 2.42149 20.0783 3.17163 20.8284C3.92178 21.5786 4.93913 22 6 22H17C19.21 22 20 20.2 20 18V13" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      `;
+          commentElement.innerHTML = `
+          <div>
+              <div class="comment-header">
+                  ${comment.commenter}
+                  ${
+                    comment.is_uploader
+                      ? '<span class="comment-identity identity-up">UP</span>'
+                      : ""
+                  }
+                  ${
+                    comment.is_my_comment
+                      ? '<span class="comment-identity identity-you">You</span>'
+                      : ""
+                  }
+                  <span class="comment-time">${formatTime(
+                    comment.posted_time
+                  )}</span>
+              </div>
+              <div class="comment-body">${comment.comment_div}</div>
+          </div>
+          <div class="comment-controls${
+            comment.is_uploader ? " uploader" : ""
+          }">
+            <div class="button-container" data-value="${comment.my_vote || 0}">
+              ${comment.voteable ? voteupButton : ""}
+              ${comment.voteable ? votedownButton : ""}
+              ${comment.is_my_comment ? editButton : ""}
+            </div>
+            ${
+              comment.score !== undefined
+                ? `<button class="score" onclick="showVoteDetails('${comment.comment_id}')">分数: ${comment.score}</button>`
+                : ""
+            }
+        </div>
+      `;
+          commentsList.appendChild(commentElement);
+        });
+      }
+
+      const toggleSort = (method) => {
+        if (method === "score") {
+          // 实现按分数排序
+          $notify("handleApi", {
+            action: "sortByScore",
+            message: {},
+          });
+        } else {
+          // 实现按时间排序
+          $notify("handleApi", {
+            action: "sortByTime",
+            message: {},
+          });
+        }
+      };
+
+      const toggleTheme = ({ isDarkMode }) => {
+        if (isDarkMode) {
+          document.documentElement.setAttribute("data-theme", "dark");
+        } else {
+          document.documentElement.removeAttribute("data-theme");
+        }
+      };
+
+      function showVoteDetails(comment_id) {
+        $notify("handleApi", {
+          action: "showVoteDetails",
+          info: {
+            comment_id,
+          },
+        });
+      }
+
+      function vote(type, comment_id, button) {
+        const upButton = button.parentElement.querySelector(".upvote");
+        const downButton = button.parentElement.querySelector(".downvote");
+        const vote = button.parentElement.getAttribute("data-value");
+        const upSvg = upButton.querySelector("path");
+        const downSvg = downButton.querySelector("path");
+        if (type === "up" && vote === "1") {
+          button.parentElement.setAttribute("data-value", "0");
+          upSvg.setAttribute("d", arrowUpSvg);
+          upSvg.setAttribute("fill", "currentColor");
+          downSvg.setAttribute("d", arrowDownSvg);
+          downSvg.setAttribute("fill", "currentColor");
+          $notify("handleApi", {
+            action: "voteComment",
+            info: {
+              comment_id,
+              vote: 1,
+            },
+          });
+        } else if (type === "down" && vote === "-1") {
+          button.parentElement.setAttribute("data-value", "0");
+          upSvg.setAttribute("d", arrowUpSvg);
+          upSvg.setAttribute("fill", "currentColor");
+          downSvg.setAttribute("d", arrowDownSvg);
+          downSvg.setAttribute("fill", "currentColor");
+          $notify("handleApi", {
+            action: "voteComment",
+            info: {
+              comment_id,
+              vote: -1,
+            },
+          });
+        } else if (type === "up") {
+          button.parentElement.setAttribute("data-value", "1");
+          upSvg.setAttribute("d", arrowUpFillSvg);
+          upSvg.setAttribute("fill", "#4CAF50");
+          downSvg.setAttribute("d", arrowDownSvg);
+          downSvg.setAttribute("fill", "currentColor");
+          $notify("handleApi", {
+            action: "voteComment",
+            info: {
+              comment_id,
+              vote: 1,
+            },
+          });
+        } else {
+          button.parentElement.setAttribute("data-value", "-1");
+          upSvg.setAttribute("d", arrowUpSvg);
+          upSvg.setAttribute("fill", "currentColor");
+          downSvg.setAttribute("d", arrowDownFillSvg);
+          downSvg.setAttribute("fill", "#F44336");
+          $notify("handleApi", {
+            action: "voteComment",
+            info: {
+              comment_id,
+              vote: -1,
+            },
+          });
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        document
+          .getElementById("sort-1")
+          .addEventListener("change", function () {
+            if (this.checked) toggleSort("time");
+          });
+        document
+          .getElementById("sort-2")
+          .addEventListener("change", function () {
+            if (this.checked) toggleSort("score");
+          });
+      });
+
+    </script>
+  </body>
+</html>

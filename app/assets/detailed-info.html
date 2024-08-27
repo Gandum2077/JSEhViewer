@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"
+    />
+    <title>Detailed Info</title>
+    <style>
+      :root {
+        --text-color: #333;
+        --secondary-text-color: #666;
+        --list-background-color: #fff;
+        --separator-color: #ddd;
+        --chevron-color: #c5c4c7;
+        --switch-on-color: #34c85a;
+        --switch-thumb-color: #e9e8ea;
+      }
+
+      [data-theme="dark"] {
+        --text-color: #fff;
+        --list-background-color: #212121;
+        --separator-color: #282828;
+        --secondary-text-color: #acacac;
+        --chevron-color: #59595e;
+        --switch-on-color: #68ce67;
+        --swtich-thumb-color: #39393d;
+      }
+
+      body {
+        background-color: transparent;
+        color: var(--text-color);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue",
+          sans-serif;
+        margin: 0;
+        font-size: 16px;
+        padding: 10px 30px 10px 30px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: left;
+        min-height: 100vh;
+        transition: background-color 0.3s, color 0.3s;
+      }
+
+      .content {
+        width: 100%;
+        margin: 20px;
+      }
+
+      p {
+        line-height: 1.6;
+      }
+
+      img {
+        width: 100%;
+        height: auto;
+        display: block;
+        margin: 20px 0;
+      }
+
+      .ios-list {
+        width: 100%;
+        background-color: var(--list-background-color);
+        border-radius: 15px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        padding: 0 0 0 30px;
+      }
+
+      .ios-list-item {
+        min-height: 34px;
+        display: flex;
+        align-items: center;
+        padding: 5px 20px 5px 0px;
+        border-top: 0.5px solid var(--separator-color);
+        justify-content: space-between;
+      }
+
+      .ios-list-item.first-line {
+        border-top: none;
+      }
+
+      #ios-list-sub {
+        display: none;
+      }
+
+      .ios-list-item .left-text {
+        width: 110px;
+        font-weight: bold;
+      }
+
+      .ios-list-item .right-text {
+        max-width: 70%;
+        margin-left: auto;
+        color: var(--secondary-text-color);
+        text-align: left;
+        padding: 0;
+      }
+
+      label {
+        display: block;
+        height: 31px;
+        width: 51px;
+        border-radius: 1em;
+        background-color: var(--switch-thumb-color);
+        transition: background-color 0.3s;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent; /* 禁用触摸高亮 */
+      }
+
+      input {
+        display: none;
+      }
+
+      label::before {
+        content: "";
+        display: block;
+        border-radius: 100%;
+        margin-top: 2px;
+        margin-left: 2px;
+        height: 27px;
+        width: 27px;
+        background-color: white;
+        transition: margin 0.2s;
+      }
+
+      input:checked + label::before {
+        margin-left: 22px;
+        background-color: white;
+      }
+
+      input:checked + label {
+        background-color: var(--switch-on-color);
+      }
+
+      .weight-container {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        flex-grow: 1;
+        height: 34px;
+        cursor: pointer;
+      }
+      .weight-text {
+        font-size: 1.1em;
+        margin-right: 5px;
+        color: var(--secondary-text-color);
+        user-select: none; /* 禁用文本选择 */
+      }
+      .weight-chevron {
+        width: 11px;
+        height: 100%;
+      }
+      .svg-chevron {
+        fill: var(--chevron-color);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="ios-list">
+      <div class="ios-list-item first-line">
+        <span class="left-text">命名空间</span>
+        <span class="right-text" id="namespace"></span>
+      </div>
+      <div class="ios-list-item">
+        <span class="left-text">标签</span>
+        <span class="right-text" id="name"></span>
+      </div>
+      <div class="ios-list-item">
+        <span class="left-text">翻译</span>
+        <span class="right-text" id="translation"></span>
+      </div>
+      <div class="ios-list-item">
+        <span class="left-text">加入我的标签</span>
+        <input
+          id="value_marked"
+          type="checkbox"
+          onclick="onChange(this)"
+        /><label for="value_marked"></label>
+      </div>
+      <div id="ios-list-sub">
+        <div class="ios-list-item">
+          <span class="left-text">订阅</span>
+          <input
+            id="value_watched"
+            type="checkbox"
+            onclick="onChange(this)"
+          /><label for="value_watched"></label>
+        </div>
+        <div class="ios-list-item">
+          <span class="left-text">屏蔽</span>
+          <input
+            id="value_hidden"
+            type="checkbox"
+            onclick="onChange(this)"
+          /><label for="value_hidden"></label>
+        </div>
+        <div class="ios-list-item">
+          <span class="left-text">权重</span>
+          <div class="weight-container" id="weight-container">
+            <div class="weight-text" id="value_weight"></div>
+            <div class="weight-chevron">
+              <svg
+                class="svg-chevron"
+                height="100%"
+                width="100%"
+                version="1.1"
+                xmlns="http://www.w3.org/2000/svg"
+                xmlns:xlink="http://www.w3.org/1999/xlink"
+                viewBox="0 0 185.343 185.343"
+                xml:space="preserve"
+              >
+                <g>
+                  <g>
+                    <path
+                      d="M51.707,185.343c-2.741,0-5.493-1.044-7.593-3.149c-4.194-4.194-4.194-10.981,0-15.175
+                                l74.352-74.347L44.114,18.32c-4.194-4.194-4.194-10.987,0-15.175c4.194-4.194,10.987-4.194,15.18,0l81.934,81.934
+                                c4.194,4.194,4.194,10.987,0,15.175l-81.934,81.939C57.201,184.293,54.454,185.343,51.707,185.343z"
+                    />
+                  </g>
+                </g>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="content" id="content"></div>
+    <script>
+      //document.documentElement.setAttribute('data-theme', 'dark');
+      function toggleTheme({ isDarkMode }) {
+        {
+          if (isDarkMode) {
+            document.documentElement.setAttribute("data-theme", "dark");
+          } else {
+            document.documentElement.removeAttribute("data-theme");
+          }
+        }
+      }
+
+      function init({
+        namespace,
+        name,
+        translation,
+        intro,
+        links,
+        marked,
+        watched,
+        hidden,
+        weight,
+      }) {
+        document.getElementById("content").innerHTML = intro + links;
+        document.getElementById("namespace").innerText = namespace;
+        document.getElementById("name").innerText = name;
+        document.getElementById("translation").innerText = translation;
+        document.getElementById("value_marked").checked = marked;
+        document.getElementById("value_watched").checked = watched;
+        document.getElementById("value_hidden").checked = hidden;
+        document.getElementById("value_weight").innerText = weight.toString();
+        if (marked) {
+          document.getElementById("ios-list-sub").style.display = "block";
+        } else {
+          document.getElementById("ios-list-sub").style.display = "none";
+        }
+      }
+
+      function onChange(obj) {
+        const buttonId = obj.id;
+        if (buttonId === "value_marked") {
+          if (obj.checked) {
+            document.getElementById("ios-list-sub").style.display = "block";
+          } else {
+            document.getElementById("ios-list-sub").style.display = "none";
+          }
+        }
+        if (buttonId === "value_watched") {
+          const data = getData();
+          if (data.watched && data.hidden) {
+            document.getElementById("value_hidden").checked = false;
+          }
+        }
+        if (buttonId === "value_hidden") {
+          const data = getData();
+          if (data.watched && data.hidden) {
+            document.getElementById("value_watched").checked = false;
+          }
+        }
+      }
+
+      function updateWeight() {
+        const data = getData();
+        const weight = data.weight;
+        $notify("updateWeight", { weight });
+      }
+
+      function updateWeightText({ weight }) {
+        document.getElementById("value_weight").innerText = weight.toString();
+      }
+
+      function getData() {
+        const data = {
+          marked: document.getElementById("value_marked").checked,
+          watched: document.getElementById("value_watched").checked,
+          hidden: document.getElementById("value_hidden").checked,
+          weight: parseInt(document.getElementById("value_weight").innerText),
+        };
+        return data;
+      }
+
+      document
+        .getElementById("weight-container")
+        .addEventListener("click", function () {
+          const data = getData();
+          const weight = data.weight;
+          $notify("updateWeight", { weight });
+        });
+    </script>
+  </body>
+</html>

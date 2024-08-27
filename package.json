@@ -1,0 +1,27 @@
+{
+  "name": "jsehviewer",
+  "version": "3.0.0-alpha.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && webpack && zip -q -r JSEhViewer.box app && rm app/main.js",
+    "test": "tsc && webpack --config webpack.config.test.js && zip -q -r JSEhViewer.box app && rm app/main.js"
+  },
+  "keywords": [],
+  "author": "Gandum2077",
+  "license": "MIT",
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12",
+    "ehentai-parser": "^1.5.13",
+    "jsbox-cview": "^1.5.11"
+  },
+  "devDependencies": {
+    "@types/cheerio": "^0.22.35",
+    "@types/node": "^20.11.25",
+    "@types/url-parse": "^1.4.11",
+    "jsbox-types": "^1.0.35",
+    "request": "^2.88.2",
+    "webpack": "^5.90.3",
+    "webpack-cli": "^5.1.4"
+  }
+}

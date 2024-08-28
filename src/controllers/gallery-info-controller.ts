@@ -10,6 +10,7 @@ import { rateAlert } from "../components/rate-alert";
 import { DownloadButton } from "../components/download-button";
 import { ButtonsWarpper } from "../components/buttons-warpper";
 import { ReaderController } from "./reader-controller";
+import { downloaderManager } from "../utils/api";
 
 class BlankView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
@@ -563,7 +564,10 @@ function mapTaglist(taglist: EHGallery["taglist"]): CompleteTagListItem[] {
 }
 
 export class GalleryInfoController extends BaseController {
-  private _infos?: EHGallery
+  gid: number;
+  private _infos?: EHGallery;
+  private _timer?: TimerTypes.Timer;
+  private _topThumbnailfinished: boolean = false;
   cviews: {
     infoHeaderView: InfoHeaderView;
     infoMatrix: DynamicItemSizeMatrix;
@@ -577,10 +581,11 @@ export class GalleryInfoController extends BaseController {
     tagsFlowlayoutWrapper: TagsFlowlayoutWrapper;
     list: DynamicRowHeightList;
   };
-  constructor() {
+  constructor(gid: number) {
     super({
       props: { bgcolor: $color("backgroundColor") }
     });
+    this.gid = gid;
     const infoHeaderView = new InfoHeaderView()
     const infoMatrix = new DynamicItemSizeMatrix({
       props: {
@@ -650,18 +655,13 @@ export class GalleryInfoController extends BaseController {
       symbol: "book",
       handler: () => {
         if (!this._infos) return;
-        const testPath = "../JSEhViewer2/image/2446409_cf5105f30c"
-        const length = $file.list(testPath).filter(n=>n.endsWith("jpg") || n.endsWith("png") || n.endsWith("gif")).length
+        downloaderManager.get(this._infos.gid).downloadingImages = true;
+        downloaderManager.startOne(this._infos.gid)
         const readerController = new ReaderController({
-          title: "推し配信者はオレだけの専用まんこ 催眠かけてエロ系配信者をいつでもどこまでハメまくる~ろのみやひなぎくのばあい~",
-          index: 5,
-          length,
-          thumbnailPaths: Object.fromEntries($file.list(testPath + "/thumbnails")
-            .filter(n=>n.endsWith("jpg") || n.endsWith("png") || n.endsWith("gif"))
-            .sort()
-            .map(n => testPath + "/thumbnails/" + n)
-            .map((v,i)=>([i,v]))),
-          picturePaths: $file.list(testPath).filter(n=>n.endsWith("jpg") || n.endsWith("png") || n.endsWith("gif")).sort().map(n => testPath + "/" + n)
+          gid: this._infos.gid,
+          title:this._infos.japanese_title || this._infos.english_title,
+          index: 0,
+          length: this._infos.length
         })
         readerController.uipush({
           theme: "dark",
@@ -751,7 +751,9 @@ export class GalleryInfoController extends BaseController {
 
   set infos(infos: EHGallery) {
     this._infos = infos;
-    this.cviews.infoHeaderView.thumbnail_url = thumbnailPath + `${infos.gid}.jpg`;
+    const topThumbnailPath = downloaderManager.get(this.gid).result.topThumbnail.path
+    this._topThumbnailfinished = Boolean(topThumbnailPath)
+    this.cviews.infoHeaderView.thumbnail_url = topThumbnailPath || "";
     this.cviews.infoHeaderView.title = infos.japanese_title || infos.english_title;
     this.cviews.infoHeaderView.uploader = infos.uploader || "";
     this.cviews.infoHeaderView.category = infos.category;
@@ -818,5 +820,32 @@ export class GalleryInfoController extends BaseController {
     }
     this.cviews.tagsFlowlayoutWrapper.taglist = mapTaglist(infos.taglist)
     this.cviews.list.view.reload()
+  }
+
+  refreshThumbnail() {
+    const d = downloaderManager.get(this.gid)
+    if (!d) return;
+    const topThumbnailPath = d.result.topThumbnail.path
+    this._topThumbnailfinished = Boolean(topThumbnailPath)
+    this.cviews.infoHeaderView.thumbnail_url = topThumbnailPath || "";
+    if (this._topThumbnailfinished && this._timer) {
+      this._timer.invalidate()
+    }
+  }
+
+  startTimer() {
+    if (this._topThumbnailfinished) return;
+    this._timer = $timer.schedule({
+      interval: 2,
+      handler: () => {
+        this.refreshThumbnail()
+      }
+    })
+  }
+
+  stopTimer() {
+    if (this._timer) {
+      this._timer.invalidate()
+    }
   }
 }

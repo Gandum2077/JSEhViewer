@@ -1,13 +1,16 @@
-import { EHGallery } from "ehentai-parser";
 import { BaseController, DynamicItemSizeMatrix } from "jsbox-cview";
-import { thumbnailPath } from "../utils/glv";
+import { downloaderManager } from "../utils/api";
 
 export class GalleryThumbnailController extends BaseController {
+  gid: number;
+  private _finished: boolean = false;
+  private _timer?: TimerTypes.Timer;
   cviews: { matrix: DynamicItemSizeMatrix };
-  constructor() {
+  constructor(gid: number) {
     super({
       props: { bgcolor: $color("backgroundColor") }
     });
+    this.gid = gid;
     const matrix = new DynamicItemSizeMatrix({
       props: {
         bgcolor: $color("clear"),
@@ -53,14 +56,19 @@ export class GalleryThumbnailController extends BaseController {
       layout: $layout.fill,
       events: {
         itemHeight: width => width * 1.414 + 20,
-        didSelect: (sender, indexPath, data) => { }
+        didSelect: (sender, indexPath, data) => {
+          
+        },
+        didScroll: sender => {
+
+        }
       }
     });
     this.cviews = { matrix }
     this.rootView.views = [matrix]
   }
 
-  _mapData(thumbnailItems: { path?: string, error: boolean }[]) {
+  private _mapData(thumbnailItems: { path?: string, error: boolean }[]) {
     return thumbnailItems.map((item, i) => {
       return {
         image: { src: item.path || "" },
@@ -71,5 +79,32 @@ export class GalleryThumbnailController extends BaseController {
 
   set thumbnailItems(thumbnailItems: { path?: string, error: boolean }[]) {
     this.cviews.matrix.data = this._mapData(thumbnailItems)
+    this._finished = thumbnailItems.every(item => item.path)
+  }
+
+  refreshThumbnails() {
+    if (this._finished) return;
+    const d = downloaderManager.get(this.gid)
+    if (!d) return;
+    this.thumbnailItems = d.result.thumbnails
+    if (this._finished && this._timer) {
+      this._timer.invalidate()
+    }
+  }
+
+  startTimer() {
+    if (this._finished) return;
+    this._timer = $timer.schedule({
+      interval: 2,
+      handler: () => {
+        this.refreshThumbnails()
+      }
+    })
+  }
+
+  stopTimer() {
+    if (this._timer) {
+      this._timer.invalidate()
+    }
   }
 }

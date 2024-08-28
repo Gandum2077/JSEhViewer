@@ -1,10 +1,9 @@
-import { BaseController, PageViewerController } from "jsbox-cview";
-
+import { PageViewerController } from "jsbox-cview";
 import { GalleryInfoController } from "./gallery-info-controller";
 import { GalleryThumbnailController } from "./gallery-thumbnail-controller";
 import { GalleryCommentController } from "./gallery-comment-controller";
 import { EHGallery } from "ehentai-parser";
-import { popoverWithSymbol, popoverWithSymbolAsync } from "../components/popover-with-symbol";
+import { popoverWithSymbol } from "../components/popover-with-symbol";
 import { GalleryDetailedInfoController } from "./gallery-detailed-info-controller";
 import { configManager } from "../utils/config";
 import { api, downloaderManager } from "../utils/api";
@@ -14,8 +13,8 @@ export class GalleryController extends PageViewerController {
   private _gid: number;
   private _token: string;
   constructor(gid: number, token: string) {
-    const galleryInfoController = new GalleryInfoController();
-    const galleryThumbnailController = new GalleryThumbnailController();
+    const galleryInfoController = new GalleryInfoController(gid);
+    const galleryThumbnailController = new GalleryThumbnailController(gid);
     const galleryCommentController = new GalleryCommentController();
     super({
       props: {
@@ -109,14 +108,19 @@ export class GalleryController extends PageViewerController {
 
           galleryInfoController.infos = infos
           galleryThumbnailController.thumbnailItems = downloaderManager.get(infos.gid).result.thumbnails
+          galleryInfoController.startTimer()
+          galleryThumbnailController.startTimer()
           $delay(1, () => {
             galleryCommentController.infos = infos
           })
-
-          // sender.rootView.view.alpha = 0
-          // $delay(2, ()=> {
-          //  sender.rootView.view.alpha = 1
-          // })
+        },
+        didAppear: () => {
+          galleryInfoController.startTimer();
+          galleryThumbnailController.startTimer();
+        },
+        didDisappear: () => {
+          galleryInfoController.stopTimer();
+          galleryThumbnailController.startTimer();
         }
       }
     })

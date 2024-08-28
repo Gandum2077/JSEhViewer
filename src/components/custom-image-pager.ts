@@ -8,7 +8,7 @@ import { Base, Matrix } from "jsbox-cview";
  */
 export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
   _props: {
-    srcs: (string | { success: boolean, loading: boolean, reason?: string })[];
+    srcs: { path?: string; error: boolean }[];
     page: number;
   };
   _matrix: Matrix;
@@ -18,7 +18,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
   /**
    * 
    * @param props 
-   * - srcs: (string | { success: boolean, loading: boolean, reason?: string })[] - 图片地址列表
+   * - srcs: {path?: string, error: boolean}[] - 图片地址列表
    * - page: number - 当前页码
    * @param layout
    * @param events 
@@ -27,7 +27,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
    */
   constructor({ props, layout, events = {} }: {
     props: {
-      srcs?: (string | { success: boolean, loading: boolean, reason?: string })[];
+      srcs?: { path?: string; error: boolean }[];
       page?: number;
     };
     layout: (make: MASConstraintMaker, view: UIView) => void;
@@ -43,6 +43,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
       page: 0,
       ...props
     };
+    this._props.srcs =  this._props.srcs.map(n => ({ ...n }));
     this._pageLoadRecorder = {};
     this._matrix = new Matrix({
       props: {
@@ -132,26 +133,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
             }
           ]
         },
-        data: this._props.srcs.map((n, i) => {
-          if (typeof n === "string") return { 
-            image: { src: n },
-            scroll: { hidden: false },
-            error_view: { hidden: true }, 
-            spinner: { loading: false } 
-          };
-          if (n.loading) return {
-            image: { src: "" },
-            scroll: { hidden: true },
-            error_view: { hidden: true }, 
-            spinner: { loading: true } 
-          };
-          return {
-            image: { src: "" },
-            scroll: { hidden: true },
-            error_view: { hidden: false }, 
-            spinner: { loading: false } 
-          }
-        })
+        data: this._props.srcs.map(n => this._mapData(n))
       },
       layout: $layout.fill,
       events: {
@@ -222,28 +204,35 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
     return this._props.srcs;
   }
 
-  set srcs(srcs: (string | { success: boolean, loading: boolean, reason?: string })[]) {
-    this._props.srcs = srcs;
-    this._matrix.view.data = srcs.map((n, i) => {
-      if (typeof n === "string") return { 
-        image: { src: n },
-        scroll: { hidden: false },
-        error_view: { hidden: true }, 
-        spinner: { loading: false } 
-      };
-      if (n.loading) return {
-        image: { src: "" },
-        scroll: { hidden: true },
-        error_view: { hidden: true }, 
-        spinner: { loading: true } 
-      };
+  set srcs(srcs: {path?: string; error: boolean}[]) {
+    this._props.srcs = srcs.map(n => ({ ...n }));
+    const data = srcs.map(n => this._mapData(n));
+    this._matrix.view.data = data;
+  }
+
+  _mapData(n: {path?: string; error: boolean}) {
+    if (n.error) {
       return {
         image: { src: "" },
         scroll: { hidden: true },
-        error_view: { hidden: false }, 
-        spinner: { loading: false } 
+        error_view: { hidden: false },
+        spinner: { loading: false, hidden: true }
       }
-    });
+    } else if (n.path) {
+      return {
+        image: { src: n.path },
+        scroll: { hidden: false },
+        error_view: { hidden: true },
+        spinner: { loading: false, hidden: true }
+      };
+    } else {
+      return {
+        image: { src: "" },
+        scroll: { hidden: true },
+        error_view: { hidden: true },
+        spinner: { loading: true }
+      };
+    }
   }
 
   get page() {

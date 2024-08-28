@@ -1,5 +1,6 @@
 import { Base, BaseController, Blur, ContentView, cvid, Image, ImagePager, Label, Matrix, Slider, SymbolButton } from "jsbox-cview";
 import { CustomImagePager } from "../components/custom-image-pager";
+import { downloaderManager } from "../utils/api";
 
 let lastUITapGestureRecognizer: any;
 
@@ -36,13 +37,14 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
   private _innerIndex: number; // 随着滑动而变化的index，用于内部更新
   private _width: number; // 整体宽度
   private _length: number;
-  private _thumbnailPaths: Record<number, string>;
+  private _thumbnailItems: {path?: string, error: boolean}[];
+  private _thumbnailItemsFinished: boolean = false; // 缩略图是否全部加载完成
   cviews: { thumbnailMatrix: Matrix, sliderLeftLabel: Label, slider: Slider };
   constructor(options: {
     props: {
       index: number,
       length: number,
-      thumbnailPaths: Record<number, string>
+      thumbnailItems: {path?: string, error: boolean}[]
     },
     events: {
       changed: (index: number) => void
@@ -53,7 +55,8 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
     this._innerIndex = this._index;
     this._width = 0
     this._length = options.props.length;
-    this._thumbnailPaths = options.props.thumbnailPaths;
+    this._thumbnailItems = options.props.thumbnailItems;
+    this._thumbnailItemsFinished = this._thumbnailItems.every(item => item.path);
     this.cviews = {} as {
       thumbnailMatrix: Matrix,
       sliderLeftLabel: Label,
@@ -122,6 +125,18 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
             {
               type: "image",
               props: {
+                id: "error",
+                symbol: "exclamationmark.triangle.fill",
+                tintColor: $color("red"),
+              },
+              layout: (make, view) => {
+                make.center.equalTo(view.super);
+                make.size.equalTo($size(25, 25));
+              }
+            },
+            {
+              type: "image",
+              props: {
                 id: "image",
                 contentMode: 1,
                 bgcolor: $color("black"),
@@ -183,11 +198,17 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
   }
 
   _mapData(index: number) {
-    return [...Array(this._length)]
-      .map((_, i) => this._thumbnailPaths[i])
-      .map((path, i) => ({
-        image: { src: path, borderWidth: i === index ? 2 : 0 },
-      }))
+    return this._thumbnailItems.map((item, i) => ({
+      error: { hidden: !item.error },
+      image: { src: item.path || "", borderWidth: i === index ? 2 : 0 },
+    }))
+  }
+
+  refreshThumbnailItems(thumbnailItems: {path?: string, error: boolean}[]) {
+    if (this._thumbnailItemsFinished) return;
+    this._thumbnailItems = thumbnailItems;
+    this._thumbnailItemsFinished = this._thumbnailItems.every(item => item.path);
+    this.cviews.thumbnailMatrix.view.data = this._mapData(this.index);
   }
 
   updateFooter(index: number, sliderOnGoing: boolean) {
@@ -229,39 +250,42 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
 }
 
 export class ReaderController extends BaseController {
+  private gid: number;
+  private imagePager?: CustomImagePager;
   private _timer?: TimerTypes.Timer
   cviews: {
     header: Blur,
     footer: Blur,
-    viewer: ContentView
+    viewer: ContentView,
+    footerThumbnailView: FooterThumbnailView
   }
   constructor({
+    gid,
     title,
     index,
-    length,
-    thumbnailPaths,
-    picturePaths
+    length
   }: {
+    gid: number,
     title: string,
     index: number,
-    length: number,
-    thumbnailPaths: Record<number, string>
-    picturePaths: (string | {success: boolean; loading: boolean})[]
+    length: number
   }) {
     super({
       events: {
         didAppear: () => {
           this._timer = $timer.schedule({
-            interval: 3,
+            interval: 2,
             handler: () => {
-              if (!imagePager) return;
-              if (typeof  imagePager.srcs[imagePager.page] !== "string") { 
-                imagePager.srcs = picturePaths
+              if (!this.imagePager) return;
+              if (!this.imagePager.srcs[this.imagePager.page].path) { 
+                this.imagePager.srcs = downloaderManager.get(this.gid).result.images;
               }
+              this.cviews.footerThumbnailView.refreshThumbnailItems(downloaderManager.get(this.gid).result.thumbnails);
             }
           })
         },
         didRemove: () => {
+          downloaderManager.get(this.gid).downloadingImages = false;
           if (this._timer) this._timer.invalidate()
           if (lastUITapGestureRecognizer) {
             $objc_release(lastUITapGestureRecognizer);
@@ -270,22 +294,19 @@ export class ReaderController extends BaseController {
         }
       }
     });
+    this.gid = gid;
+    const galleryDownloader = downloaderManager.get(gid);
     const footerThumbnailView = new FooterThumbnailView({
       props: {
         index,
         length,
-        thumbnailPaths
+        thumbnailItems: galleryDownloader.result.thumbnails
       },
       events: {
         changed: (index) => {
-          imagePager.page = index;
-          if (
-            (typeof imagePager.srcs[index] !== "string") 
-            || (index > 0 && typeof imagePager.srcs[index - 1] !== "string") 
-            || (index < imagePager.srcs.length - 1 && typeof imagePager.srcs[index + 1] !== "string") 
-          ) { 
-            imagePager.srcs = picturePaths
-          }
+          if (!this.imagePager) return;
+          this.imagePager.page = index;
+          this.refreshCurrentPage();
         }
       }
     })
@@ -477,7 +498,6 @@ export class ReaderController extends BaseController {
         }
       ]
     })
-    let imagePager: CustomImagePager;
     let lastFrameWidth = 0;
     let lastFrameHeight = 0;
     const viewer = new ContentView({
@@ -492,9 +512,9 @@ export class ReaderController extends BaseController {
             || (sender.frame.width === lastFrameWidth && sender.frame.height === lastFrameHeight)
           ) return;
           if (sender.views.length !== 0) sender.views[0].remove();
-          imagePager = new CustomImagePager({
+          this.imagePager = new CustomImagePager({
             props: {
-              srcs: [...picturePaths.slice(0, picturePaths.length - 2), { success: false, loading: true }, { success: false, loading: false }],
+              srcs: galleryDownloader.result.images,
               page: footerThumbnailView.index,
             },
             layout: (make, view) => {
@@ -504,27 +524,23 @@ export class ReaderController extends BaseController {
             events: {
               changed: (page) => {
                 footerThumbnailView.index = page;
-                if (
-                  (typeof imagePager.srcs[page] !== "string") 
-                  || (page > 0 && typeof imagePager.srcs[page - 1] !== "string") 
-                  || (page < imagePager.srcs.length - 1 && typeof imagePager.srcs[page + 1] !== "string") 
-                ) { 
-                  imagePager.srcs = picturePaths
-                }
+                this.refreshCurrentPage();
               }
             }
           })
-          sender.add(imagePager.definition)
+          sender.add(this.imagePager.definition)
           $delay(0.1, () => {
+            if (!this.imagePager) return;
             define(
-              imagePager.view.ocValue(), 
+              this.imagePager.view.ocValue(), 
               location => {
-                if (location.x < sender.frame.width / 3) {
+              if (!this.imagePager) return;
+              if (location.x < sender.frame.width / 3) {
                   footerThumbnailView.index -= 1;
-                  imagePager.page = footerThumbnailView.index;
+                  this.imagePager.page = footerThumbnailView.index;
                 } else if (location.x > sender.frame.width / 3 * 2) {
                   footerThumbnailView.index += 1;
-                  imagePager.page = footerThumbnailView.index;
+                  this.imagePager.page = footerThumbnailView.index;
                 } else {
                   footer.view.hidden = !footer.view.hidden;
                   header.view.hidden = !header.view.hidden;
@@ -539,8 +555,15 @@ export class ReaderController extends BaseController {
     this.cviews = {
       header,
       footer,
-      viewer
+      viewer,
+      footerThumbnailView
     }
     this.rootView.views = [viewer, header, footer]
+  }
+
+  refreshCurrentPage() {
+    console.log("refreshCurrentPage")
+    if (!this.imagePager) return;
+    this.imagePager.srcs = downloaderManager.get(this.gid).result.images
   }
 }

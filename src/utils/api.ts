@@ -201,6 +201,7 @@ abstract class ConcurrentDownloaderBase {
     if (task) {
       this._running++;
       try {
+        console.log(`开始任务: 任务数量=${this._running}`);
         await task.handler();
       } finally {
         this._running--;
@@ -209,16 +210,16 @@ abstract class ConcurrentDownloaderBase {
     }
   }
 
-  protected async _run() {
+  protected _run() {
     const remainedConcurrency = this._maxConcurrency - this._running;
     for (let i = 0; i < remainedConcurrency; i++) {
-      await this._runSingleTask();
+      this._runSingleTask().then();
     }
   }
 
-  async start() {
+  start() {
     this._paused = false;
-    await this._run();
+    this._run();
   }
 
   /**
@@ -287,7 +288,7 @@ export class TabThumbnailDownloader extends ConcurrentDownloaderBase {
     })
     console.log(mapped)
     this._items.push(...mapped);
-    if (!this._paused) this._run().then();
+    if (!this._paused) this._run();
   }
 
   private createThumbnailTask(index: number, gid: number, url: string) {
@@ -953,7 +954,7 @@ class DownloaderManager {
   startOne(gid: number) {
     for (let key in this.galleryDownloaders) {
       if (parseInt(key) === gid) {
-        this.galleryDownloaders[key].start().then();
+        this.galleryDownloaders[key].start();
       } else {
         this.galleryDownloaders[key].pause();
       }
@@ -966,7 +967,7 @@ class DownloaderManager {
    * 启动标签缩略图下载器，并暂停其他全部下载器
    */
   startTabDownloader() {
-    this.currentTabDownloader.start().then();
+    this.currentTabDownloader.start();
     for (let key in this.galleryDownloaders) {
       this.galleryDownloaders[key].pause();
     }
@@ -977,7 +978,7 @@ class DownloaderManager {
    * 启动归档标签缩略图下载器，并暂停其他全部下载器
    */
   startArchiveTabDownloader() {
-    this.currentArchiveTabDownloader.start().then();
+    this.currentArchiveTabDownloader.start();
     for (let key in this.galleryDownloaders) {
       this.galleryDownloaders[key].pause();
     }

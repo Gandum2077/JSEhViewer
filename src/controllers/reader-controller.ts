@@ -512,6 +512,8 @@ export class ReaderController extends BaseController {
             || sender.frame.height <= 0
             || (sender.frame.width === lastFrameWidth && sender.frame.height === lastFrameHeight)
           ) return;
+          lastFrameWidth = sender.frame.width;
+          lastFrameHeight = sender.frame.height;
           if (sender.views.length !== 0) sender.views[0].remove();
           this.imagePager = new CustomImagePager({
             props: {

@@ -2,7 +2,7 @@ import { PageViewerController } from "jsbox-cview";
 import { GalleryInfoController } from "./gallery-info-controller";
 import { GalleryThumbnailController } from "./gallery-thumbnail-controller";
 import { GalleryCommentController } from "./gallery-comment-controller";
-import { EHGallery } from "ehentai-parser";
+import { EHGallery, EHNetworkError, EHServiceUnavailableError, EHTimeoutError } from "ehentai-parser";
 import { popoverWithSymbol } from "../components/popover-with-symbol";
 import { GalleryDetailedInfoController } from "./gallery-detailed-info-controller";
 import { configManager } from "../utils/config";
@@ -99,19 +99,33 @@ export class GalleryController extends PageViewerController {
             },
             layout: $layout.center
           })
+          try {
           const infos = await api.getGalleryInfo(this._gid, this._token, true)
           this._infos = infos
-          downloaderManager.add(infos.gid, infos)
-          downloaderManager.startOne(infos.gid)
+          } catch (e: any) {
+            if (e instanceof EHServiceUnavailableError) {
+              (sender.rootView.view.super.get("loadingLabel") as UILabelView).text = `加载失败：服务不可用(${e.statusCode})`
+            } else if (e instanceof EHNetworkError && e.statusCode === 404) {
+              (sender.rootView.view.super.get("loadingLabel") as UILabelView).text = `加载失败：图库不存在(${e.statusCode})`
+            } else if (e instanceof EHTimeoutError) {
+              (sender.rootView.view.super.get("loadingLabel") as UILabelView).text = "加载失败: 超时"
+            } else {
+              (sender.rootView.view.super.get("loadingLabel") as UILabelView).text = "加载失败: 未知原因" + (e.statusCode? `(${e.statusCode})` : "")
+            }
+          }
+          if (!this._infos) return;
+          downloaderManager.add(this._infos.gid, this._infos)
+          downloaderManager.startOne(this._infos.gid)
           sender.rootView.view.super.get("loadingLabel").remove()
           sender.rootView.view.alpha = 1
 
-          galleryInfoController.infos = infos
-          galleryThumbnailController.thumbnailItems = downloaderManager.get(infos.gid).result.thumbnails
+          galleryInfoController.infos = this._infos
+          galleryThumbnailController.thumbnailItems = downloaderManager.get(this._infos.gid).result.thumbnails
           galleryInfoController.startTimer()
           galleryThumbnailController.startTimer()
           $delay(1, () => {
-            galleryCommentController.infos = infos
+            if (!this._infos) return;
+            galleryCommentController.infos = this._infos
           })
         },
         didAppear: () => {

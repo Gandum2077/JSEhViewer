@@ -529,16 +529,18 @@ export class ReaderController extends BaseController {
             }
           })
           sender.add(this.imagePager.definition)
-          $delay(0.1, () => {
+          $delay(0.3, () => {
             if (!this.imagePager) return;
             define(
               this.imagePager.view.ocValue(), 
               location => {
               if (!this.imagePager) return;
               if (location.x < sender.frame.width / 3) {
+                  if (footerThumbnailView.index === 0) return;
                   footerThumbnailView.index -= 1;
                   this.imagePager.page = footerThumbnailView.index;
                 } else if (location.x > sender.frame.width / 3 * 2) {
+                  if (footerThumbnailView.index === this.imagePager.srcs.length - 1) return;
                   footerThumbnailView.index += 1;
                   this.imagePager.page = footerThumbnailView.index;
                 } else {

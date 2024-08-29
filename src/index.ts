@@ -171,5 +171,8 @@ async function init() {
   $delay(0.3, () => sidebarHistoryController.appear())
   $delay(0.3, () => sidebarBookmarkController.appear())
 }
-
-init().then().catch(e => console.error(e))
+if ($app.env === $env.app) {
+  init().then().catch(e => console.error(e))
+} else {
+  $ui.error("请在JSBox主程序中运行")
+}

@@ -307,6 +307,7 @@ export class ReaderController extends BaseController {
           if (!this.imagePager) return;
           this.imagePager.page = index;
           this.refreshCurrentPage();
+          galleryDownloader.currentReadingIndex = Math.max(index - 1, 0);
         }
       }
     })
@@ -525,6 +526,7 @@ export class ReaderController extends BaseController {
               changed: (page) => {
                 footerThumbnailView.index = page;
                 this.refreshCurrentPage();
+                galleryDownloader.currentReadingIndex = Math.max(page - 1, 0);
               }
             }
           })

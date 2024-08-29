@@ -7,14 +7,21 @@ import { popoverWithSymbol } from "../components/popover-with-symbol";
 import { GalleryDetailedInfoController } from "./gallery-detailed-info-controller";
 import { configManager } from "../utils/config";
 import { api, downloaderManager } from "../utils/api";
+import { ReaderController } from "./reader-controller";
 
 export class GalleryController extends PageViewerController {
   private _infos?: EHGallery;
   private _gid: number;
   private _token: string;
   constructor(gid: number, token: string) {
-    const galleryInfoController = new GalleryInfoController(gid);
-    const galleryThumbnailController = new GalleryThumbnailController(gid);
+    const galleryInfoController = new GalleryInfoController(
+      gid,
+      (index) => this.readGallery(index)
+    );
+    const galleryThumbnailController = new GalleryThumbnailController(
+      gid,
+      (index) => this.readGallery(index)
+    );
     const galleryCommentController = new GalleryCommentController();
     super({
       props: {
@@ -103,6 +110,7 @@ export class GalleryController extends PageViewerController {
           const infos = await api.getGalleryInfo(this._gid, this._token, true)
           this._infos = infos
           } catch (e: any) {
+            console.error(e)
             if (e instanceof EHServiceUnavailableError) {
               (sender.rootView.view.super.get("loadingLabel") as UILabelView).text = `加载失败：服务不可用(${e.statusCode})`
             } else if (e instanceof EHNetworkError && e.statusCode === 404) {
@@ -140,6 +148,24 @@ export class GalleryController extends PageViewerController {
     })
     this._gid = gid;
     this._token = token;
+  }
+
+  readGallery(index: number) {
+    if (!this._infos) return;
+    downloaderManager.get(this._infos.gid).downloadingImages = true;
+    downloaderManager.get(this._infos.gid).currentReadingIndex = Math.max(index - 1, 0); // 提前一页加载
+    downloaderManager.startOne(this._infos.gid)
+    const readerController = new ReaderController({
+      gid: this._infos.gid,
+      title:this._infos.japanese_title || this._infos.english_title,
+      index,
+      length: this._infos.length
+    })
+    readerController.uipush({
+      theme: "dark",
+      navBarHidden: true,
+      statusBarStyle: 0
+    })
   }
 
 

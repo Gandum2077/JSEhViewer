@@ -6,7 +6,7 @@ export class GalleryThumbnailController extends BaseController {
   private _finished: boolean = false;
   private _timer?: TimerTypes.Timer;
   cviews: { matrix: DynamicItemSizeMatrix };
-  constructor(gid: number) {
+  constructor(gid: number, readHandler: (index: number) => void) {
     super({
       props: { bgcolor: $color("backgroundColor") }
     });
@@ -57,10 +57,15 @@ export class GalleryThumbnailController extends BaseController {
       events: {
         itemHeight: width => width * 1.414 + 20,
         didSelect: (sender, indexPath, data) => {
-          
+          readHandler(indexPath.item)
         },
         didScroll: sender => {
-
+          if (this._finished) return;
+          const d = downloaderManager.get(this.gid)
+          if (!d) return;
+          const currentReadingRow = Math.floor(sender.contentOffset.y / (matrix.itemSize.height + 5))
+          const currentReadingIndex = Math.min(Math.max(currentReadingRow * matrix.columns, 0), d.result.thumbnails.length - 1)
+          d.currentReadingIndex = currentReadingIndex
         }
       }
     });

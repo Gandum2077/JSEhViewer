@@ -581,7 +581,7 @@ export class GalleryInfoController extends BaseController {
     tagsFlowlayoutWrapper: TagsFlowlayoutWrapper;
     list: DynamicRowHeightList;
   };
-  constructor(gid: number) {
+  constructor(gid: number, readHandler: (index: number) => void) {
     super({
       props: { bgcolor: $color("backgroundColor") }
     });
@@ -654,20 +654,7 @@ export class GalleryInfoController extends BaseController {
       title: "阅读",
       symbol: "book",
       handler: () => {
-        if (!this._infos) return;
-        downloaderManager.get(this._infos.gid).downloadingImages = true;
-        downloaderManager.startOne(this._infos.gid)
-        const readerController = new ReaderController({
-          gid: this._infos.gid,
-          title:this._infos.japanese_title || this._infos.english_title,
-          index: 0,
-          length: this._infos.length
-        })
-        readerController.uipush({
-          theme: "dark",
-          navBarHidden: true,
-          statusBarStyle: 0
-        })
+        readHandler(0)
       }
     })
 

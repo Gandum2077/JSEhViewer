@@ -1,4 +1,4 @@
-import { Base, BaseController, Blur, ContentView, cvid, Image, ImagePager, Label, Matrix, Slider, SymbolButton } from "jsbox-cview";
+import { Base, BaseController, Blur, ContentView, cvid, Label, Matrix, Slider, SymbolButton } from "jsbox-cview";
 import { CustomImagePager } from "../components/custom-image-pager";
 import { downloaderManager } from "../utils/api";
 
@@ -37,14 +37,14 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
   private _innerIndex: number; // 随着滑动而变化的index，用于内部更新
   private _width: number; // 整体宽度
   private _length: number;
-  private _thumbnailItems: {path?: string, error: boolean}[];
+  private _thumbnailItems: { path?: string, error: boolean }[];
   private _thumbnailItemsFinished: boolean = false; // 缩略图是否全部加载完成
   cviews: { thumbnailMatrix: Matrix, sliderLeftLabel: Label, slider: Slider };
   constructor(options: {
     props: {
       index: number,
       length: number,
-      thumbnailItems: {path?: string, error: boolean}[]
+      thumbnailItems: { path?: string, error: boolean }[]
     },
     events: {
       changed: (index: number) => void
@@ -204,7 +204,7 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
     }))
   }
 
-  refreshThumbnailItems(thumbnailItems: {path?: string, error: boolean}[]) {
+  refreshThumbnailItems(thumbnailItems: { path?: string, error: boolean }[]) {
     if (this._thumbnailItemsFinished) return;
     this._thumbnailItems = thumbnailItems;
     this._thumbnailItemsFinished = this._thumbnailItems.every(item => item.path);
@@ -252,7 +252,10 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
 export class ReaderController extends BaseController {
   private gid: number;
   private imagePager?: CustomImagePager;
-  private _timer?: TimerTypes.Timer
+  private _timer?: TimerTypes.Timer;
+  private _autoPagerEnabled: boolean = false;
+  private _autoPagerInterval: number = 1;
+  private _autoPagerCountDown: number = 1;
   cviews: {
     header: Blur,
     footer: Blur,
@@ -274,13 +277,31 @@ export class ReaderController extends BaseController {
       events: {
         didAppear: () => {
           this._timer = $timer.schedule({
-            interval: 2,
+            interval: 1,
             handler: () => {
               if (!this.imagePager) return;
-              if (!this.imagePager.srcs[this.imagePager.page].path) { 
+              if (!this.imagePager.srcs[this.imagePager.page].path) {
                 this.imagePager.srcs = downloaderManager.get(this.gid).result.images;
               }
               this.cviews.footerThumbnailView.refreshThumbnailItems(downloaderManager.get(this.gid).result.thumbnails);
+              if (this._autoPagerEnabled) {
+                // 自动翻页
+                // 首先检测本页是否加载完成。如果没有加载完成，不翻页并且重制倒计时为翻页间隔
+                // 如果加载完成，倒计时减1，如果倒计时小于等于0，翻页并重制倒计时
+                // 另外，如果翻到最后一页，不再翻页
+                if (
+                  !this.imagePager.srcs[this.imagePager.page].path
+                  || this.cviews.footerThumbnailView.index === this.imagePager.srcs.length - 1
+                ) {
+                  this._autoPagerCountDown = this._autoPagerInterval;
+                  return;
+                } else {
+                  this._autoPagerCountDown -= 1;
+                  if (this._autoPagerCountDown <= 0) {
+                    this.handleTurnPage(this.cviews.footerThumbnailView.index + 1);
+                  }
+                }
+              }
             }
           })
         },
@@ -303,12 +324,7 @@ export class ReaderController extends BaseController {
         thumbnailItems: galleryDownloader.result.thumbnails
       },
       events: {
-        changed: (index) => {
-          if (!this.imagePager) return;
-          this.imagePager.page = index;
-          this.refreshCurrentPage();
-          galleryDownloader.currentReadingIndex = Math.max(index - 1, 0);
-        }
+        changed: (index) => this.handleTurnPage(index)
       }
     })
     const header = new Blur({
@@ -383,6 +399,95 @@ export class ReaderController extends BaseController {
         }
       ]
     })
+    const startAutoPagerButton = new SymbolButton({
+      props: {
+        symbol: "forward",
+        menu: {
+          title: "自动翻页",
+          pullDown: true,
+          asPrimary: true,
+          items: [
+            {
+              title: "每页停留1秒",
+              handler: sender => {
+                this._autoPagerEnabled = true;
+                this._autoPagerInterval = 1;
+                this._autoPagerCountDown = 1;
+                startAutoPagerButton.view.hidden = true;
+                stopAutoPagerButton.symbol = "1.circle";
+                stopAutoPagerButton.view.hidden = false;
+              }
+            },
+            {
+              title: "每页停留3秒",
+              handler: sender => {
+                this._autoPagerEnabled = true;
+                this._autoPagerInterval = 3;
+                this._autoPagerCountDown = 3;
+                startAutoPagerButton.view.hidden = true;
+                stopAutoPagerButton.symbol = "3.circle";
+                stopAutoPagerButton.view.hidden = false;
+              }
+            },
+            {
+              title: "每页停留5秒",
+              handler: sender => {
+                this._autoPagerEnabled = true;
+                this._autoPagerInterval = 5;
+                this._autoPagerCountDown = 5;
+                startAutoPagerButton.view.hidden = true;
+                stopAutoPagerButton.symbol = "5.circle";
+                stopAutoPagerButton.view.hidden = false;
+              }
+            },
+            {
+              title: "每页停留10秒",
+              handler: sender => {
+                this._autoPagerEnabled = true;
+                this._autoPagerInterval = 10;
+                this._autoPagerCountDown = 10;
+                startAutoPagerButton.view.hidden = true;
+                stopAutoPagerButton.symbol = "10.circle";
+                stopAutoPagerButton.view.hidden = false;
+              }
+            },
+            {
+              title: "每页停留15秒",
+              handler: sender => {
+                this._autoPagerEnabled = true;
+                this._autoPagerInterval = 15;
+                this._autoPagerCountDown = 15;
+                startAutoPagerButton.view.hidden = true;
+                stopAutoPagerButton.symbol = "15.circle";
+                stopAutoPagerButton.view.hidden = false;
+              }
+            }
+          ]
+        }
+      },
+      layout: (make, view) => {
+        make.size.equalTo($size(50, 50))
+        make.center.equalTo(view.super)
+      }
+    })
+    const stopAutoPagerButton = new SymbolButton({
+      props: {
+        hidden: true,
+        tintColor: $color("systemLink"),
+        symbol: "1.circle",
+      },
+      layout: (make, view) => {
+        make.size.equalTo($size(50, 50))
+        make.center.equalTo(view.super)
+      },
+      events: {
+        tapped: (sender) => {
+          this._autoPagerEnabled = false;
+          startAutoPagerButton.view.hidden = false;
+          stopAutoPagerButton.view.hidden = true;
+        }
+      }
+    })
     const footer = new Blur({
       props: {
         style: 16
@@ -424,47 +529,7 @@ export class ReaderController extends BaseController {
                 {
                   type: "view",
                   props: {},
-                  views: [new SymbolButton({
-                    props: {
-                      symbol: "forward",
-                      menu: {
-                        title: "自动翻页",
-                        pullDown: true,
-                        asPrimary: true,
-                        items: [
-                          {
-                            title: "每页1秒",
-                            symbol: "1.circle",
-                            handler: sender => { }
-                          },
-                          {
-                            title: "每页2秒",
-                            symbol: "2.circle",
-                            handler: sender => { }
-                          },
-                          {
-                            title: "每页4秒",
-                            symbol: "4.circle",
-                            handler: sender => { }
-                          },
-                          {
-                            title: "每页8秒",
-                            symbol: "8.circle",
-                            handler: sender => { }
-                          },
-                          {
-                            title: "每页16秒",
-                            symbol: "16.circle",
-                            handler: sender => { }
-                          }
-                        ]
-                      }
-                    },
-                    layout: (make, view) => {
-                      make.size.equalTo($size(50, 50))
-                      make.center.equalTo(view.super)
-                    }
-                  }).definition]
+                  views: [startAutoPagerButton.definition, stopAutoPagerButton.definition]
                 },
                 {
                   type: "view",
@@ -485,6 +550,16 @@ export class ReaderController extends BaseController {
                     layout: (make, view) => {
                       make.size.equalTo($size(50, 50))
                       make.center.equalTo(view.super)
+                    },
+                    events: {
+                      tapped: () => {
+                        const path = downloaderManager.get(this.gid).result.images[this.cviews.footerThumbnailView.index].path;
+                        if (path) {
+                          $share.sheet($image(path))
+                        } else {
+                          $ui.error("当前图片尚未加载")
+                        }
+                      }
                     }
                   }).definition]
                 }
@@ -525,32 +600,26 @@ export class ReaderController extends BaseController {
               make.top.bottom.inset(0);
             },
             events: {
-              changed: (page) => {
-                footerThumbnailView.index = page;
-                this.refreshCurrentPage();
-                galleryDownloader.currentReadingIndex = Math.max(page - 1, 0);
-              }
+              changed: (page) => this.handleTurnPage(page)
             }
           })
           sender.add(this.imagePager.definition)
           $delay(0.3, () => {
             if (!this.imagePager) return;
             define(
-              this.imagePager.view.ocValue(), 
+              this.imagePager.view.ocValue(),
               location => {
-              if (!this.imagePager) return;
-              if (location.x < sender.frame.width / 3) {
+                if (!this.imagePager) return;
+                if (location.x < sender.frame.width / 3) {
                   if (footerThumbnailView.index === 0) return;
-                  footerThumbnailView.index -= 1;
-                  this.imagePager.page = footerThumbnailView.index;
+                  this.handleTurnPage(footerThumbnailView.index - 1);
                 } else if (location.x > sender.frame.width / 3 * 2) {
                   if (footerThumbnailView.index === this.imagePager.srcs.length - 1) return;
-                  footerThumbnailView.index += 1;
-                  this.imagePager.page = footerThumbnailView.index;
+                  this.handleTurnPage(footerThumbnailView.index + 1);
                 } else {
                   footer.view.hidden = !footer.view.hidden;
                   header.view.hidden = !header.view.hidden;
-                } 
+                }
               }
             ).$create()
           })
@@ -568,8 +637,17 @@ export class ReaderController extends BaseController {
   }
 
   refreshCurrentPage() {
-    console.log("refreshCurrentPage")
     if (!this.imagePager) return;
-    this.imagePager.srcs = downloaderManager.get(this.gid).result.images
+    if (!this.imagePager.srcs[this.imagePager.page].path) {
+      this.imagePager.srcs = downloaderManager.get(this.gid).result.images;
+    }
+  }
+
+  handleTurnPage(page: number) {
+    if (this.cviews.footerThumbnailView.index !== page) this.cviews.footerThumbnailView.index = page;
+    if (this.imagePager && this.imagePager.page !== page) this.imagePager.page = page;
+    this._autoPagerCountDown = this._autoPagerInterval;
+    this.refreshCurrentPage();
+    downloaderManager.get(this.gid).currentReadingIndex = Math.max(page - 1, 0);
   }
 }

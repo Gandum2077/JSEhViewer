@@ -167,6 +167,4 @@ export class GalleryController extends PageViewerController {
       statusBarStyle: 0
     })
   }
-
-
 }

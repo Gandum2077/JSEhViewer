@@ -1,6 +1,7 @@
 import { Base, BaseController, Blur, ContentView, cvid, Label, Matrix, Slider, SymbolButton } from "jsbox-cview";
 import { CustomImagePager } from "../components/custom-image-pager";
 import { downloaderManager } from "../utils/api";
+import { statusManager } from "../utils/status";
 
 let lastUITapGestureRecognizer: any;
 
@@ -305,7 +306,12 @@ export class ReaderController extends BaseController {
             }
           })
         },
+        didDisappear: () => {
+          console.log("there")
+          statusManager.updateLastReadPage(this.gid, this.cviews.footerThumbnailView.index);
+        },
         didRemove: () => {
+          statusManager.updateLastReadPage(this.gid, this.cviews.footerThumbnailView.index);
           downloaderManager.get(this.gid).downloadingImages = false;
           if (this._timer) this._timer.invalidate()
           if (lastUITapGestureRecognizer) {

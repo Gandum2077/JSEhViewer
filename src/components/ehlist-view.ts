@@ -903,11 +903,8 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
         },
         didReachBottom: async sender => {
           if (this._isLoading) return
-
-          console.log("didReachBottom")
           await didReachBottom()
           sender.endFetchingMore()
-          console.log("endFetchingMore")
         },
         didSelect: async (sender, indexPath, data) => {
           await didSelect(this, indexPath, this._items[indexPath.item])

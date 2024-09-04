@@ -9,8 +9,8 @@ import { toSimpleUTCTimeString } from "../utils/tools";
 import { rateAlert } from "../components/rate-alert";
 import { DownloadButton } from "../components/download-button";
 import { ButtonsWarpper } from "../components/buttons-warpper";
-import { ReaderController } from "./reader-controller";
 import { downloaderManager } from "../utils/api";
+import { statusManager } from "../utils/status";
 
 class BlankView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
@@ -511,7 +511,8 @@ class CommonButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
               text: title,
               font: $font(12),
               textColor: $color("primaryText"),
-              align: $align.center
+              align: $align.center,
+              lines: 2
             },
             layout: (make, view) => {
               make.left.right.inset(10)
@@ -573,6 +574,7 @@ export class GalleryInfoController extends BaseController {
     infoMatrix: DynamicItemSizeMatrix;
     rateButton: RateButton;
     favoriteButton: FavoriteButton;
+    readButton: CommonButton;
     downloadButton: DownloadButton;
     hathDownloadButton: CommonButton;
     primaryButtonsWrapper: ButtonsWarpper;
@@ -654,7 +656,8 @@ export class GalleryInfoController extends BaseController {
       title: "阅读",
       symbol: "book",
       handler: () => {
-        readHandler(0)
+        const currentReadPage = statusManager.getLastReadPage(this.gid)
+        readHandler(currentReadPage)
       }
     })
 
@@ -725,6 +728,7 @@ export class GalleryInfoController extends BaseController {
       infoMatrix,
       rateButton,
       favoriteButton,
+      readButton,
       downloadButton,
       hathDownloadButton,
       primaryButtonsWrapper,
@@ -800,7 +804,7 @@ export class GalleryInfoController extends BaseController {
     this.cviews.infoMatrixWarpper.leftColumnColor = catColor[infos.category]
     this.cviews.rateButton.rating = infos.display_rating
     this.cviews.rateButton.is_my_rating = infos.is_my_rating
-    if (infos.favcat && infos.favcat_title) {
+    if (infos.favcat !== undefined && infos.favcat_title !== undefined) {
       this.cviews.favoriteButton.favorite(infos.favcat, infos.favcat_title)
     } else {
       this.cviews.favoriteButton.unfavorite()
@@ -833,6 +837,14 @@ export class GalleryInfoController extends BaseController {
   stopTimer() {
     if (this._timer) {
       this._timer.invalidate()
+    }
+  }
+
+  set currentReadPage(page: number) {
+    if (page === 0) {
+      this.cviews.readButton.title = `阅读`
+    } else {
+      this.cviews.readButton.title = `继续阅读\n第${page + 1}页`
     }
   }
 }

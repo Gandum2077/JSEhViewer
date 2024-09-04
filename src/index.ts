@@ -104,7 +104,7 @@ async function init() {
   splitViewController.uirender()
   if (!configManager.cookie) {
     await login()
-    console.info("login done")
+    appLog("login done")
   } else {
     api.cookie = configManager.cookie
     api.exhentai = configManager.exhentai

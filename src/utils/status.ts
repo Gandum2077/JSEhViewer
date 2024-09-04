@@ -25,15 +25,6 @@ class StatusManager {
     return this._archiveTab;
   }
 
-  async getHomepageCurrentTab(): Promise<StatusTab> {
-    const infos = await api.getFavoritesInfo();
-    return {
-      type: "favorites",
-      options: {},
-      pages: [infos]
-    }
-  }
-
   async loadTab(options: StatusTabOptions) {
     const index = this._currentTabIndex;
     switch (options.type) {
@@ -44,10 +35,6 @@ class StatusManager {
           options: options.options,
           pages: [page]
         };
-        page.items.forEach(item => {
-          item = item as EHListExtendedItem;
-          this.storeArchiveItem(item, "readlater");
-        })
         break;
       }
       case "watched": {
@@ -555,11 +542,20 @@ class StatusManager {
     dbManager.update(sql2, [id]);
   }
 
-  storeArchiveItem(infos: EHGallery | EHListExtendedItem | EHListCompactItem, type: "readlater" | "has_read" | "download", last_read_page = 0) {
-    // 先查询是否已经存在，如果存在则不做任何事情
+  storeArchiveItemOrUpdateAccessTime(infos: EHGallery | EHListExtendedItem | EHListCompactItem, type: "readlater" | "has_read" | "download") {
+    // 先查询是否已经存在，如果存在则更新访问时间
     const sql_query = `SELECT * FROM archives WHERE gid = ?;`;
     const result = dbManager.query(sql_query, [infos.gid]);
-    if (result.length > 0) return;
+    if (result.length > 0) {
+      this.updateLastAccessTime(infos.gid);
+      return;
+    } else {
+      this.storeArchiveItem(infos, type);
+    }
+  }
+
+  storeArchiveItem(infos: EHGallery | EHListExtendedItem | EHListCompactItem, type: "readlater" | "has_read" | "download") {
+    // 需要先查询是否已经存在，如果存在则不应该做任何事情
     const sql_insert = `INSERT OR REPLACE INTO archives (
       "gid",
       "type",
@@ -630,7 +626,7 @@ class StatusManager {
       uploader: infos.uploader,
       disowned: infos.disowned,
       taglist: infos.taglist,
-      last_read_page
+      last_read_page: 0
     };
     const taglist_string: [number, TagNamespace, string][] = []
     infos.taglist.map(item => {
@@ -666,11 +662,13 @@ class StatusManager {
   }
 
   updateLastAccessTime(gid: number) {
+  // 应该在访问图库的时候更新
     const sql = `UPDATE archives SET last_access_time = datetime('now') WHERE gid = ?;`;
     dbManager.update(sql, [gid]);
   }
 
   updateLastReadPage(gid: number, page: number) {
+  // 应该在退出阅读器的时候更新
     const sql = `UPDATE archives SET last_read_page = ? WHERE gid = ?;`;
     dbManager.update(sql, [page, gid]);
   }

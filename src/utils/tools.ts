@@ -1,5 +1,6 @@
-import { TagNamespace, tagNamespaceMostUsedAlternateMap } from "ehentai-parser";
-import { globalLogLevel } from "./glv";
+import { EHSearchTerm, TagNamespace, tagNamespaceMostUsedAlternateMap } from "ehentai-parser";
+import { globalLogLevel, namespaceColor } from "./glv";
+import { configManager } from "./config";
 
 const levelMap = {
   info: 0,
@@ -95,4 +96,23 @@ export function buildSearchTerm(namespace: TagNamespace, name: string): string {
   } else {
     return `${abbr}:${name}$`
   }
+}
+
+/**
+ * 将searchTerm转化为字符串
+ */
+export function mapSearchTermToString(searchTerm: EHSearchTerm) {
+  const { namespace, qualifier, term, dollar, subtract, tilde } = searchTerm;
+    let text = "";
+    if (namespace) {
+      const translation = configManager.translate(namespace, term);
+      text = translation || `${tagNamespaceMostUsedAlternateMap[namespace]}:${term}`;
+    } else {
+      text = term;
+    }
+    if (qualifier) text = `${qualifier}:${text}`;
+    if (dollar) text += "$";
+    if (tilde) text = `~${text}`;
+    if (subtract) text = `-${text}`;
+    return text;
 }

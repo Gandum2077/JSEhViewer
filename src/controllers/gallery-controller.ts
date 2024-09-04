@@ -8,6 +8,7 @@ import { GalleryDetailedInfoController } from "./gallery-detailed-info-controlle
 import { configManager } from "../utils/config";
 import { api, downloaderManager } from "../utils/api";
 import { ReaderController } from "./reader-controller";
+import { statusManager } from "../utils/status";
 
 export class GalleryController extends PageViewerController {
   private _infos?: EHGallery;
@@ -125,18 +126,22 @@ export class GalleryController extends PageViewerController {
           downloaderManager.add(this._infos.gid, this._infos)
           downloaderManager.startOne(this._infos.gid)
           sender.rootView.view.super.get("loadingLabel").remove()
-          sender.rootView.view.alpha = 1
 
-          galleryInfoController.infos = this._infos
-          galleryThumbnailController.thumbnailItems = downloaderManager.get(this._infos.gid).result.thumbnails
-          galleryInfoController.startTimer()
-          galleryThumbnailController.startTimer()
+          galleryInfoController.infos = this._infos;
+          galleryInfoController.currentReadPage = statusManager.getLastReadPage(this._gid);
+          galleryThumbnailController.thumbnailItems = downloaderManager.get(this._infos.gid).result.thumbnails;
+          sender.rootView.view.alpha = 1;
+
+          galleryInfoController.startTimer();
+          galleryThumbnailController.startTimer();
           $delay(1, () => {
             if (!this._infos) return;
             galleryCommentController.infos = this._infos
           })
         },
         didAppear: () => {
+          console.log("here")
+          galleryInfoController.currentReadPage = statusManager.getLastReadPage(this._gid);
           galleryInfoController.startTimer();
           galleryThumbnailController.startTimer();
         },
@@ -152,6 +157,8 @@ export class GalleryController extends PageViewerController {
 
   readGallery(index: number) {
     if (!this._infos) return;
+    statusManager.storeArchiveItemOrUpdateAccessTime(this._infos, "has_read");
+
     downloaderManager.get(this._infos.gid).downloadingImages = true;
     downloaderManager.get(this._infos.gid).currentReadingIndex = Math.max(index - 1, 0); // 提前一页加载
     downloaderManager.startOne(this._infos.gid)

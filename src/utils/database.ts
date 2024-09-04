@@ -127,6 +127,13 @@ export function createDB() {
             subtract INTEGER,
             tilde INTEGER
             )`);
+  // 标签访问次数统计
+  db.update(`CREATE TABLE IF NOT EXISTS tag_access_count (
+            namespace TEXT,
+            name TEXT,
+            count INTEGER,
+            UNIQUE(namespace, name)
+            )`);
   $sqlite.close(db);
 }
 

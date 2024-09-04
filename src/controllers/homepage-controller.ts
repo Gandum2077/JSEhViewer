@@ -9,9 +9,10 @@ import { SearchController } from "./search-controller";
 import { EHListExtendedItem } from "ehentai-parser";
 import { StatusTabOptions } from "../types";
 import { downloaderManager } from "../utils/api";
+import { CustomSearchBar } from "../components/custom-searchbar";
 
 export class HomepageController extends BaseController {
-  cviews: { navbar: CustomNavigationBar, list: EHlistView };
+  cviews: { navbar: CustomNavigationBar, list: EHlistView, searchBar: CustomSearchBar };
   constructor() {
     super({
       props: {
@@ -60,6 +61,13 @@ export class HomepageController extends BaseController {
       },
       layout: $layout.fill
     })
+    const searchButton = new SymbolButton({
+      props: {
+        symbol: "magnifyingglass",
+        hidden: true,
+      },
+      layout: $layout.fill,
+    })
     const navbar = new CustomNavigationBar({
       props: {
         title: "首页",
@@ -75,6 +83,9 @@ export class HomepageController extends BaseController {
           }
         ],
         rightBarButtonItems: [
+          {
+            cview: searchButton
+          },
           {
             symbol: "arrow.left.arrow.right.circle",
             handler: async () => {
@@ -94,13 +105,8 @@ export class HomepageController extends BaseController {
         ]
       }
     })
-    const searchBar = new Button({
+    const searchBar = new CustomSearchBar({
       props: {
-      },
-      layout: (make, view) => {
-        make.left.right.inset(4)
-        make.height.equalTo(36)
-        make.top.inset(4.5)
       },
       events: {
         tapped: sender => {
@@ -131,7 +137,7 @@ export class HomepageController extends BaseController {
         make.bottom.equalTo(view.super.safeAreaBottom).offset(-50)
       }
     })
-    this.cviews = { navbar, list }
+    this.cviews = { navbar, list, searchBar }
     this.rootView.views = [navbar, list]
   }
 

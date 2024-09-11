@@ -12,8 +12,8 @@
   "license": "MIT",
   "dependencies": {
     "cheerio": "^1.0.0",
-    "ehentai-parser": "^1.5.20",
-    "jsbox-cview": "^1.5.12"
+    "ehentai-parser": "^1.5.22",
+    "jsbox-cview": "^1.5.13"
   },
   "devDependencies": {
     "@types/cheerio": "^0.22.35",

@@ -307,7 +307,6 @@ export class ReaderController extends BaseController {
           })
         },
         didDisappear: () => {
-          console.log("there")
           statusManager.updateLastReadPage(this.gid, this.cviews.footerThumbnailView.index);
         },
         didRemove: () => {

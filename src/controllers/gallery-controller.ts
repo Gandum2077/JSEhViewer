@@ -140,7 +140,6 @@ export class GalleryController extends PageViewerController {
           })
         },
         didAppear: () => {
-          console.log("here")
           galleryInfoController.currentReadPage = statusManager.getLastReadPage(this._gid);
           galleryInfoController.startTimer();
           galleryThumbnailController.startTimer();

@@ -29,7 +29,7 @@ export function rateAlert({
         {
           type: "label",
           props: {
-            text: rating.toFixed(2),
+            text: rating.toFixed(1),
             align: $align.center,
             font: $font("bold", 16),
           },
@@ -54,7 +54,7 @@ export function rateAlert({
           events: {
             changed: (sender) => {
               const v = Math.floor(sender.value * 2) / 2;
-              (sender.prev as UILabelView).text = v.toFixed(2);
+              (sender.prev as UILabelView).text = v.toFixed(1);
               rating = v;
             }
           }

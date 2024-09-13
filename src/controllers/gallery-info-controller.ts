@@ -9,8 +9,11 @@ import { toSimpleUTCTimeString } from "../utils/tools";
 import { rateAlert } from "../components/rate-alert";
 import { DownloadButton } from "../components/download-button";
 import { ButtonsWarpper } from "../components/buttons-warpper";
-import { downloaderManager } from "../utils/api";
+import { api, downloaderManager } from "../utils/api";
 import { statusManager } from "../utils/status";
+import { GalleryTorrentsController } from "./gallery-torrents-controller";
+import { GalleryHathController } from "./gallery-hath-controller";
+import { galleryFavoriteDialog } from "../components/gallery-favorite-dialog";
 
 class BlankView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
@@ -264,8 +267,9 @@ class RateButton extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
   private _rating: number = 0;
   private _is_my_rating: boolean = false;
+  private _isRequestInProgress: boolean = false;
   constructor({ handler }: {
-    handler: (newRating: number) => void
+    handler: (currentRating: number) => Promise<number>
   }) {
     super();
     const ratingWidth = this._calRatingWidth(this._rating);
@@ -340,9 +344,16 @@ class RateButton extends Base<UIView, UiTypes.ViewOptions> {
         ],
         events: {
           tapped: async sender => {
-            const newRating = await rateAlert({ rating: Math.floor(this._rating * 2) / 2 });
-            this.rate(newRating);
-            handler(newRating);
+            if (this._isRequestInProgress) {
+              $ui.warning("正在处理上一个请求，请稍后再试");
+              return;
+            }
+            this._isRequestInProgress = true;
+            const newRating = await handler(this._rating);
+            this._isRequestInProgress = false;
+            if (newRating) {
+              this.rate(newRating);
+            }
           }
         }
       }
@@ -384,88 +395,178 @@ class RateButton extends Base<UIView, UiTypes.ViewOptions> {
   }
 }
 
-class FavoriteButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
-  _defineView: () => UiTypes.ButtonOptions;
-  constructor({ favcat, title, handler }: {
-    favcat?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9,
-    title?: string,
-    handler: () => void
+type FavoriteButtonActionResult = {
+  success: true,
+  favorited: true,
+  favcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9,
+  title: string
+} | { success: true, favorited: false } | { success: false, dissmissed?: boolean }
+
+class FavoriteButton extends Base<UIView, UiTypes.ViewOptions> {
+  _defineView: () => UiTypes.ViewOptions;
+  private _handler: (action: "default" | "unfavorite" | "other") => Promise<FavoriteButtonActionResult>
+  private _isRequestInProgress: boolean = false;
+  constructor({ handler }: {
+    handler: (action: "default" | "unfavorite" | "other") => Promise<FavoriteButtonActionResult>
   }) {
     super();
+    this._handler = handler;
     this._defineView = () => {
       return {
-        type: "button",
+        type: "view",
         props: {
           id: this.id,
-          bgcolor: $color("clear"),
-          userInteractionEnabled: true,
-          menu: {
-            asPrimary: true,
-            pullDown: true,
-            items: [
-              {
-                title: "取消收藏",
-                handler: () => handler()
-              },
-              {
-                title: "添加笔记",
-                handler: () => { }
-              },
-              ...configManager.favcatTitles.map(title => ({
-                title,
-                handler: () => handler()
-              }))]
-          }
         },
         layout: $layout.fill,
         views: [
           {
-            type: "image",
+            type: "button",
             props: {
-              tintColor: favcat === undefined ? defaultButtonColor : favcatColor[favcat],
-              symbol: "heart"
+              id: "button_favorited",
+              bgcolor: $color("clear"),
+              menu: {
+                asPrimary: true,
+                pullDown: true,
+                items: [
+                  {
+                    title: "取消收藏",
+                    handler: async () => {
+                      await this._handleEvent("unfavorite");
+                    }
+                  },
+                  {
+                    title: "更多选项",
+                    handler: async () => {
+                      await this._handleEvent("other");
+                    }
+                  }
+                ]
+              }
             },
-            layout: (make, view) => {
-              make.centerX.equalTo(view.super)
-              make.centerY.equalTo(view.super).offset(-10)
-              make.size.equalTo($size(50, 50))
-            }
+            layout: $layout.fill,
+            views: [
+              {
+                type: "image",
+                props: {
+                  id: "image_favorited",
+                  tintColor: favcatColor[0],
+                  symbol: "heart.fill"
+                },
+                layout: (make, view) => {
+                  make.centerX.equalTo(view.super)
+                  make.centerY.equalTo(view.super).offset(-10)
+                  make.size.equalTo($size(50, 50))
+                }
+              },
+              {
+                type: "label",
+                props: {
+                  id: "label_favorited",
+                  text: "",
+                  font: $font(12),
+                  textColor: $color("primaryText"),
+                  align: $align.center,
+                  lines: 2
+                },
+                layout: (make, view) => {
+                  make.left.right.inset(5)
+                  make.centerX.equalTo(view.super)
+                  make.top.equalTo(view.prev.bottom).offset(5)
+                }
+              }
+            ]
           },
           {
-            type: "label",
+            type: "button",
             props: {
-              text: title || "点击收藏",
-              font: $font(12),
-              textColor: $color("primaryText"),
-              align: $align.center,
-              lines: 2
+              id: "button_unfavorited",
+              bgcolor: $color("clear"),
+              menu: {
+                asPrimary: true,
+                pullDown: true,
+                items: [
+                  {
+                    title: "收藏到" + configManager.favcatTitles[configManager.defaultFavcat],
+                    handler: async () => {
+                      await this._handleEvent("default");
+                    }
+                  },
+                  {
+                    title: "更多选项",
+                    handler: async () => {
+                      await this._handleEvent("other");
+                    }
+                  }
+                ]
+              }
             },
-            layout: (make, view) => {
-              make.left.right.inset(5)
-              make.centerX.equalTo(view.super)
-              make.top.equalTo(view.prev.bottom).offset(5)
-            }
+            layout: $layout.fill,
+            views: [
+              {
+                type: "image",
+                props: {
+                  id: "image_unfavorited",
+                  tintColor: defaultButtonColor,
+                  symbol: "heart"
+                },
+                layout: (make, view) => {
+                  make.centerX.equalTo(view.super)
+                  make.centerY.equalTo(view.super).offset(-10)
+                  make.size.equalTo($size(50, 50))
+                }
+              },
+              {
+                type: "label",
+                props: {
+                  id: "label_unfavorited",
+                  text: "点击收藏",
+                  font: $font(12),
+                  textColor: $color("primaryText"),
+                  align: $align.center,
+                  lines: 2
+                },
+                layout: (make, view) => {
+                  make.left.right.inset(5)
+                  make.centerX.equalTo(view.super)
+                  make.top.equalTo(view.prev.bottom).offset(5)
+                }
+              }
+            ]
           }
-        ],
-        events: {
-          tapped: sender => {
-            handler();
-          }
-        }
+        ]
       }
     }
   }
 
   favorite(favcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9, title: string) {
-    (this.view.get("image") as UIImageView).tintColor = favcatColor[favcat];
-    (this.view.get("image") as UIImageView).symbol = "heart.fill";
-    (this.view.get("label") as UILabelView).text = title;
+    (this.view.get("image_favorited") as UIImageView).tintColor = favcatColor[favcat];
+    (this.view.get("label_favorited") as UILabelView).text = title;
+    (this.view.get("button_unfavorited") as UIButtonView).hidden = true;
+    (this.view.get("button_favorited") as UIButtonView).hidden = false;
   }
 
   unfavorite() {
-    (this.view.get("image") as UIImageView).tintColor = defaultButtonColor;
-    (this.view.get("image") as UIImageView).symbol = "heart";
-    (this.view.get("label") as UILabelView).text = "加入收藏";
+    (this.view.get("button_favorited") as UIButtonView).hidden = true;
+    (this.view.get("button_unfavorited") as UIButtonView).hidden = false;
+  }
+
+  private async _handleEvent(action: "default" | "unfavorite" | "other") {
+    if (this._isRequestInProgress) {
+      $ui.warning("正在处理上一个请求，请稍后再试");
+      return;
+    };
+    this._isRequestInProgress = true;
+    const result = await this._handler(action)
+    this._isRequestInProgress = false;
+    if (result.success) {
+      if (result.favorited) {
+        this.favorite(result.favcat, result.title)
+      } else {
+        this.unfavorite()
+      }
+    } else {
+      if (!result.dissmissed) $ui.error("收藏操作失败");
+    }
   }
 }
 
@@ -576,6 +677,7 @@ export class GalleryInfoController extends BaseController {
     favoriteButton: FavoriteButton;
     readButton: CommonButton;
     downloadButton: DownloadButton;
+    torrentButton: CommonButton;
     hathDownloadButton: CommonButton;
     primaryButtonsWrapper: ButtonsWarpper;
     secondaryButtonsWrapper: ButtonsWarpper;
@@ -647,10 +749,73 @@ export class GalleryInfoController extends BaseController {
     });
     const infoMatrixWarpper = new InfoMatrixWrapper(infoMatrix)
     const rateButton = new RateButton({
-      handler: newRating => { }
+      handler: async currentRating => {
+        if (!this._infos) return 0;
+        let newRating: 0.5 | 1 | 1.5 | 2 | 2.5 | 3 | 3.5 | 4 | 4.5 | 5;
+        try {
+          newRating = await rateAlert({ rating: Math.max(Math.floor(currentRating * 2) / 2, 0.5) }) as 0.5 | 1 | 1.5 | 2 | 2.5 | 3 | 3.5 | 4 | 4.5 | 5;
+        } catch (e) {
+          return 0;
+        }
+        if (!newRating) return 0;
+        try {
+          await api.rateGallery(
+            this.gid,
+            this._infos.token,
+            this._infos.apikey,
+            this._infos.apiuid,
+            newRating
+          )
+          return newRating
+        } catch (e) {
+          $ui.error("评分失败")
+        }
+        return 0;
+      }
     })
     const favoriteButton = new FavoriteButton({
-      handler: () => { }
+      handler: async (action) => {
+        if (!this._infos) return { success: false }
+        switch (action) {
+          case "default": {
+            const defaultFavcat = configManager.defaultFavcat;
+            try {
+              await api.addOrModifyFav(this.gid, this._infos.token, defaultFavcat)
+            } catch (e) {
+              return { success: false }
+            }
+            return { success: true, favorited: true, favcat: defaultFavcat, title: configManager.favcatTitles[defaultFavcat] };
+          }
+          case "unfavorite": {
+            try {
+              await api.deleteFav(this.gid, this._infos.token);
+            } catch (e) {
+              return { success: false };
+            }
+            return { success: true, favorited: false };
+          }
+          case "other": {
+            try {
+              const result = await galleryFavoriteDialog(this._infos)
+              if (result.success) {
+                await api.addOrModifyFav(this.gid, this._infos.token, result.favcat, result.favnote)
+                return { success: true, favorited: true, favcat: result.favcat, title: configManager.favcatTitles[result.favcat] }
+              } else {
+                return { success: false, dissmissed: true }
+              }
+            } catch (e) {
+              if (e === "cancel") {
+                return { success: false, dissmissed: true }
+              } else {
+                return { success: false }
+              }
+            }
+          }
+          default:
+            throw new Error("Invalid action")
+        }
+
+      }
     })
     const readButton = new CommonButton({
       title: "阅读",
@@ -667,10 +832,25 @@ export class GalleryInfoController extends BaseController {
       handler: () => { }
     })
 
+    const torrentButton = new CommonButton({
+      title: "种子",
+      image: $image("assets/magnet-sf-svgrepo-com-128.png").alwaysTemplate,
+      contentMode: 1,
+      handler: () => {
+        if (!this._infos) return;
+        const galleryTorrentsController = new GalleryTorrentsController(this._infos)
+        galleryTorrentsController.present()
+      }
+    })
+
     const hathDownloadButton = new CommonButton({
       title: "Hath下载",
       symbol: "network",
-      handler: () => { }
+      handler: () => {
+        if (!this._infos) return;
+        const galleryHathController = new GalleryHathController(this._infos)
+        galleryHathController.present()
+      }
     })
 
     const webDAVButton = new CommonButton({
@@ -687,12 +867,7 @@ export class GalleryInfoController extends BaseController {
 
     const secondaryButtonsWrapper = new ButtonsWarpper([
       downloadButton,
-      new CommonButton({
-        title: "种子",
-        image: $image("assets/magnet-sf-svgrepo-com-128.png").alwaysTemplate,
-        contentMode: 1,
-        handler: () => { }
-      }),
+      torrentButton,
       hathDownloadButton,
       webDAVButton
     ])
@@ -730,6 +905,7 @@ export class GalleryInfoController extends BaseController {
       favoriteButton,
       readButton,
       downloadButton,
+      torrentButton,
       hathDownloadButton,
       primaryButtonsWrapper,
       secondaryButtonsWrapper,
@@ -808,6 +984,12 @@ export class GalleryInfoController extends BaseController {
       this.cviews.favoriteButton.favorite(infos.favcat, infos.favcat_title)
     } else {
       this.cviews.favoriteButton.unfavorite()
+    }
+    this.cviews.torrentButton.title = `种子(${infos.torrent_count})`
+    if (infos.torrent_count === 0) {
+      this.cviews.torrentButton.view.enabled = false
+    } else {
+      this.cviews.torrentButton.view.enabled = true
     }
     this.cviews.tagsFlowlayoutWrapper.taglist = mapTaglist(infos.taglist)
     this.cviews.list.view.reload()

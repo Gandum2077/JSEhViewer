@@ -17,7 +17,8 @@ interface Config {
   webdavEnabled: boolean,
   selectedWebdavService: number,
   webdavAutoUpload: boolean,
-  translationUpdateTime: string
+  translationUpdateTime: string,
+  defaultFavcat:  0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 }
 
 const defaultConfig: Config = {
@@ -35,7 +36,8 @@ const defaultConfig: Config = {
   webdavEnabled: true,
   selectedWebdavService: -1,
   webdavAutoUpload: false,
-  translationUpdateTime: new Date(0).toISOString()
+  translationUpdateTime: new Date(0).toISOString(),
+  defaultFavcat: 0
 }
 
 async function getEhTagTranslationText() {
@@ -227,6 +229,14 @@ class ConfigManager {
 
   set translationUpdateTime(value: string) {
     this._setConfig("translationUpdateTime", value)
+  }
+
+  get defaultFavcat() {
+    return this._config.defaultFavcat
+  }
+
+  set defaultFavcat(value: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9) {
+    this._setConfig("defaultFavcat", value)
   }
 
   get translationDict() {

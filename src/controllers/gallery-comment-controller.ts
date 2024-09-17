@@ -1,9 +1,13 @@
-import { BaseController, Web, Button, setLayer, layerCommonOptions } from "jsbox-cview";
+import { BaseController, Web, Button, setLayer, layerCommonOptions, textDialog } from "jsbox-cview";
 import { EHGallery } from "ehentai-parser";
+import { GalleryController } from "./gallery-controller";
+import { api } from "../utils/api";
+import { getUtf8Length } from "../utils/tools";
 
 export class GalleryCommentController extends BaseController {
   private _infos?: EHGallery
   private _sortType: "time" | "score" = "time"
+  private _isRequestInProgress = false
   constructor() {
     super({
       props: { bgcolor: $color("primarySurface") }
@@ -30,9 +34,43 @@ export class GalleryCommentController extends BaseController {
         }
       }],
       events: {
-        tapped: () => {
+        tapped: async () => {
+          if (this._isRequestInProgress) {
+            $ui.warning("正在处理上一个请求，请稍后再试")
+            return;
+          }
           if (!this._infos) return;
-          $ui.alert("addCommentButton")
+          let text = await textDialog({
+            title: "添加评论"
+          })
+          text = text.trim()
+          if (!text) return;
+          if (getUtf8Length(text) < 10) {
+            $ui.error("错误：您的评论太短了")
+            return;
+          }
+          this._isRequestInProgress = true
+          api.postNewComment(
+            this._infos.gid,
+            this._infos.token,
+            text
+          ).then((infos) => {
+            // 从后往前查找，找到自己的评论
+            for (let i = infos.comments.length - 1; i >= 0; i--) {
+              if (infos.comments[i].is_my_comment) {
+                this._infos!.comments.push(infos.comments[i])
+                break
+              }
+            }
+            this._infos!.comments.forEach(comment => {
+              comment.voteable = false
+            })
+            this._isRequestInProgress = false
+            this._refreshComments()
+          }).catch(() => {
+            this._isRequestInProgress = false
+            $ui.error("API错误，评论失败")
+          })
         }
       }
     })
@@ -56,35 +94,48 @@ export class GalleryCommentController extends BaseController {
         },
         decideNavigation: (sender, action) => {
           // TODO 阻止不合规的请求
-          if (action.type === 0 && action.requestURL === "https://exhentai.org/") {
-            return false
-          } else if (action.type === 0 && action.requestURL !== "https://exhentai.org/") {
-            $ui.alert({
-              title: "跳转至默认浏览器",
-              message: action.requestURL,
-              actions: [
-                {
-                  title: "取消"
-                },
-                {
-                  title: "打开",
-                  handler: () => {
-                    $app.openURL(action.requestURL)
+          if (action.type === 0) {
+            const patt = /https:\/\/e[-x]hentai\.org\/\w+\/(\d+)\/(\w+)\/?/;
+            const r = patt.exec(action.requestURL);
+            if (!r || r.length < 3) {
+              $ui.alert({
+                title: "跳转至浏览器",
+                message: action.requestURL,
+                actions: [
+                  {
+                    title: "取消"
+                  },
+                  {
+                    title: "打开",
+                    handler: () => {
+                      $app.openURL(action.requestURL)
+                    }
                   }
-                }
-              ]
-            })
+                ]
+              })
+              return false
+            } else {
+              const galleryController = new GalleryController(parseInt(r[1]), r[2])
+              galleryController.uipush({
+                navBarHidden: true,
+                statusBarStyle: 0
+              })
+            }
             return false
           }
           return true
         },
-        handleApi: (message: {
-          action: "showVoteDetails" | "postEditComment" | "voteComment" | "sortByScore" | "sortByTime",
+        handleApi: async (message: {
+          action: "showVoteDetails" | "editComment" | "voteComment" | "sortByScore" | "sortByTime",
           info: any
         }) => {
           if (!this._infos) return;
+          if (this._isRequestInProgress) {
+            $ui.warning("正在处理上一个请求，请稍后再试")
+            return;
+          }
           switch (message.action) {
-            case "showVoteDetails":
+            case "showVoteDetails": {
               const { comment_id } = message.info as { comment_id: string }
               const comment = this._infos.comments.find(comment => comment.comment_id === parseInt(comment_id))
               if (comment && comment.votes) {
@@ -101,23 +152,100 @@ export class GalleryCommentController extends BaseController {
                   message: "Base " + baseStr + (votersStr && "\n") + votersStr + otherVoters
                 })
               }
-              break
-            case "postEditComment":
-              $ui.alert("postEditComment")
-              break
-            case "voteComment":
-              $ui.alert("voteComment")
-              break
-            case "sortByTime":
+              break;
+            }
+            case "editComment": {
+              this._isRequestInProgress = true
+              const { comment_id } = message.info as { comment_id: number }
+              try {
+                const text = await api.getEditComment(
+                  this._infos.gid,
+                  this._infos.token,
+                  this._infos.apikey,
+                  this._infos.apiuid,
+                  comment_id
+                )
+                let newText = await textDialog({
+                  title: "修改评论",
+                  text
+                })
+                newText = newText.trim()
+
+                if (getUtf8Length(newText) < 10) {
+                  $ui.error("错误：您的评论太短了")
+                  this._isRequestInProgress = false
+                  return;
+                }
+                const infos = await api.postEditComment(
+                  this._infos.gid,
+                  this._infos.token,
+                  comment_id,
+                  newText
+                )
+                const newComment = infos.comments.find(comment => comment.comment_id === comment_id)?.comment_div || newText
+                this._infos.comments.find(comment => comment.comment_id === comment_id)!.comment_div = newComment
+                this._refreshComments()
+              } catch (e) {
+                if (e !== "cancel") $ui.error("API错误，修改评论失败");
+              } finally {
+                this._isRequestInProgress = false
+              }
+              break;
+            }
+            case "voteComment": {
+              this._isRequestInProgress = true
+              const { comment_id, currentVote, type } = message.info as { comment_id: number, currentVote: number, type: "up" | "down" }
+              try {
+                await api.voteComment(
+                  this._infos.gid,
+                  this._infos.token,
+                  comment_id,
+                  this._infos.apikey,
+                  this._infos.apiuid,
+                  type === "up" ? 1 : -1
+                )
+              } catch (e) {
+                this._isRequestInProgress = false
+                $ui.error("API错误，投票失败")
+                webview.view.notify({
+                  event: "failVoteRequest",
+                  message: {}
+                })
+                return;
+              }
+              let vote = 0;
+              if (type === "up") {
+                if (currentVote === 1) {
+                  vote = 0
+                } else {
+                  vote = 1
+                }
+              } else {
+                if (currentVote === -1) {
+                  vote = 0
+                } else {
+                  vote = -1
+                }
+              }
+              this._isRequestInProgress = false
+              webview.view.notify({
+                event: "endVoteRequest",
+                message: { comment_id, vote }
+              })
+              break;
+            }
+            case "sortByTime": {
               this._sortType = "time"
               this._refreshComments()
-              break
-            case "sortByScore":
+              break;
+            }
+            case "sortByScore": {
               this._sortType = "score"
               this._refreshComments()
-              break
+              break;
+            }
             default:
-              break
+              throw new Error("Unknown action")
           }
         }
       }

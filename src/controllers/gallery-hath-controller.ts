@@ -6,7 +6,7 @@ import { appLog } from "../utils/tools";
 export class GalleryHathController extends PresentedPageController {
   private _infos: EHGallery;
   private _hathInfo: EHArchive | undefined;
-  private _isSelectHandling: boolean = false;
+  private _isRequestInProgress: boolean = false;
   cviews: {
     navbar: CustomNavigationBar,
     list: DynamicItemSizeMatrix,
@@ -101,11 +101,11 @@ export class GalleryHathController extends PresentedPageController {
       events: {
         didSelect: async (sender, indexPath) => {
           if (!this._hathInfo) return;
-          if (this._isSelectHandling) {
+          if (this._isRequestInProgress) {
             $ui.warning("正在处理上一个请求，请稍后再试");
             return;
           } else {
-            this._isSelectHandling = true;
+            this._isRequestInProgress = true;
             await this.downloadHath(this._hathInfo.download_options[indexPath.row]);
           }
         }
@@ -141,7 +141,7 @@ export class GalleryHathController extends PresentedPageController {
       appLog(e, "error");
       $ui.error("错误：请求失败")
     } finally {
-      this._isSelectHandling = false;
+      this._isRequestInProgress = false;
     }
   }
 

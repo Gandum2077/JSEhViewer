@@ -3,25 +3,7 @@ import { Base, DialogSheet, DynamicRowHeightList, Text, Label, List, ContentView
 import { api } from "../utils/api";
 import { configManager } from "../utils/config";
 import { favcatColor } from "../utils/glv";
-
-function getUtf8Length(str: string) {
-  let utf8Length = 0;
-  for (let i = 0; i < str.length; i++) {
-    const codePoint = str.charCodeAt(i);
-    if (codePoint <= 0x7F) {
-      utf8Length += 1;
-    } else if (codePoint <= 0x7FF) {
-      utf8Length += 2;
-    } else if (codePoint >= 0xD800 && codePoint <= 0xDBFF) {
-      // Handling surrogate pairs (for characters outside the Basic Multilingual Plane)
-      i++; // Skip the next code unit (low surrogate)
-      utf8Length += 4;
-    } else {
-      utf8Length += 3;
-    }
-  }
-  return utf8Length;
-}
+import { getUtf8Length } from "../utils/tools";
 
 class FavcatList extends List {
   private _favcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 = 0;

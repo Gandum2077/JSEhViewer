@@ -94,7 +94,7 @@ class InfoHeaderView extends Base<UIView, UiTypes.ViewOptions> {
                   },
                   layout: (make, view) => {
                     make.left.inset(5)
-                    make.bottom.inset(20)
+                    make.bottom.inset(10)
                     make.height.equalTo(30)
                     make.width.equalTo(100)
                   }
@@ -106,6 +106,7 @@ class InfoHeaderView extends Base<UIView, UiTypes.ViewOptions> {
                     titleColor: $color("primaryText"),
                     font: $font(16),
                     align: $align.left,
+                    lines: 4
                   },
                   layout: (make, view) => {
                     make.left.inset(5)
@@ -166,7 +167,7 @@ class InfoHeaderView extends Base<UIView, UiTypes.ViewOptions> {
   }
 
   heightToWidth(width: number) {
-    return Math.min(Math.round(width / 3 * 1.414), 300)
+    return Math.min(Math.max(170, Math.round(width / 3 * 1.414)), 300)
   }
 }
 

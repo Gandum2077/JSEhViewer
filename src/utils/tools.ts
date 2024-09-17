@@ -116,3 +116,25 @@ export function mapSearchTermToString(searchTerm: EHSearchTerm) {
     if (subtract) text = `-${text}`;
     return text;
 }
+
+/**
+ * 获取UTF-8编码的字符串长度
+ */
+export function getUtf8Length(str: string) {
+  let utf8Length = 0;
+  for (let i = 0; i < str.length; i++) {
+    const codePoint = str.charCodeAt(i);
+    if (codePoint <= 0x7F) {
+      utf8Length += 1;
+    } else if (codePoint <= 0x7FF) {
+      utf8Length += 2;
+    } else if (codePoint >= 0xD800 && codePoint <= 0xDBFF) {
+      // Handling surrogate pairs (for characters outside the Basic Multilingual Plane)
+      i++; // Skip the next code unit (low surrogate)
+      utf8Length += 4;
+    } else {
+      utf8Length += 3;
+    }
+  }
+  return utf8Length;
+}

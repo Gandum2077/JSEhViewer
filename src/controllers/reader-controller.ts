@@ -615,10 +615,14 @@ export class ReaderController extends BaseController {
               this.imagePager.view.ocValue(),
               location => {
                 if (!this.imagePager) return;
-                if (location.x < sender.frame.width / 3) {
+                const w = sender.frame.width;
+                const h= sender.frame.height;
+                const x = location.x;
+                const y = location.y;
+                if (y / h < 1 / 4 || (y / h >= 1 / 4 && y / h <= 3 / 4 && x / w < 1 / 3)) {
                   if (footerThumbnailView.index === 0) return;
                   this.handleTurnPage(footerThumbnailView.index - 1);
-                } else if (location.x > sender.frame.width / 3 * 2) {
+                } else if (y / h > 3 / 4 || (y / h >= 1 / 4 && y / h <= 3 / 4 && x / w > 2 / 3)) {
                   if (footerThumbnailView.index === this.imagePager.srcs.length - 1) return;
                   this.handleTurnPage(footerThumbnailView.index + 1);
                 } else {

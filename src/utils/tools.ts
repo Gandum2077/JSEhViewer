@@ -3,13 +3,14 @@ import { globalLogLevel, namespaceColor } from "./glv";
 import { configManager } from "./config";
 
 const levelMap = {
+  debug: -1,
   info: 0,
   warn: 1,
   error: 2,
   fatal: 3
 }
 
-export function appLog(message: any, level: "info" | "warn" | "error" | "fatal" = "info") {
+export function appLog(message: any, level: "debug" | "info" | "warn" | "error" | "fatal" = "info") {
   if (levelMap[level] >= levelMap[globalLogLevel]) {
     if (level === "info") {
       console.info(message)
@@ -137,4 +138,22 @@ export function getUtf8Length(str: string) {
     }
   }
   return utf8Length;
+}
+
+/**
+ * 裁剪图片
+ */
+export function cropImageData(imageData: NSData, rect: JBRect): NSData {
+  const image = imageData.image;
+  if (!image) return imageData;
+  if (image.size.width === rect.width && image.size.height === rect.height) return imageData;
+
+  if (rect.x === 0 && rect.y === 0) {
+    const s1 = $imagekit.cropTo(image, $size(rect.width, rect.height), 0)
+    return s1.jpg(1)
+  } else {
+    const s1 = $imagekit.cropTo(image, $size(rect.width + rect.x, rect.height + rect.y), 0)
+    const s2 = $imagekit.cropTo(s1, $size(rect.width, rect.height), 5)
+    return s2.jpg(1)
+  }
 }

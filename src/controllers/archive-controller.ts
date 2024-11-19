@@ -5,6 +5,7 @@ import { configManager } from "../utils/config";
 import { EHlistView } from "../components/ehlist-view";
 import { statusManager } from "../utils/status";
 import { api, downloaderManager } from "../utils/api";
+import { search } from "./search-controller";
 
 export class ArchiveController extends BaseController {
   cviews: { navbar: CustomNavigationBar, list: EHlistView };

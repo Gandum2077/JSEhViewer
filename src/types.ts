@@ -8,6 +8,7 @@ import {
   EHListExtendedItem,
   EHPopularList,
   EHPopularSearchOptions,
+  EHSearchedCategory,
   EHSearchOptions,
   EHSearchTerm,
   EHTagListItem,
@@ -123,7 +124,11 @@ export type ArchiveSearchOptions = {
   page: number, 
   page_size: number,
   type: "readlater" | "has_read" | "download" | "all", 
-  sort: "first_access_time" | "last_access_time" | "posted_time" 
+  sort: "first_access_time" | "last_access_time" | "posted_time",
+  filteredCategories?: EHSearchedCategory[];
+  minimumPages?: number;
+  maximumPages?: number;
+  minimumRating?: number;
 };
 
 export type StatusTabType = "front_page" | "watched" | "popular" | "favorites" | "toplist" | "upload" | "archive";

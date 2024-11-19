@@ -1,13 +1,27 @@
 // 此文件中只定义常量
 import { EHCategory, TagNamespace } from "ehentai-parser";
 
-export const globalLogLevel: "info" | "warn" | "error" | "fatal" = "info";
+const debugText = $file.read("assets/debug")?.string;
+export const globalLogLevel: "debug" | "info" | "warn" | "error" | "fatal" = debugText === "1" ? "debug" : "info";
 
 export const webdavIntroductionPath = "assets/webdav-introduction.md";
 export const databasePath = "assets/database.db";
 export const imagePath = "assets/image/";
 export const thumbnailPath = "assets/thumbnail/";
 export const logoColorHex = "#5D1215";
+
+export const searchableCategories: EHCategory[] = [
+  "Doujinshi",
+  "Manga",
+  "Artist CG",
+  "Game CG",
+  "Western",
+  "Non-H",
+  "Image Set",
+  "Cosplay",
+  "Asian Porn",
+  "Misc"
+]
 
 export const catTranslations: Record<EHCategory, string> = {
   "Doujinshi": "同人志",

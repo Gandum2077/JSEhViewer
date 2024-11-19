@@ -9,6 +9,7 @@ import { configManager } from "../utils/config";
 import { api, downloaderManager } from "../utils/api";
 import { ReaderController } from "./reader-controller";
 import { statusManager } from "../utils/status";
+import { appLog } from "../utils/tools";
 
 export class GalleryController extends PageViewerController {
   private _infos?: EHGallery;
@@ -109,6 +110,7 @@ export class GalleryController extends PageViewerController {
           })
           try {
           const infos = await api.getGalleryInfo(this._gid, this._token, true)
+          appLog(infos, "debug")
           this._infos = infos
           } catch (e: any) {
             console.error(e)

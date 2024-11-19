@@ -135,6 +135,7 @@ async function init() {
   }
   if (config) {
     if (config.dm !== "2" || config.ts !== "1") {
+      appLog("config not match", "info")
       config.dm = "2"
       config.ts = "1"
       await api.postConfig(config)

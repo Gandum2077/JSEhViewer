@@ -1,5 +1,5 @@
 import { EHAPIHandler, EHGallery, EHMPV, EHPage } from "ehentai-parser";
-import { appLog } from "./tools";
+import { appLog, cropImageData } from "./tools";
 import { imagePath, thumbnailPath } from "./glv";
 import exp from "constants";
 
@@ -162,7 +162,7 @@ class APIHandler extends EHAPIHandler {
       const data = await this.downloadThumbnail(url, ehgt);
       return { success: true, data };
     } catch (error: any) {
-      console.log(error)
+      appLog(error, "error");
       return { success: false, error: error.name };
     }
   }
@@ -201,7 +201,7 @@ abstract class ConcurrentDownloaderBase {
     if (task) {
       this._running++;
       try {
-        console.log(`开始任务: 任务数量=${this._running}`);
+        appLog(`开始任务: 任务数量=${this._running}`, "debug");
         await task.handler();
       } finally {
         this._running--;
@@ -286,7 +286,6 @@ export class TabThumbnailDownloader extends ConcurrentDownloaderBase {
         error: false
       }
     })
-    console.log(mapped)
     this._items.push(...mapped);
     if (!this._paused) this._run();
   }
@@ -295,11 +294,11 @@ export class TabThumbnailDownloader extends ConcurrentDownloaderBase {
     return {
       index,
       handler: async () => {
-        appLog(`开始下载标签缩略图: gid=${gid}, index=${index}`, "info");
+        appLog(`开始下载标签缩略图: gid=${gid}, index=${index}`, "debug");
         this._items[index].started = true;
         const result = await api.downloadThumbnailWithTwoRetries(url);
         if (result.success) {
-          appLog(`标签缩略图下载成功: gid=${gid}, index=${index}`, "info");
+          appLog(`标签缩略图下载成功: gid=${gid}, index=${index}`, "debug");
           $file.write({
             data: result.data,
             path: thumbnailPath + `${gid}.jpg`
@@ -510,11 +509,11 @@ class GalleryMPVDownloader extends ConcurrentDownloaderBase {
     return {
       index,
       handler: async () => {
-        appLog(`开始下载图库缩略图: gid=${this.gid}, index=${index}`, "info");
+        appLog(`开始下载图库缩略图: gid=${this.gid}, index=${index}`, "debug");
         this.result.thumbnails[index].started = true;
         const result = await api.downloadThumbnailWithTwoRetries(url);
         if (result.success) {
-          appLog(`图库缩略图下载成功: gid=${this.gid}, index=${index}`, "info");
+          appLog(`图库缩略图下载成功: gid=${this.gid}, index=${index}`, "debug");
           if (!path) path = thumbnailPath + `${this.gid}/${index + 1}.jpg`;
           $file.write({
             data: result.data,
@@ -530,11 +529,11 @@ class GalleryMPVDownloader extends ConcurrentDownloaderBase {
     return {
       index,
       handler: async () => {
-        appLog(`开始下载图库图片: gid=${this.gid}, index=${index}`, "info");
+        appLog(`开始下载图库图片: gid=${this.gid}, index=${index}`, "debug");
         this.result.images[index].started = true;
         const result = await api.downloadImageByMpvWithThreeRetries(this.gid, key, mpvkey, index + 1);
         if (result.success) {
-          appLog(`图库图片下载成功: gid=${this.gid}, index=${index}`, "info");
+          appLog(`图库图片下载成功: gid=${this.gid}, index=${index}`, "debug");
           const name = this.mpvInfo!.images[index].name;
           let extname = name.slice(name.lastIndexOf(".")).toLowerCase();
           if (extname === ".jpeg") extname = ".jpg";
@@ -789,11 +788,11 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     return {
       index,
       handler: async () => {
-        appLog(`开始下载图库页面: gid=${this.gid}, index=${index}`, "info");
+        appLog(`开始下载图库页面: gid=${this.gid}, index=${index}`, "debug");
         this.result.htmls[index].started = true;
         const result = await api.getGalleryImagesWithTwoRetries(this.gid, this.infos.token, index);
         if (result.success) {
-          appLog(`图库页面下载成功: gid=${this.gid}, index=${index}`, "info");
+          appLog(`图库页面下载成功: gid=${this.gid}, index=${index}`, "debug");
           this.result.htmls[index].success = true;
           this.infos.images[index] = result.images[index];
           // 特殊：在完成后，重新启动任务
@@ -827,14 +826,17 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     return {
       index,
       handler: async () => {
-        appLog(`开始下载图库缩略图: gid=${this.gid}, index=${index}`, "info");
+        appLog(`开始下载图库缩略图: gid=${this.gid}, index=${index}`, "debug");
         this.result.thumbnails[index].started = true;
         const result = await api.downloadThumbnailWithTwoRetries(url);
         if (result.success) {
-          appLog(`图库缩略图下载成功: gid=${this.gid}, index=${index}`, "info");
+          appLog(`图库缩略图下载成功: gid=${this.gid}, index=${index}`, "debug");
+          const page = this.infos.num_of_images_on_each_page ? Math.floor(index / this.infos.num_of_images_on_each_page) : 0;
+          const frame = this.infos.images[page].find(image => image.page === index)!.frame;
+          const dataCropped = cropImageData(result.data, frame);
           if (!path) path = thumbnailPath + `${this.gid}/${index + 1}.jpg`;
           $file.write({
-            data: result.data,
+            data: dataCropped,
             path
           })
           this.result.thumbnails[index].path = path;
@@ -847,11 +849,11 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     return {
       index,
       handler: async () => {
-        appLog(`开始下载图库图片: gid=${this.gid}, index=${index}`, "info");
+        appLog(`开始下载图库图片: gid=${this.gid}, index=${index}`, "debug");
         this.result.images[index].started = true;
         const result = await api.downloadImageByPageInfoWithThreeRetries(this.gid, imgkey, index);
         if (result.success) {
-          appLog(`图库图片下载成功: gid=${this.gid}, index=${index}`, "info");
+          appLog(`图库图片下载成功: gid=${this.gid}, index=${index}`, "debug");
           const page = this.infos.num_of_images_on_each_page ? Math.floor(index / this.infos.num_of_images_on_each_page) : 0;
           const name = this.infos.images[page].find(image => image.page === index)!.name;
           let extname = name.slice(name.lastIndexOf(".")).toLowerCase();

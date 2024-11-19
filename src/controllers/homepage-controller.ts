@@ -5,11 +5,11 @@ import { configManager } from "../utils/config";
 import { statusManager } from "../utils/status";
 import { EHlistView } from "../components/ehlist-view";
 import { appLog } from "../utils/tools";
-import { SearchController } from "./search-controller";
 import { EHListExtendedItem } from "ehentai-parser";
 import { StatusTabOptions } from "../types";
 import { downloaderManager } from "../utils/api";
 import { CustomSearchBar } from "../components/custom-searchbar";
+import { search } from "./search-controller";
 
 export class HomepageController extends BaseController {
   cviews: { navbar: CustomNavigationBar, list: EHlistView, searchBar: CustomSearchBar };
@@ -109,9 +109,32 @@ export class HomepageController extends BaseController {
       props: {
       },
       events: {
-        tapped: sender => {
-          const searchController = new SearchController()
-          searchController.present()
+        tapped: async sender => {
+          const args = await search({
+            type: "homepage", 
+            options: {
+              searchTerms: [
+                {
+                  namespace: "artist",
+                  term: "kantoku",
+                  dollar: true,
+                  subtract: false,
+                  tilde: false
+                }
+              ]
+            }
+          }, "showAllExceptArchive")
+          this.startLoad({ type: "front_page", options: {
+            searchTerms: [
+              {
+                namespace: "artist",
+                term: "kantoku",
+                dollar: true,
+                subtract: false,
+                tilde: false
+              }
+            ]
+          } })
         }
       }
     })

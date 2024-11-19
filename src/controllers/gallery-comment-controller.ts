@@ -46,7 +46,10 @@ export class GalleryCommentController extends BaseController {
           text = text.trim()
           if (!text) return;
           if (getUtf8Length(text) < 10) {
-            $ui.error("错误：您的评论太短了")
+            $ui.alert({
+              title: "错误",
+              message: "您的评论太短了，至少需要10个字符（UTF-8编码后）"
+            })
             return;
           }
           this._isRequestInProgress = true
@@ -172,8 +175,11 @@ export class GalleryCommentController extends BaseController {
                 newText = newText.trim()
 
                 if (getUtf8Length(newText) < 10) {
-                  $ui.error("错误：您的评论太短了")
                   this._isRequestInProgress = false
+                  $ui.alert({
+                    title: "错误",
+                    message: "您的评论太短了，至少需要10个字符（UTF-8编码后）"
+                  })
                   return;
                 }
                 const infos = await api.postEditComment(

@@ -712,12 +712,12 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
       let compoundThumbnail: CompoundThumbnail = {
         thumbnail_url: imagesOnThisPage[0].thumbnail_url,
         startIndex: imagesOnThisPage[0].page,
-        endIndex: imagesOnThisPage[0].page + 1,
+        endIndex: imagesOnThisPage[0].page,
         images: [imagesOnThisPage[0]]
       }
       for (let i = 1; i < imagesOnThisPage.length; i++) {
         if (imagesOnThisPage[i].thumbnail_url === compoundThumbnail.thumbnail_url) {
-          compoundThumbnail.endIndex = imagesOnThisPage[i].page + 1;
+          compoundThumbnail.endIndex = imagesOnThisPage[i].page;
           compoundThumbnail.images.push(imagesOnThisPage[i]);
         } else {
           compoundThumbnails.push(compoundThumbnail);
@@ -765,7 +765,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
       if (compoundThumbnailItem && imageItem) {
         // 如果图片对应的缩略图还没有开始，则下载缩略图，否则下载图片
         const imageItemIndex = imageItem.index;
-        if (imageItem.index >= compoundThumbnailItem.startIndex && imageItem.index < compoundThumbnailItem.endIndex) {
+        if (imageItem.index >= compoundThumbnailItem.startIndex && imageItem.index <= compoundThumbnailItem.endIndex) {
           return this.createCompoundThumbnailTask(compoundThumbnailItem);
         } else {
           const htmlPageOfFoundImageItem = this.infos.num_of_images_on_each_page
@@ -861,7 +861,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
       handler: async () => {
         appLog(`开始下载图库缩略图: gid=${this.gid}, startIndex=${startIndex}, endIndex=${endIndex}`, "debug");
         this.result.thumbnails
-          .filter(thumbnail => thumbnail.index >= startIndex && thumbnail.index < endIndex)
+          .filter(thumbnail => thumbnail.index >= startIndex && thumbnail.index <= endIndex)
           .forEach(thumbnail => { thumbnail.started = true });
         const result = await api.downloadThumbnailWithTwoRetries(url);
         if (result.success) {
@@ -869,7 +869,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           const data = result.data;
           const image = data.image;  // 此处的读取image必须放在循环外面，以减少调用次数，否则会出现莫名其妙为空的情况
           const filtered = this.result.thumbnails
-            .filter(thumbnail => thumbnail.index >= startIndex && thumbnail.index < endIndex)
+            .filter(thumbnail => thumbnail.index >= startIndex && thumbnail.index <= endIndex)
           for (let i = 0; i < filtered.length; i++) {
             const thumbnail = filtered[i];
             const index = thumbnail.index;
@@ -885,7 +885,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           }
         } else {
           this.result.thumbnails
-            .filter(thumbnail => thumbnail.index >= startIndex && thumbnail.index < endIndex)
+            .filter(thumbnail => thumbnail.index >= startIndex && thumbnail.index <= endIndex)
             .forEach(thumbnail => { thumbnail.error = true });
         }
       }

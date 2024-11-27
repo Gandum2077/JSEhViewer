@@ -1,8 +1,8 @@
-import { Base, ContentView, CustomNavigationBar, DynamicItemSizeMatrix, DynamicPreferenceListView, Input, Label, List, PreferenceSection, PresentedPageController, searchBarBgcolor, Sheet, SymbolButton, Tab } from "jsbox-cview";
-import { catColor, favcatColor, searchableCategories, catTranslations, defaultButtonColor } from "../utils/glv";
+import { Base, ContentView, CustomNavigationBar, DynamicItemSizeMatrix, DynamicPreferenceListView, DynamicRowHeightList, Flowlayout, Input, Label, List, PreferenceSection, PresentedPageController, searchBarBgcolor, Sheet, SymbolButton, Tab } from "jsbox-cview";
+import { catColor, favcatColor, searchableCategories, catTranslations, defaultButtonColor, namespaceTranslations, namespaceColor } from "../utils/glv";
 import { configManager } from "../utils/config";
-import { EHFavoriteSearchOptions, EHSearchOptions, EHSearchTerm } from "ehentai-parser";
-import { ArchiveSearchOptions } from "../types";
+import { EHFavoriteSearchOptions, EHQualifier, EHSearchOptions, EHSearchTerm, TagNamespace } from "ehentai-parser";
+import { ArchiveSearchOptions, TranslationDict } from "../types";
 
 // 整体构造是上面一个自定义导航栏，下面是一个搜索选项列表
 // 下面一共有五个List叠放在一起，分别是：
@@ -11,6 +11,10 @@ import { ArchiveSearchOptions } from "../types";
 // 3. 显示首页和关注的搜索选项
 // 4. 显示收藏的搜索选项
 // 5. 显示存档的搜索选项
+
+type MenuDisplayMode = "onlyShowHomepage" | "onlyShowArchive" | "showAllExceptArchive";
+
+const TAG_FONT_SIZE = 15;
 
 function mapOptionsToSections(options: EHSearchOptions, enablePageFilters: boolean): PreferenceSection[] {
   return [{
@@ -93,237 +97,434 @@ type InnerSearchOptions = {
   disableTagFilters: boolean
 }
 
-class SearchOptionsList extends DynamicPreferenceListView {
-  private options: EHSearchOptions;
-  private _enablePageFilters: boolean;
-  constructor(options: EHSearchOptions, enablePageFilters: boolean) {
-    super({
-      sections: mapOptionsToSections(options, enablePageFilters),
+class SearchSuggestionView extends Base<UIListView, UiTypes.ListOptions> {
+  currentSuggestions: {
+    namespace: TagNamespace;
+    name: string;
+    translation: string;
+  }[] = [];
+  _defineView: () => UiTypes.ListOptions;
+
+  constructor(tagSelected: (tag: { namespace: TagNamespace; name: string; }) => void) {
+    super();
+    this._defineView = () => ({
+      type: "list",
       props: {
-        bgcolor: $color("backgroundColor"),
-        style: 2,
-        scrollEnabled: false,
-        height: 44 * 9 + 35 * 2,
+        id: this.id,
+        separatorInset: $insets(0, 20, 0, 0),
+        template: {
+          views: [{
+            type: "label",
+            props: {
+              id: "content",
+              lines: 2,
+              font: $font("bold", 14)
+            },
+            layout: (make, view) => {
+              make.left.inset(20)
+              make.right.inset(10)
+              make.top.bottom.inset(0)
+            }
+          }]
+        }
       },
       layout: $layout.fill,
       events: {
-        changed: values => {
-          this.options = {
-            browseExpungedGalleries: values.browseExpungedGalleries,
-            requireGalleryTorrent: values.requireGalleryTorrent,
-            minimumPages: values.minimumPages,
-            maximumPages: values.maximumPages,
-            minimumRating: values.minimumRating + 1,
-            disableLanguageFilters: values.disableLanguageFilters,
-            disableUploaderFilters: values.disableUploaderFilters,
-            disableTagFilters: values.disableTagFilters
-          }
-          this._enablePageFilters = values.enablePageFilters;
+        didSelect: (sender, indexPath, data) => {
+          tagSelected(this.currentSuggestions[indexPath.row]);
         }
       }
-    });
-    this.options = options;
-    this._enablePageFilters = enablePageFilters;
+    })
+  }
+
+  search(keyword: string) {
+    const filtered = configManager.translationList.filter(item => item.name.includes(keyword) || item.translation.includes(keyword))
+    this.currentSuggestions = filtered;
+    this.view.data = this.mapData(filtered);
+  }
+
+  mapData(raw: {
+    namespace: TagNamespace;
+    name: string;
+    translation: string;
+  }[]) {
+    return raw.map(item => ({
+      content: {
+        text: `${namespaceTranslations[item.namespace]}:${item.name} ${item.translation}`
+      }
+    }))
   }
 }
 
-function createSearchOptionsList() {
-  const optionsList = new SearchOptionsList({}, false);
-  const catList = new DynamicItemSizeMatrix({
-    props: {
-      bgcolor: $color("backgroundColor"),
-      minItemWidth: 100,
-      fixedItemHeight: 36,
-      spacing: 10,
-      scrollEnabled: false,
-      dynamicHeightEnabled: false,
-      maxColumns: 5,
-      data: searchableCategories.map(cat => ({ label: { text: catTranslations[cat], bgcolor: catColor[cat], alpha: 1 } })),
-      template: {
-        views: [{
+class SearchHistoryViewSectionTitle extends Base<UIView, UiTypes.ViewOptions> {
+  _defineView: () => UiTypes.ViewOptions;
+  constructor(title: string, symbol: string) {
+    super();
+    this._defineView = () => ({
+      type: "view",
+      props: {
+        id: this.id
+      },
+      layout: $layout.fill,
+      views: [
+        {
+          type: "image",
+          props: {
+            symbol: symbol,
+            tintColor: $color("primaryText")
+          },
+          layout: (make, view) => {
+            make.left.inset(20);
+            make.centerY.equalTo(view.super);
+            make.size.equalTo($size(20, 20));
+          }
+        },
+        {
           type: "label",
           props: {
-            id: "label",
-            align: $align.center,
-            font: $font("bold", 16),
-            textColor: $color("white"),
+            text: title,
+            font: $font("bold", 16)
           },
-          layout: $layout.fill
-        }]
-      },
-      footer: {
-        type: "view",
-        props: {
-          height: 44 + 44 * 9 + 35 * 2
-        },
-        views: [
-          {
-            type: "stack",
-            props: {
-              bgcolor: $color("clear"),
-              spacing: 10,
-              distribution: $stackViewDistribution.fillEqually,
-              stack: {
-                views: [
-                  {
-                    type: "button",
-                    props: {
-                      title: "全选",
-                      font: $font(16),
-                      bgcolor: defaultButtonColor,
-                      cornerRadius: 5,
-                      smoothCorners: true
-                    }
-                  },
-                  {
-                    type: "button",
-                    props: {
-                      title: "全不选",
-                      font: $font(16),
-                      bgcolor: defaultButtonColor,
-                      cornerRadius: 5,
-                      smoothCorners: true
-                    }
-                  },
-                  {
-                    type: "button",
-                    props: {
-                      title: "反选",
-                      font: $font(16),
-                      bgcolor: defaultButtonColor,
-                      cornerRadius: 5,
-                      smoothCorners: true
-                    }
-                  }
-                ]
-              }
-            },
-            layout: (make, view) => {
-              make.top.inset(5);
-              make.right.inset(16);
-              make.height.equalTo(34);
-              make.width.equalTo(230);
-            }
-          },
-          {
-            type: "view",
-            props: {},
-            layout: (make, view) => {
-              make.top.equalTo(view.prev.bottom).inset(0);
-              make.left.right.bottom.inset(0);
-            },
-            views: [optionsList.definition]
+          layout: (make, view) => {
+            make.left.inset(45);
+            make.centerY.equalTo(view.super);
           }
-        ]
-      }
-    },
-    layout: $layout.fill,
-    events: {}
-  })
-  return catList.definition;
-}
-
-function createFavoriteSearchOptionsList() {
-  const optionsList = new DynamicPreferenceListView({
-    sections: [{
-      title: "",
-      rows: [
-        {
-          type: "boolean",
-          title: "禁用过滤器（语言）",
-          key: "disableLanguageFilters",
-          value: false
-        },
-        {
-          type: "boolean",
-          title: "禁用过滤器（上传者）",
-          key: "disableUploaderFilters",
-          value: false
-        },
-        {
-          type: "boolean",
-          title: "禁用过滤器（标签）",
-          key: "disableTagFilters",
-          value: false
         }
       ]
-    }],
-    props: {
-      style: 2,
-      scrollEnabled: false,
-      height: 44 * 3 + 35 * 2,
-      rowHeight: 44,
-      bgcolor: $color("backgroundColor")
-    },
-    layout: $layout.fill,
-    events: {}
-  });
-  const favcatList = new DynamicItemSizeMatrix({
-    props: {
-      bgcolor: $color("backgroundColor"),
-      minItemWidth: 170,
-      fixedItemHeight: 36,
-      spacing: 10,
-      scrollEnabled: false,
-      maxColumns: 2,
-      data: configManager.favcatTitles.map((title, index) => {
-        const i = index as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
-        return {
-          icon: {
-            tintColor: favcatColor[i]
-          },
-          label: {
-            text: title
-          }
-        }
-      }),
-      template: {
-        props: {
-          bgcolor: $color("tertiarySurface"),
-          cornerRadius: 10,
-          smoothCorners: true
-        },
-        views: [
-          {
-            type: "image",
-            props: {
-              id: "icon",
-              symbol: "heart.fill",
-              contentMode: 1
-            },
-            layout: (make, view) => {
-              make.left.inset(10);
-              make.centerY.equalTo(view.super);
-              make.size.equalTo($size(20, 20));
-            }
-          },
-          {
+    })
+  }
+
+  heightToWidth(width: number) {
+    return 44
+  }
+}
+
+class HistoryMatrixItem extends Base<UILabelView, UiTypes.LabelOptions> {
+  _defineView: () => UiTypes.LabelOptions;
+  private _text: string;
+  constructor(tag: {namespace?: TagNamespace, qualifier?: EHQualifier, term: string}) {
+    super();
+    this._text = tag.qualifier === "uploader" 
+      ? "上传者:" + tag.term 
+      : (tag.namespace ? configManager.translate(tag.namespace, tag.term) || tag.term : tag.term);
+    this._defineView = () => ({
+      type: "label",
+      props: {
+        text: this._text,
+        lines: 1,
+        font: $font(TAG_FONT_SIZE),
+        bgcolor: namespaceColor[tag.namespace ?? "temp"],
+        align: $align.center,
+        cornerRadius: 10,
+        smoothCorners: true,
+      },
+      layout: $layout.fill
+    })
+  }
+
+  itemWidth() {
+    return Math.ceil($text.sizeThatFits({
+      text: this._text,
+      width: 1000,
+      font: $font(TAG_FONT_SIZE)
+    }).width) + 16;
+  }
+}
+
+class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
+  _defineView: () => UiTypes.ViewOptions;
+  constructor() {
+    super();
+    const mostAccessedTags = configManager.getTenMostAccessedTags()
+    const lastAccessSearchTerms = configManager.getTenLastAccessSearchTerms()
+    const sectionTitleLastAccessed = new SearchHistoryViewSectionTitle("最近访问", "clock.fill");
+    const historyMatrixLastAccessed = new Flowlayout({
+      props: {
+        items: lastAccessSearchTerms.map(tag => new HistoryMatrixItem(tag)),
+        spacing: 10,
+        itemHeight: 30
+      },
+      layout: $layout.fill,
+      events: {}
+    })
+    const sectionTitleMostSearched = new SearchHistoryViewSectionTitle("最常搜索", "list.number");
+    const historyMatrixMostSearched = new Flowlayout({
+      props: {
+        items: mostAccessedTags.map(tag => new HistoryMatrixItem(tag)),
+        spacing: 10,
+        itemHeight: 30
+      },
+      layout: $layout.fill,
+      events: {}
+    })
+    const list = new DynamicRowHeightList({
+      rows: [
+        sectionTitleLastAccessed,
+        historyMatrixLastAccessed,
+        sectionTitleMostSearched,
+        historyMatrixMostSearched
+      ],
+      props: {
+        selectable: false,
+      },
+      layout: $layout.fill,
+      events: {}
+    })
+    this._defineView = () => ({
+      type: "view",
+      props: {
+        id: this.id
+      },
+      layout: $layout.fill,
+      views: [list.definition]
+    })
+  }
+
+  inintial() {
+    
+  }
+}
+
+
+class HomepageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
+  _defineView: () => UiTypes.ViewOptions;
+  cviews: {
+    catList: DynamicItemSizeMatrix,
+    optionsList: DynamicPreferenceListView
+  }
+  constructor() {
+    super();
+    const optionsList = new SearchOptionsList({}, false);
+    const catList = new DynamicItemSizeMatrix({
+      props: {
+        bgcolor: $color("backgroundColor"),
+        minItemWidth: 100,
+        fixedItemHeight: 36,
+        spacing: 10,
+        scrollEnabled: false,
+        dynamicHeightEnabled: false,
+        maxColumns: 5,
+        data: searchableCategories.map(cat => ({ label: { text: catTranslations[cat], bgcolor: catColor[cat], alpha: 1 } })),
+        template: {
+          views: [{
             type: "label",
             props: {
               id: "label",
-              align: $align.left,
-              font: $font(16),
-              textColor: $color("primaryText"),
-              lines: 2
+              align: $align.center,
+              font: $font("bold", 16),
+              textColor: $color("white"),
             },
-            layout: (make, view) => {
-              make.left.equalTo(view.prev.right).inset(10);
-              make.height.equalTo(view.super);
-              make.right.inset(10);
+            layout: $layout.fill
+          }]
+        },
+        footer: {
+          type: "view",
+          props: {
+            height: 44 + 44 * 9 + 35 * 2
+          },
+          views: [
+            {
+              type: "stack",
+              props: {
+                bgcolor: $color("clear"),
+                spacing: 10,
+                distribution: $stackViewDistribution.fillEqually,
+                stack: {
+                  views: [
+                    {
+                      type: "button",
+                      props: {
+                        title: "全选",
+                        font: $font(16),
+                        bgcolor: defaultButtonColor,
+                        cornerRadius: 5,
+                        smoothCorners: true
+                      }
+                    },
+                    {
+                      type: "button",
+                      props: {
+                        title: "全不选",
+                        font: $font(16),
+                        bgcolor: defaultButtonColor,
+                        cornerRadius: 5,
+                        smoothCorners: true
+                      }
+                    },
+                    {
+                      type: "button",
+                      props: {
+                        title: "反选",
+                        font: $font(16),
+                        bgcolor: defaultButtonColor,
+                        cornerRadius: 5,
+                        smoothCorners: true
+                      }
+                    }
+                  ]
+                }
+              },
+              layout: (make, view) => {
+                make.top.inset(5);
+                make.right.inset(16);
+                make.height.equalTo(34);
+                make.width.equalTo(230);
+              }
+            },
+            {
+              type: "view",
+              props: {},
+              layout: (make, view) => {
+                make.top.equalTo(view.prev.bottom).inset(0);
+                make.left.right.bottom.inset(0);
+              },
+              views: [optionsList.definition]
             }
-          }
-        ]
+          ]
+        }
       },
-      footer: optionsList.definition
-    },
-    layout: $layout.fill,
-    events: {}
-  })
-  return favcatList.definition;
+      layout: $layout.fill,
+      events: {}
+    })
+    this.cviews = {
+      catList,
+      optionsList
+    }
+    this._defineView = () => ({
+      type: "view",
+      props: {
+        id: this.id
+      },
+      layout: $layout.fill,
+      views: [catList.definition]
+    });
+  }
 }
 
-class ArchiveOptionsList extends Base<UIView, UiTypes.ViewOptions> {
+class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
+  cviews: {
+    favcatList: DynamicItemSizeMatrix,
+    optionsList: DynamicPreferenceListView
+  }
+  constructor() {
+    super();
+    const optionsList = new DynamicPreferenceListView({
+      sections: [{
+        title: "",
+        rows: [
+          {
+            type: "boolean",
+            title: "禁用过滤器（语言）",
+            key: "disableLanguageFilters",
+            value: false
+          },
+          {
+            type: "boolean",
+            title: "禁用过滤器（上传者）",
+            key: "disableUploaderFilters",
+            value: false
+          },
+          {
+            type: "boolean",
+            title: "禁用过滤器（标签）",
+            key: "disableTagFilters",
+            value: false
+          }
+        ]
+      }],
+      props: {
+        style: 2,
+        scrollEnabled: false,
+        height: 44 * 3 + 35 * 2,
+        rowHeight: 44,
+        bgcolor: $color("backgroundColor")
+      },
+      layout: $layout.fill,
+      events: {}
+    });
+    const favcatList = new DynamicItemSizeMatrix({
+      props: {
+        bgcolor: $color("backgroundColor"),
+        minItemWidth: 170,
+        fixedItemHeight: 36,
+        spacing: 10,
+        scrollEnabled: false,
+        maxColumns: 2,
+        data: configManager.favcatTitles.map((title, index) => {
+          const i = index as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+          return {
+            icon: {
+              tintColor: favcatColor[i]
+            },
+            label: {
+              text: title
+            }
+          }
+        }),
+        template: {
+          props: {
+            bgcolor: $color("tertiarySurface"),
+            cornerRadius: 10,
+            smoothCorners: true
+          },
+          views: [
+            {
+              type: "image",
+              props: {
+                id: "icon",
+                symbol: "heart.fill",
+                contentMode: 1
+              },
+              layout: (make, view) => {
+                make.left.inset(10);
+                make.centerY.equalTo(view.super);
+                make.size.equalTo($size(20, 20));
+              }
+            },
+            {
+              type: "label",
+              props: {
+                id: "label",
+                align: $align.left,
+                font: $font(16),
+                textColor: $color("primaryText"),
+                lines: 2
+              },
+              layout: (make, view) => {
+                make.left.equalTo(view.prev.right).inset(10);
+                make.height.equalTo(view.super);
+                make.right.inset(10);
+              }
+            }
+          ]
+        },
+        footer: optionsList.definition
+      },
+      layout: $layout.fill,
+      events: {}
+    })
+    this.cviews = {
+      favcatList,
+      optionsList
+    }
+    this._defineView = () => ({
+      type: "view",
+      props: {
+        id: this.id
+      },
+      layout: $layout.fill,
+      views: [favcatList.definition]
+    });
+  }
+}
+
+class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
+  _defineView: () => UiTypes.ViewOptions;
+  cviews: {
+    catList: DynamicItemSizeMatrix,
+    optionsList: DynamicPreferenceListView
+  }
   constructor() {
     super();
     const options = {} as ArchiveSearchOptions; // TODO: ArchiveSearchOptions需要修改
@@ -375,11 +576,143 @@ class ArchiveOptionsList extends Base<UIView, UiTypes.ViewOptions> {
       layout: $layout.fill,
       events: {}
     });
+    const catList = new DynamicItemSizeMatrix({
+      props: {
+        bgcolor: $color("backgroundColor"),
+        minItemWidth: 100,
+        fixedItemHeight: 36,
+        spacing: 10,
+        scrollEnabled: false,
+        dynamicHeightEnabled: false,
+        maxColumns: 5,
+        data: searchableCategories.map(cat => ({ label: { text: catTranslations[cat], bgcolor: catColor[cat], alpha: 1 } })),
+        template: {
+          views: [{
+            type: "label",
+            props: {
+              id: "label",
+              align: $align.center,
+              font: $font("bold", 16),
+              textColor: $color("white"),
+            },
+            layout: $layout.fill
+          }]
+        },
+        footer: {
+          type: "view",
+          props: {
+            height: 44 + 44 * 9 + 35 * 2
+          },
+          views: [
+            {
+              type: "stack",
+              props: {
+                bgcolor: $color("clear"),
+                spacing: 10,
+                distribution: $stackViewDistribution.fillEqually,
+                stack: {
+                  views: [
+                    {
+                      type: "button",
+                      props: {
+                        title: "全选",
+                        font: $font(16),
+                        bgcolor: defaultButtonColor,
+                        cornerRadius: 5,
+                        smoothCorners: true
+                      }
+                    },
+                    {
+                      type: "button",
+                      props: {
+                        title: "全不选",
+                        font: $font(16),
+                        bgcolor: defaultButtonColor,
+                        cornerRadius: 5,
+                        smoothCorners: true
+                      }
+                    },
+                    {
+                      type: "button",
+                      props: {
+                        title: "反选",
+                        font: $font(16),
+                        bgcolor: defaultButtonColor,
+                        cornerRadius: 5,
+                        smoothCorners: true
+                      }
+                    }
+                  ]
+                }
+              },
+              layout: (make, view) => {
+                make.top.inset(5);
+                make.right.inset(16);
+                make.height.equalTo(34);
+                make.width.equalTo(230);
+              }
+            },
+            {
+              type: "view",
+              props: {},
+              layout: (make, view) => {
+                make.top.equalTo(view.prev.bottom).inset(0);
+                make.left.right.bottom.inset(0);
+              },
+              views: [optionsList.definition]
+            }
+          ]
+        }
+      },
+      layout: $layout.fill,
+      events: {}
+    })
+    this.cviews = {
+      catList,
+      optionsList
+    }
     this._defineView = () => ({
       type: "view",
-      props: {},
-      layout: $layout.fill
+      props: {
+        id: this.id
+      },
+      layout: $layout.fill,
+      views: [catList.definition]
     });
+  }
+}
+
+class SearchOptionsList extends DynamicPreferenceListView {
+  private options: EHSearchOptions;
+  private _enablePageFilters: boolean;
+  constructor(options: EHSearchOptions, enablePageFilters: boolean) {
+    super({
+      sections: mapOptionsToSections(options, enablePageFilters),
+      props: {
+        bgcolor: $color("backgroundColor"),
+        style: 2,
+        scrollEnabled: false,
+        height: 44 * 9 + 35 * 2,
+      },
+      layout: $layout.fill,
+      events: {
+        changed: values => {
+          this.options = {
+            browseExpungedGalleries: values.browseExpungedGalleries,
+            requireGalleryTorrent: values.requireGalleryTorrent,
+            minimumPages: values.minimumPages,
+            maximumPages: values.maximumPages,
+            minimumRating: values.minimumRating + 1,
+            disableLanguageFilters: values.disableLanguageFilters,
+            disableUploaderFilters: values.disableUploaderFilters,
+            disableTagFilters: values.disableTagFilters
+          }
+          this._enablePageFilters = values.enablePageFilters;
+        }
+      }
+    });
+    this.options = options;
+    this._enablePageFilters = enablePageFilters;
   }
 }
 
@@ -445,7 +778,7 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
             this._filterSwitch = true;
             filterButton.tintColor = $color("systemLink");
           }
-          
+
           options.filterHandler(this._filterSwitch, _getType());
         }
       }
@@ -573,54 +906,81 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
   constructor(
     args: SearchArgs,
-    menuDisplayMode: "onlyShowArchive" | "showAllExceptArchive" | "showAll" = "showAll"
+    menuDisplayMode: MenuDisplayMode,
+    resolveHandler: (args: SearchArgs) => void,
+    rejectHandler: () => void
   ) {
     super();
-    
+    const navbar = new NavBar({
+      menuDisplayMode,
+      filterHandler: (on, type) => { },
+      inputChangedHandler: text => { },
+      popHandler: () => { },
+      searchHandler: () => { }
+    });
+    const searchSuggestionView = new SearchSuggestionView(tag => { });
+    const searchHistoryView = new SearchHistoryView();
+    const homepageOptionsView = new HomepageOptionsView();
+    const watchedOptionsView = new HomepageOptionsView();
+    const favoritesOptionsView = new FavoritesOptionsView();
+    const archiveOptionsView = new ArchiveOptionsView();
+
     this._defineView = () => ({
       type: "view",
       props: {
         id: this.id
       },
       layout: $layout.fill,
-      views: []
-    });
-  }
-}
-
-export function search(
-  args: SearchArgs,
-  menuDisplayMode: "onlyShowHomepage" | "onlyShowArchive" | "showAllExceptArchive",
-): Promise<SearchArgs> {
-
-  const navbar = new NavBar({
-    menuDisplayMode,
-    filterHandler: (on, type) => {},
-    inputChangedHandler: text => {},
-    popHandler: () => {},
-    searchHandler: () => {}
-  })
-
-  return new Promise((resolve, reject) => {
-    $ui.push({
-      props: {
-        navBarHidden: true,
-        statusBarStyle: 0
-      },
       views: [
         navbar.definition,
         {
           type: "view",
           props: {
+            id: this.id,
             bgcolor: $color("backgroundColor")
           },
           layout: (make, view) => {
             make.top.equalTo(view.prev.bottom);
             make.left.right.bottom.equalTo(view.super.safeArea);
           },
-          views: [createSearchOptionsList()]
+          views: [
+            searchSuggestionView.definition,
+            searchHistoryView.definition,
+            homepageOptionsView.definition,
+            watchedOptionsView.definition,
+            favoritesOptionsView.definition,
+            archiveOptionsView.definition
+          ]
         }
       ]
+    });
+  }
+}
+
+export function search(
+  args: SearchArgs,
+  menuDisplayMode: MenuDisplayMode,
+): Promise<SearchArgs> {
+  return new Promise((resolve, reject) => {
+    const contentView = new SearchContentView(
+      args, 
+      menuDisplayMode,
+      (n) => {resolve(n)},
+      () => {reject("cancel")}
+    );
+    $ui.push({
+      props: {
+        navBarHidden: true,
+        statusBarStyle: 0
+      },
+      views: [
+        contentView.definition
+      ],
+      events: {
+        dealloc: () => {
+          reject("cancel");
+        }
+      }
     });
   })
 }

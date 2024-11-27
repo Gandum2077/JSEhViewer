@@ -1,5 +1,5 @@
-import { TagNamespace, tagNamespaces } from "ehentai-parser";
-import { MarkedTag, MarkedTagDict, TranslationData, TranslationDict, SavedSearchKeyword, WebDAVService } from "../types";
+import { EHQualifier, EHSearchTerm, TagNamespace, tagNamespaces } from "ehentai-parser";
+import { MarkedTag, MarkedTagDict, TranslationData, TranslationDict, SavedSearchKeyword, WebDAVService, DBSearchHistory, DBSearchBookmarks } from "../types";
 import { dbManager } from "./database";
 
 interface Config {
@@ -18,7 +18,7 @@ interface Config {
   selectedWebdavService: number,
   webdavAutoUpload: boolean,
   translationUpdateTime: string,
-  defaultFavcat:  0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+  defaultFavcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 }
 
 const defaultConfig: Config = {
@@ -47,9 +47,7 @@ async function getEhTagTranslationText() {
     assets: { name: string; browser_download_url: string }[];
   } = resp.data;
   const dbUrl = info.assets.find(i => i.name === "db.full.json")!.browser_download_url;
-  console.log(dbUrl)
   const resp2 = await $http.get({ url: dbUrl, timeout: 30 });
-  console.log(resp2)
   return resp2.rawData.string || "";
 }
 
@@ -84,7 +82,10 @@ class ConfigManager {
   private _bannedUploaders: string[]
   private _favcatTitles: string[]
   private _translationDict: TranslationDict
-  private _savedSearchKeywords: SavedSearchKeyword[]
+  private _translationList: { namespace: TagNamespace, name: string, translation: string }[]
+  private _extraSavedTags: { namespace: TagNamespace, name: string }[]
+  private _searchHistory: DBSearchHistory
+  private _searchBookmarks: DBSearchBookmarks
   private _webDAVServices: WebDAVService[]
   constructor() {
     this._config = this._initConfig()
@@ -92,8 +93,12 @@ class ConfigManager {
     this._markedUploaders = this._queryMarkedUploaders()
     this._bannedUploaders = this._queryBannedUploaders()
     this._favcatTitles = this._queryFavcatTitles()
-    this._translationDict = this._queryTranslationDict()
-    this._savedSearchKeywords = this._querySavedSearchKeywords()
+    const r = this._queryTranslationDict()
+    this._translationList = r.translationList
+    this._translationDict = r.translationDict
+    this._extraSavedTags = this._queryExtraSavedTags()
+    this._searchHistory = this._querySearchHistory()
+    this._searchBookmarks = this._querySearchBookmarks()
     this._webDAVServices = this._queryWebDAVServices()
   }
 
@@ -239,12 +244,28 @@ class ConfigManager {
     this._setConfig("defaultFavcat", value)
   }
 
+  get translationList() {
+    return this._translationList
+  }
+
   get translationDict() {
     return this._translationDict
   }
 
   get markedTagDict() {
     return this._markedTagDict
+  }
+
+  get extraSavedTags() {
+    return this._extraSavedTags
+  }
+
+  get searchHistory() {
+    return this._searchHistory
+  }
+
+  get searchBookmarks() {
+    return this._searchBookmarks
   }
 
   private _getMarkedTagsDict() {
@@ -377,19 +398,19 @@ class ConfigManager {
     this._favcatTitles = titles
   }
 
-  private _queryTranslationDict(): TranslationDict {
+  private _queryTranslationDict() {
     const sql = "SELECT namespace, name, translation FROM translation_data"
     const data = dbManager.query(sql) as {
-      namespace: string;
+      namespace: TagNamespace;
       name: string;
       translation: string;
     }[]
-    const result = {} as TranslationDict
+    const dict = {} as TranslationDict
     for (const namespace of tagNamespaces) {
       const data_ = data.filter(d => d.namespace === namespace).map(d => ([d.name, d.translation]))
-      result[namespace] = Object.fromEntries(data_)
+      dict[namespace] = Object.fromEntries(data_)
     }
-    return result
+    return { translationList: data, translationDict: dict }
   }
 
   translate(namespace: TagNamespace, name: string): string | undefined {
@@ -423,50 +444,284 @@ class ConfigManager {
     dbManager.update(sql_delete_translation_data)
     this.translationUpdateTime = time
     dbManager.batchUpdate(sql_update_translation_data, translationData.map(d => [d.namespace, d.name, d.translation, d.intro, d.links]))
-    this._translationDict = this._queryTranslationDict()
+    const r = this._queryTranslationDict()
+    this._translationList = r.translationList
+    this._translationDict = r.translationDict
+    // 此时需要重新检查extra_saved_tags中的标签是否已经被翻译，如果已经被翻译，就删除
+    const needDeletedTags = this._extraSavedTags.filter(tag => this.translate(tag.namespace, tag.name))
+    if (needDeletedTags.length > 0) {
+      const sql_delete_extra_saved_tags = "DELETE FROM extra_saved_tags WHERE namespace = ? AND name = ?"
+      dbManager.batchUpdate(sql_delete_extra_saved_tags, needDeletedTags.map(tag => [tag.namespace, tag.name]))
+      this._extraSavedTags = this._queryExtraSavedTags()
+    }
   }
 
-  private _querySavedSearchKeywords() {
-    const sql = "SELECT * FROM saved_search_keywords"
-    const data = dbManager.query(sql) as SavedSearchKeyword[]
-    data.sort((a, b) => a.order_id - b.order_id)
+  private _queryExtraSavedTags() {
+    const sql = "SELECT * FROM extra_saved_tags"
+    const data = dbManager.query(sql) as {
+      namespace: TagNamespace;
+      name: string;
+    }[]
     return data
   }
 
-  get savedSearchKeywords() {
-    return this._savedSearchKeywords
+  addExtraSavedTag(namespace: TagNamespace, name: string) {
+    const sql = "INSERT INTO extra_saved_tags (namespace, name) VALUES (?, ?)"
+    const args = [namespace, name]
+    dbManager.update(sql, args)
+    this._extraSavedTags.push({ namespace, name })
   }
 
-  addSavedSearchKeyword(content: string, name?: string) {
-    // 不检查name和content是否特异，如果有需要的话，可以在前端实现
-    const sql = `INSERT INTO saved_search_keywords (name, content, order_id)
-      VALUES (?, ?, (SELECT IFNULL(MAX(order_id), 0) + 1 FROM OrderedTable));`
-    const args = [name, content]
+  deleteExtraSavedTag(namespace: TagNamespace, name: string) {
+    const sql = "DELETE FROM extra_saved_tags WHERE namespace = ? AND name = ?"
+    const args = [namespace, name]
     dbManager.update(sql, args)
-    this._savedSearchKeywords = this._querySavedSearchKeywords()
+    this._extraSavedTags = this._queryExtraSavedTags()
   }
 
-  updateSavedSearchKeyword(id: number, content: string, name?: string) {
-    const sql = "UPDATE saved_search_keywords SET name = ?, content = ? WHERE id = ?"
-    const args = [name, content, id]
-    dbManager.update(sql, args)
-    this._savedSearchKeywords = this._querySavedSearchKeywords()
+  private _querySearchHistory() {
+    const sql = `
+SELECT 
+    h.id,
+    h.last_access_time,
+    h.sorted_fsearch,
+    GROUP_CONCAT(
+        COALESCE(t.namespace, '') || '|' ||
+        COALESCE(t.qualifier, '') || '|' ||
+        COALESCE(t.term, '') || '|' ||
+        COALESCE(t.dollar, 0) || '|' ||
+        COALESCE(t.subtract, 0) || '|' ||
+        COALESCE(t.tilde, 0), ';'
+    ) AS search_terms
+FROM 
+    search_history AS h
+LEFT JOIN 
+    search_history_search_terms AS t
+ON 
+    h.id = t.search_history_id
+GROUP BY 
+    h.id;
+`
+    const rows = dbManager.query(sql) as {
+      id: number;
+      last_access_time: string;
+      sorted_fsearch: string;
+      search_terms: string;
+    }[]
+    const result = rows.map(row => ({
+      id: row.id,
+      last_access_time: row.last_access_time,
+      sorted_fsearch: row.sorted_fsearch,
+      searchTerms: row.search_terms
+        ? row.search_terms.split(';').map(term => {
+          const [namespace, qualifier, termText, dollar, subtract, tilde] = term.split('|');
+          return {
+            namespace: namespace ? namespace as TagNamespace : undefined,
+            qualifier: qualifier ? qualifier as EHQualifier : undefined,
+            term: termText,
+            dollar: Boolean(Number(dollar)),
+            subtract: Boolean(Number(subtract)),
+            tilde: Boolean(Number(tilde))
+          };
+        })
+        : []
+    })).sort((a, b) => b.last_access_time.localeCompare(a.last_access_time));
+    return result
   }
 
-  deleteSavedSearchKeyword(id: number) {
-    const sql = "DELETE FROM saved_search_keywords WHERE id = ?"
-    const args = [id]
-    dbManager.update(sql, args)
-    this._savedSearchKeywords = this._querySavedSearchKeywords()
+  addOrUpdateSearchHistory(sortedFsearch: string, searchTerms: EHSearchTerm[]) {
+    const sql_check = "SELECT id FROM search_history WHERE sorted_fsearch = ?"
+    const args_check = [sortedFsearch]
+    const id = dbManager.query(sql_check, args_check)[0]?.id
+    const last_access_time = new Date().toISOString()
+    if (id) {
+      const sql_update = "UPDATE search_history SET last_access_time = ? WHERE id = ?"
+      const args_update = [last_access_time, id]
+      dbManager.update(sql_update, args_update)
+      this._searchHistory.find(item => item.id === id)!.last_access_time = last_access_time
+      this._searchHistory.sort((a, b) => b.last_access_time.localeCompare(a.last_access_time))
+    } else {
+      const sql_insert_history = "INSERT INTO search_history (last_access_time, sorted_fsearch) VALUES (?, ?)"
+      const args_insert_history = [last_access_time, sortedFsearch]
+      dbManager.update(sql_insert_history, args_insert_history)
+      const sql_get_id = "SELECT id FROM search_history WHERE sorted_fsearch = ?"
+      const args_get_id = [sortedFsearch]
+      const id = dbManager.query(sql_get_id, args_get_id)[0].id
+      const sql_insert_terms = "INSERT INTO search_history_search_terms (search_history_id, namespace, qualifier, term, dollar, subtract, tilde) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      const args_insert_terms = searchTerms.map(term => [id, term.namespace, term.qualifier, term.term, Number(term.dollar), Number(term.subtract), Number(term.tilde)])
+      dbManager.batchUpdate(sql_insert_terms, args_insert_terms)
+      this._searchHistory.unshift({
+        id,
+        last_access_time,
+        sorted_fsearch: sortedFsearch,
+        searchTerms
+      })
+    }
   }
 
-  swapSavedSearchKeywordOrder(keyword1: SavedSearchKeyword, keyword2: SavedSearchKeyword) {
-    const sql = "UPDATE saved_search_keywords SET order_id = ? WHERE id = ?"
-    const args = [keyword2.order_id, keyword1.id]
-    dbManager.update(sql, args)
-    const args2 = [keyword1.order_id, keyword2.id]
-    dbManager.update(sql, args2)
-    this._savedSearchKeywords = this._querySavedSearchKeywords()
+  deleteSearchHistory(id: number) {
+    const sql_delete = "DELETE FROM search_history WHERE id = ?"
+    dbManager.update(sql_delete, [id])
+    const sql_delete_terms = "DELETE FROM search_history_search_terms WHERE search_history_id = ?"
+    dbManager.update(sql_delete_terms, [id])
+    const index_delete = this._searchHistory.findIndex(item => item.id === id)
+    if (index_delete !== -1) {
+      this._searchHistory.splice(index_delete, 1)
+    }
+  }
+
+  private _querySearchBookmarks() {
+    const sql = `
+SELECT
+    b.id,
+    b.sort_order,
+    b.sorted_fsearch,
+    GROUP_CONCAT(
+        COALESCE(t.namespace, '') || '|' ||
+        COALESCE(t.qualifier, '') || '|' ||
+        COALESCE(t.term, '') || '|' ||
+        COALESCE(t.dollar, 0) || '|' ||
+        COALESCE(t.subtract, 0) || '|' ||
+        COALESCE(t.tilde, 0), ';'
+    ) AS search_terms
+FROM 
+    search_bookmarks AS b
+LEFT JOIN 
+    search_bookmarks_search_terms AS t
+ON 
+    b.id = t.search_bookmarks_id
+GROUP BY 
+    b.id;
+`
+    const rows = dbManager.query(sql) as {
+      id: number;
+      sort_order: number;
+      sorted_fsearch: string;
+      search_terms: string;
+    }[]
+    const result = rows.map(row => ({
+      id: row.id,
+      sort_order: row.sort_order,
+      sorted_fsearch: row.sorted_fsearch,
+      searchTerms: row.search_terms
+        ? row.search_terms.split(';').map(term => {
+          const [namespace, qualifier, termText, dollar, subtract, tilde] = term.split('|');
+          return {
+            namespace: namespace ? namespace as TagNamespace : undefined,
+            qualifier: qualifier ? qualifier as EHQualifier : undefined,
+            term: termText,
+            dollar: Boolean(Number(dollar)),
+            subtract: Boolean(Number(subtract)),
+            tilde: Boolean(Number(tilde))
+          };
+        })
+        : []
+    })).sort((a, b) => a.sort_order - b.sort_order);
+    return result
+  }
+
+  addSearchBookmark(sortedFsearch: string, searchTerms: EHSearchTerm[]) {
+    const sql_check = "SELECT id FROM search_bookmarks WHERE sorted_fsearch = ?"
+    const args_check = [sortedFsearch]
+    const id = dbManager.query(sql_check, args_check)[0]?.id
+    if (id) {
+      return false
+    } else {
+      const sql_insert_bookmark = "INSERT INTO search_bookmarks (sort_order, sorted_fsearch) VALUES (?, ?)"
+      const newSortOrder = this._searchBookmarks.length === 0 ? 0 : this._searchBookmarks[this._searchBookmarks.length - 1].sort_order + 1
+      const args_insert_bookmark = [newSortOrder, sortedFsearch]
+      dbManager.update(sql_insert_bookmark, args_insert_bookmark)
+      const sql_get_id = "SELECT id FROM search_bookmarks WHERE sorted_fsearch = ?"
+      const args_get_id = [sortedFsearch]
+      const id = dbManager.query(sql_get_id, args_get_id)[0].id
+      const sql_insert_terms = "INSERT INTO search_bookmarks_search_terms (search_bookmarks_id, namespace, qualifier, term, dollar, subtract, tilde) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      const args_insert_terms = searchTerms.map(term => [id, term.namespace, term.qualifier, term.term, Number(term.dollar), Number(term.subtract), Number(term.tilde)])
+      dbManager.batchUpdate(sql_insert_terms, args_insert_terms)
+      this._searchBookmarks.push({
+        id,
+        sort_order: newSortOrder,
+        sorted_fsearch: sortedFsearch,
+        searchTerms
+      })
+      return true
+    }
+  }
+
+  deleteSearchBookmark(id: number) {
+    const sql_delete = "DELETE FROM search_bookmarks WHERE id = ?"
+    dbManager.update(sql_delete, [id])
+    const sql_delete_terms = "DELETE FROM search_bookmarks_search_terms WHERE search_bookmarks_id = ?"
+    dbManager.update(sql_delete_terms, [id])
+    const index_delete = this._searchBookmarks.findIndex(item => item.id === id)
+    if (index_delete !== -1) {
+      this._searchBookmarks.splice(index_delete, 1)
+    }
+    this.reorderSearchBookmarks(this._searchBookmarks.map(item => item.id))
+  }
+
+  reorderSearchBookmarks(resorted_ids: number[]) {
+    const sql_update = "UPDATE search_bookmarks SET sort_order = ? WHERE id = ?"
+    dbManager.batchUpdate(sql_update, resorted_ids.map((id, index) => [index, id]))
+    this._searchBookmarks = this._querySearchBookmarks()
+  }
+
+  getTenMostAccessedTags() {
+    const sql = "SELECT * FROM tag_access_count ORDER BY count DESC LIMIT 10"
+    const data = dbManager.query(sql) as {
+      namespace: TagNamespace;
+      qualifier: EHQualifier;
+      term: string;
+      count: number;
+    }[]
+    return data
+  }
+
+  updateTagAccessCount(tags: EHSearchTerm[]) {
+    const sql = `
+INSERT INTO tag_access_count (namespace, qualifier, term, count)
+VALUES (?, ?, ?, 1)
+ON CONFLICT(namespace, qualifier, term)
+DO UPDATE SET count = count + 1;
+`
+    // qualifier仅保留uploader
+    dbManager.batchUpdate(sql, tags.map(tag => ([tag.namespace || "", tag.qualifier === "uploader" ? "uploader" : "", tag.term])))
+  }
+
+  getTenLastAccessSearchTerms(): EHSearchTerm[] {
+    const sql = `
+SELECT DISTINCT
+    search_history_search_terms.namespace,
+    CASE 
+        WHEN search_history_search_terms.qualifier = 'uploader' THEN search_history_search_terms.qualifier
+        ELSE NULL
+    END AS qualifier,
+    search_history_search_terms.term
+FROM
+    search_history_search_terms
+JOIN
+    search_history
+ON
+    search_history_search_terms.search_history_id = search_history.id
+ORDER BY
+    search_history.last_access_time DESC;
+`
+    const data = dbManager.query(sql) as {
+      namespace: string;
+      term: string;
+      qualifier: string;
+      dollar: number;
+      subtract: number;
+      tilde: number;
+      last_access_time: string;
+    }[]
+    return data.map(n => ({
+      namespace: n.namespace ? n.namespace as TagNamespace : undefined,
+      term: n.term,
+      qualifier: n.qualifier ? n.qualifier as EHQualifier : undefined,
+      dollar: Boolean(n.dollar),
+      subtract: Boolean(n.subtract),
+      tilde: Boolean(n.tilde),
+    }))
   }
 
   private _queryWebDAVServices() {

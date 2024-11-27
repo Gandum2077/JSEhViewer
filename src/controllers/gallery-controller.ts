@@ -158,7 +158,7 @@ export class GalleryController extends PageViewerController {
 
   readGallery(index: number) {
     if (!this._infos) return;
-    statusManager.storeArchiveItemOrUpdateAccessTime(this._infos, "has_read");
+    statusManager.storeArchiveItemOrUpdateAccessTime(this._infos, false);
 
     downloaderManager.get(this._infos.gid).downloadingImages = true;
     downloaderManager.get(this._infos.gid).currentReadingIndex = Math.max(index - 1, 0); // 提前一页加载

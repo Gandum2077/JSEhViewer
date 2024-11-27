@@ -5,7 +5,7 @@ import { configManager } from "../utils/config";
 import { statusManager } from "../utils/status";
 import { EHlistView } from "../components/ehlist-view";
 import { appLog } from "../utils/tools";
-import { EHListExtendedItem } from "ehentai-parser";
+import { buildSortedFsearch, EHListExtendedItem } from "ehentai-parser";
 import { StatusTabOptions } from "../types";
 import { downloaderManager } from "../utils/api";
 import { CustomSearchBar } from "../components/custom-searchbar";
@@ -168,6 +168,18 @@ export class HomepageController extends BaseController {
     this.cviews.list.footerText = "加载中……";
     this.cviews.list.isLoading = true;
     statusManager.loadTab(options).then().catch(e => appLog(e, "error"))
+    if (
+      (options.type === "front_page" || options.type === "watched" || options.type === "favorites") 
+      && options.options.searchTerms 
+      && options.options.searchTerms.length
+    ) {
+      const fsearch = buildSortedFsearch(options.options.searchTerms);
+      configManager.addOrUpdateSearchHistory(fsearch, options.options.searchTerms);
+      configManager.updateTagAccessCount(options.options.searchTerms);
+      this.cviews.searchBar.searchTerms = options.options.searchTerms;
+    } else {
+      this.cviews.searchBar.searchTerms = [];
+    }
   }
 
   async loadMore() {
@@ -218,6 +230,7 @@ export class HomepageController extends BaseController {
         } else {
           this.cviews.list.footerText = "上拉加载更多";
         }
+        this.cviews.navbar.title = "首页";
         break;
       }
       case "watched": {
@@ -229,12 +242,14 @@ export class HomepageController extends BaseController {
         } else {
           this.cviews.list.footerText = "上拉加载更多";
         }
+        this.cviews.navbar.title = "订阅";
         break;
       }
       case "popular": {
         const items = tab.pages.map(page => page.items).flat() as EHListExtendedItem[];
         this.cviews.list.items = items;
         this.cviews.list.footerText = "没有更多了";
+        this.cviews.navbar.title = "热门";
         break;
       }
       case "favorites": {
@@ -246,6 +261,7 @@ export class HomepageController extends BaseController {
         } else {
           this.cviews.list.footerText = "上拉加载更多";
         }
+        this.cviews.navbar.title = "收藏";
         break;
       }
       case "toplist": {
@@ -257,12 +273,20 @@ export class HomepageController extends BaseController {
         } else {
           this.cviews.list.footerText = "上拉加载更多";
         }
+        const timeRange = tab.options.timeRange;
+        this.cviews.navbar.title = {
+          "yesterday": "排行 - 昨天",
+          "past_month": "排行 - 最近一月",
+          "past_year": "排行 - 最近一年",
+          "all": "总排行"
+        }[timeRange];
         break;
       }
       case "upload": {
         const items = tab.pages.map(page => page.items).flat();
         this.cviews.list.items = items;
         this.cviews.list.footerText = "没有更多了";
+        this.cviews.navbar.title = "我的上传";
         break;
       }
       default:

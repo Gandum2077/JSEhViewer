@@ -48,12 +48,6 @@ export type TranslationData = {
 
 export type TranslationDict = Record<TagNamespace, Record<string, string>>
 
-export type MarkedUploader = {
-  uploader: string;
-  marked: boolean;
-  banned: boolean;
-};
-
 export type MarkedTag = {
   tagid: number;
   namespace: TagNamespace;
@@ -97,7 +91,8 @@ export type DBSearchHistory = {
 
 export type DBArchiveItem = {
   gid: number;
-  type: "readlater" | "has_read" | "download";
+  readlater: boolean;
+  downloaded: boolean;
   first_access_time: string;
   last_access_time: string;
   token: string;

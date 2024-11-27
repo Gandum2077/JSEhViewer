@@ -329,22 +329,15 @@ class StatusManager {
   }
 
   queryArchiveItem(options: ArchiveSearchOptions) {
-    const sql = options.type === "all"
-      ? `SELECT * FROM archives 
+    const sql = `SELECT * FROM archives 
         ORDER BY ${options.sort} DESC
-        LIMIT ? OFFSET ?;
+        LIMIT ? OFFSET ?
         ;`
-      : `SELECT * FROM archives 
-        WHERE type = ?
-        ORDER BY ${options.sort} DESC
-        LIMIT ? OFFSET ?;
-        ;`;
-    const args = options.type === "all"
-      ? [options.page_size, options.page * options.page_size]
-      : [options.type, options.page_size, options.page * options.page_size];
+    const args = [options.page_size, options.page * options.page_size];
     const rawData = dbManager.query(sql, args) as {
       gid: number;
-      type: "readlater" | "has_read" | "download";
+      readlater: number;
+      downloaded: number;
       first_access_time: string;
       last_access_time: string;
       token: string;
@@ -369,7 +362,8 @@ class StatusManager {
     }[];
     const data: DBArchiveItem[] = rawData.map(row => ({
       gid: row.gid,
-      type: row.type,
+      readlater: Boolean(row.readlater),
+      downloaded: Boolean(row.downloaded),
       first_access_time: row.first_access_time,
       last_access_time: row.last_access_time,
       token: row.token,
@@ -418,131 +412,7 @@ class StatusManager {
     return this._statusTabs;
   }
 
-  get searchHistory() {
-    const sql = `SELECT 
-                  sh.id,
-                  sh.last_access_time,
-                  sh.sorted_fsearch,
-                  st.namespace,
-                  st.qualifier,
-                  st.term,
-                  st.dollar,
-                  st.subtract,
-                  st.tilde
-                FROM 
-                  search_history sh
-                JOIN 
-                  search_history_search_terms st
-                ON 
-                  sh.id = st.search_history_id;`;
-    const rawData = dbManager.query(sql) as {
-      id: number;
-      last_access_time: string;
-      sorted_fsearch: string;
-      namespace?: TagNamespace;
-      qualifier?: EHQualifier;
-      term: string;
-      dollar: number;
-      subtract: number;
-      tilde: number;
-    }[];
-    const searchHistory: DBSearchHistory = [];
-    rawData.forEach(row => {
-      let item = searchHistory.find(sh => sh.id === row.id);
-
-      if (!item) {
-        item = {
-          id: row.id,
-          last_access_time: row.last_access_time,
-          sorted_fsearch: row.sorted_fsearch,
-          searchTerms: []
-        };
-        searchHistory.push(item);
-      }
-
-      item.searchTerms.push({
-        namespace: row.namespace,
-        qualifier: row.qualifier,
-        term: row.term,
-        dollar: Boolean(row.dollar),
-        subtract: Boolean(row.subtract),
-        tilde: Boolean(row.tilde)
-      });
-    });
-    return searchHistory;
-  }
-
-  deleteSearchHistoryItem(id: number) {
-    const sql = `DELETE FROM search_history WHERE id = ?;`;
-    const sql2 = `DELETE FROM search_history_search_terms WHERE search_history_id = ?;`;
-    dbManager.update(sql, [id]);
-    dbManager.update(sql2, [id]);
-  }
-
-  get searchBookmarks() {
-    const sql = `SELECT
-                  sb.id,
-                  sb.sort_order,
-                  sb.sorted_fsearch,
-                  st.namespace,
-                  st.qualifier,
-                  st.term,
-                  st.dollar,
-                  st.subtract,
-                  st.tilde
-                FROM
-                  search_bookmarks sb
-                JOIN
-                  search_bookmarks_search_terms st
-                ON
-                  sb.id = st.search_bookmarks_id
-                ORDER BY 
-                  sb.sort_order ASC;`;
-    const rawData = dbManager.query(sql) as {
-      id: number;
-      sort_order: number;
-      sorted_fsearch: string;
-      namespace?: TagNamespace;
-      qualifier?: EHQualifier;
-      term: string;
-      dollar: number;
-      subtract: number;
-      tilde: number;
-    }[];
-    const searchBookmarks: DBSearchBookmarks = [];
-    rawData.forEach(row => {
-      let item = searchBookmarks.find(sb => sb.id === row.id);
-
-      if (!item) {
-        item = {
-          id: row.id,
-          sort_order: row.sort_order,
-          sorted_fsearch: row.sorted_fsearch,
-          searchTerms: []
-        };
-        searchBookmarks.push(item);
-      }
-
-      item.searchTerms.push({
-        namespace: row.namespace,
-        qualifier: row.qualifier,
-        term: row.term,
-        dollar: Boolean(row.dollar),
-        subtract: Boolean(row.subtract),
-        tilde: Boolean(row.tilde)
-      });
-    });
-    return searchBookmarks;
-  }
-
-  deleteSearchBookmarkItem(id: number) {
-    const sql = `DELETE FROM search_bookmarks WHERE id = ?;`;
-    const sql2 = `DELETE FROM search_bookmarks_search_terms WHERE search_bookmarks_id = ?;`;
-    dbManager.update(sql, [id]);
-    dbManager.update(sql2, [id]);
-  }
-
-  storeArchiveItemOrUpdateAccessTime(infos: EHGallery | EHListExtendedItem | EHListCompactItem, type: "readlater" | "has_read" | "download") {
+  storeArchiveItemOrUpdateAccessTime(infos: EHGallery | EHListExtendedItem | EHListCompactItem, readlater: boolean) {
     // 先查询是否已经存在，如果存在则更新访问时间
     const sql_query = `SELECT * FROM archives WHERE gid = ?;`;
     const result = dbManager.query(sql_query, [infos.gid]);
@@ -550,15 +420,16 @@ class StatusManager {
       this.updateLastAccessTime(infos.gid);
       return;
     } else {
-      this.storeArchiveItem(infos, type);
+      this.storeArchiveItem(infos, readlater);
     }
   }
 
-  storeArchiveItem(infos: EHGallery | EHListExtendedItem | EHListCompactItem, type: "readlater" | "has_read" | "download") {
+  storeArchiveItem(infos: EHGallery | EHListExtendedItem | EHListCompactItem, readlater: boolean) {
     // 需要先查询是否已经存在，如果存在则不应该做任何事情
     const sql_insert = `INSERT OR REPLACE INTO archives (
       "gid",
-      "type",
+      "readlater",
+      "downloaded",
       "first_access_time",
       "last_access_time",
       "token",
@@ -606,7 +477,8 @@ class StatusManager {
 
     const data: DBArchiveItem = {
       gid: infos.gid,
-      type: type,
+      readlater,
+      downloaded: false,  // TODO 暂未推出下载功能
       first_access_time: new Date().toISOString(),
       last_access_time: new Date().toISOString(),
       token: infos.token,
@@ -636,7 +508,8 @@ class StatusManager {
     });
     dbManager.update(sql_insert, [
       data.gid,
-      data.type,
+      data.readlater,
+      data.downloaded,
       data.first_access_time,
       data.last_access_time,
       data.token,

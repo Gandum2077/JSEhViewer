@@ -8,10 +8,8 @@ import { appLog } from "../utils/tools";
 export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOptions> {
   _defineView: () => UiTypes.ListOptions;
   private _searchBookmarks: DBSearchBookmarks = [];
-  private _filterText = "";
-  constructor({
-    layout
-  }: {
+  private _filterText?: string;
+  constructor({ layout }: {
     layout: (make: MASConstraintMaker, view: UIListView) => void;
   }) {
     super();
@@ -31,7 +29,6 @@ export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOption
                 handler: (sender, indexPath) => {
                   const id = (sender as UIListView).object(indexPath).label.info.id as number;
                   const searchTerms = this._searchBookmarks.find(item => item.id === id)?.searchTerms;
-                  console.log(searchTerms);
                   if (!searchTerms) return;
                   (router.get("splitViewController") as SplitViewController).sideBarShown = false;
                   statusManager.loadTab({
@@ -46,17 +43,20 @@ export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOption
                 title: "新建搜索",
                 symbol: "plus.magnifyingglass",
                 handler: (sender, indexPath) => {
-                  const searchTerms = this._searchBookmarks[indexPath.row].searchTerms;
-
+                  const id = (sender as UIListView).object(indexPath).label.info.id as number;
+                  const searchTerms = this._searchBookmarks.find(item => item.id === id)?.searchTerms;
+                  if (!searchTerms) return;
+                  // TODO
                 }
               },
               {
                 title: "取消书签",
                 symbol: "bookmark.slash",
                 handler: (sender, indexPath) => {
-                  statusManager.deleteSearchBookmarkItem(this._searchBookmarks[indexPath.row].id);
-                  const bookmarks = statusManager.searchBookmarks;
-                  this.refreshSearchBookmarks(bookmarks);
+                  const id = (sender as UIListView).object(indexPath).label.info.id as number;
+                  configManager.deleteSearchBookmark(id);
+                  const bookmarks = configManager.searchBookmarks;
+                  this.refreshSearchBookmarks(bookmarks, this._filterText);
                 }
               }
             ]
@@ -83,8 +83,8 @@ export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOption
         events: {
           pulled: async (sender) => {
             sender.beginRefreshing();
-            const bookmarks = statusManager.searchBookmarks;
-            this.refreshSearchBookmarks(bookmarks);
+            const bookmarks = configManager.searchBookmarks;
+            this.refreshSearchBookmarks(bookmarks, this._filterText);
             sender.endRefreshing();
           },
           didSelect: (sender, indexPath) => {
@@ -106,8 +106,8 @@ export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOption
 
   refreshSearchBookmarks(searchBookmarks: DBSearchBookmarks, filterText?: string) {
     this._searchBookmarks = searchBookmarks;
-
-    this.view.data = searchBookmarks
+    this._filterText = filterText;
+    const data = searchBookmarks
       .filter(bookmark => {
         if (!filterText) return true;
         if (bookmark.sorted_fsearch.includes(filterText)) return true;
@@ -119,5 +119,7 @@ export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOption
         return false;
       })
       .map(bookmark => _mapSearchTermsToRow(bookmark.searchTerms, bookmark.id));
+    this.view.data = data;
+    return data.length > 0;
   }
 }

@@ -4,10 +4,10 @@ import { databasePath } from "./glv";
 export function createDB() {
   const db = $sqlite.open(databasePath);
   // 存档表，用于存储图库信息
-  // type: "readlater" | "has_read" | "download"
   db.update(`CREATE TABLE IF NOT EXISTS archives (
             gid INTEGER PRIMARY KEY,
-            type TEXT,
+            readlater INTEGER,
+            downloaded INTEGER,
             first_access_time TEXT,
             last_access_time TEXT,
             token TEXT,
@@ -68,6 +68,13 @@ export function createDB() {
             weight INTEGER,
             UNIQUE(namespace, name)
             )`);
+  // 额外保存的标签
+  // 用户主动保存的标签（保存前要查重），对于不出现在翻译表中标签进行标记时，也要先保存到这里
+  db.update(`CREATE TABLE IF NOT EXISTS extra_saved_tags (
+            namespace TEXT,
+            name TEXT,
+            UNIQUE(namespace, name)
+            )`);
   // 标记的上传者 只保存于本地
   db.update(`CREATE TABLE IF NOT EXISTS marked_uploaders (
             uploader TEXT,
@@ -83,14 +90,6 @@ export function createDB() {
               favcat INTEGER PRIMARY KEY CHECK (favcat >=0 AND favcat <= 9),
               title TEXT
             );`);
-  // 保存的标签组合关键词
-  db.update(`CREATE TABLE IF NOT EXISTS saved_search_keywords (
-            id INTEGER,
-            name TEXT,
-            content TEXT NOT NULL,
-            order_id INTEGER NOT NULL,
-            PRIMARY KEY(id AUTOINCREMENT)
-            )`);
   // 搜索页历史记录
   // last_access_time 是最后一次访问的时间
   // sorted_fsearch 是searchTerms的排序后组装的字符串，具有唯一性
@@ -130,9 +129,10 @@ export function createDB() {
   // 标签访问次数统计
   db.update(`CREATE TABLE IF NOT EXISTS tag_access_count (
             namespace TEXT,
-            name TEXT,
+            qualifier TEXT,
+            term TEXT,
             count INTEGER,
-            UNIQUE(namespace, name)
+            UNIQUE(namespace, qualifier, term)
             )`);
   $sqlite.close(db);
 }

@@ -14,15 +14,13 @@ import { appLog } from "../utils/tools";
  * 
  * 
  */
-
 export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions> {
   _defineView: () => UiTypes.ListOptions;
   private _searchHistory: DBSearchHistory = [];
-  private _filterText = "";
-  constructor({
-    layout
-  }: {
+  private _filterText?: string;
+  constructor({ layout, emptyHandler }: {
     layout: (make: MASConstraintMaker, view: UIListView) => void;
+    emptyHandler: () => void;
   }) {
     super();
     this._defineView = () => {
@@ -41,7 +39,6 @@ export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions>
                 handler: (sender, indexPath) => {
                   const id = (sender as UIListView).object(indexPath).label.info.id as number;
                   const searchTerms = this._searchHistory.find(item => item.id === id)?.searchTerms;
-                  console.log(searchTerms);
                   if (!searchTerms) return;
                   (router.get("splitViewController") as SplitViewController).sideBarShown = false;
                   statusManager.loadTab({
@@ -56,8 +53,10 @@ export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions>
                 title: "新建搜索",
                 symbol: "plus.magnifyingglass",
                 handler: (sender, indexPath) => {
-                  const searchTerms = this._searchHistory[indexPath.row].searchTerms;
-
+                  const id = (sender as UIListView).object(indexPath).label.info.id as number;
+                  const searchTerms = this._searchHistory.find(item => item.id === id)?.searchTerms;
+                  if (!searchTerms) return;
+                  // TODO
                 }
               },
               {
@@ -65,9 +64,15 @@ export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions>
                 symbol: "bookmark",
                 color: $color("orange"),
                 handler: (sender, indexPath) => {
-                  const searchTerms = this._searchHistory[indexPath.row].searchTerms;
-                  // TODO
-                  console.log(searchTerms);
+                  const id = (sender as UIListView).object(indexPath).label.info.id as number;
+                  const history = this._searchHistory.find(item => item.id === id);
+                  if (!history) return;
+                  const success = configManager.addSearchBookmark(history.sorted_fsearch, history.searchTerms);
+                  if (success) {
+                    $ui.success("书签已添加");
+                  } else {
+                    $ui.warning("书签已存在");
+                  }
                 }
               },
               {
@@ -75,13 +80,18 @@ export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions>
                 symbol: "trash",
                 destructive: true,
                 handler: (sender, indexPath) => {
-                  statusManager.deleteSearchHistoryItem(this._searchHistory[indexPath.row].id);
-                  this.refreshSearchHistory(statusManager.searchHistory);
+                  const id = (sender as UIListView).object(indexPath).label.info.id as number;
+                  configManager.deleteSearchHistory(id);
+                  const notEmpty = this.refreshSearchHistory(configManager.searchHistory, this._filterText);
+                  if (!notEmpty) emptyHandler();
                 }
               }
             ]
           },
           template: {
+            props: {
+              bgcolor: $color("tertiarySurface")
+            },
             views: [
               {
                 type: "label",
@@ -103,8 +113,8 @@ export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions>
         events: {
           pulled: async (sender) => {
             sender.beginRefreshing();
-            const history = statusManager.searchHistory
-            this.refreshSearchHistory(history);
+            const history = configManager.searchHistory
+            this.refreshSearchHistory(history, this._filterText);
             sender.endRefreshing();
           },
           didSelect: (sender, indexPath) => {
@@ -124,8 +134,15 @@ export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions>
     }
   }
 
+  /**
+   * 
+   * @param searchHistory 
+   * @param filterText 
+   * @returns 会返回是否有搜索历史条目，以便于判断是否显示空视图
+   */
   refreshSearchHistory(searchHistory: DBSearchHistory, filterText?: string) {
     this._searchHistory = searchHistory;
+    this._filterText = filterText;
     const filteredSearchHistory = searchHistory.filter(history => {
       if (!filterText) return true;
       if (history.sorted_fsearch.includes(filterText)) return true;
@@ -212,6 +229,7 @@ export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions>
       });
     }
     this.view.data = data;
+    return filteredSearchHistory.length > 0;
   }
 }
 

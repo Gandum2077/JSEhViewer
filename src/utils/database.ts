@@ -202,7 +202,7 @@ class DBManager {
     return updateDB(this.__db, sql, args);
   }
 
-  batchUpdate(sql: string, manyArgs: (string | number | boolean)[][]) {
+  batchUpdate(sql: string, manyArgs: (string | number | boolean | null | undefined)[][]) {
     return updateDBBatch(this.__db, sql, manyArgs);
   }
 }

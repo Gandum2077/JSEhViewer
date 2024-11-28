@@ -1,8 +1,8 @@
-import { Base, ContentView, CustomNavigationBar, DynamicItemSizeMatrix, DynamicPreferenceListView, DynamicRowHeightList, Flowlayout, Input, Label, List, PreferenceSection, PresentedPageController, searchBarBgcolor, Sheet, SymbolButton, Tab } from "jsbox-cview";
+import { Base, ContentView, DynamicItemSizeMatrix, DynamicPreferenceListView, DynamicRowHeightList, Flowlayout, PreferenceSection, searchBarBgcolor, SymbolButton, Tab } from "jsbox-cview";
 import { catColor, favcatColor, searchableCategories, catTranslations, defaultButtonColor, namespaceTranslations, namespaceColor } from "../utils/glv";
 import { configManager } from "../utils/config";
-import { EHFavoriteSearchOptions, EHQualifier, EHSearchOptions, EHSearchTerm, TagNamespace } from "ehentai-parser";
-import { ArchiveSearchOptions, TranslationDict } from "../types";
+import { buildSortedFsearch, EHFavoriteSearchOptions, EHQualifier, EHSearchOptions, TagNamespace } from "ehentai-parser";
+import { ArchiveSearchOptions } from "../types";
 
 // 整体构造是上面一个自定义导航栏，下面是一个搜索选项列表
 // 下面一共有五个List叠放在一起，分别是：
@@ -12,7 +12,7 @@ import { ArchiveSearchOptions, TranslationDict } from "../types";
 // 4. 显示收藏的搜索选项
 // 5. 显示存档的搜索选项
 
-type MenuDisplayMode = "onlyShowHomepage" | "onlyShowArchive" | "showAllExceptArchive";
+type MenuDisplayMode = "onlyShowFrontPage" | "onlyShowArchive" | "showAllExceptArchive" | "showAll";
 
 const TAG_FONT_SIZE = 15;
 
@@ -111,6 +111,7 @@ class SearchSuggestionView extends Base<UIListView, UiTypes.ListOptions> {
       type: "list",
       props: {
         id: this.id,
+        hidden: true,
         separatorInset: $insets(0, 20, 0, 0),
         template: {
           views: [{
@@ -163,32 +164,45 @@ class SearchHistoryViewSectionTitle extends Base<UIView, UiTypes.ViewOptions> {
     this._defineView = () => ({
       type: "view",
       props: {
-        id: this.id
+        id: this.id,
+        bgcolor: $color("insetGroupedBackground")
       },
       layout: $layout.fill,
       views: [
         {
-          type: "image",
-          props: {
-            symbol: symbol,
-            tintColor: $color("primaryText")
-          },
+          type: "view",
+          props: {},
           layout: (make, view) => {
-            make.left.inset(20);
-            make.centerY.equalTo(view.super);
-            make.size.equalTo($size(20, 20));
-          }
-        },
-        {
-          type: "label",
-          props: {
-            text: title,
-            font: $font("bold", 16)
+            make.left.right.inset(0);
+            make.bottom.inset(8);
+            make.height.equalTo(20);
           },
-          layout: (make, view) => {
-            make.left.inset(45);
-            make.centerY.equalTo(view.super);
-          }
+          views: [
+            {
+              type: "image",
+              props: {
+                symbol: symbol,
+                tintColor: $color("secondaryText")
+              },
+              layout: (make, view) => {
+                make.left.inset(0);
+                make.centerY.equalTo(view.super);
+                make.size.equalTo($size(16, 16));
+              }
+            },
+            {
+              type: "label",
+              props: {
+                text: title,
+                textColor: $color("secondaryText"),
+                font: $font("bold", 14)
+              },
+              layout: (make, view) => {
+                make.left.equalTo(view.prev.right).inset(3);
+                make.centerY.equalTo(view.super);
+              }
+            }
+          ]
         }
       ]
     })
@@ -233,7 +247,7 @@ class HistoryMatrixItem extends Base<UILabelView, UiTypes.LabelOptions> {
 
 class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
-  constructor() {
+  constructor(textHandler: (text: string) => void) {
     super();
     const mostAccessedTags = configManager.getTenMostAccessedTags()
     const lastAccessSearchTerms = configManager.getTenLastAccessSearchTerms()
@@ -241,21 +255,50 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
     const historyMatrixLastAccessed = new Flowlayout({
       props: {
         items: lastAccessSearchTerms.map(tag => new HistoryMatrixItem(tag)),
-        spacing: 10,
-        itemHeight: 30
+        spacing: 8,
+        itemHeight: 26,
+        bgcolor: $color("insetGroupedBackground")
       },
       layout: $layout.fill,
-      events: {}
+      events: {
+        didSelect(sender, index, item) {
+          const tag = lastAccessSearchTerms[index];
+          const fsearch = buildSortedFsearch([{
+            namespace: tag.namespace,
+            qualifier: tag.qualifier === "uploader" ? "uploader" : undefined,
+            term: tag.term,
+            dollar: true,
+            subtract: false,
+            tilde: false
+          }])
+          textHandler(fsearch)
+        }
+      }
     })
     const sectionTitleMostSearched = new SearchHistoryViewSectionTitle("最常搜索", "list.number");
     const historyMatrixMostSearched = new Flowlayout({
       props: {
         items: mostAccessedTags.map(tag => new HistoryMatrixItem(tag)),
-        spacing: 10,
-        itemHeight: 30
+        spacing: 8,
+        itemHeight: 26,
+        bgcolor: $color("insetGroupedBackground")
       },
       layout: $layout.fill,
-      events: {}
+      events: {
+        didSelect(sender, index, item) {
+          console.log(mostAccessedTags)
+          const tag = mostAccessedTags[index];
+          const fsearch = buildSortedFsearch([{
+            namespace: tag.namespace,
+            qualifier: tag.qualifier === "uploader" ? "uploader" : undefined,
+            term: tag.term,
+            dollar: true,
+            subtract: false,
+            tilde: false
+          }])
+          textHandler(fsearch)
+        }
+      }
     })
     const list = new DynamicRowHeightList({
       rows: [
@@ -266,27 +309,36 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
       ],
       props: {
         selectable: false,
+        separatorHidden: true,
+        showsVerticalIndicator: false,
+        bgcolor: $color("insetGroupedBackground"),
+        footer: {
+          type: "view",
+          props: {
+            height: 265
+          }
+        }
       },
-      layout: $layout.fill,
+      layout: (make, view) => {
+        make.left.right.inset(15);
+        make.top.bottom.inset(0);
+      },
       events: {}
     })
     this._defineView = () => ({
       type: "view",
       props: {
-        id: this.id
+        id: this.id,
+        bgcolor: $color("insetGroupedBackground")
       },
       layout: $layout.fill,
       views: [list.definition]
     })
   }
-
-  inintial() {
-    
-  }
 }
 
 
-class HomepageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
+class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
   cviews: {
     catList: DynamicItemSizeMatrix,
@@ -393,7 +445,8 @@ class HomepageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     this._defineView = () => ({
       type: "view",
       props: {
-        id: this.id
+        id: this.id,
+        hidden: true
       },
       layout: $layout.fill,
       views: [catList.definition]
@@ -511,7 +564,8 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     this._defineView = () => ({
       type: "view",
       props: {
-        id: this.id
+        id: this.id,
+        hidden: true
       },
       layout: $layout.fill,
       views: [favcatList.definition]
@@ -674,7 +728,8 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     this._defineView = () => ({
       type: "view",
       props: {
-        id: this.id
+        id: this.id,
+        hidden: true
       },
       layout: $layout.fill,
       views: [catList.definition]
@@ -717,7 +772,7 @@ class SearchOptionsList extends DynamicPreferenceListView {
 }
 
 type SearchArgs = {
-  type: "homepage",
+  type: "front_page",
   options: EHSearchOptions
 } | {
   type: "watched",
@@ -734,8 +789,8 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
   private _filterSwitch: boolean = false;
   constructor(options: {
-    menuDisplayMode: "onlyShowHomepage" | "onlyShowArchive" | "showAllExceptArchive",
-    filterHandler: (on: boolean, type: "homepage" | "watched" | "favorites" | "archive") => void,
+    menuDisplayMode: MenuDisplayMode,
+    filterHandler: (on: boolean, type: "front_page" | "watched" | "favorites" | "archive") => void,
     inputChangedHandler: (text: string) => void,
     popHandler: () => void,
     searchHandler: () => void
@@ -874,9 +929,9 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
       }
     }
     const _getType = () => {
-      let type: "homepage" | "watched" | "favorites" | "archive";
-      if (options.menuDisplayMode === "onlyShowHomepage") {
-        type = "homepage";
+      let type: "front_page" | "watched" | "favorites" | "archive";
+      if (options.menuDisplayMode === "onlyShowFrontPage") {
+        type = "front_page";
       } else if (options.menuDisplayMode === "onlyShowArchive") {
         type = "archive";
       } else if (tab.view.index === 1) {
@@ -884,7 +939,7 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
       } else if (tab.view.index === 2) {
         type = "favorites";
       } else {
-        type = "homepage";
+        type = "front_page";
       }
       return type;
     }
@@ -904,6 +959,8 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
 
 class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
+  private _type: "front_page" | "watched" | "favorites" | "archive";
+  
   constructor(
     args: SearchArgs,
     menuDisplayMode: MenuDisplayMode,
@@ -911,6 +968,7 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
     rejectHandler: () => void
   ) {
     super();
+    this._type = args.type;
     const navbar = new NavBar({
       menuDisplayMode,
       filterHandler: (on, type) => { },
@@ -919,9 +977,11 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
       searchHandler: () => { }
     });
     const searchSuggestionView = new SearchSuggestionView(tag => { });
-    const searchHistoryView = new SearchHistoryView();
-    const homepageOptionsView = new HomepageOptionsView();
-    const watchedOptionsView = new HomepageOptionsView();
+    const searchHistoryView = new SearchHistoryView((text) => {
+      // TODO: searchHistoryView的点击事件
+    });
+    const frontPageOptionsView = new FrontPageOptionsView();
+    const watchedOptionsView = new FrontPageOptionsView();
     const favoritesOptionsView = new FavoritesOptionsView();
     const archiveOptionsView = new ArchiveOptionsView();
 
@@ -946,7 +1006,7 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
           views: [
             searchSuggestionView.definition,
             searchHistoryView.definition,
-            homepageOptionsView.definition,
+            frontPageOptionsView.definition,
             watchedOptionsView.definition,
             favoritesOptionsView.definition,
             archiveOptionsView.definition

@@ -71,8 +71,8 @@ export class ArchiveController extends BaseController {
           {
             symbol: "arrow.left.arrow.right.circle",
             handler: async () => {
-              let type = "homepage"
-              if (type === "homepage" || type === "watched") {
+              let type = "front_page"
+              if (type === "front_page" || type === "watched") {
                 const result = await jumpRangeDialog(true)
                 console.log(result)
               } else if (type === "favorite") {

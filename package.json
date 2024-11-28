@@ -13,7 +13,7 @@
   "dependencies": {
     "cheerio": "^1.0.0",
     "ehentai-parser": "^1.6.2",
-    "jsbox-cview": "^1.5.14"
+    "jsbox-cview": "^1.5.15"
   },
   "devDependencies": {
     "@types/cheerio": "^0.22.35",

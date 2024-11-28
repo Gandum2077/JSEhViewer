@@ -1,5 +1,5 @@
 import { EHQualifier, EHSearchTerm, TagNamespace, tagNamespaces } from "ehentai-parser";
-import { MarkedTag, MarkedTagDict, TranslationData, TranslationDict, SavedSearchKeyword, WebDAVService, DBSearchHistory, DBSearchBookmarks } from "../types";
+import { MarkedTag, MarkedTagDict, TranslationData, TranslationDict, WebDAVService, DBSearchHistory, DBSearchBookmarks } from "../types";
 import { dbManager } from "./database";
 
 interface Config {

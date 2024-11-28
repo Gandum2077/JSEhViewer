@@ -28,6 +28,7 @@ async function init() {
   const sidebarHistoryController = new SidebarHistoryController()
   const primaryViewController = new TabBarController({
     props: {
+      id: "primaryViewController",
       bgcolor: $color("primarySurface"),
       items: [
         {
@@ -75,6 +76,7 @@ async function init() {
   })
   const secondaryViewController = new TabBarController({
     props: {
+      id: "secondaryViewController",
       bgcolor: $color("backgroundColor", "secondarySurface"),
       items: [
         {

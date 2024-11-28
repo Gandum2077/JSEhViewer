@@ -1,4 +1,4 @@
-import { BaseController, ContentView, CustomNavigationBar, List, Menu, router, SplitViewController, SymbolButton } from "jsbox-cview";
+import { BaseController, ContentView, CustomNavigationBar, List, Menu, router, SplitViewController, SymbolButton, TabBarController } from "jsbox-cview";
 import { configManager } from "../utils/config";
 import { namespaceTranslations, tagColor } from "../utils/glv";
 import { MarkedTagDict } from "../types";
@@ -274,7 +274,8 @@ export class TagManagerController extends BaseController {
                     subtract: false
                   };
                 (router.get("homepageController") as HomepageController)
-                  .startLoad({ type: "front_page", options: { searchTerms: [searchTerm] } })
+                  .startLoad({ type: "front_page", options: { searchTerms: [searchTerm] } });
+                (router.get("primaryViewController") as TabBarController).index = 0;
               }
             },
             {
@@ -441,6 +442,28 @@ export class TagManagerController extends BaseController {
           })
           if (index === -1) return
           menu.view.index = Math.max(index, 0)
+        },
+        didSelect: (sender, indexPath) => {
+          const info = this.cviews.list.view
+            .data[indexPath.section].rows[indexPath.row]
+            .infoButton.info as { namespace: TagNamespace, name: string } | { uploader: string }
+          const searchTerm: EHSearchTerm = ("namespace" in info)
+            ? {
+              namespace: info.namespace,
+              term: info.name,
+              dollar: true,
+              tilde: false,
+              subtract: false
+            } : {
+              qualifier: "uploader",
+              term: info.uploader,
+              dollar: true,
+              tilde: false,
+              subtract: false
+            };
+          (router.get("homepageController") as HomepageController)
+            .startLoad({ type: "front_page", options: { searchTerms: [searchTerm] } });
+          (router.get("primaryViewController") as TabBarController).index = 0;
         }
       }
     })

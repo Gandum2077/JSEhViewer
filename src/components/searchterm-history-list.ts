@@ -1,10 +1,9 @@
-import { Base, router, SplitViewController } from "jsbox-cview";
+import { Base, router, SplitViewController, TabBarController } from "jsbox-cview";
 import { configManager } from "../utils/config";
 import { EHSearchTerm, tagNamespaceMostUsedAlternateMap } from "ehentai-parser";
 import { DBSearchHistory } from "../types";
 import { namespaceColor } from "../utils/glv";
-import { statusManager } from "../utils/status";
-import { appLog } from "../utils/tools";
+import { HomepageController } from "../controllers/homepage-controller";
 
 /**
  * SearchTermHistoryList
@@ -41,12 +40,13 @@ export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions>
                   const searchTerms = this._searchHistory.find(item => item.id === id)?.searchTerms;
                   if (!searchTerms) return;
                   (router.get("splitViewController") as SplitViewController).sideBarShown = false;
-                  statusManager.loadTab({
+                  (router.get("primaryViewController") as TabBarController).index = 0;
+                  (router.get("homepageController") as HomepageController).startLoad({
                     type: "front_page",
                     options: {
                       searchTerms: searchTerms
                     }
-                  }).then().catch(e => appLog(e, "error"));
+                  })
                 }
               },
               {
@@ -122,12 +122,13 @@ export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions>
             const searchTerms = this._searchHistory.find(item => item.id === id)?.searchTerms;
             if (!searchTerms) return;
             (router.get("splitViewController") as SplitViewController).sideBarShown = false;
-            statusManager.loadTab({
+            (router.get("primaryViewController") as TabBarController).index = 0;
+            (router.get("homepageController") as HomepageController).startLoad({
               type: "front_page",
               options: {
                 searchTerms: searchTerms
               }
-            }).then().catch(e => appLog(e, "error"));
+            })
           }
         }
       }

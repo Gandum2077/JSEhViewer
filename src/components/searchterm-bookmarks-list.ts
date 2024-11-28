@@ -1,9 +1,8 @@
-import { Base, router, SplitViewController } from "jsbox-cview";
+import { Base, router, SplitViewController, TabBarController } from "jsbox-cview";
 import { configManager } from "../utils/config";
-import { statusManager } from "../utils/status";
 import { DBSearchBookmarks } from "../types";
 import { _mapSearchTermsToRow } from "./searchterm-history-list";
-import { appLog } from "../utils/tools";
+import { HomepageController } from "../controllers/homepage-controller";
 
 export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOptions> {
   _defineView: () => UiTypes.ListOptions;
@@ -31,12 +30,13 @@ export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOption
                   const searchTerms = this._searchBookmarks.find(item => item.id === id)?.searchTerms;
                   if (!searchTerms) return;
                   (router.get("splitViewController") as SplitViewController).sideBarShown = false;
-                  statusManager.loadTab({
+                  (router.get("primaryViewController") as TabBarController).index = 0;
+                  (router.get("homepageController") as HomepageController).startLoad({
                     type: "front_page",
                     options: {
                       searchTerms: searchTerms
                     }
-                  }).then().catch(e => appLog(e, "error"));
+                  });
                 }
               },
               {
@@ -92,12 +92,13 @@ export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOption
             const searchTerms = this._searchBookmarks.find(item => item.id === id)?.searchTerms;
             if (!searchTerms) return;
             (router.get("splitViewController") as SplitViewController).sideBarShown = false;
-            statusManager.loadTab({
+            (router.get("primaryViewController") as TabBarController).index = 0;
+            (router.get("homepageController") as HomepageController).startLoad({
               type: "front_page",
               options: {
                 searchTerms: searchTerms
               }
-            }).then().catch(e => appLog(e, "error"));
+            });
           }
         }
       }

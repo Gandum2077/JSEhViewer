@@ -60,13 +60,6 @@ export type MarkedTag = {
 
 export type MarkedTagDict = Record<TagNamespace, Record<string, MarkedTag>>
 
-export type SavedSearchKeyword = {
-  id: number;
-  name?: string;
-  content: string;
-  order_id: number;
-};
-
 export type WebDAVService = {
   id: number;
   name: string;

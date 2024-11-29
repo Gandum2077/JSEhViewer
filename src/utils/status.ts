@@ -281,7 +281,7 @@ class StatusManager {
     if (!tab) return;
     const lastPage = tab.pages[tab.pages.length - 1];
     if (!lastPage) return;
-    if ((tab.options.page + 1) * tab.options.page_size >= lastPage.all_count) return;
+    if ((tab.options.page + 1) * tab.options.pageSize >= lastPage.all_count) return;
     const options = tab.options;
     options.page += 1;
     const items = this.queryArchiveItem(options);
@@ -333,7 +333,7 @@ class StatusManager {
         ORDER BY ${options.sort} DESC
         LIMIT ? OFFSET ?
         ;`
-    const args = [options.page_size, options.page * options.page_size];
+    const args = [options.pageSize, options.page * options.pageSize];
     const rawData = dbManager.query(sql, args) as {
       gid: number;
       readlater: number;

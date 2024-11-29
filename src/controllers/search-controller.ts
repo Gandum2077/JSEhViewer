@@ -1,8 +1,8 @@
-import { Base, ContentView, DynamicItemSizeMatrix, DynamicPreferenceListView, DynamicRowHeightList, Flowlayout, PreferenceSection, searchBarBgcolor, SymbolButton, Tab } from "jsbox-cview";
-import { catColor, favcatColor, searchableCategories, catTranslations, defaultButtonColor, namespaceTranslations, namespaceColor } from "../utils/glv";
+import { Base, ContentView, DynamicItemSizeMatrix, DynamicPreferenceListView, DynamicRowHeightList, Flowlayout, Input, PrefsRowBoolean, PrefsRowInteger, PrefsRowList, searchBarBgcolor, SymbolButton, Tab } from "jsbox-cview";
+import { catColor, favcatColor, searchableCategories, defaultButtonColor, namespaceTranslations, namespaceColor } from "../utils/glv";
 import { configManager } from "../utils/config";
-import { buildSortedFsearch, EHFavoriteSearchOptions, EHQualifier, EHSearchOptions, TagNamespace } from "ehentai-parser";
-import { ArchiveSearchOptions } from "../types";
+import { EHSearchTerm, assembleSearchTerms, EHQualifier, EHSearchedCategory, parseFsearch, TagNamespace, EHSearchOptions } from "ehentai-parser";
+import { ArchiveTabOptions, FavoritesTabOptions, FrontPageTabOptions, WatchedTabOptions } from "../types";
 
 // 整体构造是上面一个自定义导航栏，下面是一个搜索选项列表
 // 下面一共有五个List叠放在一起，分别是：
@@ -15,87 +15,6 @@ import { ArchiveSearchOptions } from "../types";
 type MenuDisplayMode = "onlyShowFrontPage" | "onlyShowArchive" | "showAllExceptArchive" | "showAll";
 
 const TAG_FONT_SIZE = 15;
-
-function mapOptionsToSections(options: EHSearchOptions, enablePageFilters: boolean): PreferenceSection[] {
-  return [{
-    title: "",
-    rows: [
-      {
-        type: "boolean",
-        title: "只显示已删除的图库",
-        key: "browseExpungedGalleries",
-        value: options.browseExpungedGalleries || false
-      },
-      {
-        type: "boolean",
-        title: "只显示有种子的图库",
-        key: "requireGalleryTorrent",
-        value: options.requireGalleryTorrent || false
-      },
-      {
-        type: "boolean",
-        title: "页数",
-        key: "enablePageFilters",
-        value: enablePageFilters || false
-      },
-      {
-        type: "integer",
-        title: "页数最小值",
-        key: "minimumPages",
-        placeholder: "0~2000",
-        min: 0,
-        max: 2000,
-        value: options.minimumPages
-      },
-      {
-        type: "integer",
-        title: "页数最大值",
-        key: "maximumPages",
-        placeholder: "0~2000",
-        min: 0,
-        max: 2000,
-        value: options.maximumPages
-      },
-      {
-        type: "list",
-        title: "评分",
-        key: "minimumRating",
-        value: options.minimumRating ? options.minimumRating - 1 : 0,
-        items: ["不使用", "至少2星", "至少3星", "至少4星", "至少5星"]
-      },
-      {
-        type: "boolean",
-        title: "禁用过滤器（语言）",
-        key: "disableLanguageFilters",
-        value: options.disableLanguageFilters || false
-      },
-      {
-        type: "boolean",
-        title: "禁用过滤器（上传者）",
-        key: "disableUploaderFilters",
-        value: options.disableUploaderFilters || false
-      },
-      {
-        type: "boolean",
-        title: "禁用过滤器（标签）",
-        key: "disableTagFilters",
-        value: options.disableTagFilters || false
-      }
-    ]
-  }]
-}
-
-type InnerSearchOptions = {
-  browseExpungedGalleries: boolean,
-  requireGalleryTorrent: boolean,
-  enablePageFilters: boolean,
-  minimumPages?: number,
-  maximumPages?: number,
-  minimumRating: number,
-  disableLanguageFilters: boolean,
-  disableUploaderFilters: boolean,
-  disableTagFilters: boolean
-}
 
 class SearchSuggestionView extends Base<UIListView, UiTypes.ListOptions> {
   currentSuggestions: {
@@ -216,14 +135,15 @@ class SearchHistoryViewSectionTitle extends Base<UIView, UiTypes.ViewOptions> {
 class HistoryMatrixItem extends Base<UILabelView, UiTypes.LabelOptions> {
   _defineView: () => UiTypes.LabelOptions;
   private _text: string;
-  constructor(tag: {namespace?: TagNamespace, qualifier?: EHQualifier, term: string}) {
+  constructor(tag: { namespace?: TagNamespace, qualifier?: EHQualifier, term: string }) {
     super();
-    this._text = tag.qualifier === "uploader" 
-      ? "上传者:" + tag.term 
+    this._text = tag.qualifier === "uploader"
+      ? "上传者:" + tag.term
       : (tag.namespace ? configManager.translate(tag.namespace, tag.term) || tag.term : tag.term);
     this._defineView = () => ({
       type: "label",
       props: {
+        id: this.id,
         text: this._text,
         lines: 1,
         font: $font(TAG_FONT_SIZE),
@@ -247,7 +167,10 @@ class HistoryMatrixItem extends Base<UILabelView, UiTypes.LabelOptions> {
 
 class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
-  constructor(textHandler: (text: string) => void) {
+  constructor(
+    textHandler: (text: string) => void,
+    willBeginDraggingHandler: () => void // 用于滑动时隐藏键盘
+  ) {
     super();
     const mostAccessedTags = configManager.getTenMostAccessedTags()
     const lastAccessSearchTerms = configManager.getTenLastAccessSearchTerms()
@@ -263,7 +186,7 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
       events: {
         didSelect(sender, index, item) {
           const tag = lastAccessSearchTerms[index];
-          const fsearch = buildSortedFsearch([{
+          const fsearch = assembleSearchTerms([{
             namespace: tag.namespace,
             qualifier: tag.qualifier === "uploader" ? "uploader" : undefined,
             term: tag.term,
@@ -288,7 +211,7 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
         didSelect(sender, index, item) {
           console.log(mostAccessedTags)
           const tag = mostAccessedTags[index];
-          const fsearch = buildSortedFsearch([{
+          const fsearch = assembleSearchTerms([{
             namespace: tag.namespace,
             qualifier: tag.qualifier === "uploader" ? "uploader" : undefined,
             term: tag.term,
@@ -311,19 +234,17 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
         selectable: false,
         separatorHidden: true,
         showsVerticalIndicator: false,
-        bgcolor: $color("insetGroupedBackground"),
-        footer: {
-          type: "view",
-          props: {
-            height: 265
-          }
-        }
+        bgcolor: $color("insetGroupedBackground")
       },
       layout: (make, view) => {
         make.left.right.inset(15);
         make.top.bottom.inset(0);
       },
-      events: {}
+      events: {
+        willBeginDragging: () => {
+          willBeginDraggingHandler();
+        }
+      }
     })
     this._defineView = () => ({
       type: "view",
@@ -337,16 +258,58 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
   }
 }
 
-
 class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
+  private _filteredCategories: Set<EHSearchedCategory> = new Set();
+  private _enablePageFilters: boolean = false;
+  private _options: {
+    browseExpungedGalleries?: boolean,
+    requireGalleryTorrent?: boolean,
+    minimumPages?: number,
+    maximumPages?: number,
+    minimumRating?: number,
+    disableLanguageFilters?: boolean,
+    disableUploaderFilters?: boolean,
+    disableTagFilters?: boolean
+  } = {};
   cviews: {
     catList: DynamicItemSizeMatrix,
     optionsList: DynamicPreferenceListView
   }
-  constructor() {
+  constructor(
+    willBeginDraggingHandler: () => void // 用于滑动时隐藏键盘
+  ) {
     super();
-    const optionsList = new SearchOptionsList({}, false);
+    const optionsList = new DynamicPreferenceListView({
+      sections: this.mapSections(),
+      props: {
+        style: 2,
+        scrollEnabled: false,
+        rowHeight: 44,
+        bgcolor: $color("backgroundColor")
+      },
+      layout: $layout.fill,
+      events: {
+        changed: values => {
+          const reloadFlag = this._enablePageFilters !== values.enablePageFilters;
+          this._options = {
+            browseExpungedGalleries: values.browseExpungedGalleries || undefined,
+            requireGalleryTorrent: values.requireGalleryTorrent || undefined,
+            minimumPages: values.enablePageFilters ? values.minimumPages : undefined,
+            maximumPages: values.enablePageFilters ? values.maximumPages : undefined,
+            minimumRating: values.minimumRating ? values.minimumRating + 1 : undefined,
+            disableLanguageFilters: values.disableLanguageFilters || undefined,
+            disableUploaderFilters: values.disableUploaderFilters || undefined,
+            disableTagFilters: values.disableTagFilters || undefined
+          }
+          this._enablePageFilters = values.enablePageFilters;
+          console.log(this._options)
+          if (reloadFlag) {
+            optionsList.sections = this.mapSections();
+          }
+        }
+      }
+    });
     const catList = new DynamicItemSizeMatrix({
       props: {
         bgcolor: $color("backgroundColor"),
@@ -356,14 +319,14 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         scrollEnabled: false,
         dynamicHeightEnabled: false,
         maxColumns: 5,
-        data: searchableCategories.map(cat => ({ label: { text: catTranslations[cat], bgcolor: catColor[cat], alpha: 1 } })),
+        data: this.mapData(),
         template: {
           views: [{
             type: "label",
             props: {
               id: "label",
               align: $align.center,
-              font: $font("bold", 16),
+              font: $font("Futura-Bold", 16),
               textColor: $color("white"),
             },
             layout: $layout.fill
@@ -391,6 +354,12 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                         bgcolor: defaultButtonColor,
                         cornerRadius: 5,
                         smoothCorners: true
+                      },
+                      events: {
+                        tapped: sender => {
+                          this._filteredCategories = new Set();
+                          catList.data = this.mapData();
+                        }
                       }
                     },
                     {
@@ -401,6 +370,12 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                         bgcolor: defaultButtonColor,
                         cornerRadius: 5,
                         smoothCorners: true
+                      },
+                      events: {
+                        tapped: sender => {
+                          this._filteredCategories = new Set(searchableCategories);
+                          catList.data = this.mapData();
+                        }
                       }
                     },
                     {
@@ -411,6 +386,13 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                         bgcolor: defaultButtonColor,
                         cornerRadius: 5,
                         smoothCorners: true
+                      },
+                      events: {
+                        tapped: sender => {
+                          const reversed = searchableCategories.filter(cat => !this._filteredCategories.has(cat));
+                          this._filteredCategories = new Set(reversed);
+                          catList.data = this.mapData();
+                        }
                       }
                     }
                   ]
@@ -436,7 +418,21 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         }
       },
       layout: $layout.fill,
-      events: {}
+      events: {
+        willBeginDragging: () => {
+          willBeginDraggingHandler();
+        },
+        didSelect: (sender, indexPath, data) => {
+          const index = indexPath.row;
+          const cat = searchableCategories[index];
+          if (this._filteredCategories.has(cat)) {
+            this._filteredCategories.delete(cat);
+          } else {
+            this._filteredCategories.add(cat);
+          }
+          catList.data = this.mapData();
+        }
+      }
     })
     this.cviews = {
       catList,
@@ -452,15 +448,127 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       views: [catList.definition]
     });
   }
+
+  mapData() {
+    return searchableCategories.map(cat => ({
+      label: {
+        text: cat, bgcolor: catColor[cat],
+        alpha: this._filteredCategories.has(cat) ? 0.4 : 1
+      }
+    }))
+  }
+
+  mapSections() {
+    const browseExpungedGalleriesPrefsRow: PrefsRowBoolean = {
+      type: "boolean",
+      title: "只显示已删除的图库",
+      key: "browseExpungedGalleries",
+      value: this._options.browseExpungedGalleries || false
+    }
+    const requireGalleryTorrentPrefsRow: PrefsRowBoolean = {
+      type: "boolean",
+      title: "只显示有种子的图库",
+      key: "requireGalleryTorrent",
+      value: this._options.requireGalleryTorrent || false
+    }
+    const disableLanguageFiltersPrefsRow: PrefsRowBoolean = {
+      type: "boolean",
+      title: "禁用过滤器（语言）",
+      key: "disableLanguageFilters",
+      value: this._options.disableLanguageFilters || false
+    }
+    const disableUploaderFiltersPrefsRow: PrefsRowBoolean = {
+      type: "boolean",
+      title: "禁用过滤器（上传者）",
+      key: "disableUploaderFilters",
+      value: this._options.disableUploaderFilters || false
+    }
+    const disableTagFiltersPrefsRow: PrefsRowBoolean = {
+      type: "boolean",
+      title: "禁用过滤器（标签）",
+      key: "disableTagFilters",
+      value: this._options.disableTagFilters || false
+    }
+    const enablePageFiltersPrefsRow: PrefsRowBoolean = {
+      type: "boolean",
+      title: "页数",
+      key: "enablePageFilters",
+      value: this._enablePageFilters || false
+    }
+    const minimumRatingPrefsRow: PrefsRowList = {
+      type: "list",
+      title: "评分",
+      key: "minimumRating",
+      value: this._options.minimumRating ? this._options.minimumRating - 1 : 0,
+      items: ["不使用", "至少2星", "至少3星", "至少4星", "至少5星"]
+    }
+    const minimumPagesPrefsRow: PrefsRowInteger = {
+      type: "integer",
+      title: "页数最小值",
+      key: "minimumPages",
+      placeholder: "0~2000",
+      min: 0,
+      max: 2000,
+      value: this._options.minimumPages
+    }
+    const maximumPagesPrefsRow: PrefsRowInteger = {
+      type: "integer",
+      title: "页数最大值",
+      key: "maximumPages",
+      placeholder: "0~2000",
+      min: 0,
+      max: 2000,
+      value: this._options.maximumPages
+    }
+    if (this._enablePageFilters) {
+      return [{
+        title: "",
+        rows: [
+          browseExpungedGalleriesPrefsRow,
+          requireGalleryTorrentPrefsRow,
+          enablePageFiltersPrefsRow,
+          minimumPagesPrefsRow,
+          maximumPagesPrefsRow,
+          minimumRatingPrefsRow,
+          disableLanguageFiltersPrefsRow,
+          disableUploaderFiltersPrefsRow,
+          disableTagFiltersPrefsRow
+        ]
+      }]
+    } else {
+      return [{
+        title: "",
+        rows: [
+          browseExpungedGalleriesPrefsRow,
+          requireGalleryTorrentPrefsRow,
+          enablePageFiltersPrefsRow,
+          minimumRatingPrefsRow,
+          disableLanguageFiltersPrefsRow,
+          disableUploaderFiltersPrefsRow,
+          disableTagFiltersPrefsRow
+        ]
+      }]
+    }
+  }
+
+  get data() {
+    return {
+      filteredCategories: [...this._filteredCategories],
+      options: this._options
+    }
+  }
 }
 
 class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
+  private _selectedFavcat?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   cviews: {
     favcatList: DynamicItemSizeMatrix,
     optionsList: DynamicPreferenceListView
   }
-  constructor() {
+  constructor(
+    willBeginDraggingHandler: () => void // 用于滑动时隐藏键盘
+  ) {
     super();
     const optionsList = new DynamicPreferenceListView({
       sections: [{
@@ -504,17 +612,7 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         spacing: 10,
         scrollEnabled: false,
         maxColumns: 2,
-        data: configManager.favcatTitles.map((title, index) => {
-          const i = index as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
-          return {
-            icon: {
-              tintColor: favcatColor[i]
-            },
-            label: {
-              text: title
-            }
-          }
-        }),
+        data: this.mapData(),
         template: {
           props: {
             bgcolor: $color("tertiarySurface"),
@@ -540,9 +638,8 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
               props: {
                 id: "label",
                 align: $align.left,
-                font: $font(16),
-                textColor: $color("primaryText"),
-                lines: 2
+                lines: 2,
+                font: $font(16)
               },
               layout: (make, view) => {
                 make.left.equalTo(view.prev.right).inset(10);
@@ -555,7 +652,20 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         footer: optionsList.definition
       },
       layout: $layout.fill,
-      events: {}
+      events: {
+        willBeginDragging: () => {
+          willBeginDraggingHandler();
+        },
+        didSelect: (sender, indexPath, data) => {
+          const selectedIndex = indexPath.row as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+          if (this._selectedFavcat === selectedIndex) {
+            this._selectedFavcat = undefined;
+          } else {
+            this._selectedFavcat = selectedIndex;
+          };
+          favcatList.data = this.mapData();
+        }
+      }
     })
     this.cviews = {
       favcatList,
@@ -571,64 +681,79 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       views: [favcatList.definition]
     });
   }
+
+  mapData() {
+    return configManager.favcatTitles.map((title, index) => {
+      const i = index as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+      return {
+        icon: {
+          tintColor: favcatColor[i]
+        },
+        label: {
+          text: title,
+          textColor: (this._selectedFavcat === i) ? $color("systemLink") : $color("primaryText")
+        }
+      }
+    })
+  }
+
+  get options() {
+    return this.cviews.optionsList.values as {
+      disableLanguageFilters: boolean,
+      disableUploaderFilters: boolean,
+      disableTagFilters: boolean
+    }
+  }
+
+  get data() {
+    return {
+      selectedFavcat: this._selectedFavcat,
+      options: this.options
+    }
+  }
 }
 
 class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
+  private _filteredCategories: Set<EHSearchedCategory> = new Set();
+  private _enablePageFilters: boolean = false;
+  private _options: {
+    minimumPages?: number,
+    maximumPages?: number,
+    minimumRating?: number
+  } = {};
   cviews: {
     catList: DynamicItemSizeMatrix,
     optionsList: DynamicPreferenceListView
   }
-  constructor() {
+  constructor(
+    willBeginDraggingHandler: () => void // 用于滑动时隐藏键盘
+  ) {
     super();
-    const options = {} as ArchiveSearchOptions; // TODO: ArchiveSearchOptions需要修改
-    const enablePageFilters = false; // TODO: 测试用
     const optionsList = new DynamicPreferenceListView({
-      sections: [{
-        title: "",
-        rows: [
-          {
-            type: "boolean",
-            title: "页数",
-            key: "enablePageFilters",
-            value: enablePageFilters || false
-          },
-          {
-            type: "integer",
-            title: "页数最小值",
-            key: "minimumPages",
-            placeholder: "0~2000",
-            min: 0,
-            max: 2000,
-            value: options.minimumPages
-          },
-          {
-            type: "integer",
-            title: "页数最大值",
-            key: "maximumPages",
-            placeholder: "0~2000",
-            min: 0,
-            max: 2000,
-            value: options.maximumPages
-          },
-          {
-            type: "list",
-            title: "评分",
-            key: "minimumRating",
-            value: options.minimumRating ? options.minimumRating - 1 : 0,
-            items: ["不使用", "至少2星", "至少3星", "至少4星", "至少5星"]
-          }
-        ]
-      }],
+      sections: this.mapSections(),
       props: {
         style: 2,
         scrollEnabled: false,
-        height: 44 * 4 + 35 * 2,
         rowHeight: 44,
         bgcolor: $color("backgroundColor")
       },
       layout: $layout.fill,
-      events: {}
+      events: {
+        changed: values => {
+          const reloadFlag = this._enablePageFilters !== values.enablePageFilters;
+          this._options = {
+            minimumPages: values.enablePageFilters ? values.minimumPages : undefined,
+            maximumPages: values.enablePageFilters ? values.maximumPages : undefined,
+            minimumRating: values.minimumRating ? values.minimumRating + 1 : undefined
+          }
+          this._enablePageFilters = values.enablePageFilters;
+          console.log(this._options)
+          if (reloadFlag) {
+            optionsList.sections = this.mapSections();
+          }
+        }
+      }
     });
     const catList = new DynamicItemSizeMatrix({
       props: {
@@ -639,14 +764,14 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         scrollEnabled: false,
         dynamicHeightEnabled: false,
         maxColumns: 5,
-        data: searchableCategories.map(cat => ({ label: { text: catTranslations[cat], bgcolor: catColor[cat], alpha: 1 } })),
+        data: this.mapData(),
         template: {
           views: [{
             type: "label",
             props: {
               id: "label",
               align: $align.center,
-              font: $font("bold", 16),
+              font: $font("Futura-Bold", 16),
               textColor: $color("white"),
             },
             layout: $layout.fill
@@ -655,7 +780,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         footer: {
           type: "view",
           props: {
-            height: 44 + 44 * 9 + 35 * 2
+            height: 44 + 44 * 4 + 35 * 2
           },
           views: [
             {
@@ -674,6 +799,12 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                         bgcolor: defaultButtonColor,
                         cornerRadius: 5,
                         smoothCorners: true
+                      },
+                      events: {
+                        tapped: sender => {
+                          this._filteredCategories = new Set();
+                          catList.data = this.mapData();
+                        }
                       }
                     },
                     {
@@ -684,6 +815,12 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                         bgcolor: defaultButtonColor,
                         cornerRadius: 5,
                         smoothCorners: true
+                      },
+                      events: {
+                        tapped: sender => {
+                          this._filteredCategories = new Set(searchableCategories);
+                          catList.data = this.mapData();
+                        }
                       }
                     },
                     {
@@ -694,6 +831,13 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                         bgcolor: defaultButtonColor,
                         cornerRadius: 5,
                         smoothCorners: true
+                      },
+                      events: {
+                        tapped: sender => {
+                          const reversed = searchableCategories.filter(cat => !this._filteredCategories.has(cat));
+                          this._filteredCategories = new Set(reversed);
+                          catList.data = this.mapData();
+                        }
                       }
                     }
                   ]
@@ -719,7 +863,21 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         }
       },
       layout: $layout.fill,
-      events: {}
+      events: {
+        willBeginDragging: () => {
+          willBeginDraggingHandler();
+        },
+        didSelect: (sender, indexPath, data) => {
+          const index = indexPath.row;
+          const cat = searchableCategories[index];
+          if (this._filteredCategories.has(cat)) {
+            this._filteredCategories.delete(cat);
+          } else {
+            this._filteredCategories.add(cat);
+          }
+          catList.data = this.mapData();
+        }
+      }
     })
     this.cviews = {
       catList,
@@ -735,67 +893,99 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       views: [catList.definition]
     });
   }
-}
 
-class SearchOptionsList extends DynamicPreferenceListView {
-  private options: EHSearchOptions;
-  private _enablePageFilters: boolean;
-  constructor(options: EHSearchOptions, enablePageFilters: boolean) {
-    super({
-      sections: mapOptionsToSections(options, enablePageFilters),
-      props: {
-        bgcolor: $color("backgroundColor"),
-        style: 2,
-        scrollEnabled: false,
-        height: 44 * 9 + 35 * 2,
-      },
-      layout: $layout.fill,
-      events: {
-        changed: values => {
-          this.options = {
-            browseExpungedGalleries: values.browseExpungedGalleries,
-            requireGalleryTorrent: values.requireGalleryTorrent,
-            minimumPages: values.minimumPages,
-            maximumPages: values.maximumPages,
-            minimumRating: values.minimumRating + 1,
-            disableLanguageFilters: values.disableLanguageFilters,
-            disableUploaderFilters: values.disableUploaderFilters,
-            disableTagFilters: values.disableTagFilters
-          }
-          this._enablePageFilters = values.enablePageFilters;
-        }
+  mapData() {
+    return searchableCategories.map(cat => ({
+      label: {
+        text: cat, bgcolor: catColor[cat],
+        alpha: this._filteredCategories.has(cat) ? 0.4 : 1
       }
-    });
-    this.options = options;
-    this._enablePageFilters = enablePageFilters;
+    }))
+  }
+
+  mapSections() {
+    const enablePageFiltersPrefsRow: PrefsRowBoolean = {
+      type: "boolean",
+      title: "页数",
+      key: "enablePageFilters",
+      value: this._enablePageFilters || false
+    }
+    const minimumRatingPrefsRow: PrefsRowList = {
+      type: "list",
+      title: "评分",
+      key: "minimumRating",
+      value: this._options.minimumRating ? this._options.minimumRating - 1 : 0,
+      items: ["不使用", "至少2星", "至少3星", "至少4星", "至少5星"]
+    }
+    const minimumPagesPrefsRow: PrefsRowInteger = {
+      type: "integer",
+      title: "页数最小值",
+      key: "minimumPages",
+      placeholder: "0~2000",
+      min: 0,
+      max: 2000,
+      value: this._options.minimumPages
+    }
+    const maximumPagesPrefsRow: PrefsRowInteger = {
+      type: "integer",
+      title: "页数最大值",
+      key: "maximumPages",
+      placeholder: "0~2000",
+      min: 0,
+      max: 2000,
+      value: this._options.maximumPages
+    }
+    if (this._enablePageFilters) {
+      return [{
+        title: "",
+        rows: [
+          enablePageFiltersPrefsRow,
+          minimumPagesPrefsRow,
+          maximumPagesPrefsRow,
+          minimumRatingPrefsRow,
+        ]
+      }]
+    } else {
+      return [{
+        title: "",
+        rows: [
+          enablePageFiltersPrefsRow,
+          minimumRatingPrefsRow,
+        ]
+      }]
+    }
+  }
+
+  get data() {
+    return {
+      filteredCategories: [...this._filteredCategories],
+      options: this._options
+    }
   }
 }
 
-type SearchArgs = {
-  type: "front_page",
-  options: EHSearchOptions
-} | {
-  type: "watched",
-  options: EHSearchOptions
-} | {
-  type: "favorites",
-  options: EHFavoriteSearchOptions
-} | {
-  type: "archive",
-  options: ArchiveSearchOptions
-}
+type SearchArgs = FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ArchiveTabOptions
 
 class NavBar extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
+  cviews: {
+    tab: Tab,
+    input: Input
+  }
+  private _menuDisplayMode: MenuDisplayMode;
   private _filterSwitch: boolean = false;
   constructor(options: {
+    type: "front_page" | "watched" | "favorites" | "archive",
+    searchTerms?: EHSearchTerm[],
     menuDisplayMode: MenuDisplayMode,
-    filterHandler: (on: boolean, type: "front_page" | "watched" | "favorites" | "archive") => void,
+    filterChangedHandler: () => void,
+    tabChangedHandler: () => void,
     inputChangedHandler: (text: string) => void,
     popHandler: () => void,
     searchHandler: () => void
   }) {
     super();
+    this._menuDisplayMode = options.menuDisplayMode;
     const popButton = new SymbolButton({
       props: {
         symbol: "chevron.left",
@@ -834,7 +1024,30 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
             filterButton.tintColor = $color("systemLink");
           }
 
-          options.filterHandler(this._filterSwitch, _getType());
+          options.filterChangedHandler();
+        }
+      }
+    })
+    const input = new Input({
+      props: {
+        text: (options.searchTerms && options.searchTerms.length) ? assembleSearchTerms(options.searchTerms) : "",
+        type: $kbType.search,
+        bgcolor: $color("clear"),
+        textColor: $color("primaryText"),
+        font: $font(16)
+      },
+      layout: (make, view) => {
+        make.left.equalTo(view.prev.right).inset(0);
+        make.right.inset(0);
+        make.centerY.equalTo(view.super);
+        make.height.equalTo(view.super);
+      },
+      events: {
+        changed: sender => {
+          options.inputChangedHandler(sender.text);
+        },
+        returned: sender => {
+          options.searchHandler(); //TODO: searchHandler需要修改
         }
       }
     })
@@ -863,29 +1076,7 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
             make.size.equalTo($size(20, 20));
           }
         },
-        {
-          type: "input",
-          props: {
-            type: $kbType.search,
-            bgcolor: $color("clear"),
-            textColor: $color("primaryText"),
-            font: $font(16)
-          },
-          layout: (make, view) => {
-            make.left.equalTo(view.prev.right).inset(0);
-            make.right.inset(0);
-            make.centerY.equalTo(view.super);
-            make.height.equalTo(view.super);
-          },
-          events: {
-            changed: sender => {
-              options.inputChangedHandler(sender.text);
-            },
-            returned: sender => {
-              options.searchHandler(); //TODO: searchHandler需要修改
-            }
-          }
-        }
+        input.definition
       ]
     })
     const mainView = new ContentView({
@@ -901,8 +1092,13 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
     })
     const tab = new Tab({
       props: {
-        index: 0,
-        items: ["首页", "关注", "收藏"]
+        index: {
+          front_page: 0,
+          watched: 1,
+          favorites: 2,
+          archive: 3
+        }[options.type],
+        items: options.menuDisplayMode === "showAllExceptArchive" ? ["首页", "订阅", "收藏"] : ["首页", "订阅", "收藏", "存档"]
       },
       layout: (make, view) => {
         make.left.right.inset(50);
@@ -911,9 +1107,7 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
       },
       events: {
         changed: sender => {
-          if (this._filterSwitch) {
-            options.filterHandler(true, _getType());
-          }
+          options.tabChangedHandler();
         }
       }
     })
@@ -928,20 +1122,9 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
         make.bottom.inset(0);
       }
     }
-    const _getType = () => {
-      let type: "front_page" | "watched" | "favorites" | "archive";
-      if (options.menuDisplayMode === "onlyShowFrontPage") {
-        type = "front_page";
-      } else if (options.menuDisplayMode === "onlyShowArchive") {
-        type = "archive";
-      } else if (tab.view.index === 1) {
-        type = "watched";
-      } else if (tab.view.index === 2) {
-        type = "favorites";
-      } else {
-        type = "front_page";
-      }
-      return type;
+    this.cviews = {
+      tab,
+      input
     }
     this._defineView = () => ({
       type: "view",
@@ -950,41 +1133,157 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
       },
       layout: (make, view) => {
         make.left.right.top.inset(0);
-        make.bottom.equalTo(view.super.safeAreaTop).inset(options.menuDisplayMode === "showAllExceptArchive" ? -92 : -50);
+        make.bottom.equalTo(view.super.safeAreaTop).inset(
+          (options.menuDisplayMode === "showAll" || options.menuDisplayMode === "showAllExceptArchive") ? -92 : -50
+        );
       },
-      views: options.menuDisplayMode === "showAllExceptArchive" ? [mainView.definition, tab.definition, seprator] : [mainView.definition, seprator]
+      views: (options.menuDisplayMode === "showAll" || options.menuDisplayMode === "showAllExceptArchive")
+        ? [mainView.definition, tab.definition, seprator]
+        : [mainView.definition, seprator]
     });
+  }
+
+  get filterOn() {
+    return this._filterSwitch;
+  }
+
+  get type() {
+    let type: "front_page" | "watched" | "favorites" | "archive";
+    if (this._menuDisplayMode === "onlyShowFrontPage") {
+      type = "front_page";
+    } else if (this._menuDisplayMode === "onlyShowArchive") {
+      type = "archive";
+    } else if (this.cviews.tab.view.index === 1) {
+      type = "watched";
+    } else if (this.cviews.tab.view.index === 2) {
+      type = "favorites";
+    } else if (this.cviews.tab.view.index === 3) {
+      type = "archive";
+    } else {
+      type = "front_page";
+    }
+    return type;
   }
 }
 
 class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
-  private _type: "front_page" | "watched" | "favorites" | "archive";
-  
+  cviews: {
+    navbar: NavBar,
+    searchSuggestionView: SearchSuggestionView,
+    searchHistoryView: SearchHistoryView,
+    frontPageOptionsView: FrontPageOptionsView,
+    watchedOptionsView: FrontPageOptionsView,
+    favoritesOptionsView: FavoritesOptionsView,
+    archiveOptionsView: ArchiveOptionsView
+  }
   constructor(
     args: SearchArgs,
     menuDisplayMode: MenuDisplayMode,
-    resolveHandler: (args: SearchArgs) => void,
-    rejectHandler: () => void
+    resolveHandler: (args: SearchArgs) => void
   ) {
     super();
-    this._type = args.type;
     const navbar = new NavBar({
+      type: args.type,
+      searchTerms: args.options.searchTerms,
       menuDisplayMode,
-      filterHandler: (on, type) => { },
+      filterChangedHandler: () => { this.updateHiddenStatus() },
+      tabChangedHandler: () => { this.updateHiddenStatus() },
       inputChangedHandler: text => { },
-      popHandler: () => { },
-      searchHandler: () => { }
+      popHandler: () => { $ui.pop() },
+      searchHandler: () => {
+        // TODO: 从navbar中获取fsearch，从tab获取type，从对应的optionsView中获取options
+        const fsearch = navbar.cviews.input.view.text.trim();
+        let searchTerms: EHSearchTerm[] = [];
+        try {
+          if (fsearch) searchTerms = parseFsearch(fsearch);
+        } catch (e: any) {
+          $ui.alert({
+            title: "搜索词解析错误",
+            message: e.message,
+            actions: [
+              {
+                title: "查看Wiki", handler: () => {
+                  $app.openURL("https://ehwiki.org/wiki/Gallery_Searching")
+                }
+              },
+              { title: "OK" }
+            ]
+          });
+          return;
+        }
+        const type = navbar.type;
+        if (type === "front_page") {
+          const data = this.cviews.frontPageOptionsView.data;
+          resolveHandler({
+            type: "front_page",
+            options: {
+              searchTerms,
+              filteredCategories: data.filteredCategories,
+              ...data.options
+            }
+          })
+        } else if (type === "watched") {
+          const data = this.cviews.watchedOptionsView.data;
+          resolveHandler({
+            type: "watched",
+            options: {
+              searchTerms,
+              filteredCategories: data.filteredCategories,
+              ...data.options
+            }
+          })
+        } else if (type === "favorites") {
+          const data = this.cviews.favoritesOptionsView.data;
+          resolveHandler({
+            type: "favorites",
+            options: {
+              searchTerms,
+              favcat: data.selectedFavcat,
+              ...data.options
+            }
+          })
+        } else {
+          const data = this.cviews.archiveOptionsView.data;
+          resolveHandler({
+            type: "archive",
+            options: {
+              page: 0,
+              pageSize: 50,
+              searchTerms,
+              filteredCategories: data.filteredCategories,
+              ...data.options
+            }
+          })
+        }
+        $ui.pop();
+      }
     });
     const searchSuggestionView = new SearchSuggestionView(tag => { });
-    const searchHistoryView = new SearchHistoryView((text) => {
-      // TODO: searchHistoryView的点击事件
-    });
-    const frontPageOptionsView = new FrontPageOptionsView();
-    const watchedOptionsView = new FrontPageOptionsView();
-    const favoritesOptionsView = new FavoritesOptionsView();
-    const archiveOptionsView = new ArchiveOptionsView();
-
+    const searchHistoryView = new SearchHistoryView(
+      (text) => {
+        // TODO: searchHistoryView的点击事件
+        const currentText = navbar.cviews.input.view.text;
+        const newText = currentText
+          ? `${currentText}${currentText[currentText.length - 1] === " " ? "" : " "}${text}`
+          : text;
+        navbar.cviews.input.view.text = newText;
+      },
+      () => { navbar.cviews.input.view.blur() }
+    );
+    const frontPageOptionsView = new FrontPageOptionsView(() => { navbar.cviews.input.view.blur() });
+    const watchedOptionsView = new FrontPageOptionsView(() => { navbar.cviews.input.view.blur() });
+    const favoritesOptionsView = new FavoritesOptionsView(() => { navbar.cviews.input.view.blur() });
+    const archiveOptionsView = new ArchiveOptionsView(() => { navbar.cviews.input.view.blur() });
+    this.cviews = {
+      navbar,
+      searchSuggestionView,
+      searchHistoryView,
+      frontPageOptionsView,
+      watchedOptionsView,
+      favoritesOptionsView,
+      archiveOptionsView
+    }
     this._defineView = () => ({
       type: "view",
       props: {
@@ -1015,18 +1314,55 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
       ]
     });
   }
+
+  updateHiddenStatus() {
+    const filterOn = this.cviews.navbar.filterOn;
+    const type = this.cviews.navbar.type;
+    if (filterOn) {
+      this.cviews.searchSuggestionView.view.hidden = true;
+      this.cviews.searchHistoryView.view.hidden = true;
+      if (type === "front_page") {
+        this.cviews.frontPageOptionsView.view.hidden = false;
+        this.cviews.watchedOptionsView.view.hidden = true;
+        this.cviews.favoritesOptionsView.view.hidden = true;
+        this.cviews.archiveOptionsView.view.hidden = true;
+      } else if (type === "watched") {
+        this.cviews.frontPageOptionsView.view.hidden = true;
+        this.cviews.watchedOptionsView.view.hidden = false;
+        this.cviews.favoritesOptionsView.view.hidden = true;
+        this.cviews.archiveOptionsView.view.hidden = true;
+      } else if (type === "favorites") {
+        this.cviews.frontPageOptionsView.view.hidden = true;
+        this.cviews.watchedOptionsView.view.hidden = true;
+        this.cviews.favoritesOptionsView.view.hidden = false;
+        this.cviews.archiveOptionsView.view.hidden = true;
+      } else {
+        this.cviews.frontPageOptionsView.view.hidden = true;
+        this.cviews.watchedOptionsView.view.hidden = true;
+        this.cviews.favoritesOptionsView.view.hidden = true;
+        this.cviews.archiveOptionsView.view.hidden = false;
+      }
+    } else {
+      // TODO: searchSuggestionView的hidden状态之后再考虑
+      this.cviews.searchSuggestionView.view.hidden = true;
+      this.cviews.searchHistoryView.view.hidden = false;
+      this.cviews.frontPageOptionsView.view.hidden = true;
+      this.cviews.watchedOptionsView.view.hidden = true;
+      this.cviews.favoritesOptionsView.view.hidden = true;
+      this.cviews.archiveOptionsView.view.hidden = true;
+    }
+  }
 }
 
-export function search(
+export function getSearchOptions(
   args: SearchArgs,
   menuDisplayMode: MenuDisplayMode,
 ): Promise<SearchArgs> {
   return new Promise((resolve, reject) => {
     const contentView = new SearchContentView(
-      args, 
+      args,
       menuDisplayMode,
-      (n) => {resolve(n)},
-      () => {reject("cancel")}
+      (n) => { resolve(n) }
     );
     $ui.push({
       props: {
@@ -1037,6 +1373,9 @@ export function search(
         contentView.definition
       ],
       events: {
+        appeared: () => {
+          contentView.cviews.navbar.cviews.input.view.focus();
+        },
         dealloc: () => {
           reject("cancel");
         }

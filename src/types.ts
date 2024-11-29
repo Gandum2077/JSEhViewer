@@ -110,9 +110,10 @@ export type DBArchiveItem = {
 
 export type ArchiveSearchOptions = { 
   page: number, 
-  page_size: number,
-  type: "readlater" | "has_read" | "download" | "all", 
-  sort: "first_access_time" | "last_access_time" | "posted_time",
+  pageSize: number,
+  type?: "readlater" | "has_read" | "download" | "all", 
+  sort?: "first_access_time" | "last_access_time" | "posted_time",
+  searchTerms?: EHSearchTerm[];
   filteredCategories?: EHSearchedCategory[];
   minimumPages?: number;
   maximumPages?: number;

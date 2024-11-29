@@ -5,6 +5,7 @@ import { MarkedTagDict } from "../types";
 import { EHSearchTerm, TagNamespace, tagNamespaces } from "ehentai-parser";
 import { showDetailedInfoView } from "../components/detailed-info-view";
 import { HomepageController } from "./homepage-controller";
+import { getSearchOptions } from "./search-controller";
 
 enum TagType {
   unmarked,
@@ -166,8 +167,15 @@ export class TagManagerController extends BaseController {
           if (this._selectedSearchTerms.length === 0) {
             $ui.toast("请长按标签以加入新建搜索")
           } else {
-            // TODO: 此处应该跳转到新建搜索页面
+            const options = await getSearchOptions(
+              { type: "front_page", options: { searchTerms: this._selectedSearchTerms } },
+              "showAll"
+            );
+            //TODO: 存档页面暂时没做
+            (router.get("homepageController") as HomepageController).startLoad(options);
+            (router.get("primaryViewController") as TabBarController).index = 0;
             this.cviews.createNewSearchButton.tintColor = $color("primaryText")
+            this._selectedSearchTerms = []
           }
         }
       }
@@ -280,8 +288,7 @@ export class TagManagerController extends BaseController {
             },
             {
               title: "新建搜索",
-              symbol: "arrow.up.left.and.down.right.magnifyingglass",
-              handler: (sender, indexPath) => {
+              handler: async (sender, indexPath) => {
                 const info = this.cviews.list.view
                   .data[indexPath.section].rows[indexPath.row]
                   .infoButton.info as { namespace: TagNamespace, name: string } | { uploader: string }
@@ -299,7 +306,13 @@ export class TagManagerController extends BaseController {
                     tilde: false,
                     subtract: false
                   };
-                // TODO: 此处应该跳转到新建搜索页面
+                  const options = await getSearchOptions(
+                    { type: "front_page", options: { searchTerms: [searchTerm] } },
+                    "showAll"
+                  );
+                  //TODO: 存档页面暂时没做
+                  (router.get("homepageController") as HomepageController).startLoad(options);
+                  (router.get("primaryViewController") as TabBarController).index = 0;
               }
             },
             {

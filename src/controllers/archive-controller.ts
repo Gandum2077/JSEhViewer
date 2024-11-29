@@ -5,7 +5,7 @@ import { configManager } from "../utils/config";
 import { EHlistView } from "../components/ehlist-view";
 import { statusManager } from "../utils/status";
 import { api, downloaderManager } from "../utils/api";
-import { search } from "./search-controller";
+import { getSearchOptions } from "./search-controller";
 
 export class ArchiveController extends BaseController {
   cviews: { navbar: CustomNavigationBar, list: EHlistView };
@@ -127,7 +127,7 @@ export class ArchiveController extends BaseController {
       type: "archive",
       options: {
         page: 0,
-        page_size: 50,
+        pageSize: 50,
         type: "all",
         sort: "posted_time"
       }
@@ -147,7 +147,7 @@ export class ArchiveController extends BaseController {
     if (!tab) return;
     const items = tab.pages.map(page => page.items).flat();
     this.cviews.list.items = items;
-    if ((tab.options.page + 1) * tab.options.page_size >= tab.pages[0].all_count) {
+    if ((tab.options.page + 1) * tab.options.pageSize >= tab.pages[0].all_count) {
           this.cviews.list.footerText = "没有更多了";
         } else {
           this.cviews.list.footerText = "上拉加载更多";

@@ -1,5 +1,5 @@
 // 此文件中只定义常量
-import { EHCategory, TagNamespace } from "ehentai-parser";
+import { EHCategory, EHSearchedCategory, TagNamespace } from "ehentai-parser";
 
 const debugText = $file.read("assets/debug")?.string;
 export const globalLogLevel: "debug" | "info" | "warn" | "error" | "fatal" = debugText === "1" ? "debug" : "info";
@@ -10,7 +10,7 @@ export const imagePath = "assets/image/";
 export const thumbnailPath = "assets/thumbnail/";
 export const logoColorHex = "#5D1215";
 
-export const searchableCategories: EHCategory[] = [
+export const searchableCategories: EHSearchedCategory[] = [
   "Doujinshi",
   "Manga",
   "Artist CG",

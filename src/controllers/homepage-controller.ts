@@ -1,15 +1,15 @@
-import { BaseController, CustomNavigationBar, SearchBar, SymbolButton, router, SplitViewController, ContentView, Button, Base } from "jsbox-cview";
+import { BaseController, CustomNavigationBar, SymbolButton, router, SplitViewController } from "jsbox-cview";
 import { GalleryController } from "./gallery-controller";
 import { jumpRangeDialog, jumpPageDialog } from "../components/seekpage-dialog";
 import { configManager } from "../utils/config";
 import { statusManager } from "../utils/status";
 import { EHlistView } from "../components/ehlist-view";
 import { appLog } from "../utils/tools";
-import { buildSortedFsearch, EHListExtendedItem } from "ehentai-parser";
+import { buildSortedFsearch, EHListExtendedItem, EHSearchTerm } from "ehentai-parser";
 import { StatusTabOptions } from "../types";
 import { downloaderManager } from "../utils/api";
 import { CustomSearchBar } from "../components/custom-searchbar";
-import { search } from "./search-controller";
+import { getSearchOptions } from "./search-controller";
 
 export class HomepageController extends BaseController {
   cviews: { navbar: CustomNavigationBar, list: EHlistView, searchBar: CustomSearchBar };
@@ -110,31 +110,20 @@ export class HomepageController extends BaseController {
       },
       events: {
         tapped: async sender => {
-          const args = await search({
-            type: "front_page", 
-            options: {
-              searchTerms: [
-                {
-                  namespace: "artist",
-                  term: "kantoku",
-                  dollar: true,
-                  subtract: false,
-                  tilde: false
-                }
-              ]
-            }
-          }, "showAllExceptArchive")
-          this.startLoad({ type: "front_page", options: {
-            searchTerms: [
-              {
-                namespace: "artist",
-                term: "kantoku",
-                dollar: true,
-                subtract: false,
-                tilde: false
-              }
-            ]
-          } })
+          let type: "front_page" | "watched" | "favorites" = "front_page";
+          let searchTerms: EHSearchTerm[] | undefined = undefined;
+          if (
+            statusManager.currentTab
+            && (statusManager.currentTab.type === "front_page"
+              || statusManager.currentTab.type === "watched"
+              || statusManager.currentTab.type === "favorites")
+          ) {
+            searchTerms = statusManager.currentTab.options.searchTerms;
+            type = statusManager.currentTab.type;
+          }
+          const args = await getSearchOptions({ type, options: { searchTerms } }, "showAllExceptArchive")
+          this.startLoad(args)
+
         }
       }
     })
@@ -169,8 +158,8 @@ export class HomepageController extends BaseController {
     this.cviews.list.isLoading = true;
     statusManager.loadTab(options).then().catch(e => appLog(e, "error"))
     if (
-      (options.type === "front_page" || options.type === "watched" || options.type === "favorites") 
-      && options.options.searchTerms 
+      (options.type === "front_page" || options.type === "watched" || options.type === "favorites")
+      && options.options.searchTerms
       && options.options.searchTerms.length
     ) {
       const fsearch = buildSortedFsearch(options.options.searchTerms);

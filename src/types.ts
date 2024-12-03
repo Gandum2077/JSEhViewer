@@ -114,7 +114,7 @@ export type ArchiveSearchOptions = {
   type?: "readlater" | "has_read" | "download" | "all", 
   sort?: "first_access_time" | "last_access_time" | "posted_time",
   searchTerms?: EHSearchTerm[];
-  filteredCategories?: EHSearchedCategory[];
+  excludedCategories?: EHSearchedCategory[];
   minimumPages?: number;
   maximumPages?: number;
   minimumRating?: number;

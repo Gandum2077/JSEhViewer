@@ -260,7 +260,7 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
 
 class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
-  private _filteredCategories: Set<EHSearchedCategory> = new Set();
+  private _excludedCategories: Set<EHSearchedCategory> = new Set();
   private _enablePageFilters: boolean = false;
   private _options: {
     browseExpungedGalleries?: boolean,
@@ -357,7 +357,7 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                       },
                       events: {
                         tapped: sender => {
-                          this._filteredCategories = new Set();
+                          this._excludedCategories = new Set();
                           catList.data = this.mapData();
                         }
                       }
@@ -373,7 +373,7 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                       },
                       events: {
                         tapped: sender => {
-                          this._filteredCategories = new Set(searchableCategories);
+                          this._excludedCategories = new Set(searchableCategories);
                           catList.data = this.mapData();
                         }
                       }
@@ -389,8 +389,8 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                       },
                       events: {
                         tapped: sender => {
-                          const reversed = searchableCategories.filter(cat => !this._filteredCategories.has(cat));
-                          this._filteredCategories = new Set(reversed);
+                          const reversed = searchableCategories.filter(cat => !this._excludedCategories.has(cat));
+                          this._excludedCategories = new Set(reversed);
                           catList.data = this.mapData();
                         }
                       }
@@ -425,10 +425,10 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         didSelect: (sender, indexPath, data) => {
           const index = indexPath.row;
           const cat = searchableCategories[index];
-          if (this._filteredCategories.has(cat)) {
-            this._filteredCategories.delete(cat);
+          if (this._excludedCategories.has(cat)) {
+            this._excludedCategories.delete(cat);
           } else {
-            this._filteredCategories.add(cat);
+            this._excludedCategories.add(cat);
           }
           catList.data = this.mapData();
         }
@@ -453,7 +453,7 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     return searchableCategories.map(cat => ({
       label: {
         text: cat, bgcolor: catColor[cat],
-        alpha: this._filteredCategories.has(cat) ? 0.4 : 1
+        alpha: this._excludedCategories.has(cat) ? 0.4 : 1
       }
     }))
   }
@@ -553,7 +553,7 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
 
   get data() {
     return {
-      filteredCategories: [...this._filteredCategories],
+      excludedCategories: [...this._excludedCategories],
       options: this._options
     }
   }
@@ -715,7 +715,7 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
 
 class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
-  private _filteredCategories: Set<EHSearchedCategory> = new Set();
+  private _excludedCategories: Set<EHSearchedCategory> = new Set();
   private _enablePageFilters: boolean = false;
   private _options: {
     minimumPages?: number,
@@ -802,7 +802,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                       },
                       events: {
                         tapped: sender => {
-                          this._filteredCategories = new Set();
+                          this._excludedCategories = new Set();
                           catList.data = this.mapData();
                         }
                       }
@@ -818,7 +818,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                       },
                       events: {
                         tapped: sender => {
-                          this._filteredCategories = new Set(searchableCategories);
+                          this._excludedCategories = new Set(searchableCategories);
                           catList.data = this.mapData();
                         }
                       }
@@ -834,8 +834,8 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                       },
                       events: {
                         tapped: sender => {
-                          const reversed = searchableCategories.filter(cat => !this._filteredCategories.has(cat));
-                          this._filteredCategories = new Set(reversed);
+                          const reversed = searchableCategories.filter(cat => !this._excludedCategories.has(cat));
+                          this._excludedCategories = new Set(reversed);
                           catList.data = this.mapData();
                         }
                       }
@@ -870,10 +870,10 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         didSelect: (sender, indexPath, data) => {
           const index = indexPath.row;
           const cat = searchableCategories[index];
-          if (this._filteredCategories.has(cat)) {
-            this._filteredCategories.delete(cat);
+          if (this._excludedCategories.has(cat)) {
+            this._excludedCategories.delete(cat);
           } else {
-            this._filteredCategories.add(cat);
+            this._excludedCategories.add(cat);
           }
           catList.data = this.mapData();
         }
@@ -898,7 +898,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     return searchableCategories.map(cat => ({
       label: {
         text: cat, bgcolor: catColor[cat],
-        alpha: this._filteredCategories.has(cat) ? 0.4 : 1
+        alpha: this._excludedCategories.has(cat) ? 0.4 : 1
       }
     }))
   }
@@ -958,7 +958,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
 
   get data() {
     return {
-      filteredCategories: [...this._filteredCategories],
+      excludedCategories: [...this._excludedCategories],
       options: this._options
     }
   }
@@ -1219,7 +1219,7 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
             type: "front_page",
             options: {
               searchTerms,
-              filteredCategories: data.filteredCategories,
+              excludedCategories: data.excludedCategories,
               ...data.options
             }
           })
@@ -1229,7 +1229,7 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
             type: "watched",
             options: {
               searchTerms,
-              filteredCategories: data.filteredCategories,
+              excludedCategories: data.excludedCategories,
               ...data.options
             }
           })
@@ -1251,7 +1251,7 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
               page: 0,
               pageSize: 50,
               searchTerms,
-              filteredCategories: data.filteredCategories,
+              excludedCategories: data.excludedCategories,
               ...data.options
             }
           })

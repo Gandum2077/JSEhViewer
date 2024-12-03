@@ -33,7 +33,8 @@ export function createDB() {
   db.update(`CREATE TABLE IF NOT EXISTS archive_taglist (
             gid INTEGER NOT NULL,
             namespace TEXT,
-            tag TEXT
+            tag TEXT,
+            UNIQUE(gid, namespace, tag)
             )`);
   // 设置表
   db.update(`CREATE TABLE IF NOT EXISTS config (

@@ -32,8 +32,8 @@ export function createDB() {
   // 标签表，用于搜索
   db.update(`CREATE TABLE IF NOT EXISTS archive_taglist (
             gid INTEGER NOT NULL,
-            namespace TEXT,
-            tag TEXT,
+            namespace TEXT NOT NULL,
+            tag TEXT NOT NULL,
             UNIQUE(gid, namespace, tag)
             )`);
   // 设置表
@@ -51,8 +51,8 @@ export function createDB() {
             )`);
   // 翻译表
   db.update(`CREATE TABLE IF NOT EXISTS translation_data (
-            namespace TEXT,
-            name TEXT,
+            namespace TEXT NOT NULL,
+            name TEXT NOT NULL,
             translation TEXT,
             intro TEXT,
             links TEXT,
@@ -61,8 +61,8 @@ export function createDB() {
   // 标记的标签
   db.update(`CREATE TABLE IF NOT EXISTS marked_tags (
             tagid INTEGER,
-            namespace TEXT,
-            name TEXT,
+            namespace TEXT NOT NULL,
+            name TEXT NOT NULL,
             watched INTEGER,
             hidden INTEGER,
             color TEXT,
@@ -72,8 +72,8 @@ export function createDB() {
   // 额外保存的标签
   // 用户主动保存的标签（保存前要查重），对于不出现在翻译表中标签进行标记时，也要先保存到这里
   db.update(`CREATE TABLE IF NOT EXISTS extra_saved_tags (
-            namespace TEXT,
-            name TEXT,
+            namespace TEXT NOT NULL,
+            name TEXT NOT NULL,
             UNIQUE(namespace, name)
             )`);
   // 标记的上传者 只保存于本地
@@ -105,7 +105,7 @@ export function createDB() {
             search_history_id INTEGER,
             namespace TEXT,
             qualifier TEXT,
-            term TEXT,
+            term TEXT NOT NULL,
             dollar INTEGER,
             subtract INTEGER,
             tilde INTEGER
@@ -122,16 +122,17 @@ export function createDB() {
             search_bookmarks_id INTEGER,
             namespace TEXT,
             qualifier TEXT,
-            term TEXT,
+            term TEXT NOT NULL,
             dollar INTEGER,
             subtract INTEGER,
             tilde INTEGER
             )`);
   // 标签访问次数统计
+  // 此表要求namespace, qualifier, term不能为null，且组合是唯一的
   db.update(`CREATE TABLE IF NOT EXISTS tag_access_count (
-            namespace TEXT,
-            qualifier TEXT,
-            term TEXT,
+            namespace TEXT NOT NULL default '',
+            qualifier TEXT NOT NULL default '',
+            term TEXT NOT NULL default '',
             count INTEGER,
             UNIQUE(namespace, qualifier, term)
             )`);

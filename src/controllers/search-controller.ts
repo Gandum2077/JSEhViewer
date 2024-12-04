@@ -137,9 +137,12 @@ class HistoryMatrixItem extends Base<UILabelView, UiTypes.LabelOptions> {
   private _text: string;
   constructor(tag: { namespace?: TagNamespace, qualifier?: EHQualifier, term: string }) {
     super();
-    this._text = tag.qualifier === "uploader"
-      ? "上传者:" + tag.term
-      : (tag.namespace ? configManager.translate(tag.namespace, tag.term) || tag.term : tag.term);
+    this._text = tag.namespace ? (configManager.translate(tag.namespace, tag.term) || tag.term) : tag.term
+    if (tag.qualifier === "uploader") {
+      this._text = "上传者:" + tag.term
+    } else if (tag.qualifier) {
+      this._text = tag.qualifier + ":" + this._text
+    }
     this._defineView = () => ({
       type: "label",
       props: {
@@ -188,7 +191,7 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
           const tag = lastAccessSearchTerms[index];
           const fsearch = assembleSearchTerms([{
             namespace: tag.namespace,
-            qualifier: tag.qualifier === "uploader" ? "uploader" : undefined,
+            qualifier: tag.qualifier,
             term: tag.term,
             dollar: true,
             subtract: false,
@@ -213,7 +216,7 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
           const tag = mostAccessedTags[index];
           const fsearch = assembleSearchTerms([{
             namespace: tag.namespace,
-            qualifier: tag.qualifier === "uploader" ? "uploader" : undefined,
+            qualifier: tag.qualifier,
             term: tag.term,
             dollar: true,
             subtract: false,

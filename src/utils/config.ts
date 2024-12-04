@@ -684,7 +684,7 @@ ON CONFLICT(namespace, qualifier, term)
 DO UPDATE SET count = count + 1;
 `
     // qualifier仅保留uploader
-    dbManager.batchUpdate(sql, tags.map(tag => ([tag.namespace, tag.qualifier === "uploader" ? "uploader" : undefined, tag.term])))
+    dbManager.batchUpdate(sql, tags.map(tag => ([tag.namespace || "", tag.qualifier || "", tag.term  || ""])))
   }
 
   getTenLastAccessSearchTerms(): EHSearchTerm[] {

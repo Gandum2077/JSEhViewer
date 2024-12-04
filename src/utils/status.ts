@@ -450,7 +450,7 @@ class StatusManager {
       "disowned",
       "taglist",
       "last_read_page"
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(gid) DO NOTHING;`;
     const sql_taglist = `INSERT OR REPLACE INTO archive_taglist (
       "gid",
@@ -532,6 +532,13 @@ class StatusManager {
       data.last_read_page
     ]);
     dbManager.batchUpdate(sql_taglist, taglist_string);
+  }
+
+  deleteArchiveItem(gid: number) {
+    const sql = `DELETE FROM archives WHERE gid = ?;`;
+    dbManager.update(sql, [gid]);
+    const sql_taglist = `DELETE FROM archive_taglist WHERE gid = ?;`;
+    dbManager.update(sql_taglist, [gid]);
   }
 
   updateLastAccessTime(gid: number) {

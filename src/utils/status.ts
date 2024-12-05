@@ -358,6 +358,7 @@ class StatusManager {
       disowned: number;
       favorited_time: string;
       taglist: string;
+      comment: string;
       last_read_page: number;
     }[];
     const data: DBArchiveItem[] = rawData.map(row => ({
@@ -383,6 +384,7 @@ class StatusManager {
       uploader: row.uploader,
       disowned: Boolean(row.disowned),
       taglist: JSON.parse(row.taglist) as EHTagListItem[],
+      comment: row.comment,
       last_read_page: row.last_read_page
     }));
     const extendedItems: EHListExtendedItem[] = data.map(item => ({
@@ -463,6 +465,7 @@ class StatusManager {
     let japanese_title = "";
     let rating = 0;
     let torrent_available = false;
+    let comment = "";
     if ("type" in infos) {
       title = infos.title;
       rating = infos.estimated_display_rating;
@@ -473,6 +476,7 @@ class StatusManager {
       japanese_title = infos.japanese_title;
       rating = infos.display_rating;
       torrent_available = infos.torrent_count > 0;
+      comment = infos.comments.length > 0 && infos.comments[0].is_uploader ? infos.comments[0].comment_div : "";
     }
 
     const data: DBArchiveItem = {
@@ -498,6 +502,7 @@ class StatusManager {
       uploader: infos.uploader,
       disowned: infos.disowned,
       taglist: infos.taglist,
+      comment,
       last_read_page: 0
     };
     const taglist_string: [number, TagNamespace, string][] = []
@@ -529,6 +534,7 @@ class StatusManager {
       data.uploader,
       data.disowned,
       JSON.stringify(data.taglist),
+      data.comment,
       data.last_read_page
     ]);
     dbManager.batchUpdate(sql_taglist, taglist_string);

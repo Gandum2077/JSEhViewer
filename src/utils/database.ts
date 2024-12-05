@@ -27,6 +27,7 @@ export function createDB() {
             uploader TEXT,
             disowned INTEGER,
             taglist TEXT,
+            comment TEXT,
             last_read_page INTEGER
             )`);
   // 标签表，用于搜索

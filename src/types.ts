@@ -105,6 +105,7 @@ export type DBArchiveItem = {
   uploader?: string;
   disowned: boolean;
   taglist: EHTagListItem[];
+  comment: string;
   last_read_page: number;
 }
 

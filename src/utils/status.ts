@@ -6,6 +6,255 @@ import { router } from "jsbox-cview";
 import { HomepageController } from "../controllers/homepage-controller";
 import { ArchiveController } from "../controllers/archive-controller";
 
+function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): { sql: string; args: any[] } {
+  const { page, pageSize, type, sort, searchTerms, excludedCategories, minimumPages, maximumPages, minimumRating } = options;
+
+  let sql = `
+    SELECT 
+      archives.*
+    FROM 
+      archives
+  `;
+
+  const conditions: string[] = [];
+  const args: any[] = [];
+
+  // Handle type filter
+  if (type && type !== "all") {
+    if (type === "readlater") {
+      conditions.push("readlater = 1");
+    } else if (type === "has_read") {
+      conditions.push("readlater = 0");
+    } else if (type === "download") {
+      conditions.push("downloaded = 1");
+    }
+  }
+
+  // Handle excludedCategories
+  if (excludedCategories && excludedCategories.length > 0) {
+    conditions.push(`category NOT IN (${excludedCategories.map(() => "?").join(", ")})`);
+    args.push(...excludedCategories);
+  }
+
+  // Handle page length filters
+  if (minimumPages !== undefined) {
+    conditions.push("length >= ?");
+    args.push(minimumPages);
+  }
+  if (maximumPages !== undefined) {
+    conditions.push("length <= ?");
+    args.push(maximumPages);
+  }
+
+  // Handle rating filter
+  if (minimumRating !== undefined) {
+    conditions.push("rating >= ?");
+    args.push(minimumRating);
+  }
+
+  // Handle search terms
+  // 分为以下情况：
+  // 1. uploader, title, gid, comment四种修饰词单独成为一个条件（weak, uploaduid, favnote禁用）
+  // 2. 如果某个term没有修饰词也没有命名空间，那么将在title和taglist中搜索
+  // 3. tag修饰词将只在taglist中搜索
+  // 4. 或搜索需要单独提取出来处理
+
+  if (searchTerms && searchTerms.length > 0) {
+    const specialQualifiers: EHQualifier[] = ["uploader", "title", "gid", "comment"];
+    const searchTermsWithSpecialConditions = searchTerms.filter(term => term.qualifier && specialQualifiers.includes(term.qualifier));
+    const searchTermsWithOutSpecialConditions = searchTerms.filter(term => !term.qualifier || !specialQualifiers.includes(term.qualifier));
+    for (const st of searchTermsWithSpecialConditions) {
+      switch (st.qualifier) {
+        case "uploader": {
+          if (st.subtract) {
+            const condition = `uploader <> ?`;
+            const arg = st.term;
+            conditions.push(condition);
+            args.push(arg);
+          } else {
+            const condition = `uploader = ?`;
+            const arg = st.term;
+            conditions.push(condition);
+            args.push(arg);
+          }
+          break;
+        }
+        case "title": {
+          if (st.subtract) {
+            const condition = `(title NOT LIKE ? AND english_title NOT LIKE ? AND japanese_title NOT LIKE ?)`;
+            const arg = `%${st.term}%`;
+            conditions.push(condition);
+            args.push(arg);
+            args.push(arg);
+            args.push(arg);
+          } else {
+            const condition = `(title LIKE ? OR english_title LIKE ? OR japanese_title LIKE ?)`;
+            const arg = `%${st.term}%`;
+            conditions.push(condition);
+            args.push(arg);
+            args.push(arg);
+            args.push(arg);
+          }
+          break;
+        }
+        case "gid": {
+          if (st.subtract) {
+            const condition = `gid <> ?`;
+            const arg = Number(st.term);
+            conditions.push(condition);
+            args.push(arg);
+          } else {
+            const condition = `gid = ?`;
+            const arg = Number(st.term);
+            conditions.push(condition);
+            args.push(arg);
+          }
+          break;
+        }
+        case "comment": {
+          if (st.subtract) {
+            const condition = `comment NOT LIKE ?`;
+            const arg = `%${st.term}%`;
+            conditions.push(condition);
+            args.push(arg);
+          } else {
+            const condition = `comment LIKE ?`;
+            const arg = `%${st.term}%`;
+            conditions.push(condition);
+            args.push(arg);
+          }
+          break;
+        }
+      }
+    }
+
+    // 查找没有修饰词也没有命名空间的term(不能有~符号)
+    const searchTermsNoQualifierAndNamespace = searchTermsWithOutSpecialConditions.filter(term => !term.qualifier && !term.namespace && !term.tilde);
+    for (const st of searchTermsNoQualifierAndNamespace) {
+      const condition = `(title LIKE ? OR english_title LIKE ? OR japanese_title LIKE ? OR taglist LIKE ?)`;
+      const arg = `%${st.term}%`;
+      conditions.push(condition);
+      args.push(arg);
+      args.push(arg);
+      args.push(arg);
+      args.push(arg);
+    }
+
+    // 下面需要创建一个子查询，用于处理tag修饰词，类似于以下SQL语句
+    // SELECT DISTINCT gid
+    // FROM archive_taglist
+    // WHERE (namespace = 'language' AND tag = 'chinese')
+    //   OR (namespace = 'female' AND tag like 'ga%')
+    //   OR (namespace='female' AND tag <> "zz")
+    //   AND gid in (
+    //     SELECT DISTINCT gid
+    //     FROM archive_taglist
+    //     WHERE (namespace = 'artist' AND tag = 'ito fleda')
+    //       OR (namespace = 'female' AND tag like 'gaa%')
+    //   )
+    // GROUP BY gid
+    // HAVING COUNT(*) = 3
+
+    const subConditions: string[] = [];
+    const subsubConditions: string[] = [];
+
+    // 查找不含~符号的搜索词（此时qualifier只剩tag）
+    const searchTermsTag = searchTermsWithOutSpecialConditions.filter(term => !term.tilde && term.qualifier === "tag" || term.namespace);
+    if (searchTermsTag.length > 0) {
+      for (const st of searchTermsTag) {
+        if (st.namespace && st.dollar) {
+          subConditions.push(`(namespace = ? AND tag = ?)`);
+          args.push(st.namespace);
+          args.push(st.term);
+        } else if (st.namespace && !st.dollar) {
+          subConditions.push(`(namespace = ? AND tag LIKE ?)`);
+          args.push(st.namespace);
+          args.push(`${st.term}%`);
+        } else if (!st.namespace && st.dollar) {
+          subConditions.push(`(tag = ?)`);
+          args.push(st.term);
+        } else if (!st.namespace && !st.dollar) {
+          subConditions.push(`(tag LIKE ?)`);
+          args.push(`${st.term}%`);
+        }
+      }
+    }
+
+    // 查找或搜索(~符号的搜索词只被看作标签)
+    const searchTermsTilde = searchTermsWithOutSpecialConditions.filter(term => term.tilde);
+    if (searchTermsTilde.length > 0) {
+      for (const st of searchTermsTilde) {
+        if (st.namespace && st.dollar) {
+          subsubConditions.push(`(namespace = ? AND tag = ?)`);
+          args.push(st.namespace);
+          args.push(st.term);
+        } else if (st.namespace && !st.dollar) {
+          subsubConditions.push(`(namespace = ? AND tag LIKE ?)`);
+          args.push(st.namespace);
+          args.push(`${st.term}%`);
+        } else if (!st.namespace && st.dollar) {
+          subsubConditions.push(`(tag = ?)`);
+          args.push(st.term);
+        } else if (!st.namespace && !st.dollar) {
+          subsubConditions.push(`(tag LIKE ?)`);
+          args.push(`${st.term}%`);
+        }
+      }
+    }
+
+    if (subConditions.length > 0 && subsubConditions.length > 0) {
+      const subQuery = `
+        SELECT DISTINCT gid
+        FROM archive_taglist
+        WHERE ${subConditions.join(" OR ")}
+          AND gid IN (
+            SELECT DISTINCT gid
+            FROM archive_taglist
+            WHERE ${subsubConditions.join(" OR ")}
+          )
+        GROUP BY gid
+        HAVING COUNT(*) = ${subConditions.length}
+      `;
+      conditions.push(`gid IN (${subQuery})`);
+    } else if (subConditions.length > 0) {
+      const subQuery = `
+        SELECT DISTINCT gid
+        FROM archive_taglist
+        WHERE ${subConditions.join(" OR ")}
+        GROUP BY gid
+        HAVING COUNT(*) = ${subConditions.length}
+      `;
+      conditions.push(`gid IN (${subQuery})`);
+    } else if (subsubConditions.length > 0) {
+      const subQuery = `
+        SELECT DISTINCT gid
+        FROM archive_taglist
+        WHERE ${subsubConditions.join(" OR ")}
+      `;
+      conditions.push(`gid IN (${subQuery})`);
+    }
+  }
+
+  // Add conditions to query
+  if (conditions.length > 0) {
+    sql += ` WHERE ${conditions.join(" AND ")}`;
+  }
+
+  // Handle sorting
+  if (sort) {
+    sql += ` ORDER BY ${sort}`;
+  } else {
+    sql += ` ORDER BY first_access_time DESC`;
+  }
+
+  // Handle pagination
+  const offset = page * pageSize;
+  sql += ` LIMIT ? OFFSET ?`;
+  args.push(pageSize, offset);
+
+  return { sql, args };
+}
+
 /**
  * 管理状态
  */
@@ -329,11 +578,7 @@ class StatusManager {
   }
 
   queryArchiveItem(options: ArchiveSearchOptions) {
-    const sql = `SELECT * FROM archives 
-        ORDER BY ${options.sort} DESC
-        LIMIT ? OFFSET ?
-        ;`
-    const args = [options.pageSize, options.page * options.pageSize];
+    const { sql, args } = buildArchiveSearchSQLQuery(options);
     const rawData = dbManager.query(sql, args) as {
       gid: number;
       readlater: number;
@@ -548,13 +793,13 @@ class StatusManager {
   }
 
   updateLastAccessTime(gid: number) {
-  // 应该在访问图库的时候更新
+    // 应该在访问图库的时候更新
     const sql = `UPDATE archives SET last_access_time = datetime('now') WHERE gid = ?;`;
     dbManager.update(sql, [gid]);
   }
 
   updateLastReadPage(gid: number, page: number) {
-  // 应该在退出阅读器的时候更新
+    // 应该在退出阅读器的时候更新
     const sql = `UPDATE archives SET last_read_page = ? WHERE gid = ?;`;
     dbManager.update(sql, [page, gid]);
   }

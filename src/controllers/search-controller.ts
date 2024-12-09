@@ -1215,6 +1215,16 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
           });
           return;
         }
+        if (searchTerms.some(st => st.qualifier && st.tilde && (st.qualifier !== "tag" && st.qualifier !== "weak"))) {
+          $ui.alert({
+            title: "无意义的符号",
+            message: "~符号只能用于标签，其他修饰词均不支持~符号",
+            actions: [
+              { title: "OK" }
+            ]
+          });
+          return;
+        }
         const type = navbar.type;
         if (type === "front_page") {
           const data = this.cviews.frontPageOptionsView.data;
@@ -1247,6 +1257,16 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
             }
           })
         } else {
+          if (searchTerms.some(st => st.qualifier && ["weak", "favnote", "uploaduid"].includes(st.qualifier))) {
+            $ui.alert({
+              title: "不支持的修饰词",
+              message: "存档搜索不支持修饰词weak, uploaduid, favnote",
+              actions: [
+                { title: "OK" }
+              ]
+            });
+            return;
+          }
           const data = this.cviews.archiveOptionsView.data;
           resolveHandler({
             type: "archive",

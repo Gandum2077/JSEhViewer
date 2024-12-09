@@ -110,7 +110,7 @@ export type DBArchiveItem = {
 }
 
 export type ArchiveSearchOptions = { 
-  page: number, 
+  page: number,  // 从0开始
   pageSize: number,
   type?: "readlater" | "has_read" | "download" | "all", 
   sort?: "first_access_time" | "last_access_time" | "posted_time",

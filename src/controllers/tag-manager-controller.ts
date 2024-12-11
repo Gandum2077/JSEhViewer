@@ -6,6 +6,7 @@ import { EHSearchTerm, TagNamespace, tagNamespaces } from "ehentai-parser";
 import { showDetailedInfoView } from "../components/detailed-info-view";
 import { HomepageController } from "./homepage-controller";
 import { getSearchOptions } from "./search-controller";
+import { ArchiveController } from "./archive-controller";
 
 enum TagType {
   unmarked,
@@ -99,7 +100,7 @@ function mapData(
             symbol: tagSymbol[style],
             tintColor: tagSymbolColor[style]
           },
-          tag: { text: n.translation ? n.translation + "  " + n.name : n.name },
+          tag: { text: n.translation ? n.translation + "   " + n.name : n.name },
         }
       })
 
@@ -171,9 +172,13 @@ export class TagManagerController extends BaseController {
               { type: "front_page", options: { searchTerms: this._selectedSearchTerms } },
               "showAll"
             );
-            //TODO: 存档页面暂时没做
-            (router.get("homepageController") as HomepageController).startLoad(options);
-            (router.get("primaryViewController") as TabBarController).index = 0;
+            if (options.type === "archive") {
+              (router.get("archiveController") as ArchiveController).startLoad(options);
+              (router.get("primaryViewController") as TabBarController).index = 1;
+            } else {
+              (router.get("homepageController") as HomepageController).startLoad(options);
+              (router.get("primaryViewController") as TabBarController).index = 0;
+            }
             this.cviews.createNewSearchButton.tintColor = $color("primaryText")
             this._selectedSearchTerms = []
           }
@@ -310,9 +315,13 @@ export class TagManagerController extends BaseController {
                     { type: "front_page", options: { searchTerms: [searchTerm] } },
                     "showAll"
                   );
-                  //TODO: 存档页面暂时没做
-                  (router.get("homepageController") as HomepageController).startLoad(options);
-                  (router.get("primaryViewController") as TabBarController).index = 0;
+                  if (options.type === "archive") {
+                    (router.get("archiveController") as ArchiveController).startLoad(options);
+                    (router.get("primaryViewController") as TabBarController).index = 1;
+                  } else {
+                    (router.get("homepageController") as HomepageController).startLoad(options);
+                    (router.get("primaryViewController") as TabBarController).index = 0;
+                  }
               }
             },
             {

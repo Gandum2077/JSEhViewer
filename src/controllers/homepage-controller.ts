@@ -123,7 +123,6 @@ export class HomepageController extends BaseController {
           }
           const args = await getSearchOptions({ type, options: { searchTerms } }, "showAllExceptArchive")
           this.startLoad(args)
-
         }
       }
     })

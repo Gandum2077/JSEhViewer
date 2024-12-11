@@ -3,6 +3,8 @@ import { configManager } from "../utils/config";
 import { DBSearchBookmarks } from "../types";
 import { _mapSearchTermsToRow } from "./searchterm-history-list";
 import { HomepageController } from "../controllers/homepage-controller";
+import { getSearchOptions } from "../controllers/search-controller";
+import { ArchiveController } from "../controllers/archive-controller";
 
 export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOptions> {
   _defineView: () => UiTypes.ListOptions;
@@ -42,11 +44,22 @@ export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOption
               {
                 title: "新建搜索",
                 symbol: "plus.magnifyingglass",
-                handler: (sender, indexPath) => {
+                handler: async (sender, indexPath) => {
                   const id = (sender as UIListView).object(indexPath).label.info.id as number;
                   const searchTerms = this._searchBookmarks.find(item => item.id === id)?.searchTerms;
                   if (!searchTerms) return;
-                  // TODO
+                  const options = await getSearchOptions(
+                    { type: "front_page", options: { searchTerms } },
+                    "showAll"
+                  );
+                  (router.get("splitViewController") as SplitViewController).sideBarShown = false;
+                  if (options.type === "archive") {
+                    (router.get("archiveController") as ArchiveController).startLoad(options);
+                    (router.get("primaryViewController") as TabBarController).index = 1;
+                  } else {
+                    (router.get("homepageController") as HomepageController).startLoad(options);
+                    (router.get("primaryViewController") as TabBarController).index = 0;
+                  }
                 }
               },
               {

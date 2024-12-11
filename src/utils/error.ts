@@ -1,5 +1,3 @@
-// ChatGPT示例 https://chatgpt.com/c/372f7a44-1941-476a-995a-d406be441cd7
-
 interface AppError {
   code: string;
   message: string;

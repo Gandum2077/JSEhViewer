@@ -1,14 +1,17 @@
-import { BaseController, CustomNavigationBar, SearchBar, SymbolButton, router, SplitViewController } from "jsbox-cview";
+import { BaseController, CustomNavigationBar, SymbolButton, router, SplitViewController } from "jsbox-cview";
 import { GalleryController } from "./gallery-controller";
 import { jumpRangeDialog, jumpPageDialog } from "../components/seekpage-dialog";
 import { configManager } from "../utils/config";
 import { EHlistView } from "../components/ehlist-view";
 import { statusManager } from "../utils/status";
-import { api, downloaderManager } from "../utils/api";
+import { downloaderManager } from "../utils/api";
 import { getSearchOptions } from "./search-controller";
+import { CustomSearchBar } from "../components/custom-searchbar";
+import { ArchiveTabOptions } from "../types";
+import { buildSortedFsearch } from "ehentai-parser";
 
 export class ArchiveController extends BaseController {
-  cviews: { navbar: CustomNavigationBar, list: EHlistView };
+  cviews: { navbar: CustomNavigationBar, list: EHlistView, searchBar: CustomSearchBar };
   constructor() {
     super({
       props: {
@@ -17,7 +20,6 @@ export class ArchiveController extends BaseController {
       },
       events: {
         didAppear: () => {
-          console.log("archiveController didAppear")
           downloaderManager.startArchiveTabDownloader()
         }
       }
@@ -26,27 +28,68 @@ export class ArchiveController extends BaseController {
       props: {
         symbol: configManager.archiveManagerLayoutMode === "normal" ? "square.grid.2x2" : "list.bullet",
         menu: {
-          title: "布局方式",
           pullDown: true,
           asPrimary: true,
           items: [
             {
-              title: "列表布局",
-              handler: () => {
-                if (configManager.archiveManagerLayoutMode === "large") return
-                configManager.archiveManagerLayoutMode = "large"
-                listLayoutButton.symbol = "list.bullet"
-                list.layoutMode = "large"
-              }
+              title: "布局方式",
+              inline: true,
+              items: [
+                {
+                  title: "列表布局",
+                  handler: () => {
+                    if (configManager.archiveManagerLayoutMode === "large") return
+                    configManager.archiveManagerLayoutMode = "large"
+                    listLayoutButton.symbol = "list.bullet"
+                    list.layoutMode = "large"
+                  }
+                },
+                {
+                  title: "矩阵布局",
+                  handler: () => {
+                    if (configManager.archiveManagerLayoutMode === "normal") return
+                    configManager.archiveManagerLayoutMode = "normal"
+                    listLayoutButton.symbol = "square.grid.2x2"
+                    list.layoutMode = "normal"
+                  }
+                }
+              ]
             },
             {
-              title: "矩阵布局",
-              handler: () => {
-                if (configManager.archiveManagerLayoutMode === "normal") return
-                configManager.archiveManagerLayoutMode = "normal"
-                listLayoutButton.symbol = "square.grid.2x2"
-                list.layoutMode = "normal"
-              }
+              title: "排序方式",
+              inline: true,
+              items: [
+                {
+                  title: "按发布时间",
+                  handler: () => {
+                    if (configManager.archiveManagerOrderMethod === "posted_time") return;
+                    configManager.archiveManagerOrderMethod = "posted_time";
+                    if (!statusManager.archiveTab) return;
+                    statusManager.archiveTab.options.sort = "posted_time";
+                    this.reload();
+                  }
+                },
+                {
+                  title: "按首次阅读时间",
+                  handler: () => {
+                    if (configManager.archiveManagerOrderMethod === "first_access_time") return;
+                    configManager.archiveManagerOrderMethod = "first_access_time";
+                    if (!statusManager.archiveTab) return;
+                    statusManager.archiveTab.options.sort = "first_access_time";
+                    this.reload();
+                  }
+                },
+                {
+                  title: "按最近阅读时间",
+                  handler: () => {
+                    if (configManager.archiveManagerOrderMethod === "last_access_time") return;
+                    configManager.archiveManagerOrderMethod = "last_access_time";
+                    if (!statusManager.archiveTab) return;
+                    statusManager.archiveTab.options.sort = "last_access_time";
+                    this.reload();
+                  }
+                }
+              ]
             }
           ]
         }
@@ -87,20 +130,30 @@ export class ArchiveController extends BaseController {
         ]
       }
     })
-    const searchBar = new SearchBar({
+    const searchBar = new CustomSearchBar({
       props: {
       },
-      layout: (make, view) => {
-        make.left.right.inset(4)
-        make.height.equalTo(36)
-        make.top.inset(4.5)
+      events: {
+        tapped: async sender => {
+          const args = await getSearchOptions({
+            type: "archive",
+            options: {
+              searchTerms: statusManager.archiveTab?.options.searchTerms,
+              page: 0,
+              pageSize: 50,
+              sort: configManager.archiveManagerOrderMethod,
+              type: "all"
+            }
+          }, "onlyShowArchive") as ArchiveTabOptions
+          this.startLoad(args)
+        }
       }
     })
     const list = new EHlistView({
       layoutMode: configManager.archiveManagerLayoutMode,
       searchBar,
       pulled: () => {
-        this.startLoad()
+        this.reload()
       },
       didSelect: async (sender, indexPath, item) => {
         const galleryController = new GalleryController(item.gid, item.token)
@@ -118,20 +171,20 @@ export class ArchiveController extends BaseController {
         make.bottom.equalTo(view.super.safeAreaBottom).offset(-50)
       }
     })
-    this.cviews = { navbar, list }
+    this.cviews = { navbar, list, searchBar }
     this.rootView.views = [navbar, list]
   }
 
-  startLoad() {
-    statusManager.loadArchiveTab({
-      type: "archive",
-      options: {
-        page: 0,
-        pageSize: 50,
-        type: "all",
-        sort: "posted_time"
-      }
-    })
+  startLoad(options: ArchiveTabOptions) {
+    statusManager.loadArchiveTab(options)
+    if (options.options.searchTerms && options.options.searchTerms.length) {
+      const fsearch = buildSortedFsearch(options.options.searchTerms);
+      configManager.addOrUpdateSearchHistory(fsearch, options.options.searchTerms);
+      configManager.updateTagAccessCount(options.options.searchTerms);
+      this.cviews.searchBar.searchTerms = options.options.searchTerms;
+    } else {
+      this.cviews.searchBar.searchTerms = [];
+    }
   }
 
   loadMore() {
@@ -148,9 +201,9 @@ export class ArchiveController extends BaseController {
     const items = tab.pages.map(page => page.items).flat();
     this.cviews.list.items = items;
     if ((tab.options.page + 1) * tab.options.pageSize >= tab.pages[0].all_count) {
-          this.cviews.list.footerText = "没有更多了";
-        } else {
-          this.cviews.list.footerText = "上拉加载更多";
+      this.cviews.list.footerText = "没有更多了";
+    } else {
+      this.cviews.list.footerText = "上拉加载更多";
 
     }
     this.cviews.list.isLoading = false;

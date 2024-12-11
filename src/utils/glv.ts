@@ -52,6 +52,21 @@ export const namespaceTranslations: Record<TagNamespace, string> = {
   temp: '临时'
 }
 
+export const namespaceOrderList: TagNamespace[] = [
+  "language",
+  "female",
+  "male",
+  "mixed",
+  "character",
+  "parody",
+  "artist",
+  "group",
+  "cosplayer",
+  "other",
+  "reclass",
+  "temp"
+];
+
 export const namespaceColor = {
   artist: $color("#E6D6D0", "#5E544E"),
   character: $color("#D5E4F7", "#49677F"),

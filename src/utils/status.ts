@@ -242,7 +242,7 @@ function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): { sql: strin
 
   // Handle sorting
   if (sort) {
-    sql += ` ORDER BY ${sort}`;
+    sql += ` ORDER BY ${sort} DESC`;
   } else {
     sql += ` ORDER BY first_access_time DESC`;
   }
@@ -696,8 +696,9 @@ class StatusManager {
       "uploader",
       "disowned",
       "taglist",
+      "comment",
       "last_read_page"
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(gid) DO NOTHING;`;
     const sql_taglist = `INSERT OR REPLACE INTO archive_taglist (
       "gid",
@@ -721,7 +722,7 @@ class StatusManager {
       japanese_title = infos.japanese_title;
       rating = infos.display_rating;
       torrent_available = infos.torrent_count > 0;
-      comment = infos.comments.length > 0 && infos.comments[0].is_uploader ? infos.comments[0].comment_div : "";
+      comment = infos.comments.length > 0 && infos.comments[0].is_uploader ? $text.HTMLUnescape(infos.comments[0].comment_div) : "";
     }
 
     const data: DBArchiveItem = {

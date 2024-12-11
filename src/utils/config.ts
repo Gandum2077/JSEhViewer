@@ -12,7 +12,7 @@ interface Config {
   tagManagerOnlyShowBookmarked: boolean,
   webdavIntroductionFirstRead: boolean,
   autopagerInterval: number,
-  downloadsOrderMethod: "gid" | "downloaded_time",
+  archiveManagerOrderMethod: "first_access_time" | "last_access_time" | "posted_time",
   favoritesOrderMethod: "favorited_time" | "published_time",
   webdavEnabled: boolean,
   selectedWebdavService: number,
@@ -31,7 +31,7 @@ const defaultConfig: Config = {
   tagManagerOnlyShowBookmarked: false,
   webdavIntroductionFirstRead: false,
   autopagerInterval: 5,
-  downloadsOrderMethod: "gid",
+  archiveManagerOrderMethod: "posted_time",
   favoritesOrderMethod: "favorited_time",
   webdavEnabled: true,
   selectedWebdavService: -1,
@@ -188,12 +188,12 @@ class ConfigManager {
     this._setConfig("autopagerInterval", value)
   }
 
-  get downloadsOrderMethod() {
-    return this._config.downloadsOrderMethod
+  get archiveManagerOrderMethod() {
+    return this._config.archiveManagerOrderMethod
   }
 
-  set downloadsOrderMethod(value: "gid" | "downloaded_time") {
-    this._setConfig("downloadsOrderMethod", value)
+  set archiveManagerOrderMethod(value: "first_access_time" | "last_access_time" | "posted_time") {
+    this._setConfig("archiveManagerOrderMethod", value)
   }
 
   get favoritesOrderMethod() {

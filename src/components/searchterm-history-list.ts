@@ -4,6 +4,8 @@ import { EHSearchTerm, tagNamespaceMostUsedAlternateMap } from "ehentai-parser";
 import { DBSearchHistory } from "../types";
 import { namespaceColor } from "../utils/glv";
 import { HomepageController } from "../controllers/homepage-controller";
+import { getSearchOptions } from "../controllers/search-controller";
+import { ArchiveController } from "../controllers/archive-controller";
 
 /**
  * SearchTermHistoryList
@@ -52,11 +54,22 @@ export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions>
               {
                 title: "新建搜索",
                 symbol: "plus.magnifyingglass",
-                handler: (sender, indexPath) => {
+                handler: async (sender, indexPath) => {
                   const id = (sender as UIListView).object(indexPath).label.info.id as number;
                   const searchTerms = this._searchHistory.find(item => item.id === id)?.searchTerms;
                   if (!searchTerms) return;
-                  // TODO
+                  const options = await getSearchOptions(
+                    { type: "front_page", options: { searchTerms } },
+                    "showAll"
+                  );
+                  (router.get("splitViewController") as SplitViewController).sideBarShown = false;
+                  if (options.type === "archive") {
+                    (router.get("archiveController") as ArchiveController).startLoad(options);
+                    (router.get("primaryViewController") as TabBarController).index = 1;
+                  } else {
+                    (router.get("homepageController") as HomepageController).startLoad(options);
+                    (router.get("primaryViewController") as TabBarController).index = 0;
+                  }
                 }
               },
               {

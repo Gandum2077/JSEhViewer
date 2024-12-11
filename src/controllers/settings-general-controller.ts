@@ -82,9 +82,9 @@ export function createGeneralSettingsController() {
           {
             type: "list",
             title: "存档页排序",
-            key: "downloadsOrderMethod",
-            items: ["按下载时间", "按发布时间"],
-            value: configManager.downloadsOrderMethod === "downloaded_time" ? 0 : 1
+            key: "archiveManagerOrderMethod",
+            items: ["按发布时间", "按首次阅读时间", "按最近阅读时间"],
+            value: configManager.archiveManagerOrderMethod === "posted_time" ? 0 : configManager.archiveManagerOrderMethod === "first_access_time" ? 1 : 2
           }
         ]
       },

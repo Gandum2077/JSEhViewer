@@ -1,7 +1,7 @@
 import { Base, ContentView, DynamicItemSizeMatrix, DynamicPreferenceListView, DynamicRowHeightList, Flowlayout, Input, PrefsRowBoolean, PrefsRowInteger, PrefsRowList, searchBarBgcolor, SymbolButton, Tab } from "jsbox-cview";
-import { catColor, favcatColor, searchableCategories, defaultButtonColor, namespaceTranslations, namespaceColor } from "../utils/glv";
+import { catColor, favcatColor, searchableCategories, defaultButtonColor, namespaceTranslations, namespaceColor, namespaceOrderList } from "../utils/glv";
 import { configManager } from "../utils/config";
-import { EHSearchTerm, assembleSearchTerms, EHQualifier, EHSearchedCategory, parseFsearch, TagNamespace, EHSearchOptions } from "ehentai-parser";
+import { EHSearchTerm, assembleSearchTerms, EHQualifier, EHSearchedCategory, parseFsearch, TagNamespace, tagNamespaces, tagNamespaceAlternates, TagNamespaceAlternate, tagNamespaceAlternateMap } from "ehentai-parser";
 import { ArchiveTabOptions, FavoritesTabOptions, FrontPageTabOptions, WatchedTabOptions } from "../types";
 
 // 整体构造是上面一个自定义导航栏，下面是一个搜索选项列表
@@ -17,14 +17,15 @@ type MenuDisplayMode = "onlyShowFrontPage" | "onlyShowArchive" | "showAllExceptA
 const TAG_FONT_SIZE = 15;
 
 class SearchSuggestionView extends Base<UIListView, UiTypes.ListOptions> {
-  currentSuggestions: {
+  private currentSuggestions: {
     namespace: TagNamespace;
     name: string;
     translation: string;
+    remaining: string;
   }[] = [];
   _defineView: () => UiTypes.ListOptions;
 
-  constructor(tagSelected: (tag: { namespace: TagNamespace; name: string; }) => void) {
+  constructor(tagSelected: (text: string) => void) {
     super();
     this._defineView = () => ({
       type: "list",
@@ -32,6 +33,12 @@ class SearchSuggestionView extends Base<UIListView, UiTypes.ListOptions> {
         id: this.id,
         hidden: true,
         separatorInset: $insets(0, 20, 0, 0),
+        footer: {
+          type: "view",
+          props: {
+            height: 265
+          }
+        },
         template: {
           views: [{
             type: "label",
@@ -51,16 +58,28 @@ class SearchSuggestionView extends Base<UIListView, UiTypes.ListOptions> {
       layout: $layout.fill,
       events: {
         didSelect: (sender, indexPath, data) => {
-          tagSelected(this.currentSuggestions[indexPath.row]);
+          const suggestion = this.currentSuggestions[indexPath.row];
+          const fsearch = assembleSearchTerms([{
+            namespace: suggestion.namespace,
+            term: suggestion.name,
+            dollar: true,
+            subtract: false,
+            tilde: false
+          }])
+          tagSelected(suggestion.remaining + " " + fsearch)
         }
       }
     })
   }
 
-  search(keyword: string) {
-    const filtered = configManager.translationList.filter(item => item.name.includes(keyword) || item.translation.includes(keyword))
-    this.currentSuggestions = filtered;
-    this.view.data = this.mapData(filtered);
+  set suggestions(suggestions: {
+    namespace: TagNamespace;
+    name: string;
+    translation: string;
+    remaining: string;
+  }[]) {
+    this.currentSuggestions = suggestions;
+    this.view.data = this.mapData(suggestions);
   }
 
   mapData(raw: {
@@ -70,7 +89,7 @@ class SearchSuggestionView extends Base<UIListView, UiTypes.ListOptions> {
   }[]) {
     return raw.map(item => ({
       content: {
-        text: `${namespaceTranslations[item.namespace]}:${item.name} ${item.translation}`
+        text: `${namespaceTranslations[item.namespace]}:${item.translation}   ${item.name}`
       }
     }))
   }
@@ -212,7 +231,6 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
       layout: $layout.fill,
       events: {
         didSelect(sender, index, item) {
-          console.log(mostAccessedTags)
           const tag = mostAccessedTags[index];
           const fsearch = assembleSearchTerms([{
             namespace: tag.namespace,
@@ -306,7 +324,6 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
             disableTagFilters: values.disableTagFilters || undefined
           }
           this._enablePageFilters = values.enablePageFilters;
-          console.log(this._options)
           if (reloadFlag) {
             optionsList.sections = this.mapSections();
           }
@@ -721,10 +738,11 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   private _excludedCategories: Set<EHSearchedCategory> = new Set();
   private _enablePageFilters: boolean = false;
   private _options: {
+    type: "readlater" | "has_read" | "download" | "all"
     minimumPages?: number,
     maximumPages?: number,
     minimumRating?: number
-  } = {};
+  } = { type: "all" };
   cviews: {
     catList: DynamicItemSizeMatrix,
     optionsList: DynamicPreferenceListView
@@ -745,13 +763,14 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       events: {
         changed: values => {
           const reloadFlag = this._enablePageFilters !== values.enablePageFilters;
+
           this._options = {
+            type: ["readlater", "has_read", "download", "all"][values.type] as "readlater" | "has_read" | "download" | "all",
             minimumPages: values.enablePageFilters ? values.minimumPages : undefined,
             maximumPages: values.enablePageFilters ? values.maximumPages : undefined,
             minimumRating: values.minimumRating ? values.minimumRating + 1 : undefined
           }
           this._enablePageFilters = values.enablePageFilters;
-          console.log(this._options)
           if (reloadFlag) {
             optionsList.sections = this.mapSections();
           }
@@ -907,6 +926,13 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   }
 
   mapSections() {
+    const typePrefsRow: PrefsRowList = {
+      type: "list",
+      title: "类型",
+      key: "type",
+      value: ["readlater", "has_read", "download", "all"].indexOf(this._options.type),
+      items: ["稍后阅读", "已阅读", "已下载", "全部"]
+    }
     const enablePageFiltersPrefsRow: PrefsRowBoolean = {
       type: "boolean",
       title: "页数",
@@ -942,6 +968,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       return [{
         title: "",
         rows: [
+          typePrefsRow,
           enablePageFiltersPrefsRow,
           minimumPagesPrefsRow,
           maximumPagesPrefsRow,
@@ -952,6 +979,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       return [{
         title: "",
         rows: [
+          typePrefsRow,
           enablePageFiltersPrefsRow,
           minimumRatingPrefsRow,
         ]
@@ -1050,7 +1078,7 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
           options.inputChangedHandler(sender.text);
         },
         returned: sender => {
-          options.searchHandler(); //TODO: searchHandler需要修改
+          options.searchHandler();
         }
       }
     })
@@ -1169,6 +1197,216 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
   }
 }
 
+function _countCharacter(str: string, char: string) {
+  let count = 0;
+  for (let i = 0; i < str.length; i++) {
+    if (str[i] === char) {
+      count++;
+    }
+  }
+  return count;
+}
+
+function _disassembleFsearch(fsearch: string) {
+  // 双引号包裹的字符串视为一个整体，不会被分割。除此之外，空格分割。
+  // 方法：首先有一个状态标记inQuote，初始为false。
+  // 然后逐字遍历，第一次遇到双引号则inQuote=true，第二次则inQuote=false，以此类推。
+  // 如果inQuote为true，则直到下一个双引号之前的空格都不会被分割。
+  // 如果inQuote为false，则遇到空格就分割。
+
+  let inQuote = false;
+  let result: string[] = [];
+  let current = "";
+  for (let i = 0; i < fsearch.length; i++) {
+    let c = fsearch[i];
+    if (c === '"') inQuote = !inQuote;
+    if (c === ' ' && !inQuote) {
+      if (current) result.push(current);
+      current = "";
+    } else {
+      current += c;
+    }
+  }
+  if (current) result.push(current);
+  return result;
+}
+
+function _getSearchTermsForSuggestion(fsearch: string): { namespace?: TagNamespace, term: string, remaining: string }[] {
+  // 1. 拆分fsearch
+  const parts = _disassembleFsearch(fsearch);
+  if (parts.length === 0) return [];
+
+  const lastPart = parts[parts.length - 1];
+  // 2. 如果最后一个部分是一个“完整”的部分，则不需要搜索建议。
+  // 判断方法为：如果包含至少两个双引号，或者包含$符号，则认为是一个完整的部分。
+  if (_countCharacter(lastPart, '"') >= 2 || lastPart.includes('$')) return [];
+
+  // 3. 如果最后一个部分包含冒号，则判断是否包含合法的命名空间，如果包含，则需要搜索建议；否则不需要。
+  if (lastPart.includes(':')) {
+    const index = lastPart.lastIndexOf(':');
+    const namespace = lastPart.substring(0, index).toLowerCase();
+    let term = lastPart.substring(index + 1).toLowerCase();
+    // 如果term中包含双引号，则必须在开头，否则不合法。
+    if (term.includes('"') && term.indexOf('"') !== 0) return [];
+    if (term[0] === '"') term = term.substring(1);
+    if (tagNamespaces.includes(namespace as TagNamespace)) {
+      return [{
+        namespace: namespace as TagNamespace,
+        term,
+        remaining: parts.slice(0, parts.length - 1).join(" ")
+      }];
+    } else if (tagNamespaceAlternates.includes(namespace as TagNamespaceAlternate)) {
+      return [{
+        namespace: tagNamespaceAlternateMap[namespace as TagNamespaceAlternate],
+        term,
+        remaining: parts.slice(0, parts.length - 1).join(" ")
+      }];
+    } else {
+      return [];
+    }
+  }
+
+  // 4. 如果最后一个部分只包含一个双引号且在开头，则需要搜索建议；否则不需要。
+  if (lastPart.includes('"') && lastPart.indexOf('"') === 0) {
+    return [{
+      term: lastPart.substring(1).toLowerCase(),
+      remaining: parts.slice(0, parts.length - 1).join(" ")
+    }];
+  } else if (lastPart.includes('"') && lastPart.indexOf('"') !== 0) {
+    return [];
+  }
+
+  // 5. 从后往前查找不包含任何双引号、冒号、美元符号的部分
+  const cleanParts = [];
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const part = parts[i];
+    if (!part.includes('"') && !part.includes(':') && !part.includes('$')) {
+      cleanParts.push(part.toLowerCase());
+    } else {
+      break;
+    }
+  }
+  // 倒转数组
+  cleanParts.reverse();
+  // 将数组中的部分依次拼接起来，每次拼接的结果都作为一个搜索词
+  const result = [];
+  for (let i = 0; i < cleanParts.length; i++) {
+    const term = cleanParts.slice(i).join(" ");
+    result.push({
+      term,
+      remaining: parts.slice(0, i).join(" ")
+    });
+  }
+  return result;
+}
+
+function _getScoreByMatchingDegree(
+  text: string,
+  tag: {
+    namespace: TagNamespace;
+    name: string;
+    translation: string;
+  }
+) {
+  if (text === tag.name || text === tag.translation) {
+    return 0;
+  } else if (tag.name.startsWith(text) || tag.translation.startsWith(text)) {
+    return 1;
+  } else if (tag.name.includes(text) || tag.translation.includes(text)) {
+    return 2;
+  } else {
+    return 3;
+  }
+}
+
+function _getScoreByNamespace(namespace: TagNamespace) {
+  return namespaceOrderList.indexOf(namespace);
+}
+
+function _getScoreByTermOrder(str: string, terms: { namespace?: TagNamespace, term: string, remaining: string }[]) {
+  // 遍历优先级列表，找到第一个匹配的优先级并返回该索引
+  // 索引越小，优先级越高，因此返回该索引即可
+  // 如果一个字符串同时满足多个（比如"ABC"也包含"AB"和"A"），
+  // 由于我们从高优先级往下匹配，所以会先返回"ABC"对应的0分（最高级）
+
+  for (let i = 0; i < terms.length; i++) {
+    if (str.includes(terms[i].term)) {
+      // 包含当前优先级的串则返回当前优先级的索引作为分数
+      return i;
+    }
+  }
+  // 如果都不包含，则返回一个较大的分值
+  return terms.length;
+}
+function getSuggestions(terms: {
+  namespace?: TagNamespace;
+  term: string;
+  remaining: string;
+}[]): {
+  namespace: TagNamespace;
+  name: string;
+  translation: string;
+  remaining: string;
+}[] {
+  if (terms.length === 0) {
+    return [];
+  } else if (terms.length === 1) {
+    const term = terms[0];
+    return configManager.translationList
+      .filter(n => (!term.namespace || n.namespace === term.namespace)
+        && (n.name.includes(term.term) || n.translation.includes(term.term)))
+      .sort((a, b) => {
+        const primaryScoreA = _getScoreByMatchingDegree(term.term, a);
+        const primaryScoreB = _getScoreByMatchingDegree(term.term, b);
+        if (primaryScoreA !== primaryScoreB) {
+          return primaryScoreA - primaryScoreB;
+        } else {
+          const secondaryScoreA = _getScoreByNamespace(a.namespace);
+          const secondaryScoreB = _getScoreByNamespace(b.namespace);
+          return secondaryScoreA - secondaryScoreB;
+        }
+      })
+      .map(n => ({
+        namespace: n.namespace,
+        name: n.name,
+        translation: n.translation,
+        remaining: term.remaining
+      }));
+  } else {
+    // 对最后一个term进行搜索，然后根据分数排序
+    const term = terms[terms.length - 1];
+    return configManager.translationList
+      .filter(n => n.name.includes(term.term) || n.translation.includes(term.term))
+      .sort((a, b) => {
+        const primaryScoreA = _getScoreByTermOrder(a.name, terms);
+        const primaryScoreB = _getScoreByTermOrder(b.name, terms);
+        if (primaryScoreA !== primaryScoreB) {
+          return primaryScoreA - primaryScoreB;
+        } else {
+          const secondaryScoreA = _getScoreByMatchingDegree(term.term, a);
+          const secondaryScoreB = _getScoreByMatchingDegree(term.term, b);
+          if (secondaryScoreA !== secondaryScoreB) {
+            return secondaryScoreA - secondaryScoreB;
+          } else {
+            const tertiaryScoreA = _getScoreByNamespace(a.namespace);
+            const tertiaryScoreB = _getScoreByNamespace(b.namespace);
+            return tertiaryScoreA - tertiaryScoreB;
+          }
+        }
+      })
+      .map(n => {
+        // 对terms从前往后遍历，找到第一个匹配的term，remaining就是该term的remaining
+        const remaining = terms.find(t => n.name.includes(t.term) || n.translation.includes(t.term))?.remaining || "";
+        return {
+          namespace: n.namespace,
+          name: n.name,
+          translation: n.translation,
+          remaining
+        }
+      });
+  }
+}
+
 class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
   cviews: {
@@ -1192,10 +1430,18 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
       menuDisplayMode,
       filterChangedHandler: () => { this.updateHiddenStatus() },
       tabChangedHandler: () => { this.updateHiddenStatus() },
-      inputChangedHandler: text => { },
+      inputChangedHandler: text => {
+        const searchTermsForSuggestion = _getSearchTermsForSuggestion(text);
+        if (searchTermsForSuggestion.length === 0) {
+          this.cviews.searchSuggestionView.view.hidden = true;
+        } else {
+          this.cviews.searchSuggestionView.view.hidden = false;
+        }
+        const suggestions = getSuggestions(searchTermsForSuggestion);
+        this.cviews.searchSuggestionView.suggestions = suggestions;
+      },
       popHandler: () => { $ui.pop() },
       searchHandler: () => {
-        // TODO: 从navbar中获取fsearch，从tab获取type，从对应的optionsView中获取options
         const fsearch = navbar.cviews.input.view.text.trim();
         let searchTerms: EHSearchTerm[] = [];
         try {
@@ -1275,6 +1521,7 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
               pageSize: 50,
               searchTerms,
               excludedCategories: data.excludedCategories,
+              sort: configManager.archiveManagerOrderMethod,
               ...data.options
             }
           })
@@ -1282,10 +1529,12 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
         $ui.pop();
       }
     });
-    const searchSuggestionView = new SearchSuggestionView(tag => { });
+    const searchSuggestionView = new SearchSuggestionView(text => {
+      navbar.cviews.input.view.text = text;
+      this.cviews.searchSuggestionView.view.hidden = true;
+    });
     const searchHistoryView = new SearchHistoryView(
       (text) => {
-        // TODO: searchHistoryView的点击事件
         const currentText = navbar.cviews.input.view.text;
         const newText = currentText
           ? `${currentText}${currentText[currentText.length - 1] === " " ? "" : " "}${text}`
@@ -1326,8 +1575,8 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
             make.left.right.bottom.equalTo(view.super.safeArea);
           },
           views: [
-            searchSuggestionView.definition,
             searchHistoryView.definition,
+            searchSuggestionView.definition,
             frontPageOptionsView.definition,
             watchedOptionsView.definition,
             favoritesOptionsView.definition,
@@ -1366,7 +1615,6 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
         this.cviews.archiveOptionsView.view.hidden = false;
       }
     } else {
-      // TODO: searchSuggestionView的hidden状态之后再考虑
       this.cviews.searchSuggestionView.view.hidden = true;
       this.cviews.searchHistoryView.view.hidden = false;
       this.cviews.frontPageOptionsView.view.hidden = true;

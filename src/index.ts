@@ -114,7 +114,15 @@ async function init() {
   }
 
   // 此时可以加载archiveController了
-  $delay(0.3, () => archiveController.startLoad())
+  $delay(0.3, () => archiveController.startLoad({
+    type: "archive",
+    options: {
+      page: 0,
+      pageSize: 50,
+      type: "all",
+      sort: configManager.archiveManagerOrderMethod
+    }
+  }))
 
   // 检查配置
   let config: {[key: string]: string } | undefined

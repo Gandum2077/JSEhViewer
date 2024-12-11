@@ -66,7 +66,7 @@ class SearchSuggestionView extends Base<UIListView, UiTypes.ListOptions> {
             subtract: false,
             tilde: false
           }])
-          tagSelected(suggestion.remaining + " " + fsearch)
+          tagSelected(suggestion.remaining ? suggestion.remaining + " " + fsearch : fsearch)
         }
       }
     })
@@ -1294,7 +1294,7 @@ function _getSearchTermsForSuggestion(fsearch: string): { namespace?: TagNamespa
     const term = cleanParts.slice(i).join(" ");
     result.push({
       term,
-      remaining: parts.slice(0, i).join(" ")
+      remaining: parts.slice(0, parts.length - cleanParts.length + i).join(" ")
     });
   }
   return result;
@@ -1432,6 +1432,7 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
       tabChangedHandler: () => { this.updateHiddenStatus() },
       inputChangedHandler: text => {
         const searchTermsForSuggestion = _getSearchTermsForSuggestion(text);
+        console.log(searchTermsForSuggestion);
         if (searchTermsForSuggestion.length === 0) {
           this.cviews.searchSuggestionView.view.hidden = true;
         } else {

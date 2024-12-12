@@ -129,7 +129,7 @@ export class GalleryHathController extends PresentedPageController {
   private async downloadHath(option: EHArchive["download_options"][0]) {
     if (!this._hathInfo) return;
     try {
-      const r = await api.startHathDownload(this._hathInfo.gid, this._hathInfo.token, this._hathInfo.or, option.solution);
+      const r = await api.startHathDownload(this._hathInfo.gid, this._hathInfo.token, option.solution);
       if (r === "no-hath") {
         $ui.error("您必须拥有 H@H 客户端才能使用此功能");
       } else if (r === "offline") {
@@ -148,7 +148,7 @@ export class GalleryHathController extends PresentedPageController {
   private async getHathInfo() {
     let hathInfo: EHArchive | undefined;
     try {
-      hathInfo = await api.getArchiverInfo(this._infos.gid, this._infos.token, this._infos.archiver_or);
+      hathInfo = await api.getArchiverInfo(this._infos.gid, this._infos.token);
     } catch (e) {
       appLog(e, "error");
       this.cviews.placeholderLabel.view.text = "加载失败!";

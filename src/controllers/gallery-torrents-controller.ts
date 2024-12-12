@@ -57,7 +57,6 @@ class TorrentList extends Base<UIListView, UiTypes.ListOptions> {
                     type: "button",
                     props: {
                       id: "share_button",
-                      symbol: "square.and.arrow.up.fill",
                       title: "分享",
                       bgcolor: $color("primarySurface"),
                       cornerRadius: 8,
@@ -66,7 +65,7 @@ class TorrentList extends Base<UIListView, UiTypes.ListOptions> {
                       borderColor: $color("systemLink"),
                       tintColor: $color("systemLink"),
                       titleColor: $color("systemLink"),
-                      font: $font(15)
+                      font: $font("bold", 15)
                     },
                     layout: (make, view) => {
                       make.size.equalTo($size(80, 30));
@@ -83,7 +82,6 @@ class TorrentList extends Base<UIListView, UiTypes.ListOptions> {
                     type: "button",
                     props: {
                       id: "copy_button",
-                      symbol: "doc.on.doc",
                       title: "复制",
                       bgcolor: $color("primarySurface"),
                       cornerRadius: 8,
@@ -92,7 +90,7 @@ class TorrentList extends Base<UIListView, UiTypes.ListOptions> {
                       borderColor: $color("systemLink"),
                       tintColor: $color("systemLink"),
                       titleColor: $color("systemLink"),
-                      font: $font(15)
+                      font: $font("bold", 15)
                     },
                     layout: (make, view) => {
                       make.size.equalTo($size(80, 30));

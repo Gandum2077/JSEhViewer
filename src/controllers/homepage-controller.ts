@@ -40,6 +40,7 @@ export class HomepageController extends BaseController {
           items: [
             {
               title: "列表布局",
+              symbol: "list.bullet",
               handler: () => {
                 if (configManager.homepageManagerLayoutMode === "large") return
                 configManager.homepageManagerLayoutMode = "large"
@@ -49,6 +50,7 @@ export class HomepageController extends BaseController {
             },
             {
               title: "矩阵布局",
+              symbol: "square.grid.2x2",
               handler: () => {
                 if (configManager.homepageManagerLayoutMode === "normal") return
                 configManager.homepageManagerLayoutMode = "normal"

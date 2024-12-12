@@ -293,7 +293,6 @@ class TorrentList extends Base<UIListView, UiTypes.ListOptions> {
               width: sender.frame.width - 10, // 10 是文字左右两边的间距
               font: $font(16)
             })
-            console.log(sender.frame.width, titleSize);
             return Math.ceil(titleSize.height) + 55 + 30 + 15; // 80 是中间+下面部分的高度，10 是上下两边的间距
           }
         }
@@ -388,7 +387,6 @@ export class GalleryTorrentsController extends PresentedPageController {
     let torrents: EHGalleryTorrent[] | undefined;
     try {
       torrents = await api.getGalleryTorrentsInfo(this._info.gid, this._info.token)
-      console.log(torrents);
     } catch (e) {
       appLog(e, "error");
       this.cviews.placeholderLabel.view.text = "加载失败!";

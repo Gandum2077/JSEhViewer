@@ -169,7 +169,7 @@ class HistoryMatrixItem extends Base<UILabelView, UiTypes.LabelOptions> {
         text: this._text,
         lines: 1,
         font: $font(TAG_FONT_SIZE),
-        bgcolor: namespaceColor[tag.namespace ?? "temp"],
+        bgcolor: namespaceColor[tag.namespace || "temp"],
         align: $align.center,
         cornerRadius: 10,
         smoothCorners: true,
@@ -196,30 +196,6 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
     super();
     const mostAccessedTags = configManager.getTenMostAccessedTags()
     const lastAccessSearchTerms = configManager.getTenLastAccessSearchTerms()
-    const sectionTitleLastAccessed = new SearchHistoryViewSectionTitle("最近访问", "clock.fill");
-    const historyMatrixLastAccessed = new Flowlayout({
-      props: {
-        items: lastAccessSearchTerms.map(tag => new HistoryMatrixItem(tag)),
-        spacing: 8,
-        itemHeight: 26,
-        bgcolor: $color("insetGroupedBackground")
-      },
-      layout: $layout.fill,
-      events: {
-        didSelect(sender, index, item) {
-          const tag = lastAccessSearchTerms[index];
-          const fsearch = assembleSearchTerms([{
-            namespace: tag.namespace,
-            qualifier: tag.qualifier,
-            term: tag.term,
-            dollar: true,
-            subtract: false,
-            tilde: false
-          }])
-          textHandler(fsearch)
-        }
-      }
-    })
     const sectionTitleMostSearched = new SearchHistoryViewSectionTitle("最常搜索", "list.number");
     const historyMatrixMostSearched = new Flowlayout({
       props: {
@@ -244,12 +220,36 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
         }
       }
     })
+    const sectionTitleLastAccessed = new SearchHistoryViewSectionTitle("最近访问", "clock.fill");
+    const historyMatrixLastAccessed = new Flowlayout({
+      props: {
+        items: lastAccessSearchTerms.map(tag => new HistoryMatrixItem(tag)),
+        spacing: 8,
+        itemHeight: 26,
+        bgcolor: $color("insetGroupedBackground")
+      },
+      layout: $layout.fill,
+      events: {
+        didSelect(sender, index, item) {
+          const tag = lastAccessSearchTerms[index];
+          const fsearch = assembleSearchTerms([{
+            namespace: tag.namespace,
+            qualifier: tag.qualifier,
+            term: tag.term,
+            dollar: true,
+            subtract: false,
+            tilde: false
+          }])
+          textHandler(fsearch)
+        }
+      }
+    })
     const list = new DynamicRowHeightList({
       rows: [
-        sectionTitleLastAccessed,
-        historyMatrixLastAccessed,
         sectionTitleMostSearched,
-        historyMatrixMostSearched
+        historyMatrixMostSearched,
+        sectionTitleLastAccessed,
+        historyMatrixLastAccessed
       ],
       props: {
         selectable: false,
@@ -1432,7 +1432,6 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
       tabChangedHandler: () => { this.updateHiddenStatus() },
       inputChangedHandler: text => {
         const searchTermsForSuggestion = _getSearchTermsForSuggestion(text);
-        console.log(searchTermsForSuggestion);
         if (searchTermsForSuggestion.length === 0) {
           this.cviews.searchSuggestionView.view.hidden = true;
         } else {

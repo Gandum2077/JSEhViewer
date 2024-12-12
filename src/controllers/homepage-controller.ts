@@ -25,7 +25,6 @@ export class HomepageController extends BaseController {
           this.cviews.list.isLoading = true;
         },
         didAppear: () => {
-          console.log("archiveController didAppear")
           downloaderManager.startTabDownloader()
         }
       }

@@ -161,7 +161,7 @@ export class CustomSearchBar extends Base<UIView, UiTypes.ViewOptions> {
         width: 10000,
         font: $font(14)
       }).width + 10
-      const color = searchTerm.namespace ? namespaceColor[searchTerm.namespace] : namespaceColor.other
+      const color = searchTerm.namespace ? namespaceColor[searchTerm.namespace] : namespaceColor.temp
       return { text, width, color }
     });
 

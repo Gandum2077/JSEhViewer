@@ -28,68 +28,29 @@ export class ArchiveController extends BaseController {
       props: {
         symbol: configManager.archiveManagerLayoutMode === "normal" ? "square.grid.2x2" : "list.bullet",
         menu: {
+              title: "布局方式",
           pullDown: true,
           asPrimary: true,
           items: [
             {
-              title: "布局方式",
-              inline: true,
-              items: [
-                {
-                  title: "列表布局",
-                  handler: () => {
-                    if (configManager.archiveManagerLayoutMode === "large") return
-                    configManager.archiveManagerLayoutMode = "large"
-                    listLayoutButton.symbol = "list.bullet"
-                    list.layoutMode = "large"
-                  }
-                },
-                {
-                  title: "矩阵布局",
-                  handler: () => {
-                    if (configManager.archiveManagerLayoutMode === "normal") return
-                    configManager.archiveManagerLayoutMode = "normal"
-                    listLayoutButton.symbol = "square.grid.2x2"
-                    list.layoutMode = "normal"
-                  }
-                }
-              ]
+              title: "列表布局",
+              symbol: "list.bullet",
+              handler: () => {
+                if (configManager.archiveManagerLayoutMode === "large") return
+                configManager.archiveManagerLayoutMode = "large"
+                listLayoutButton.symbol = "list.bullet"
+                list.layoutMode = "large"
+              }
             },
             {
-              title: "排序方式",
-              inline: true,
-              items: [
-                {
-                  title: "按发布时间",
-                  handler: () => {
-                    if (configManager.archiveManagerOrderMethod === "posted_time") return;
-                    configManager.archiveManagerOrderMethod = "posted_time";
-                    if (!statusManager.archiveTab) return;
-                    statusManager.archiveTab.options.sort = "posted_time";
-                    this.reload();
-                  }
-                },
-                {
-                  title: "按首次阅读时间",
-                  handler: () => {
-                    if (configManager.archiveManagerOrderMethod === "first_access_time") return;
-                    configManager.archiveManagerOrderMethod = "first_access_time";
-                    if (!statusManager.archiveTab) return;
-                    statusManager.archiveTab.options.sort = "first_access_time";
-                    this.reload();
-                  }
-                },
-                {
-                  title: "按最近阅读时间",
-                  handler: () => {
-                    if (configManager.archiveManagerOrderMethod === "last_access_time") return;
-                    configManager.archiveManagerOrderMethod = "last_access_time";
-                    if (!statusManager.archiveTab) return;
-                    statusManager.archiveTab.options.sort = "last_access_time";
-                    this.reload();
-                  }
-                }
-              ]
+              title: "矩阵布局",
+              symbol: "square.grid.2x2",
+              handler: () => {
+                if (configManager.archiveManagerLayoutMode === "normal") return
+                configManager.archiveManagerLayoutMode = "normal"
+                listLayoutButton.symbol = "square.grid.2x2"
+                list.layoutMode = "normal"
+              }
             }
           ]
         }

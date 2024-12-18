@@ -1,5 +1,3 @@
-// 去除translate变更的功能
-
 import { Base, DynamicContextMenuView } from "jsbox-cview";
 import {CompleteTagListItem } from "../types";
 import { namespaceColor, tagColor, namespaceTranslations } from "../utils/glv";
@@ -160,7 +158,7 @@ class TagView extends DynamicContextMenuView {
           }
         ]
         const menuItemMarked = {
-          title: "加入我的标签",
+          title: "加入到我的标签",
           symbol: "bookmark",
           handler: () => {
             info.marked = true;

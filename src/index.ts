@@ -107,6 +107,8 @@ async function init() {
   if (!configManager.cookie) {
     await login()
     appLog("login done")
+    // 重新加载tagManagerController
+    tagManagerController.refresh()
   } else {
     api.cookie = configManager.cookie
     api.exhentai = configManager.exhentai

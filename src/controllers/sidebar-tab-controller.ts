@@ -3,6 +3,7 @@ import { logoColorHex } from "../utils/glv";
 import { statusManager } from "../utils/status";
 import { appLog } from "../utils/tools";
 import { StatusTabOptions } from "../types";
+import { HomepageController } from "./homepage-controller";
 
 class HeaderStackBlur extends Base<UIButtonView,UiTypes.ButtonOptions> {
   _defineView: () => UiTypes.ButtonOptions;
@@ -57,7 +58,7 @@ constructor(symbol: string, title: string, tintColor: UIColor) {
             default:
               throw new Error("未知的选项");
           }
-          statusManager.loadTab(options).then().catch(e=>appLog(e, "error"));
+          (router.get("homepageController") as HomepageController).startLoad(options);
         }
       },
       views: [
@@ -162,52 +163,52 @@ export function createSidebarTabController() {
                         title: "昨天",
                         handler: () => {
                           (router.get("splitViewController") as SplitViewController).sideBarShown = false;
-                          statusManager.loadTab({
+                          (router.get("homepageController") as HomepageController).startLoad({
                             type: "toplist",
                             options: {
                               timeRange: "yesterday",
                               page: 0
                             }
-                          }).then().catch(e=>appLog(e, "error"));
+                          });
                         }
                       },
                       {
                         title: "最近一月",
                         handler: () => {
                           (router.get("splitViewController") as SplitViewController).sideBarShown = false;
-                          statusManager.loadTab({
+                          (router.get("homepageController") as HomepageController).startLoad({
                             type: "toplist",
                             options: {
                               timeRange: "past_month",
                               page: 0
                             }
-                          }).then().catch(e=>appLog(e, "error"));
+                          });
                         }
                       },
                       {
                         title: "最近一年",
                         handler: () => {
                           (router.get("splitViewController") as SplitViewController).sideBarShown = false;
-                          statusManager.loadTab({
+                          (router.get("homepageController") as HomepageController).startLoad({
                             type: "toplist",
                             options: {
                               timeRange: "past_year",
                               page: 0
                             }
-                          }).then().catch(e=>appLog(e, "error"));
+                          });
                         }
                       },
                       {
                         title: "总排行",
                         handler: () => {
                           (router.get("splitViewController") as SplitViewController).sideBarShown = false;
-                          statusManager.loadTab({
+                          (router.get("homepageController") as HomepageController).startLoad({
                             type: "toplist",
                             options: {
                               timeRange: "all",
                               page: 0
                             }
-                          }).then().catch(e=>appLog(e, "error"));
+                          });
                         }
                       }
                     ]

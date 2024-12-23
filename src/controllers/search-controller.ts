@@ -195,7 +195,7 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
   ) {
     super();
     const mostAccessedTags = configManager.getTenMostAccessedTags()
-    const lastAccessSearchTerms = configManager.getTenLastAccessSearchTerms()
+    const lastAccessSearchTerms = configManager.getSomeLastAccessSearchTerms()
     const sectionTitleMostSearched = new SearchHistoryViewSectionTitle("最常搜索", "list.number");
     const historyMatrixMostSearched = new Flowlayout({
       props: {

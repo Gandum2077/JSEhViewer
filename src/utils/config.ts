@@ -687,23 +687,36 @@ DO UPDATE SET count = count + 1;
     dbManager.batchUpdate(sql, tags.map(tag => ([tag.namespace || "", tag.qualifier || "", tag.term  || ""])))
   }
 
-  getTenLastAccessSearchTerms(): EHSearchTerm[] {
+  getSomeLastAccessSearchTerms(): EHSearchTerm[] {
     const sql = `
-SELECT DISTINCT
-    search_history_search_terms.namespace,
-    CASE 
-        WHEN search_history_search_terms.qualifier = 'uploader' THEN search_history_search_terms.qualifier
-        ELSE NULL
-    END AS qualifier,
-    search_history_search_terms.term
-FROM
-    search_history_search_terms
-JOIN
-    search_history
-ON
-    search_history_search_terms.search_history_id = search_history.id
-ORDER BY
-    search_history.last_access_time DESC;
+SELECT 
+    namespace,
+    qualifier,
+    term
+FROM (
+    SELECT 
+        search_history_search_terms.namespace,
+        search_history_search_terms.qualifier,
+        search_history_search_terms.term,
+        search_history.last_access_time,
+        ROW_NUMBER() OVER (
+            PARTITION BY 
+                search_history_search_terms.namespace,
+                search_history_search_terms.qualifier,
+                search_history_search_terms.term
+            ORDER BY 
+                search_history.last_access_time DESC
+        ) AS row_num
+    FROM 
+        search_history_search_terms
+    JOIN 
+        search_history
+    ON 
+        search_history_search_terms.search_history_id = search_history.id
+) 
+WHERE row_num = 1
+ORDER BY last_access_time DESC
+LIMIT 20;
 `
     const data = dbManager.query(sql) as {
       namespace: string;

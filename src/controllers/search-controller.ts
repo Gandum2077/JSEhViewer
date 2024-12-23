@@ -66,7 +66,7 @@ class SearchSuggestionView extends Base<UIListView, UiTypes.ListOptions> {
             subtract: false,
             tilde: false
           }])
-          tagSelected(suggestion.remaining ? suggestion.remaining + " " + fsearch : fsearch)
+          tagSelected(suggestion.remaining ? suggestion.remaining + " " + fsearch + " " : fsearch + " ")
         }
       }
     })
@@ -212,7 +212,7 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
             namespace: tag.namespace,
             qualifier: tag.qualifier,
             term: tag.term,
-            dollar: true,
+            dollar: Boolean(tag.namespace),
             subtract: false,
             tilde: false
           }])
@@ -236,7 +236,7 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
             namespace: tag.namespace,
             qualifier: tag.qualifier,
             term: tag.term,
-            dollar: true,
+            dollar: Boolean(tag.namespace),
             subtract: false,
             tilde: false
           }])
@@ -1537,8 +1537,8 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
       (text) => {
         const currentText = navbar.cviews.input.view.text;
         const newText = currentText
-          ? `${currentText}${currentText[currentText.length - 1] === " " ? "" : " "}${text}`
-          : text;
+          ? `${currentText}${currentText[currentText.length - 1] === " " ? "" : " "}${text} `
+          : text + " ";
         navbar.cviews.input.view.text = newText;
       },
       () => { navbar.cviews.input.view.blur() }

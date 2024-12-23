@@ -258,7 +258,7 @@ export function _mapSearchTermsToRow(searchTerms: EHSearchTerm[], id: number) {
       text = translation || `${tagNamespaceMostUsedAlternateMap[namespace]}:${term}`;
     } else {
       text = term;
-      color = namespaceColor["other"];
+      color = namespaceColor["temp"];
     }
     if (qualifier) text = `${qualifier}:${text}`;
     if (dollar) text += "$";

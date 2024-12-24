@@ -31,7 +31,7 @@ const defaultConfig: Config = {
   tagManagerOnlyShowBookmarked: false,
   webdavIntroductionFirstRead: false,
   autopagerInterval: 5,
-  archiveManagerOrderMethod: "posted_time",
+  archiveManagerOrderMethod: "last_access_time",
   favoritesOrderMethod: "favorited_time",
   webdavEnabled: true,
   selectedWebdavService: -1,

@@ -1,6 +1,6 @@
 import { BaseController, CustomNavigationBar, SymbolButton, router, SplitViewController } from "jsbox-cview";
 import { GalleryController } from "./gallery-controller";
-import { jumpRangeDialog, jumpPageDialog } from "../components/seekpage-dialog";
+import { getJumpRangeDialogForHomepage, getJumpPageDialog, getJumpRangeDialogForFavorites } from "../components/seekpage-dialog";
 import { configManager } from "../utils/config";
 import { statusManager } from "../utils/status";
 import { EHlistView } from "../components/ehlist-view";
@@ -90,16 +90,81 @@ export class HomepageController extends BaseController {
           {
             symbol: "arrow.left.arrow.right.circle",
             handler: async () => {
-              let type = "front_page"
+              if (!statusManager.currentTab) {
+                $ui.toast("无法翻页，请先加载内容")
+                return;
+              }
+              const type = statusManager.currentTab.type;
               if (type === "front_page" || type === "watched") {
-                const result = await jumpRangeDialog(true)
-                console.log(result)
-              } else if (type === "favorite") {
-                const result = await jumpRangeDialog(false)
-                console.log(result)
+                const firstPage = statusManager.currentTab.pages[0]; 
+                const lastPage = statusManager.currentTab.pages[statusManager.currentTab.pages.length - 1];
+                if (firstPage.items.length === 0 || lastPage.items.length === 0) {
+                  $ui.toast("没有内容，无法翻页")
+                  return;
+                }
+                if (firstPage.prev_page_available === false && lastPage.next_page_available === false) {
+                  $ui.toast("全部内容已加载")
+                  return;
+                }
+                const result = await getJumpRangeDialogForHomepage({
+                  minimumGid: firstPage.items[0].gid,
+                  maximumGid: lastPage.items[lastPage.items.length - 1].gid,
+                  prev_page_available: firstPage.prev_page_available,
+                  next_page_available: lastPage.next_page_available
+                })
+                this.startLoad({
+                  type,
+                  options: {
+                    ...statusManager.currentTab.options,
+                    range: result.range,
+                    minimumGid: result.minimumGid,
+                    maximumGid: result.maximumGid,
+                    jump: result.jump,
+                    seek: result.seek
+                  }
+                })
+              } else if (type === "favorites") {
+                const firstPage = statusManager.currentTab.pages[0];
+                const lastPage = statusManager.currentTab.pages[statusManager.currentTab.pages.length - 1];
+                if (firstPage.items.length === 0 || lastPage.items.length === 0) {
+                  $ui.toast("没有内容，无法翻页")
+                  return;
+                }
+                if (firstPage.prev_page_available === false && lastPage.next_page_available === false) {
+                  $ui.toast("全部内容已加载")
+                  return;
+                }
+                const result = await getJumpRangeDialogForFavorites({
+                  minimumGid: firstPage.items[0].gid,
+                  minimumFavoritedTimestamp: firstPage.first_item_favorited_timestamp,
+                  maximumGid: lastPage.items[lastPage.items.length - 1].gid,
+                  maximumFavoritedTimestamp: lastPage.last_item_favorited_timestamp,
+                  prev_page_available: firstPage.prev_page_available,
+                  next_page_available: lastPage.next_page_available
+                })
+                this.startLoad({
+                  type,
+                  options: {
+                    ...statusManager.currentTab.options,
+                    minimumGid: result.minimumGid,
+                    minimumFavoritedTimestamp: result.minimumFavoritedTimestamp,
+                    maximumGid: result.maximumGid,
+                    maximumFavoritedTimestamp: result.maximumFavoritedTimestamp,
+                    jump: result.jump,
+                    seek: result.seek
+                  }
+                })
               } else if (type === "toplist") {
-                const result = await jumpPageDialog(200)
-                console.log(result)
+                const result = await getJumpPageDialog(200)
+                this.startLoad({
+                  type,
+                  options: {
+                    ...statusManager.currentTab.options,
+                    ...result
+                  }
+                })
+              } else {
+                $ui.toast("全部内容已加载")
               }
             }
           }

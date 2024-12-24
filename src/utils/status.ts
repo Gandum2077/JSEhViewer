@@ -391,7 +391,6 @@ class StatusManager {
         if (!lastPage) return;
         if (!lastPage.next_page_available) return;
         const miniumGid = lastPage.items[lastPage.items.length - 1].gid;
-        tab.options.range = undefined;
         tab.options.jump = undefined;
         tab.options.seek = undefined
         tab.options.minimumGid = undefined;

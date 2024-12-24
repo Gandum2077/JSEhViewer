@@ -1,6 +1,6 @@
 import { BaseController, CustomNavigationBar, SymbolButton, router, SplitViewController } from "jsbox-cview";
 import { GalleryController } from "./gallery-controller";
-import { jumpRangeDialog, jumpPageDialog } from "../components/seekpage-dialog";
+import { getJumpRangeDialogForHomepage, getJumpPageDialog } from "../components/seekpage-dialog";
 import { configManager } from "../utils/config";
 import { EHlistView } from "../components/ehlist-view";
 import { statusManager } from "../utils/status";
@@ -28,7 +28,7 @@ export class ArchiveController extends BaseController {
       props: {
         symbol: configManager.archiveManagerLayoutMode === "normal" ? "square.grid.2x2" : "list.bullet",
         menu: {
-              title: "布局方式",
+          title: "布局方式",
           pullDown: true,
           asPrimary: true,
           items: [
@@ -75,17 +75,26 @@ export class ArchiveController extends BaseController {
           {
             symbol: "arrow.left.arrow.right.circle",
             handler: async () => {
-              let type = "front_page"
-              if (type === "front_page" || type === "watched") {
-                const result = await jumpRangeDialog(true)
-                console.log(result)
-              } else if (type === "favorite") {
-                const result = await jumpRangeDialog(false)
-                console.log(result)
-              } else if (type === "toplist") {
-                const result = await jumpPageDialog(200)
-                console.log(result)
+              if (!statusManager.archiveTab || !statusManager.archiveTab.pages.length) {
+                $ui.toast("存档列表为空，无法翻页")
+                return;
               }
+              const allCount = statusManager.archiveTab.pages[0].all_count
+              if (allCount === 0) {
+                $ui.toast("存档列表为空，无法翻页")
+                return;
+              }
+              const maxPage = Math.ceil(allCount / statusManager.archiveTab.options.pageSize)
+              if (statusManager.archiveTab.pages.length === maxPage) {
+                $ui.toast("全部内容已加载")
+                return;
+              }
+              const { page } = await getJumpPageDialog(maxPage)
+              statusManager.archiveTab.options.page = page
+              this.startLoad({
+                type: "archive",
+                options: statusManager.archiveTab.options
+              })
             }
           }
         ]

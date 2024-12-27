@@ -5,11 +5,12 @@ import { configManager } from "../utils/config";
 import { statusManager } from "../utils/status";
 import { EHlistView } from "../components/ehlist-view";
 import { appLog } from "../utils/tools";
-import { buildSortedFsearch, EHListExtendedItem, EHSearchTerm } from "ehentai-parser";
+import { buildSortedFsearch, EHListExtendedItem, EHSearchTerm, extractGidToken } from "ehentai-parser";
 import { StatusTabOptions } from "../types";
 import { downloaderManager } from "../utils/api";
 import { CustomSearchBar } from "../components/custom-searchbar";
 import { getSearchOptions } from "./search-controller";
+import { SidebarTabController } from "./sidebar-tab-controller";
 
 export class HomepageController extends BaseController {
   cviews: { navbar: CustomNavigationBar, list: EHlistView, searchBar: CustomSearchBar };
@@ -62,12 +63,37 @@ export class HomepageController extends BaseController {
       },
       layout: $layout.fill
     })
-    const searchButton = new SymbolButton({
+    const openLinkButton = new SymbolButton({
       props: {
-        symbol: "magnifyingglass",
-        hidden: true,
+        symbol: "link"
       },
       layout: $layout.fill,
+      events: {
+        tapped: async () => {
+          const result = await $input.text({
+            type: $kbType.url,
+            placeholder: "ehentai图库链接",
+            text: ""
+          })
+          if (!result) return;
+          const url = result.trim().toLowerCase();
+          let gid: number | undefined;
+          let token: string | undefined;
+          try {
+            const r = extractGidToken(url);
+            gid = r.gid;
+            token = r.token;
+          } catch (e) {
+            $ui.toast("无效链接")
+          }
+          if (!gid || !token) return;
+          const galleryController = new GalleryController(gid, token)
+          galleryController.uipush({
+            navBarHidden: true,
+            statusBarStyle: 0
+          })
+        }
+      }
     })
     const navbar = new CustomNavigationBar({
       props: {
@@ -85,7 +111,7 @@ export class HomepageController extends BaseController {
         ],
         rightBarButtonItems: [
           {
-            cview: searchButton
+            cview: openLinkButton
           },
           {
             symbol: "arrow.left.arrow.right.circle",
@@ -347,5 +373,6 @@ export class HomepageController extends BaseController {
         throw new Error("Invalid tab type");
     }
     this.cviews.list.isLoading = false;
+    (router.get("sidebarTabController") as SidebarTabController).refresh()
   }
 }

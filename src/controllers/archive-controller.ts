@@ -1,6 +1,6 @@
 import { BaseController, CustomNavigationBar, SymbolButton, router, SplitViewController } from "jsbox-cview";
 import { GalleryController } from "./gallery-controller";
-import { getJumpRangeDialogForHomepage, getJumpPageDialog } from "../components/seekpage-dialog";
+import { getJumpPageDialog } from "../components/seekpage-dialog";
 import { configManager } from "../utils/config";
 import { EHlistView } from "../components/ehlist-view";
 import { statusManager } from "../utils/status";

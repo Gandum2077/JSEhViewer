@@ -127,3 +127,36 @@ export const invisibleCauseMap = {
   "private": "私有",
   "unknown": "未知原因"
 }
+
+export const fixedTabSymbolTitle = {
+  "front_page": {
+    symbol: "house.fill",
+    title: "首页",
+    color: $color("#62399D")
+  },
+  "watched": {
+    symbol: "bell.fill",
+    title: "订阅",
+    color: $color("#739271")
+  },
+  "popular": {
+    symbol: "flame.fill",
+    title: "热门",
+    color: $color("red")
+  },
+  "favorites": {
+    symbol: "heart.fill",
+    title: "收藏",
+    color: $color("orange")
+  },
+  "toplist": {
+    symbol: "chart.bar.fill",
+    title: "排行",
+    color: $color("#ffd700")
+  },
+  "upload": {
+    symbol: "cloud.fill",
+    title: "我的上传",
+    color: $color("#5AC8FA")
+  }
+}

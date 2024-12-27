@@ -7,7 +7,7 @@ import { HomepageController } from "./controllers/homepage-controller";
 import { ArchiveController } from "./controllers/archive-controller";
 import { TagManagerController } from "./controllers/tag-manager-controller";
 import { MoreController } from "./controllers/more-controller";
-import { createSidebarTabController } from "./controllers/sidebar-tab-controller";
+import { SidebarTabController } from "./controllers/sidebar-tab-controller";
 import { SidebarBookmarkController } from "./controllers/sidebar-bookemark-controller";
 import { SidebarHistoryController } from "./controllers/sidebar-history-controller";
 import { configManager } from "./utils/config";
@@ -23,7 +23,7 @@ async function init() {
   const archiveController = new ArchiveController()
   const tagManagerController = new TagManagerController()
   const moreViewController = new MoreController()
-  const sideBarTabController = createSidebarTabController()
+  const sideBarTabController = new SidebarTabController()
   const sidebarBookmarkController = new SidebarBookmarkController()
   const sidebarHistoryController = new SidebarHistoryController()
   const primaryViewController = new TabBarController({

@@ -266,6 +266,18 @@ class StatusManager {
 
   }
 
+  get allTabs() {
+    return this._statusTabs;
+  }
+
+  get currentTabIndex() {
+    return this._currentTabIndex;
+  }
+
+  set currentTabIndex(index: number) {
+    this._currentTabIndex = index;
+  }
+
   get currentTab() {
     return this._statusTabs[this._currentTabIndex];
   }

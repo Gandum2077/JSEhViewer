@@ -67,7 +67,6 @@ class InfoHeaderView extends Base<UIView, UiTypes.ViewOptions> {
               props: {
                 id: "thumbnail",
                 contentMode: 1,
-
               },
               layout: (make, view) => {
                 make.left.top.bottom.inset(0)
@@ -707,8 +706,7 @@ export class GalleryInfoController extends BaseController {
             {
               type: "image",
               props: {
-                id: "icon",
-                tintColor: $color("systemLink")
+                id: "icon"
               },
               layout: (make, view) => {
                 make.left.inset(1)
@@ -721,7 +719,6 @@ export class GalleryInfoController extends BaseController {
               type: "label",
               props: {
                 id: "label",
-                textColor: $color("secondaryText"),
                 font: $font(12),
                 align: $align.left,
               },
@@ -928,41 +925,42 @@ export class GalleryInfoController extends BaseController {
     const data: {
       label: {
         text: string;
-        textColor?: UIColor;
+        textColor: UIColor;
       };
       icon: {
         symbol: string;
-        tintColor?: UIColor;
+        tintColor: UIColor;
       };
     }[] = [
         {
           label: {
+            textColor: $color("secondaryText"),
             text: (configManager.translate("language", infos.language) || infos.language)
               + (infos.translated ? " 翻译" : "")
               + (infos.rewrited ? " 重写" : "")
           },
-          icon: { symbol: "character.textbox" }
+          icon: { symbol: "character.textbox", tintColor: $color("systemLink") }
         },
         {
-          label: { text: `${infos.length}页` },
-          icon: { symbol: "photo.fill" }
+          label: { text: `${infos.length}页`, textColor: $color("secondaryText") },
+          icon: { symbol: "photo.fill", tintColor: $color("systemLink") }
         },
         {
-          label: { text: infos.file_size },
-          icon: { symbol: "doc.zipper" }
+          label: { text: infos.file_size, textColor: $color("secondaryText") },
+          icon: { symbol: "doc.zipper", tintColor: $color("systemLink") }
         },
         {
-          label: { text: `${infos.average_rating}(共${infos.rating_count}次评分)` },
-          icon: { symbol: "star.fill" }
+          label: { text: `${infos.average_rating}(共${infos.rating_count}次评分)`, textColor: $color("secondaryText") },
+          icon: { symbol: "star.fill", tintColor: $color("systemLink") }
         },
 
         {
-          label: { text: `${infos.favorite_count}次收藏` },
-          icon: { symbol: "heart.fill" }
+          label: { text: `${infos.favorite_count}次收藏`, textColor: $color("secondaryText") },
+          icon: { symbol: "heart.fill", tintColor: $color("systemLink") }
         },
         {
-          label: { text: toSimpleUTCTimeString(infos.posted_time) },
-          icon: { symbol: "clock.fill" }
+          label: { text: toSimpleUTCTimeString(infos.posted_time), textColor: $color("secondaryText") },
+          icon: { symbol: "clock.fill", tintColor: $color("systemLink") }
         }
       ]
     if (infos.visible === false) {
@@ -1003,11 +1001,13 @@ export class GalleryInfoController extends BaseController {
     this._topThumbnailfinished = Boolean(topThumbnailPath)
     this.cviews.infoHeaderView.thumbnail_url = topThumbnailPath || "";
     if (this._topThumbnailfinished && this._timer) {
-      this._timer.invalidate()
+      this._timer.invalidate();
+      this._timer = undefined;
     }
   }
 
   startTimer() {
+    if (this._timer) return;
     if (this._topThumbnailfinished) return;
     this._timer = $timer.schedule({
       interval: 2,
@@ -1020,6 +1020,7 @@ export class GalleryInfoController extends BaseController {
   stopTimer() {
     if (this._timer) {
       this._timer.invalidate()
+      this._timer = undefined;
     }
   }
 

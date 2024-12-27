@@ -94,10 +94,12 @@ export class GalleryThumbnailController extends BaseController {
     this.thumbnailItems = d.result.thumbnails
     if (this._finished && this._timer) {
       this._timer.invalidate()
+      this._timer = undefined;
     }
   }
 
   startTimer() {
+    if (this._timer) return;
     if (this._finished) return;
     this._timer = $timer.schedule({
       interval: 2,
@@ -110,6 +112,7 @@ export class GalleryThumbnailController extends BaseController {
   stopTimer() {
     if (this._timer) {
       this._timer.invalidate()
+      this._timer = undefined;
     }
   }
 }

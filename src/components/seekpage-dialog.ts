@@ -215,7 +215,7 @@ export function getJumpRangeDialogForFavorites({
     throw new Error("No page available");
   }
   let method = 0;
-  const methodItems = ["范围", "日期", "偏移"];
+  const methodItems = ["日期", "偏移"];
   let directionItems = ["向前", "向后"];
   if (!prev_page_available) {
     directionItems = ["向后"];

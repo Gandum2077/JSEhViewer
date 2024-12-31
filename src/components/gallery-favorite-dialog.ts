@@ -171,7 +171,7 @@ class CustomLabel extends Base<UIView, UiTypes.ViewOptions> {
             type: "label",
             props: {
               bgcolor: $color("clear"),
-              text: "添加备注（至多200个UFT-8字符）",
+              text: "添加备注",
               textColor: $color("primaryText"),
               font: $font(16)
             },
@@ -213,6 +213,42 @@ class CustomLabel extends Base<UIView, UiTypes.ViewOptions> {
   }
 }
 
+class FooterLabel extends Base<UIView, UiTypes.ViewOptions> {
+  _defineView: () => UiTypes.ViewOptions;
+  constructor() {
+    super();
+    this._defineView = () => {
+      return {
+        type: "view",
+        props: {
+          id: this.id,
+          bgcolor: $color("backgroundColor"),
+        },
+        layout: $layout.fill,
+        views: [
+          {
+            type: "label",
+            props: {
+              text: "备注至多200字符，以UTF-8编码后的长度为准",
+              textColor: $color("secondaryText"),
+              font: $font(12),
+              align: $align.left
+            },
+            layout: (make, view) => {
+              make.left.right.inset(16);
+              make.top.bottom.inset(0);
+            }
+          }
+        ]
+      }
+    }
+  }
+
+  heightToWidth(width: number) {
+    return 20;
+  }
+}
+
 export async function galleryFavoriteDialog(infos: EHGallery): Promise< {
   success: true,
   favorited: true,
@@ -229,7 +265,8 @@ export async function galleryFavoriteDialog(infos: EHGallery): Promise< {
     rows: [
       favcatList,
       customLabel,
-      customText
+      customText,
+      new FooterLabel()
     ],
     props: {
       bgcolor: $color("clear"),

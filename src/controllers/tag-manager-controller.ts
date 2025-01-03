@@ -1,12 +1,14 @@
 import { BaseController, ContentView, CustomNavigationBar, List, Menu, router, SplitViewController, SymbolButton, TabBarController } from "jsbox-cview";
 import { configManager } from "../utils/config";
 import { namespaceTranslations, tagColor } from "../utils/glv";
-import { MarkedTagDict } from "../types";
-import { EHSearchTerm, TagNamespace, tagNamespaces } from "ehentai-parser";
+import { MarkedTag, MarkedTagDict } from "../types";
+import { EHNetworkError, EHSearchTerm, EHServiceUnavailableError, EHTimeoutError, TagNamespace, tagNamespaces } from "ehentai-parser";
 import { showDetailedInfoView } from "../components/detailed-info-view";
 import { HomepageController } from "./homepage-controller";
 import { getSearchOptions } from "./search-controller";
 import { ArchiveController } from "./archive-controller";
+import { api } from "../utils/api";
+import { appLog } from "../utils/tools";
 
 enum TagType {
   unmarked,
@@ -31,12 +33,11 @@ const tagSymbolColor = {
 
 function mapData(
   searchPhrase: string,
-  onlyShowMarkred: boolean,
-  translationList: { namespace: TagNamespace, name: string, translation: string }[],
-  markedTagDict: MarkedTagDict,
-  markedUploaders: string[],
-  extraSavedTgs: { namespace: TagNamespace, name: string; }[]
+  onlyShowMarkred: boolean
 ) {
+  const translationList = configManager.translationList
+  const markedTagDict = configManager.markedTagDict
+  const markedUploaders = configManager.markedUploaders
   const data: { title: string, rows: any[] }[] = []
   const menuItems: string[] = []
   // 添加上传者分组
@@ -61,46 +62,33 @@ function mapData(
     })
     menuItems.push("上传者")
   }
-
   // 然后按照顺序添加默认分组
   for (const namespace of tagNamespaces) {
-    const tags = translationList.filter(i => i.namespace === namespace)
-    const extraTags = extraSavedTgs.filter(i => i.namespace === namespace)
-    const markedTags = markedTagDict[namespace]
-
-    const mappedRows = tags
-      .concat(extraTags.map(n => ({ namespace: n.namespace, name: n.name, translation: "" })))
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map(n => ({
-        namespace: n.namespace,
-        name: n.name,
-        translation: n.translation,
-        marked: Boolean(markedTags[n.name])
-      }))
-      .filter(n => {
-        return (!onlyShowMarkred || n.marked) && (!searchPhrase || n.name.includes(searchPhrase) || n.translation.includes(searchPhrase))
+    const tags = new Map(translationList.filter(i => i.namespace === namespace).map(i => ([i.name, i.translation])))
+    const markedTags = markedTagDict.get(namespace) || new Map() as Map<string, MarkedTag>
+    // 合并tags和markedTags, 以tags为基准，如果markedTags中有tags中没有的标签，要显示出来
+    for (const [name, marked] of markedTags) {
+      if (!tags.has(name)) {
+        tags.set(name, "")
+      }
+    }
+    const mappedRows = Array.from(tags)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .filter(([name, translation]) => {
+        return (!onlyShowMarkred || markedTags.get(name)) && (!searchPhrase || name.includes(searchPhrase) || translation.includes(searchPhrase))
       })
-      .map(n => {
-        let style = TagType.unmarked
-        if (n.marked) {
-          const marked = markedTagDict[namespace][n.name]
-          const watched = marked.watched
-          const hidden = marked.hidden
-          if (watched) {
-            style = TagType.watched
-          } else if (hidden) {
-            style = TagType.hidden
-          } else if (marked) {
-            style = TagType.marked
-          }
-        }
+      .map(([name, translation]) => {
+        const marked = markedTags.get(name)
+        const watched = marked?.watched
+        const hidden = marked?.hidden
+        const style = watched ? TagType.watched : hidden ? TagType.hidden : marked ? TagType.marked : TagType.unmarked
         return {
-          infoButton: { info: { namespace, name: n.name }, hidden: false },
+          infoButton: { info: { namespace, name }, hidden: false },
           symbol: {
             symbol: tagSymbol[style],
             tintColor: tagSymbolColor[style]
           },
-          tag: { text: n.translation ? n.translation + "   " + n.name : n.name },
+          tag: { text: translation ? translation + "   " + name : name },
         }
       })
 
@@ -122,6 +110,7 @@ export class TagManagerController extends BaseController {
   private _searchPhrase = ""
   private _uploadersShown = false // 用于判断是否显示了上传者
   private _selectedSearchTerms: EHSearchTerm[] = [] // 用于记录已经被选中的搜索词
+  private _isHandlingMytags = false // 用于判断是否正在处理 mytags
   cviews: {
     markedButton: SymbolButton;
     filterButton: SymbolButton;
@@ -311,17 +300,17 @@ export class TagManagerController extends BaseController {
                     tilde: false,
                     subtract: false
                   };
-                  const options = await getSearchOptions(
-                    { type: "front_page", options: { searchTerms: [searchTerm] } },
-                    "showAll"
-                  );
-                  if (options.type === "archive") {
-                    (router.get("archiveController") as ArchiveController).startLoad(options);
-                    (router.get("primaryViewController") as TabBarController).index = 1;
-                  } else {
-                    (router.get("homepageController") as HomepageController).startLoad(options);
-                    (router.get("primaryViewController") as TabBarController).index = 0;
-                  }
+                const options = await getSearchOptions(
+                  { type: "front_page", options: { searchTerms: [searchTerm] } },
+                  "showAll"
+                );
+                if (options.type === "archive") {
+                  (router.get("archiveController") as ArchiveController).startLoad(options);
+                  (router.get("primaryViewController") as TabBarController).index = 1;
+                } else {
+                  (router.get("homepageController") as HomepageController).startLoad(options);
+                  (router.get("primaryViewController") as TabBarController).index = 0;
+                }
               }
             },
             {
@@ -387,9 +376,11 @@ export class TagManagerController extends BaseController {
               events: {
                 tapped: async sender => {
                   const { namespace, name } = sender.info as { namespace: TagNamespace, name: string }
-                  const translationData = configManager.getTranslationDetailedInfo(namespace, name)
-                  const markedTag = configManager.getMarkedTag(namespace, name)
-                  await showDetailedInfoView(namespace, name, translationData, markedTag);
+                  if (configManager.syncMyTags) {
+                    await this.updateTagDetailsWithSync(namespace, name)
+                  } else {
+                    await this.updateTagDetailsOnLocal(namespace, name)
+                  }
                 }
               },
               views: [{
@@ -541,11 +532,7 @@ export class TagManagerController extends BaseController {
   refresh() {
     const { data, menuItems } = mapData(
       this._searchPhrase,
-      configManager.tagManagerOnlyShowBookmarked,
-      configManager.translationList,
-      configManager.markedTagDict,
-      configManager.markedUploaders,
-      configManager.extraSavedTags
+      configManager.tagManagerOnlyShowBookmarked
     )
     this._uploadersShown = data.length > 0 && data[0].title === "上传者"
     this.cviews.list.view.data = data
@@ -561,5 +548,123 @@ export class TagManagerController extends BaseController {
     this._sectionCumYs = ys.map((_, i) => ys.slice(0, i + 1).reduce((a, b) => a + b))
   }
 
+  /**
+   * 更新标签详情，并同步到服务器
+   * @param namespace 
+   * @param name 
+   * @returns 
+   */
+  async updateTagDetailsWithSync(namespace: TagNamespace, name: string) {
+    if (!configManager.mytagsApiuid || !configManager.mytagsApikey) {
+      $ui.error("错误：没有MyTags API Key")
+      return;
+    }
+    if (this._isHandlingMytags) {
+      $ui.warning("正在处理上一个请求，请稍后再试")
+      return;
+    }
+    const translationData = configManager.getTranslationDetailedInfo(namespace, name);
+    const markedTag = configManager.getMarkedTag(namespace, name);
+    const params = await showDetailedInfoView(namespace, name, translationData, markedTag);
+    // 对比原来的数据, 查看是否有变化
+    const { marked, watched, hidden, weight } = params;
+    if ( // 没有变化的两种情况
+      (!marked && !markedTag)
+      || (marked && markedTag && markedTag.weight === weight && markedTag.watched === watched && markedTag.hidden === hidden)
+    ) {
+      return;
+    } else {
+      try {
+        this._isHandlingMytags = true;
+        if (marked && !markedTag) { // 新增
+          const mytags = await api.addTag({
+            namespace,
+            name,
+            weight,
+            watched,
+            hidden
+          });
+          configManager.updateAllMarkedTags(mytags.tags);
+        } else if (!marked && markedTag) { // 删除
+          const mytags = await api.deleteTag({
+            tagid: markedTag.tagid
+          });
+          configManager.updateAllMarkedTags(mytags.tags);
+        } else if (marked && markedTag) { // 修改
+          await api.updateTag({
+            apiuid: configManager.mytagsApiuid,
+            apikey: configManager.mytagsApikey,
+            tagid: markedTag.tagid,
+            weight,
+            watched,
+            hidden,
+          });
+          configManager.updateMarkedTag({
+            tagid: markedTag.tagid,
+            namespace,
+            name,
+            weight,
+            watched,
+            hidden
+          });
+        }
+        this._isHandlingMytags = false;
+        this.refresh();
+      } catch (e: any) {
+        appLog(e, "error");
+        this._isHandlingMytags = false;
+        if (e instanceof EHServiceUnavailableError) {
+          $ui.error("操作失败：服务不可用");
+        } else if (e instanceof EHTimeoutError) {
+          $ui.error(`操作失败：请求超时`);
+        } else if (e instanceof EHNetworkError) {
+          $ui.error(`操作失败：网络错误`);
+        } else {
+          $ui.error(`操作失败：未知原因`);
+        }
+      }
+    }
+  }
 
+  /**
+   * 仅在本地更新标签详情
+   * @param namespace 
+   * @param name 
+   */
+  async updateTagDetailsOnLocal(namespace: TagNamespace, name: string) {
+    const translationData = configManager.getTranslationDetailedInfo(namespace, name);
+    const markedTag = configManager.getMarkedTag(namespace, name);
+    const params = await showDetailedInfoView(namespace, name, translationData, markedTag);
+    // 对比原来的数据, 查看是否有变化
+    const { marked, watched, hidden, weight } = params;
+    if ( // 没有变化的两种情况
+      (!marked && !markedTag)
+      || (marked && markedTag && markedTag.weight === weight && markedTag.watched === watched && markedTag.hidden === hidden)
+    ) {
+      return;
+    } else {
+      if (marked && !markedTag) { // 新增
+        configManager.addMarkedTag({
+          tagid: 0,
+          namespace,
+          name,
+          weight,
+          watched,
+          hidden
+        });
+      } else if (!marked && markedTag) { // 删除
+        configManager.deleteMarkedTag(namespace, name);
+      } else if (marked && markedTag) { // 修改
+        configManager.updateMarkedTag({
+          tagid: markedTag.tagid,
+          namespace,
+          name,
+          weight,
+          watched,
+          hidden
+        });
+      }
+      this.refresh();
+    }
+  }
 }

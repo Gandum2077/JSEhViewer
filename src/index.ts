@@ -173,6 +173,8 @@ async function init() {
   }
   if (ehMyTags) {
     configManager.updateAllMarkedTags(ehMyTags.tags)
+    configManager.mytagsApiuid = ehMyTags.apiuid
+    configManager.mytagsApikey = ehMyTags.apikey
   }
   homepageController.cviews.list.footerText = "";
   homepageController.cviews.list.isLoading = false;

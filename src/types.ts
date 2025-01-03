@@ -46,7 +46,7 @@ export type TranslationData = {
   links: string;
 }[]
 
-export type TranslationDict = Record<TagNamespace, Record<string, string>>
+export type TranslationDict = Map<TagNamespace, Map<string, string>>
 
 export type MarkedTag = {
   tagid: number;
@@ -58,7 +58,7 @@ export type MarkedTag = {
   weight: number;
 };
 
-export type MarkedTagDict = Record<TagNamespace, Record<string, MarkedTag>>
+export type MarkedTagDict = Map<TagNamespace, Map<string, MarkedTag>>
 
 export type WebDAVService = {
   id: number;

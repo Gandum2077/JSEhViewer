@@ -70,13 +70,6 @@ export function createDB() {
             weight INTEGER,
             UNIQUE(namespace, name)
             )`);
-  // 额外保存的标签
-  // 用户主动保存的标签（保存前要查重），对于不出现在翻译表中标签进行标记时，也要先保存到这里
-  db.update(`CREATE TABLE IF NOT EXISTS extra_saved_tags (
-            namespace TEXT NOT NULL,
-            name TEXT NOT NULL,
-            UNIQUE(namespace, name)
-            )`);
   // 标记的上传者 只保存于本地
   db.update(`CREATE TABLE IF NOT EXISTS marked_uploaders (
             uploader TEXT,

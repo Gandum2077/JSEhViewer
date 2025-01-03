@@ -111,13 +111,13 @@ class DetailedInfoView extends Base<UIWebView, UiTypes.WebOptions> {
   }
 }
 
-export function showDetailedInfoView(namespace: TagNamespace, name: string, translationData?: TranslationData[0], markedTag?: MarkedTag): Promise<boolean> {
+export function showDetailedInfoView(namespace: TagNamespace, name: string, translationData?: TranslationData[0], markedTag?: MarkedTag) {
   const cview = new DetailedInfoView({
     namespace: namespace,
     name: name,
     translation: translationData?.translation || "",
     intro: translationData?.intro || "",
-    links: translationData?.links|| "",
+    links: translationData?.links || "",
     marked: Boolean(markedTag),
     watched: markedTag?.watched || false,
     hidden: markedTag?.hidden || false,
@@ -128,11 +128,16 @@ export function showDetailedInfoView(namespace: TagNamespace, name: string, tran
     bgcolor: $color("backgroundColor"),
     cview,
     doneHandler: async () => {
-      const {result, error} = await cview.view.exec("getData()");
+      const { result, error } = await cview.view.exec("getData()");
       return result;
     }
   })
-  return new Promise((resolve, reject) => {
+  return new Promise<{
+    watched: boolean;
+    weight: number;
+    marked: boolean;
+    hidden: boolean;
+  }>((resolve, reject) => {
     sheet.promisify(resolve, reject);
     sheet.present();
   });

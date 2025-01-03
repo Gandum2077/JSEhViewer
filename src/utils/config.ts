@@ -7,18 +7,20 @@ interface Config {
   exhentai: boolean;
   syncMyTags: boolean;
   mpvAvailable: boolean;
-  homepageManagerLayoutMode: "large" | "normal",
-  archiveManagerLayoutMode: "large" | "normal",
-  tagManagerOnlyShowBookmarked: boolean,
-  webdavIntroductionFirstRead: boolean,
-  autopagerInterval: number,
-  archiveManagerOrderMethod: "first_access_time" | "last_access_time" | "posted_time",
-  favoritesOrderMethod: "favorited_time" | "published_time",
-  webdavEnabled: boolean,
-  selectedWebdavService: number,
-  webdavAutoUpload: boolean,
-  translationUpdateTime: string,
-  defaultFavcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+  homepageManagerLayoutMode: "large" | "normal";
+  archiveManagerLayoutMode: "large" | "normal";
+  tagManagerOnlyShowBookmarked: boolean;
+  webdavIntroductionFirstRead: boolean;
+  autopagerInterval: number;
+  archiveManagerOrderMethod: "first_access_time" | "last_access_time" | "posted_time";
+  favoritesOrderMethod: "favorited_time" | "published_time";
+  webdavEnabled: boolean;
+  selectedWebdavService: number;
+  webdavAutoUpload: boolean;
+  translationUpdateTime: string;
+  defaultFavcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+  mytagsApiuid: number;
+  mytagsApikey: string;
 }
 
 const defaultConfig: Config = {
@@ -37,7 +39,9 @@ const defaultConfig: Config = {
   selectedWebdavService: -1,
   webdavAutoUpload: false,
   translationUpdateTime: new Date(0).toISOString(),
-  defaultFavcat: 0
+  defaultFavcat: 0,
+  mytagsApiuid: 0,
+  mytagsApikey: ""
 }
 
 async function getEhTagTranslationText() {
@@ -83,7 +87,6 @@ class ConfigManager {
   private _favcatTitles: string[]
   private _translationDict: TranslationDict
   private _translationList: { namespace: TagNamespace, name: string, translation: string }[]
-  private _extraSavedTags: { namespace: TagNamespace, name: string }[]
   private _searchHistory: DBSearchHistory
   private _searchBookmarks: DBSearchBookmarks
   private _webDAVServices: WebDAVService[]
@@ -96,7 +99,6 @@ class ConfigManager {
     const r = this._queryTranslationDict()
     this._translationList = r.translationList
     this._translationDict = r.translationDict
-    this._extraSavedTags = this._queryExtraSavedTags()
     this._searchHistory = this._querySearchHistory()
     this._searchBookmarks = this._querySearchBookmarks()
     this._webDAVServices = this._queryWebDAVServices()
@@ -244,6 +246,22 @@ class ConfigManager {
     this._setConfig("defaultFavcat", value)
   }
 
+  get mytagsApiuid() {
+    return this._config.mytagsApiuid
+  }
+
+  set mytagsApiuid(value: number) {
+    this._setConfig("mytagsApiuid", value)
+  }
+
+  get mytagsApikey() {
+    return this._config.mytagsApikey
+  }
+
+  set mytagsApikey(value: string) {
+    this._setConfig("mytagsApikey", value)
+  }
+
   get translationList() {
     return this._translationList
   }
@@ -254,10 +272,6 @@ class ConfigManager {
 
   get markedTagDict() {
     return this._markedTagDict
-  }
-
-  get extraSavedTags() {
-    return this._extraSavedTags
   }
 
   get searchHistory() {
@@ -288,29 +302,30 @@ class ConfigManager {
       color: d.color,
       weight: d.weight
     }))
-    const result = {} as MarkedTagDict
+    const result = new Map() as MarkedTagDict
     for (const namespace of tagNamespaces) {
-      const data = tags.filter(t => t.namespace === namespace)
-      result[namespace] = Object.fromEntries(data.map(t => ([t.name, t])))
+      const data: [string, MarkedTag][] = tags.filter(t => t.namespace === namespace).map(t => ([t.name, t]))
+      result.set(namespace, new Map(data))
     }
     return result
   }
 
   updateAllMarkedTags(markedTags: MarkedTag[]) {
+    // 更新marked_tags表, 从服务器获取数据后调用（而非本地添加/删除）
     const sql_remove = "DELETE FROM marked_tags"
     const sql_update = "INSERT INTO marked_tags (tagid, namespace, name, watched, hidden, color, weight) VALUES (?, ?, ?, ?, ?, ?, ?)"
     dbManager.update(sql_remove)
     dbManager.batchUpdate(sql_update, markedTags.map(t => [t.tagid, t.namespace, t.name, t.watched, t.hidden, t.color || "", t.weight]))
-    const result = {} as MarkedTagDict
+    const result = new Map() as MarkedTagDict
     for (const namespace of tagNamespaces) {
-      const data = markedTags.filter(t => t.namespace === namespace)
-      result[namespace] = Object.fromEntries(data.map(t => ([t.name, t])))
+      const data: [string, MarkedTag][] = markedTags.filter(t => t.namespace === namespace).map(t => ([t.name, t]))
+      result.set(namespace, new Map(data))
     }
     this._markedTagDict = result
   }
 
   getMarkedTag(namespace: TagNamespace, name: string): MarkedTag | undefined {
-    const data = this._markedTagDict[namespace][name]
+    const data = this._markedTagDict.get(namespace)?.get(name)
     return data
   }
 
@@ -318,14 +333,29 @@ class ConfigManager {
     const sql = "UPDATE marked_tags SET tagid = ?, watched = ?, hidden = ?, color = ?, weight = ? WHERE namespace = ? AND name = ?"
     const args = [tag.tagid, tag.watched, tag.hidden, tag.color, tag.weight, tag.namespace, tag.name]
     dbManager.update(sql, args)
-    this._markedTagDict[tag.namespace][tag.name] = tag
+    if (!this._markedTagDict.get(tag.namespace)) {
+      this._markedTagDict.set(tag.namespace, new Map())
+    }
+    this._markedTagDict.get(tag.namespace)!.set(tag.name, tag)
+  }
+
+  addMarkedTag(tag: MarkedTag) {
+    // 添加marked_tags中的记录, 仅用于本地添加
+    const sql = "INSERT INTO marked_tags (tagid, namespace, name, watched, hidden, color, weight) VALUES (?, ?, ?, ?, ?, ?, ?)"
+    const args = [tag.tagid, tag.namespace, tag.name, tag.watched, tag.hidden, tag.color || "", tag.weight]
+    dbManager.update(sql, args)
+    if (!this._markedTagDict.get(tag.namespace)) {
+      this._markedTagDict.set(tag.namespace, new Map())
+    }
+    this._markedTagDict.get(tag.namespace)!.set(tag.name, tag)
   }
 
   deleteMarkedTag(namespace: TagNamespace, name: string) {
+    // 删除marked_tags中的记录, 仅用于本地删除
     const sql = "DELETE FROM marked_tags WHERE namespace = ? AND name = ?"
     const args = [namespace, name]
     dbManager.update(sql, args)
-    delete this._markedTagDict[namespace][name]
+    this._markedTagDict.get(namespace)!.delete(name)
   }
 
   get markedUploaders() {
@@ -405,16 +435,16 @@ class ConfigManager {
       name: string;
       translation: string;
     }[]
-    const dict = {} as TranslationDict
+    const dict = new Map() as TranslationDict
     for (const namespace of tagNamespaces) {
-      const data_ = data.filter(d => d.namespace === namespace).map(d => ([d.name, d.translation]))
-      dict[namespace] = Object.fromEntries(data_)
+      const data_: [string, string][] = data.filter(d => d.namespace === namespace).map(d => ([d.name, d.translation]))
+      dict.set(namespace, new Map(data_))
     }
     return { translationList: data, translationDict: dict }
   }
 
   translate(namespace: TagNamespace, name: string): string | undefined {
-    return this._translationDict[namespace]?.[name]
+    return this._translationDict.get(namespace)?.get(name)
   }
 
   getTranslationDetailedInfo(namespace: TagNamespace, name: string) {
@@ -447,36 +477,6 @@ class ConfigManager {
     const r = this._queryTranslationDict()
     this._translationList = r.translationList
     this._translationDict = r.translationDict
-    // 此时需要重新检查extra_saved_tags中的标签是否已经被翻译，如果已经被翻译，就删除
-    const needDeletedTags = this._extraSavedTags.filter(tag => this.translate(tag.namespace, tag.name))
-    if (needDeletedTags.length > 0) {
-      const sql_delete_extra_saved_tags = "DELETE FROM extra_saved_tags WHERE namespace = ? AND name = ?"
-      dbManager.batchUpdate(sql_delete_extra_saved_tags, needDeletedTags.map(tag => [tag.namespace, tag.name]))
-      this._extraSavedTags = this._queryExtraSavedTags()
-    }
-  }
-
-  private _queryExtraSavedTags() {
-    const sql = "SELECT * FROM extra_saved_tags"
-    const data = dbManager.query(sql) as {
-      namespace: TagNamespace;
-      name: string;
-    }[]
-    return data
-  }
-
-  addExtraSavedTag(namespace: TagNamespace, name: string) {
-    const sql = "INSERT INTO extra_saved_tags (namespace, name) VALUES (?, ?)"
-    const args = [namespace, name]
-    dbManager.update(sql, args)
-    this._extraSavedTags.push({ namespace, name })
-  }
-
-  deleteExtraSavedTag(namespace: TagNamespace, name: string) {
-    const sql = "DELETE FROM extra_saved_tags WHERE namespace = ? AND name = ?"
-    const args = [namespace, name]
-    dbManager.update(sql, args)
-    this._extraSavedTags = this._queryExtraSavedTags()
   }
 
   private _querySearchHistory() {

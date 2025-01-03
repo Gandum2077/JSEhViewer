@@ -15,7 +15,8 @@ export class GalleryController extends PageViewerController {
   private _infos?: EHGallery;
   private _gid: number;
   private _token: string;
-  private _subControllers: {
+  private refreshButton: RefreshButton;
+  subControllers: {
     galleryInfoController: GalleryInfoController;
     galleryThumbnailController: GalleryThumbnailController;
     galleryCommentController: GalleryCommentController;
@@ -61,44 +62,7 @@ export class GalleryController extends PageViewerController {
                   sourceRect: sender.bounds,
                   directions: $popoverDirection.up,
                   width: 180,
-                  items: [
-                    {
-                      symbol: "info.circle",
-                      title: "详细信息",
-                      handler: () => {
-                        if (!this._infos) return;
-                        const controller = new GalleryDetailedInfoController(this._infos)
-                        controller.uipush({
-                          navBarHidden: true,
-                          statusBarStyle: 0
-                        })
-                      }
-                    },
-                    {
-                      symbol: "safari",
-                      title: "用浏览器打开",
-                      handler: () => {
-                        if (!this._infos) return;
-                        $app.openURL(`https://e${configManager.exhentai ? "x" : "-"}hentai.org/g/${this._infos.gid}/${this._infos.token}/`)
-                      }
-                    },
-                    {
-                      symbol: "square.and.arrow.up",
-                      title: "分享链接",
-                      autoDismiss: false,
-                      handler: () => {
-                        if (!this._infos) return;
-                        $share.sheet(`https://e${configManager.exhentai ? "x" : "-"}hentai.org/g/${this._infos.gid}/${this._infos.token}/`)
-                      }
-                    },
-                    {
-                      symbol: "square.and.arrow.down",
-                      title: "下载管理",
-                      handler: () => {
-                        $ui.alert("下载管理")
-                      }
-                    }
-                  ]
+                  items: this.generatePopoverItems()
                 })
               }
             },
@@ -169,11 +133,12 @@ export class GalleryController extends PageViewerController {
     })
     this._gid = gid;
     this._token = token;
-    this._subControllers = {
+    this.subControllers = {
       galleryInfoController,
       galleryThumbnailController,
       galleryCommentController
     }
+    this.refreshButton = refreshButton;
   }
 
   readGallery(index: number) {
@@ -198,7 +163,7 @@ export class GalleryController extends PageViewerController {
 
   async refresh(gid: number, token: string) {
     // 首先判断gid是否和当前一致。如果一致，后续无需重启下载器
-    const isSameGallery = this._gid === gid; 
+    const isSameGallery = this._gid === gid;
 
     let infos: EHGallery | undefined;
     try {
@@ -218,8 +183,8 @@ export class GalleryController extends PageViewerController {
     }
     if (!infos) return;
     // TODO：关闭当前的下载器、定时器，更新信息，重新启动下载器、定时器
-    this._subControllers.galleryInfoController.stopTimer();
-    this._subControllers.galleryThumbnailController.stopTimer();
+    this.subControllers.galleryInfoController.stopTimer();
+    this.subControllers.galleryThumbnailController.stopTimer();
     if (!isSameGallery) downloaderManager.remove(this._gid); // 删除旧的下载器
     // 重新赋值
     this._infos = infos;
@@ -231,17 +196,97 @@ export class GalleryController extends PageViewerController {
       downloaderManager.startOne(this._gid);
     }
     // 更新信息
-    this._subControllers.galleryInfoController.gid = this._gid;
-    this._subControllers.galleryThumbnailController.gid = this._gid;
-    this._subControllers.galleryInfoController.infos = this._infos;
-    this._subControllers.galleryInfoController.currentReadPage = statusManager.getLastReadPage(this._gid);
-    this._subControllers.galleryThumbnailController.thumbnailItems = downloaderManager.get(this._gid).result.thumbnails;
-    this._subControllers.galleryInfoController.startTimer();
-    this._subControllers.galleryThumbnailController.startTimer();
+    this.subControllers.galleryInfoController.gid = this._gid;
+    this.subControllers.galleryThumbnailController.gid = this._gid;
+    this.subControllers.galleryInfoController.infos = this._infos;
+    this.subControllers.galleryInfoController.currentReadPage = statusManager.getLastReadPage(this._gid);
+    this.subControllers.galleryThumbnailController.thumbnailItems = downloaderManager.get(this._gid).result.thumbnails;
+    this.subControllers.galleryInfoController.startTimer();
+    this.subControllers.galleryThumbnailController.startTimer();
     $ui.success("刷新成功");
     $delay(0.1, () => {
       if (!this._infos) return;
-      this._subControllers.galleryCommentController.infos = this._infos
+      this.subControllers.galleryCommentController.infos = this._infos
     })
+  }
+
+  generatePopoverItems() {
+    if (!this._infos) return [];
+    const fixed = [
+      {
+        symbol: "info.circle",
+        title: "详细信息",
+        handler: () => {
+          if (!this._infos) return;
+          const controller = new GalleryDetailedInfoController(this._infos)
+          controller.uipush({
+            navBarHidden: true,
+            statusBarStyle: 0
+          })
+        }
+      },
+      {
+        symbol: "safari",
+        title: "用浏览器打开",
+        handler: () => {
+          if (!this._infos) return;
+          $app.openURL(`https://e${configManager.exhentai ? "x" : "-"}hentai.org/g/${this._infos.gid}/${this._infos.token}/`)
+        }
+      },
+      {
+        symbol: "square.and.arrow.up",
+        title: "分享链接",
+        autoDismiss: false,
+        handler: () => {
+          if (!this._infos) return;
+          $share.sheet(`https://e${configManager.exhentai ? "x" : "-"}hentai.org/g/${this._infos.gid}/${this._infos.token}/`)
+        }
+      },
+      {
+        symbol: "square.and.arrow.down",
+        title: "下载管理",
+        handler: () => {
+          $ui.alert("下载管理")
+        }
+      }
+    ]
+    const rollback = {
+      symbol: "arrow.backward.circle",
+      title: "回滚到上一版本",
+      handler: async () => {
+        if (!this._infos) return;
+        if (!this._infos.parent_gid || !this._infos.parent_token) return;
+        if (this.refreshButton.loading) return;
+        this.refreshButton.loading = true;
+        await this.refresh(this._infos.parent_gid, this._infos.parent_token)
+        this.refreshButton.loading = false;
+      }
+    }
+    const update = {
+      symbol: "arrow.forward.circle",
+      title: "更新到最新版本",
+      handler: () => {
+        if (!this._infos) return;
+        if (!this._infos.newer_versions.length) return;
+        if (this.refreshButton.loading) return;
+        const newerVersion = this._infos.newer_versions[this._infos.newer_versions.length - 1];
+        this.refreshButton.loading = true;
+        this.refresh(newerVersion.gid, newerVersion.token)
+        this.refreshButton.loading = false
+      }
+    }
+    // 判断是否有旧版本
+    const hasOldVersion = Boolean(this._infos.parent_gid)
+    // 判断是否有新版本
+    const hasNewVersion = Boolean(this._infos.newer_versions.length)
+    if (hasOldVersion && hasNewVersion) {
+      return [update,rollback, ...fixed]
+    } else if (hasOldVersion) {
+      return [rollback, ...fixed]
+    } else if (hasNewVersion) {
+      return [update, ...fixed]
+    } else {
+      return fixed
+    }
   }
 }

@@ -1,5 +1,5 @@
 import { Base, ContentView, DynamicItemSizeMatrix, DynamicPreferenceListView, DynamicRowHeightList, Flowlayout, Input, PrefsRowBoolean, PrefsRowInteger, PrefsRowList, searchBarBgcolor, SymbolButton, Tab } from "jsbox-cview";
-import { catColor, favcatColor, searchableCategories, defaultButtonColor, namespaceTranslations, namespaceColor, namespaceOrderList } from "../utils/glv";
+import { catColor, favcatColor, searchableCategories, defaultButtonColor, namespaceTranslations, namespaceColor, namespaceOrderList, catTranslations } from "../utils/glv";
 import { configManager } from "../utils/config";
 import { EHSearchTerm, assembleSearchTerms, EHQualifier, EHSearchedCategory, parseFsearch, TagNamespace, tagNamespaces, tagNamespaceAlternates, TagNamespaceAlternate, tagNamespaceAlternateMap } from "ehentai-parser";
 import { ArchiveTabOptions, FavoritesTabOptions, FrontPageTabOptions, WatchedTabOptions } from "../types";
@@ -346,7 +346,7 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
             props: {
               id: "label",
               align: $align.center,
-              font: $font("Futura-Bold", 16),
+              font: $font("bold", 16),
               textColor: $color("white"),
             },
             layout: $layout.fill
@@ -472,7 +472,7 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   mapData() {
     return searchableCategories.map(cat => ({
       label: {
-        text: cat, bgcolor: catColor[cat],
+        text: catTranslations[cat], bgcolor: catColor[cat],
         alpha: this._excludedCategories.has(cat) ? 0.4 : 1
       }
     }))
@@ -793,7 +793,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
             props: {
               id: "label",
               align: $align.center,
-              font: $font("Futura-Bold", 16),
+              font: $font("bold", 16),
               textColor: $color("white"),
             },
             layout: $layout.fill
@@ -919,7 +919,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   mapData() {
     return searchableCategories.map(cat => ({
       label: {
-        text: cat, bgcolor: catColor[cat],
+        text: catTranslations[cat], bgcolor: catColor[cat],
         alpha: this._excludedCategories.has(cat) ? 0.4 : 1
       }
     }))

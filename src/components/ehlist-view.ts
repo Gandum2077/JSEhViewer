@@ -1,7 +1,7 @@
 import { EHListCompactItem, EHListExtendedItem, EHListMinimalItem, EHListThumbnailItem, EHListUploadItem, EHTagListItem, EHUploadList } from "ehentai-parser";
 import { Base, Matrix } from "jsbox-cview"
 import { configManager } from "../utils/config";
-import { catColor, favcatColor, namespaceTranslations, ratingColor, thumbnailPath } from "../utils/glv";
+import { catColor, catTranslations, favcatColor, namespaceTranslations, ratingColor, thumbnailPath } from "../utils/glv";
 import { toSimpleUTCTimeString } from "../utils/tools";
 
 type Items = EHListExtendedItem[] | EHListCompactItem[] | EHListThumbnailItem[] | EHListMinimalItem[] | EHListUploadItem[]
@@ -73,7 +73,7 @@ function _mapDataForLargeLayout(item: EHListExtendedItem | EHListCompactItem | E
       text: item.title
     },
     category_large: {
-      text: item.category,
+      text: catTranslations[item.category],
       bgcolor: catColor[item.category]
     },
     favorite_large: {
@@ -130,7 +130,7 @@ function _mapDataForNormalLayout(item: EHListExtendedItem | EHListCompactItem | 
       text: item.title
     },
     category_normal: {
-      text: item.category,
+      text: catTranslations[item.category],
       bgcolor: catColor[item.category]
     },
     favorite_normal: {
@@ -180,7 +180,7 @@ function _mapDataForMinimalLayout(item: EHListUploadItem) {
       text: item.title
     },
     category_minimal: {
-      text: item.public_category,
+      text: catTranslations[item.public_category],
       bgcolor: catColor[item.public_category]
     },
     length_minimal: {
@@ -439,7 +439,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                             id: "category_large",
                             textColor: $color("white"),
                             align: $align.center,
-                            font: $font("Futura-Bold", 12),
+                            font: $font("bold", 12),
                             smoothCorners: true,
                             cornerRadius: 4,
                           },
@@ -601,7 +601,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                       id: "category_normal",
                       textColor: $color("white"),
                       align: $align.center,
-                      font: $font("Futura-Bold", 12),
+                      font: $font("bold", 12),
                       smoothCorners: true,
                       cornerRadius: 4,
                     },
@@ -793,7 +793,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                           id: "category_minimal",
                           textColor: $color("white"),
                           align: $align.center,
-                          font: $font("Futura-Bold", 12),
+                          font: $font("bold", 12),
                           smoothCorners: true,
                           cornerRadius: 4,
                         },

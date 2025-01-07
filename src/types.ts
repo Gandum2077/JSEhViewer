@@ -19,25 +19,6 @@ import {
   TagNamespace
 } from "ehentai-parser";
 
-export type TagList = {
-  namespace: TagNamespace;
-  tags: string[];
-}[]
-
-export type CompleteTagListItem = {
-  namespace: TagNamespace;
-  namespaceTranslated: string;
-  tags: {
-    name: string;
-    namespace: TagNamespace;
-    translation?: string;
-    selected: boolean;
-    marked: boolean;
-    watched: boolean;
-    hidden: boolean;
-  }[];
-};
-
 export type TranslationData = {
   namespace: TagNamespace;
   name: string;

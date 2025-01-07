@@ -1,8 +1,10 @@
-import { Base, DynamicContextMenuView } from "jsbox-cview";
-import {CompleteTagListItem } from "../types";
+import { Base } from "jsbox-cview";
 import { namespaceColor, tagColor, namespaceTranslations } from "../utils/glv";
-import { buildSearchTerm } from "../utils/tools";
-import { TagNamespace, tagNamespaceMostUsedAlternateMap } from "ehentai-parser";
+import { EHGallery, EHNetworkError, EHServiceUnavailableError, EHTimeoutError, TagNamespace, tagNamespaceMostUsedAlternateMap } from "ehentai-parser";
+import { configManager } from "../utils/config";
+import { showDetailedInfoView } from "./detailed-info-view";
+import { api } from "../utils/api";
+import { appLog } from "../utils/tools";
 
 const TAG_FONT_SIZE = 15;
 
@@ -13,18 +15,6 @@ const selectTagColor = (marked: boolean, watched: boolean, hidden: boolean) => {
   return $color("tertiarySurface");
 }
 
-const selectMenuIndex = (marked: boolean, watched: boolean, hidden: boolean) => {
-  if (hidden) return 3;
-  if (watched) return 2;
-  if (marked) return 1;
-  return 0;
-}
-
-const NAMESPACE_ENGLISH_WIDTH = Math.ceil($text.sizeThatFits({
-  text: "cosplayer",
-  width: 1000,
-  font: $font(TAG_FONT_SIZE)
-}).width) + 15;
 const NAMESPACE_CHINESE_WIDTH = Math.ceil($text.sizeThatFits({
   text: "啊啊啊",
   width: 1000,
@@ -38,24 +28,18 @@ const NAMESPACE_CHINESE_WIDTH = Math.ceil($text.sizeThatFits({
  * 
  * 参数:
  * - namespace: Namespace
- * - translated: boolean
  * 
  * 属性:
- * - translated
  * - width
  * - frame
  */
 class NamespaceLabel extends Base<UILabelView, UiTypes.LabelOptions> {
   _defineView: () => UiTypes.LabelOptions;
-  private _namespace: TagNamespace;
-  private _translated: boolean;
   width: number;
-  constructor(namespace: TagNamespace, translated: boolean) {
+  constructor(namespace: TagNamespace) {
     super();
-    this._namespace = namespace;
-    this._translated = translated;
-    const text = translated ? namespaceTranslations[namespace] : namespace;
-    this.width = translated ? NAMESPACE_CHINESE_WIDTH : NAMESPACE_ENGLISH_WIDTH;
+    const text = namespaceTranslations[namespace];
+    this.width = NAMESPACE_CHINESE_WIDTH;
     this._defineView = () => {
       return {
         type: "label",
@@ -73,19 +57,6 @@ class NamespaceLabel extends Base<UILabelView, UiTypes.LabelOptions> {
     }
   }
 
-  get translated() {
-    return this._translated;
-  }
-
-  set translated(translated: boolean) {
-    if (translated !== this._translated) {
-      this._translated = translated;
-      const text = translated ? namespaceTranslations[this._namespace] : this._namespace;
-      this.width = translated ? NAMESPACE_CHINESE_WIDTH : NAMESPACE_ENGLISH_WIDTH;
-      this.view.text = text;
-    }
-  }
-
   set frame(frame: JBRect) {
     this.view.frame = frame;
   }
@@ -99,181 +70,78 @@ class NamespaceLabel extends Base<UILabelView, UiTypes.LabelOptions> {
  * TagView
  * 
  * 不能自行实现布局。width属性可以向外部告知自身所需的宽度，然后通过外部布局来设置自身的frame  
- * 事件handleTag会返回一个新的、深拷贝的tag对象
  * 
  * props:
- * - tag: CompleteTagListItem["tags"][0]
- * - translated: boolean
+ * - namespace: TagNamespace;
+ * - name: string;
  * 
  * events:
- * - tapped: (tag: CompleteTagListItem["tags"][0]) => void;
- * - tagModified: (tag: CompleteTagListItem["tags"][0]) => void;
- * - searchHandler: (tag: CompleteTagListItem["tags"][0]) => void;
- * - detailedInfoHandler: (tag: CompleteTagListItem["tags"][0]) => void;
+ * - tapped: () => void;
  * 
- * 属性:
- * - translated
  */
-class TagView extends DynamicContextMenuView {
+class TagView extends Base<UIView, UiTypes.ViewOptions> {
+  private _namespace: TagNamespace;
+  private _name: string;
+  private _selected: boolean = false;
+  private _isHandlingMytags: boolean = false; // 用于判断是否正在处理 mytags
   width: number;
-  private _translated: boolean;
+  _defineView: () => UiTypes.ViewOptions;
   constructor({ props, events }: {
     props: {
-      tag: CompleteTagListItem["tags"][0],
-      translated: boolean,
+      namespace: TagNamespace;
+      name: string;
     },
     events: {
-      tapped: (tag: CompleteTagListItem["tags"][0]) => void;
-      tagModified: (tag: CompleteTagListItem["tags"][0]) => void;
-      searchHandler: (tag: CompleteTagListItem["tags"][0]) => void;
-      detailedInfoHandler: (tag: CompleteTagListItem["tags"][0]) => void;
+      tapped: () => void;
     }
   }) {
-    const text = props.translated ? props.tag.translation || props.tag.name : props.tag.name;
-    super({
-      classname: "DynamicContextMenuView_TagView",
-      generateContextMenu: sender => {
-        const info = sender.info as CompleteTagListItem["tags"][0]
-        const commonMenuItems = [
-          {
-            title: "立即搜索",
-            symbol: "magnifyingglass",
-            handler: () => {
-            events.searchHandler(info);
-            }
-          },
-          {
-            title: "复制",
-            symbol: "doc.on.doc",
-            handler: () => {
-              $clipboard.text = buildSearchTerm(info.namespace, info.name);
-            }
-          },
-          {
-            title: "详细信息",
-            symbol: "info.circle",
-            handler: () => {
-              events.detailedInfoHandler(info);
-            }
-          }
-        ]
-        const menuItemMarked = {
-          title: "加入到我的标签",
-          symbol: "bookmark",
-          handler: () => {
-            info.marked = true;
-            info.watched = false;
-            info.hidden = false;
-            sender.info = info;
-            sender.bgcolor = selectTagColor(info.marked, info.watched, info.hidden);
-            events.tagModified(info);
-          }
-        }
-        const menuItemUnmarked = {
-          title: "从我的标签中移除",
-          symbol: "bookmark.slash",
-          handler: () => {
-            info.marked = false;
-            info.watched = false;
-            info.hidden = false;
-            sender.info = info;
-            sender.bgcolor = selectTagColor(info.marked, info.watched, info.hidden);
-            events.tagModified(info);
-          }
-        }
-        const menuItemWatched = {
-          title: "订阅",
-          symbol: "bell",
-          handler: () => {
-            info.marked = true;
-            info.watched = true;
-            info.hidden = false;
-            sender.info = info;
-            sender.bgcolor = selectTagColor(info.marked, info.watched, info.hidden);
-            events.tagModified(info);
-          }
-        }
-        const menuItemUnwatched = {
-          title: "取消订阅",
-          symbol: "bell.slash",
-          handler: () => {
-            info.marked = true;
-            info.watched = false;
-            info.hidden = false;
-            sender.info = info;
-            sender.bgcolor = selectTagColor(info.marked, info.watched, info.hidden);
-            events.tagModified(info);
-          }
-        }
-        const menuItemHidden = {
-          title: "屏蔽",
-          symbol: "square.slash",
-          handler: () => {
-            info.marked = true;
-            info.watched = false;
-            info.hidden = true;
-            sender.info = info;
-            sender.bgcolor = selectTagColor(info.marked, info.watched, info.hidden);
-            events.tagModified(info);
-          }
-        }
-        const menuItemUnhidden = {
-          title: "取消屏蔽",
-          symbol: "square",
-          handler: () => {
-            info.marked = true;
-            info.watched = false;
-            info.hidden = false;
-            sender.info = info;
-            sender.bgcolor = selectTagColor(info.marked, info.watched, info.hidden);
-            events.tagModified(info);
-          }
-        }
-        const menuList = [
-          { // 对应 marked = false, watched = false, hidden = false
-            title: tagNamespaceMostUsedAlternateMap[info.namespace] + ": " + info.name,
-            items: [
-              menuItemMarked,
-              menuItemWatched,
-              menuItemHidden,
-              ...commonMenuItems
-            ]
-          },
-          { // 对应 marked = true, watched = false, hidden = false
-            title: tagNamespaceMostUsedAlternateMap[info.namespace] + ": " + info.name,
-            items: [
-              menuItemUnmarked,
-              menuItemWatched,
-              menuItemHidden,
-              ...commonMenuItems
-            ]
-          },
-          { // 对应 marked = true, watched = true, hidden = false
-            title: tagNamespaceMostUsedAlternateMap[info.namespace] + ": " + info.name,
-            items: [
-              menuItemUnmarked,
-              menuItemUnwatched,
-              menuItemHidden,
-              ...commonMenuItems
-            ]
-          },
-          { // 对应 marked = true, watched = false, hidden = true
-            title: tagNamespaceMostUsedAlternateMap[info.namespace] + ": " + info.name,
-            items: [
-              menuItemUnmarked,
-              menuItemWatched,
-              menuItemUnhidden,
-              ...commonMenuItems
-            ]
-          },
-        ]
-        return menuList[selectMenuIndex(info.marked, info.watched, info.hidden)];
-      },
+    super()
+    this._namespace = props.namespace;
+    this._name = props.name;
+    const translation = configManager.translate(this._namespace, this._name)
+    const markedTag = configManager.getMarkedTag(this._namespace, this._name)
+    const marked = Boolean(markedTag)
+    const watched = markedTag?.watched ?? false
+    const hidden = markedTag?.hidden ?? false
+
+    const text = translation || this._name;
+    this.width = Math.ceil($text.sizeThatFits({
+      text,
+      width: 1000,
+      font: $font(TAG_FONT_SIZE)
+    }).width) + 16;
+    this._defineView = () => ({
+      type: "view",
       props: {
-        info: { ...props.tag },
-        bgcolor: selectTagColor(props.tag.marked, props.tag.watched, props.tag.hidden),
+        id: this.id,
+        bgcolor: selectTagColor(marked, watched, hidden),
         cornerRadius: 10,
         smoothCorners: true,
+        userInteractionEnabled: true,
+        menu: {
+          title: tagNamespaceMostUsedAlternateMap[props.namespace] + ": " + props.name,
+          items: [
+            {
+              title: "立即搜索",
+              symbol: "magnifyingglass",
+              handler: (sender) => {
+                // TODO
+              }
+            },
+            {
+              title: "详细信息",
+              symbol: "info.circle",
+              handler: async (sender) => {
+                if (configManager.syncMyTags) {
+                  await this.updateTagDetailsWithSync(this._namespace, this._name)
+                } else {
+                  await this.updateTagDetailsOnLocal(this._namespace, this._name)
+                }
+
+              }
+            }
+          ]
+        }
       },
       layout: (make, view) => {
         make.top.inset(0);
@@ -283,17 +151,17 @@ class TagView extends DynamicContextMenuView {
       },
       events: {
         tapped: sender => {
-          this.view.info = { ...this.view.info, selected: !this.view.info.selected };
-          (sender.get("tag") as UILabelView).textColor = this.view.info.selected ? tagColor.selected : $color("primaryText");
-          events.tapped(this.view.info as CompleteTagListItem["tags"][0]);
+          this._selected = !this._selected;
+          ($(this.id + "tag") as UILabelView).textColor = this._selected ? tagColor.selected : $color("primaryText");
+          events.tapped();
         }
       },
       views: [{
         type: "label",
         props: {
-          id: "tag",
-          text: text,
-          textColor: props.tag.selected ? tagColor.selected : $color("primaryText"),
+          id: this.id + "tag",
+          text,
+          textColor: this._selected ? tagColor.selected : $color("primaryText"),
           font: $font(TAG_FONT_SIZE),
           align: $align.center,
         },
@@ -302,32 +170,147 @@ class TagView extends DynamicContextMenuView {
         }
       }]
     })
-    this._translated = props.translated;
-    this.width = Math.ceil($text.sizeThatFits({
-      text,
-      width: 1000,
-      font: $font(TAG_FONT_SIZE)
-    }).width) + 16;
   }
 
-  get tag() {
-    return { ...this.view.info } as CompleteTagListItem["tags"][0];
+  /**
+    * 更新标签详情，并同步到服务器
+    * @param namespace 
+    * @param name 
+    * @returns 
+    */
+  async updateTagDetailsWithSync(namespace: TagNamespace, name: string) {
+    if (!configManager.mytagsApiuid || !configManager.mytagsApikey) {
+      $ui.error("错误：没有MyTags API Key")
+      return;
+    }
+    if (this._isHandlingMytags) {
+      $ui.warning("正在处理上一个请求，请稍后再试")
+      return;
+    }
+    const translationData = configManager.getTranslationDetailedInfo(namespace, name);
+    const markedTag = configManager.getMarkedTag(namespace, name);
+    const params = await showDetailedInfoView(namespace, name, translationData, markedTag);
+    // 对比原来的数据, 查看是否有变化
+    const { marked, watched, hidden, weight } = params;
+    if ( // 没有变化的两种情况
+      (!marked && !markedTag)
+      || (marked && markedTag && markedTag.weight === weight && markedTag.watched === watched && markedTag.hidden === hidden)
+    ) {
+      return;
+    } else {
+      try {
+        this._isHandlingMytags = true;
+        if (marked && !markedTag) { // 新增
+          const mytags = await api.addTag({
+            namespace,
+            name,
+            weight,
+            watched,
+            hidden
+          });
+          configManager.updateAllMarkedTags(mytags.tags);
+        } else if (!marked && markedTag) { // 删除
+          const mytags = await api.deleteTag({
+            tagid: markedTag.tagid
+          });
+          configManager.updateAllMarkedTags(mytags.tags);
+        } else if (marked && markedTag) { // 修改
+          await api.updateTag({
+            apiuid: configManager.mytagsApiuid,
+            apikey: configManager.mytagsApikey,
+            tagid: markedTag.tagid,
+            weight,
+            watched,
+            hidden,
+          });
+          configManager.updateMarkedTag({
+            tagid: markedTag.tagid,
+            namespace,
+            name,
+            weight,
+            watched,
+            hidden
+          });
+        }
+        this._isHandlingMytags = false;
+        this.refresh();
+      } catch (e: any) {
+        appLog(e, "error");
+        this._isHandlingMytags = false;
+        if (e instanceof EHServiceUnavailableError) {
+          $ui.error("操作失败：服务不可用");
+        } else if (e instanceof EHTimeoutError) {
+          $ui.error(`操作失败：请求超时`);
+        } else if (e instanceof EHNetworkError) {
+          $ui.error(`操作失败：网络错误`);
+        } else {
+          $ui.error(`操作失败：未知原因`);
+        }
+      }
+    }
   }
 
-  set translated(translated: boolean) {
-    if (translated === this._translated) return;
-    this._translated = translated;
-    const text = translated ? this.view.info.translation || this.view.info.name : this.view.info.name
-    this.width = Math.ceil($text.sizeThatFits({
-      text,
-      width: 1000,
-      font: $font(TAG_FONT_SIZE)
-    }).width) + 16;
-    (this.view.get("tag") as UILabelView).text = text;
+  /**
+   * 仅在本地更新标签详情
+   * @param namespace 
+   * @param name 
+   */
+  async updateTagDetailsOnLocal(namespace: TagNamespace, name: string) {
+    const translationData = configManager.getTranslationDetailedInfo(namespace, name);
+    const markedTag = configManager.getMarkedTag(namespace, name);
+    const params = await showDetailedInfoView(namespace, name, translationData, markedTag);
+    // 对比原来的数据, 查看是否有变化
+    const { marked, watched, hidden, weight } = params;
+    if ( // 没有变化的两种情况
+      (!marked && !markedTag)
+      || (marked && markedTag && markedTag.weight === weight && markedTag.watched === watched && markedTag.hidden === hidden)
+    ) {
+      return;
+    } else {
+      if (marked && !markedTag) { // 新增
+        configManager.addMarkedTag({
+          tagid: 0,
+          namespace,
+          name,
+          weight,
+          watched,
+          hidden
+        });
+      } else if (!marked && markedTag) { // 删除
+        configManager.deleteMarkedTag(namespace, name);
+      } else if (marked && markedTag) { // 修改
+        configManager.updateMarkedTag({
+          tagid: markedTag.tagid,
+          namespace,
+          name,
+          weight,
+          watched,
+          hidden
+        });
+      }
+      this.refresh();
+    }
   }
 
-  get translated() {
-    return this._translated;
+  refresh() {
+    const markedTag = configManager.getMarkedTag(this._namespace, this._name);
+    const marked = Boolean(markedTag);
+    const watched = markedTag?.watched ?? false;
+    const hidden = markedTag?.hidden ?? false;
+    this.view.bgcolor = selectTagColor(marked, watched, hidden);
+    ($(this.id + "tag") as UILabelView).textColor = this._selected ? tagColor.selected : $color("primaryText");
+  }
+
+  get namespace() {
+    return this._namespace;
+  }
+
+  get name() {
+    return this._name;
+  }
+
+  get selected() {
+    return this._selected;
   }
 
   set frame(frame: JBRect) {
@@ -346,8 +329,7 @@ class TagView extends DynamicContextMenuView {
  * **此控件的布局中必须包含高度的约束，否则无法正常改变自身高度**
  * 
  * 参数:
- * - taglist: CompleteTagListItem[]
- * - translated: boolean
+ * - taglist: EHGallery["taglist"]
  * 
  * 属性:
  * - tagViews
@@ -355,22 +337,20 @@ class TagView extends DynamicContextMenuView {
 export class TagsFlowlayout extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
   _width: number;
-  _translated: boolean = true;
   tagViews: { namespace: NamespaceLabel; tags: TagView[] }[];
 
-  constructor(taglist: CompleteTagListItem[]) {
+  constructor(taglist: EHGallery["taglist"], handlers: {
+    tapped: () => void;
+  }) {
     super();
     this._width = 0;
     this.tagViews = taglist.map(({ tags, namespace }) => {
       return {
-        namespace: new NamespaceLabel(namespace, this._translated),
-        tags: tags.map(tag => new TagView({
-          props: {tag, translated: this._translated},
+        namespace: new NamespaceLabel(namespace),
+        tags: tags.map(name => new TagView({
+          props: { namespace, name },
           events: {
-            tapped: tag => {console.log(tag)},
-            tagModified: tag => {console.log(tag)},
-            searchHandler: tag => {console.log(tag)},
-            detailedInfoHandler: tag => {console.log(tag)}
+            tapped: () => { handlers.tapped() }
           }
         }))
       }
@@ -403,12 +383,26 @@ export class TagsFlowlayout extends Base<UIView, UiTypes.ViewOptions> {
     }
   }
 
+  get selectedTags() {
+    return this.tagViews.reduce((acc, { tags }) => {
+      tags.forEach(tag => {
+        if (tag.selected) {
+          acc.push({
+            namespace: tag.namespace,
+            name: tag.name
+          });
+        }
+      })
+      return acc;
+    }, [] as { namespace: TagNamespace, name: string }[])
+  }
+
   _layoutTags() {
     const totalWidth = this._width;
     const itemHeight = 30;
     const itemSpacing = 5;
     const sectionSpacing = 10;
-    const namespaceWidth = this._translated ? NAMESPACE_CHINESE_WIDTH : NAMESPACE_ENGLISH_WIDTH;
+    const namespaceWidth = NAMESPACE_CHINESE_WIDTH;
     const tagsTotalWidth = totalWidth - namespaceWidth - sectionSpacing;
     let x = 0;
     let y = 0;
@@ -438,7 +432,7 @@ export class TagsFlowlayout extends Base<UIView, UiTypes.ViewOptions> {
     const itemHeight = 30;
     const itemSpacing = 5;
     const sectionSpacing = 10;
-    const namespaceWidth = this._translated ? NAMESPACE_CHINESE_WIDTH : NAMESPACE_ENGLISH_WIDTH;
+    const namespaceWidth = NAMESPACE_CHINESE_WIDTH;
     const tagsTotalWidth = totalWidth - namespaceWidth - sectionSpacing;
     let x = 0;
     let y = 0;

@@ -1,9 +1,8 @@
-import { Base, BaseController, DynamicItemSizeMatrix, DynamicRowHeightList } from "jsbox-cview";
+import { Base, BaseController, Button, DynamicItemSizeMatrix, DynamicRowHeightList, layerCommonOptions, setLayer } from "jsbox-cview";
 import { TagsFlowlayout } from "../components/tags-flowlayout";
-import { EHCategory, EHGallery } from "ehentai-parser";
+import { EHGallery, EHSearchTerm } from "ehentai-parser";
 import { configManager } from "../utils/config";
-import { catColor, defaultButtonColor, favcatColor, invisibleCauseMap, namespaceTranslations, ratingColor, thumbnailPath } from "../utils/glv";
-import { CompleteTagListItem } from "../types";
+import { catColor, catTranslations, defaultButtonColor, favcatColor, invisibleCauseMap, ratingColor, tagColor } from "../utils/glv";
 import { GalleryDetailedInfoController } from "./gallery-detailed-info-controller";
 import { toSimpleUTCTimeString } from "../utils/tools";
 import { rateAlert } from "../components/rate-alert";
@@ -14,6 +13,7 @@ import { statusManager } from "../utils/status";
 import { GalleryTorrentsController } from "./gallery-torrents-controller";
 import { GalleryHathController } from "./gallery-hath-controller";
 import { galleryFavoriteDialog } from "../components/gallery-favorite-dialog";
+import { getSearchOptions } from "./search-controller";
 
 class BlankView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
@@ -38,13 +38,337 @@ class BlankView extends Base<UIView, UiTypes.ViewOptions> {
   }
 }
 
+class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
+  _defineView: () => UiTypes.ViewOptions;
+  private _uploader: string | undefined = undefined;
+  private _disowned: boolean = false;
+  private _selected: boolean = false;
+  constructor({ layout, selectedChanged }: {
+    layout: (make: MASConstraintMaker, view: UIView) => void;
+    selectedChanged: (selected: boolean) => void
+  }) {
+    super();
+    this._defineView = () => {
+      return {
+        type: "view",
+        props: {
+          id: this.id
+        },
+        layout,
+        views: [
+          {
+            type: "view",
+            props: {
+              id: this.id + "uploader_normal_wrapper",
+              cornerRadius: 10,
+              smoothCorners: true,
+              menu: {
+                items: [
+                  {
+                    title: "立即搜索",
+                    symbol: "magnifyingglass",
+                    handler: (sender) => {
+                      if (!this._uploader) return;
+                      // TODO: search
+                    }
+                  },
+                  {
+                    title: "标记此上传者",
+                    symbol: "bookmark",
+                    handler: (sender) => {
+                      this._markUploader();
+                    }
+                  },
+                  {
+                    title: "屏蔽此上传者",
+                    symbol: "square.slash",
+                    handler: (sender) => {
+                      this._banUploader();
+                    }
+                  }
+                ]
+              }
+            },
+            layout: (make, view) => {
+              make.left.top.bottom.inset(0)
+              make.width.equalTo(0)
+            },
+            events: {
+              tapped: sender => {
+                this.selected = !this.selected;
+                selectedChanged(this.selected);
+              }
+            },
+            views: [{
+              type: "label",
+              props: {
+                id: this.id + "uploader_normal",
+                font: $font(14),
+                align: $align.center
+              },
+              layout: $layout.center
+            }]
+          },
+          {
+            type: "view",
+            props: {
+              id: this.id + "uploader_marked_wrapper",
+              cornerRadius: 10,
+              smoothCorners: true,
+              menu: {
+                items: [
+                  {
+                    title: "立即搜索",
+                    symbol: "magnifyingglass",
+                    handler: (sender) => { }
+                  },
+                  {
+                    title: "取消标记",
+                    symbol: "bookmark.slash",
+                    handler: (sender) => {
+                      this._unmarkUploader();
+                    }
+                  }
+                ]
+              }
+            },
+            layout: (make, view) => {
+              make.left.top.bottom.inset(0)
+              make.width.equalTo(0)
+            },
+            events: {
+              tapped: sender => {
+                this.selected = !this.selected;
+                selectedChanged(this.selected);
+              }
+            },
+            views: [{
+              type: "label",
+              props: {
+                id: this.id + "uploader_marked",
+                font: $font(14),
+                align: $align.center
+              },
+              layout: $layout.center
+            }]
+          },
+          {
+            type: "view",
+            props: {
+              id: this.id + "uploader_banned_wrapper",
+              cornerRadius: 10,
+              smoothCorners: true,
+              menu: {
+                items: [
+                  {
+                    title: "立即搜索",
+                    symbol: "magnifyingglass",
+                    handler: (sender) => { }
+                  },
+                  {
+                    title: "取消屏蔽",
+                    symbol: "square",
+                    handler: (sender) => {
+                      this._unbanUploader();
+                    }
+                  }
+                ]
+              }
+            },
+            layout: (make, view) => {
+              make.left.top.bottom.inset(0)
+              make.width.equalTo(0)
+            },
+            events: {
+              tapped: sender => {
+                this.selected = !this.selected;
+                selectedChanged(this.selected);
+              }
+            },
+            views: [{
+              type: "label",
+              props: {
+                id: this.id + "uploader_banned",
+                font: $font(14),
+                align: $align.center
+              },
+              layout: $layout.center
+            }]
+          },
+          {
+            type: "label",
+            props: {
+              id: this.id + "uploader_disowned",
+              bgcolor: $color("clear"),
+              textColor: $color("secondaryText"),
+              font: $font(14),
+              text: "(已放弃)"
+            },
+            layout: (make, view) => {
+              make.left.inset(8)
+              make.centerY.equalTo(view.super)
+            }
+          }
+        ]
+      }
+    }
+  }
+
+  private _markUploader() {
+    if (!this._uploader) return;
+    configManager.addMarkedUploader(this._uploader);
+    this.refresh();
+  }
+
+  private _unmarkUploader() {
+    if (!this._uploader) return;
+    configManager.deleteMarkedUploader(this._uploader);
+    this.refresh();
+  }
+
+  private async _banUploader() {
+    if (!this._uploader) return;
+    try {
+      const config = await api.getConfig();
+      config.xu = config.xu + "\n" + this._uploader;
+      const success = await api.postConfig(config);
+      if (success) {
+        const bannedUploaders = config.xu.split("\n")
+        configManager.updateAllBannedUploaders(bannedUploaders)
+      }
+    } catch (e) {
+      $ui.error("错误：屏蔽失败");
+    }
+    this.refresh();
+  }
+
+  private async _unbanUploader() {
+    if (!this._uploader) return;
+    try {
+      const config = await api.getConfig();
+      config.xu = config.xu.split("\n").filter(uploader => uploader !== this._uploader).join("\n");
+      const success = await api.postConfig(config);
+      if (success) {
+        const bannedUploaders = config.xu.split("\n")
+        configManager.updateAllBannedUploaders(bannedUploaders)
+      }
+    } catch (e) {
+      $ui.error("错误：取消屏蔽失败");
+    }
+    this.refresh();
+  }
+
+  update({ uploader, disowned }: { uploader: string | undefined, disowned: boolean }) {
+    this._uploader = uploader;
+    this._disowned = disowned;
+    this._selected = false;
+    this.refresh();
+  }
+
+  refresh() {
+    // 刷新显示状态
+    if (this._disowned) {
+      $(this.id + "uploader_normal_wrapper").hidden = true;
+      $(this.id + "uploader_marked_wrapper").hidden = true;
+      $(this.id + "uploader_banned_wrapper").hidden = true;
+      $(this.id + "uploader_disowned").hidden = false;
+    } else if (this._uploader) {
+      // 获取宽度
+      const width = $text.sizeThatFits({
+        text: this._uploader,
+        font: $font(14),
+        width: 1000
+      }).width + 16;
+      // 设置宽度
+      $(this.id + "uploader_normal_wrapper").updateLayout((make, view) => {
+        make.width.equalTo(width)
+      })
+      $(this.id + "uploader_marked_wrapper").updateLayout((make, view) => {
+        make.width.equalTo(width)
+      })
+      $(this.id + "uploader_banned_wrapper").updateLayout((make, view) => {
+        make.width.equalTo(width)
+      })
+      const marked = configManager.markedUploaders.includes(this._uploader);
+      const banned = configManager.bannedUploaders.includes(this._uploader);
+      $(this.id + "uploader_normal_wrapper").hidden = marked || banned;
+      $(this.id + "uploader_marked_wrapper").hidden = !marked;
+      $(this.id + "uploader_banned_wrapper").hidden = !banned;
+      $(this.id + "uploader_disowned").hidden = true;
+    }
+
+    // 刷新颜色
+    if (this._selected) {
+      ($(this.id + "uploader_normal") as UILabelView).textColor = tagColor.selected;
+      ($(this.id + "uploader_marked") as UILabelView).textColor = tagColor.selected;
+      ($(this.id + "uploader_banned") as UILabelView).textColor = tagColor.selected;
+    } else {
+      ($(this.id + "uploader_normal") as UILabelView).textColor = $color("primaryText");
+      ($(this.id + "uploader_marked") as UILabelView).textColor = tagColor.marked;
+      ($(this.id + "uploader_banned") as UILabelView).textColor = tagColor.hidden;
+    }
+
+    // 刷新内容
+    if (this._uploader) {
+      ($(this.id + "uploader_normal") as UILabelView).text = this._uploader;
+      ($(this.id + "uploader_marked") as UILabelView).text = this._uploader;
+      ($(this.id + "uploader_banned") as UILabelView).text = this._uploader;
+    }
+  }
+
+  set selected(selected: boolean) {
+    this._selected = selected;
+    this.refresh();
+  }
+
+  get selected() {
+    return this._selected;
+  }
+}
+
+function _calFontSizeAndHeight(title: string, width: number, maxHeight: number): { fontSize: number, height: number } {
+  const maxFontSize = 16
+  const minFontSize = 10
+  const factor = 2
+  for (let i = maxFontSize * factor; i >= minFontSize * factor; i--) {
+    const height = Math.ceil($text.sizeThatFits({
+      text: title,
+      font: $font(i / factor),
+      width: width
+    }).height)
+    if (height <= maxHeight) {
+      return { fontSize: i / factor, height }
+    }
+  }
+  return { fontSize: minFontSize, height: maxHeight }
+}
+
 /**
  * 由4部分组成：thumbnail, title, uploader, category
  */
 class InfoHeaderView extends Base<UIView, UiTypes.ViewOptions> {
+  private _infos?: EHGallery;
+  private _titleLanguage: "english_title" | "japanese_title" = "japanese_title";
+  cviews: {
+    uploaderView: UploaderView;
+  }
   _defineView: () => UiTypes.ViewOptions;
-  constructor() {
+  constructor(selectedChanged: (selected: boolean) => void) {
     super();
+    const uploaderView = new UploaderView({
+      layout: (make, view) => {
+        make.left.equalTo(view.prev)
+        make.right.inset(0)
+        make.top.equalTo(view.prev.bottom).inset(5)
+        make.height.equalTo(25)
+      },
+      selectedChanged: selected => {
+        selectedChanged(selected)
+      }
+    })
+    this.cviews = {
+      uploaderView
+    }
     this._defineView = () => {
       return {
         type: "view",
@@ -65,7 +389,7 @@ class InfoHeaderView extends Base<UIView, UiTypes.ViewOptions> {
             { // thumbnail
               type: "image",
               props: {
-                id: "thumbnail",
+                id: this.id + "thumbnail",
                 contentMode: 1,
               },
               layout: (make, view) => {
@@ -75,7 +399,9 @@ class InfoHeaderView extends Base<UIView, UiTypes.ViewOptions> {
             },
             { // 右边部分
               type: "view",
-              props: {},
+              props: {
+                id: this.id + "rightWrapper",
+              },
               layout: (make, view) => {
                 make.right.top.bottom.inset(0)
                 make.left.equalTo(view.prev.right)
@@ -84,9 +410,9 @@ class InfoHeaderView extends Base<UIView, UiTypes.ViewOptions> {
                 { // 类别
                   type: "label",
                   props: {
-                    id: "category",
+                    id: this.id + "category",
                     textColor: $color("white"),
-                    font: $font("Futura-Bold", 16),
+                    font: $font("bold", 16),
                     align: $align.center,
                     cornerRadius: 4,
                     smoothCorners: true,
@@ -101,46 +427,36 @@ class InfoHeaderView extends Base<UIView, UiTypes.ViewOptions> {
                 {
                   type: "label",
                   props: {
-                    id: "title",
+                    id: this.id + "title",
                     titleColor: $color("primaryText"),
-                    font: $font(16),
                     align: $align.left,
-                    lines: 4
+                    lines: 0,
+                    userInteractionEnabled: true
                   },
                   layout: (make, view) => {
                     make.left.inset(5)
                     make.right.inset(8)
                     make.top.inset(10)
+                    make.height.equalTo(77)
+                  },
+                  events: {
+                    tapped: sender => {
+                      if (!this._infos) return;
+                      if (!this._infos.japanese_title) return;
+                      this._titleLanguage = this._titleLanguage === "english_title" ? "japanese_title" : "english_title";
+                      sender.text = this._infos[this._titleLanguage];
+                      this._updateTitleLayout($(this.id + "rightWrapper").frame)
+                    }
                   }
                 },
-                {
-                  type: "button",
-                  props: {
-                    id: "uploader",
-                    bgcolor: $color("clear"),
-                    titleColor: $color("primaryText"),
-                    font: $font(12),
-                    menu: {
-                      items: [
-                        {
-                          title: "立即搜索",
-                          symbol: "magnifyingglass",
-                          handler: (sender) => { }
-                        },
-                        {
-                          title: "复制",
-                          symbol: "doc.on.doc",
-                          handler: (sender) => { }
-                        }
-                      ]
-                    }
-                  },
-                  layout: (make, view) => {
-                    make.left.equalTo(view.prev)
-                    make.top.equalTo(view.prev.bottom).offset(5)
-                  }
+                uploaderView.definition
+              ],
+              events: {
+                layoutSubviews: sender => {
+                  if (!this._infos) return;
+                  this._updateTitleLayout(sender.frame)
                 }
-              ]
+              }
             }
           ]
         }]
@@ -148,21 +464,31 @@ class InfoHeaderView extends Base<UIView, UiTypes.ViewOptions> {
     }
   }
 
+  _updateTitleLayout({ width, height }: { width: number, height: number }) {
+    if (!this._infos) return;
+    if (width <= 0 || height <= 0) return;
+    const maxHeight = height - 90;
+    const { fontSize, height: titleHeight } = _calFontSizeAndHeight(this._infos[this._titleLanguage], width - 13, maxHeight);
+    ($(this.id + "title") as UILabelView).font = $font(fontSize);
+    ($(this.id + "title") as UILabelView).updateLayout((make, view) => {
+      make.height.equalTo(titleHeight)
+    })
+  }
+
   set thumbnail_url(url: string) {
-    (this.view.get("thumbnail") as UIImageView).src = url
+    ($(this.id + "thumbnail") as UIImageView).src = url
   }
 
-  set title(text: string) {
-    (this.view.get("title") as UILabelView).text = text
-  }
-
-  set uploader(uploader: string) {
-    (this.view.get("uploader") as UIButtonView).title = uploader
-  }
-
-  set category(category: EHCategory) {
-    (this.view.get("category") as UILabelView).text = category;
-    (this.view.get("category") as UILabelView).bgcolor = catColor[category];
+  set infos(infos: EHGallery) {
+    this._infos = infos;
+    if (!infos.japanese_title) {
+      this._titleLanguage = "english_title"
+    }
+    ($(this.id + "title") as UILabelView).text = infos[this._titleLanguage];
+    ($(this.id + "category") as UILabelView).text = catTranslations[infos.category];
+    ($(this.id + "category") as UILabelView).bgcolor = catColor[infos.category];
+    this.cviews.uploaderView.update({ uploader: infos.uploader, disowned: infos.disowned })
+    this._updateTitleLayout($(this.id + "rightWrapper").frame)
   }
 
   heightToWidth(width: number) {
@@ -234,10 +560,12 @@ class InfoMatrixWrapper extends Base<UIView, UiTypes.ViewOptions> {
 }
 
 class TagsFlowlayoutWrapper extends Base<UIView, UiTypes.ViewOptions> {
+  private _tapped: () => void;
   _defineView: () => UiTypes.ViewOptions;
   private _flowlayout?: TagsFlowlayout;
-  constructor() {
+  constructor(tapped: () => void) {
     super();
+    this._tapped = tapped;
     this._defineView = () => {
       return {
         type: "view",
@@ -250,12 +578,18 @@ class TagsFlowlayoutWrapper extends Base<UIView, UiTypes.ViewOptions> {
     }
   }
 
-  set taglist(taglist: CompleteTagListItem[]) {
+  set taglist(taglist: EHGallery["taglist"]) {
     if (this._flowlayout) {
       this._flowlayout.view.remove()
     }
-    this._flowlayout = new TagsFlowlayout(taglist)
+    this._flowlayout = new TagsFlowlayout(taglist, {
+      tapped: () => { this._tapped() }
+    })
     this.view.add(this._flowlayout.definition)
+  }
+
+  get flowlayout() {
+    return this._flowlayout
   }
 
   heightToWidth(width: number) {
@@ -644,32 +978,12 @@ class CommonButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
   }
 }
 
-function mapTaglist(taglist: EHGallery["taglist"]): CompleteTagListItem[] {
-  return taglist.map(({ namespace, tags }) => {
-    return {
-      namespace,
-      namespaceTranslated: namespaceTranslations[namespace],
-      tags: tags.map(name => {
-        const markedTag = configManager.getMarkedTag(namespace, name)
-        return {
-          name,
-          namespace,
-          translation: configManager.translate(namespace, name),
-          selected: false,
-          marked: Boolean(markedTag),
-          watched: markedTag?.watched ?? false,
-          hidden: markedTag?.hidden ?? false
-        }
-      })
-    }
-  })
-}
-
 export class GalleryInfoController extends BaseController {
   gid: number;
   private _infos?: EHGallery;
   private _timer?: TimerTypes.Timer;
-  private _topThumbnailfinished: boolean = false;
+  private _topThumbnailFinished: boolean = false;
+  private _isShowingSearchButton: boolean = false;
   cviews: {
     infoHeaderView: InfoHeaderView;
     infoMatrix: DynamicItemSizeMatrix;
@@ -684,13 +998,14 @@ export class GalleryInfoController extends BaseController {
     infoMatrixWarpper: InfoMatrixWrapper;
     tagsFlowlayoutWrapper: TagsFlowlayoutWrapper;
     list: DynamicRowHeightList;
+    createNewSearchButton: Button
   };
   constructor(gid: number, readHandler: (index: number) => void) {
     super({
       props: { bgcolor: $color("backgroundColor") }
     });
     this.gid = gid;
-    const infoHeaderView = new InfoHeaderView()
+    const infoHeaderView = new InfoHeaderView(selected => {this.updateSearchButtonShowingState() })
     const infoMatrix = new DynamicItemSizeMatrix({
       props: {
         maxColumns: 3,
@@ -843,7 +1158,7 @@ export class GalleryInfoController extends BaseController {
 
     const hathDownloadButton = new CommonButton({
       title: "Hath下载",
-      symbol: "network",
+      symbol: "at",
       handler: () => {
         if (!this._infos) return;
         const galleryHathController = new GalleryHathController(this._infos)
@@ -870,7 +1185,64 @@ export class GalleryInfoController extends BaseController {
       webDAVButton
     ])
 
-    const tagsFlowlayoutWrapper = new TagsFlowlayoutWrapper()
+    const tagsFlowlayoutWrapper = new TagsFlowlayoutWrapper(() => { this.updateSearchButtonShowingState() })
+    const createNewSearchButton = new Button({
+      props: {
+        bgcolor: $color("systemLink"),
+        alpha: 0
+      },
+      layout: (make, view) => {
+        setLayer(view, layerCommonOptions.circleViewShadow)
+        make.size.equalTo($size(50, 50))
+        make.right.inset(25)
+        make.bottom.inset(40)
+      },
+      views: [{
+        type: "image",
+        props: {
+          symbol: "plus.magnifyingglass",
+          tintColor: $color("white")
+        },
+        layout: (make, view) => {
+          make.center.equalTo(view.super)
+          make.size.equalTo($size(25, 25))
+        }
+      }],
+      events: {
+        tapped: async () => {
+          const sts = [] as EHSearchTerm[]
+          if (infoHeaderView.cviews.uploaderView.selected) {
+            sts.push({
+              qualifier: "uploader",
+              term: this._infos?.uploader ?? "",
+              dollar: false,
+              subtract: false,
+              tilde: false
+            })
+          }
+          tagsFlowlayoutWrapper.flowlayout?.selectedTags.forEach(tag => {
+            sts.push({
+              namespace: tag.namespace,
+              term: tag.name,
+              dollar: true,
+              subtract: false,
+              tilde: false
+            })
+          })
+          const options = await getSearchOptions(
+            {
+              type: "front_page",
+              options: {
+                searchTerms: sts,
+              }
+            },
+            "showAll"
+          )
+          // TODO: 传递搜索条件
+          console.log(options)
+        }
+      }
+    })
     const list = new DynamicRowHeightList({
       rows: [
         new BlankView(10),
@@ -883,7 +1255,7 @@ export class GalleryInfoController extends BaseController {
         secondaryButtonsWrapper,
         new BlankView(10),
         tagsFlowlayoutWrapper,
-        new BlankView(50)
+        new BlankView(80)
       ],
       props: {
         bgcolor: $color("clear"),
@@ -909,19 +1281,18 @@ export class GalleryInfoController extends BaseController {
       secondaryButtonsWrapper,
       infoMatrixWarpper,
       tagsFlowlayoutWrapper,
-      list
+      list,
+      createNewSearchButton
     }
-    this.rootView.views = [list]
+    this.rootView.views = [list, createNewSearchButton]
   }
 
   set infos(infos: EHGallery) {
     this._infos = infos;
-    const topThumbnailPath = downloaderManager.get(this.gid).result.topThumbnail.path
-    this._topThumbnailfinished = Boolean(topThumbnailPath)
+    const topThumbnailPath = downloaderManager.get(this.gid).result.topThumbnail.path;
+    this._topThumbnailFinished = Boolean(topThumbnailPath);
     this.cviews.infoHeaderView.thumbnail_url = topThumbnailPath || "";
-    this.cviews.infoHeaderView.title = infos.japanese_title || infos.english_title;
-    this.cviews.infoHeaderView.uploader = infos.uploader || "";
-    this.cviews.infoHeaderView.category = infos.category;
+    this.cviews.infoHeaderView.infos = infos;
     const data: {
       label: {
         text: string;
@@ -939,7 +1310,7 @@ export class GalleryInfoController extends BaseController {
               + (infos.translated ? " 翻译" : "")
               + (infos.rewrited ? " 重写" : "")
           },
-          icon: { symbol: "character.textbox", tintColor: $color("systemLink") }
+          icon: { symbol: "globe", tintColor: $color("systemLink") }
         },
         {
           label: { text: `${infos.length}页`, textColor: $color("secondaryText") },
@@ -990,7 +1361,7 @@ export class GalleryInfoController extends BaseController {
     } else {
       this.cviews.torrentButton.view.enabled = true
     }
-    this.cviews.tagsFlowlayoutWrapper.taglist = mapTaglist(infos.taglist)
+    this.cviews.tagsFlowlayoutWrapper.taglist = infos.taglist
     this.cviews.list.view.reload()
   }
 
@@ -998,9 +1369,9 @@ export class GalleryInfoController extends BaseController {
     const d = downloaderManager.get(this.gid)
     if (!d) return;
     const topThumbnailPath = d.result.topThumbnail.path
-    this._topThumbnailfinished = Boolean(topThumbnailPath)
+    this._topThumbnailFinished = Boolean(topThumbnailPath)
     this.cviews.infoHeaderView.thumbnail_url = topThumbnailPath || "";
-    if (this._topThumbnailfinished && this._timer) {
+    if (this._topThumbnailFinished && this._timer) {
       this._timer.invalidate();
       this._timer = undefined;
     }
@@ -1008,7 +1379,7 @@ export class GalleryInfoController extends BaseController {
 
   startTimer() {
     if (this._timer) return;
-    if (this._topThumbnailfinished) return;
+    if (this._topThumbnailFinished) return;
     this._timer = $timer.schedule({
       interval: 2,
       handler: () => {
@@ -1029,6 +1400,36 @@ export class GalleryInfoController extends BaseController {
       this.cviews.readButton.title = `阅读`
     } else {
       this.cviews.readButton.title = `继续阅读\n第${page + 1}页`
+    }
+  }
+
+  updateSearchButtonShowingState() {
+    // 检测uploaderView和tagsFlowLayout是否有选中的tag，如果有则显示搜索按钮
+    const uploaderViewSelected = this.cviews.infoHeaderView.cviews.uploaderView.selected;
+    const tagsFlowlayoutSelected = Boolean(this.cviews.tagsFlowlayoutWrapper.flowlayout?.selectedTags.length);
+    const shouldShow = uploaderViewSelected || tagsFlowlayoutSelected;
+    if (this._isShowingSearchButton === shouldShow) return;
+    this._isShowingSearchButton = shouldShow;
+    if (shouldShow) {
+      $ui.animate({
+        duration: 0.4,
+        animation: () => {
+          this.cviews.createNewSearchButton.view.alpha = 1
+        },
+        completion: () => {
+          this.cviews.createNewSearchButton.view.alpha = 1
+        }
+      })
+    } else {
+      $ui.animate({
+        duration: 0.4,
+        animation: () => {
+          this.cviews.createNewSearchButton.view.alpha = 0
+        },
+        completion: () => {
+          this.cviews.createNewSearchButton.view.alpha = 0
+        }
+      })
     }
   }
 }

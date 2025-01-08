@@ -1,6 +1,6 @@
 import { Base, BaseController, Button, DynamicItemSizeMatrix, DynamicRowHeightList, layerCommonOptions, setLayer } from "jsbox-cview";
 import { TagsFlowlayout } from "../components/tags-flowlayout";
-import { EHGallery, EHSearchTerm } from "ehentai-parser";
+import { assembleSearchTerms, EHGallery, EHSearchTerm } from "ehentai-parser";
 import { configManager } from "../utils/config";
 import { catColor, catTranslations, defaultButtonColor, favcatColor, invisibleCauseMap, ratingColor, tagColor } from "../utils/glv";
 import { GalleryDetailedInfoController } from "./gallery-detailed-info-controller";
@@ -73,6 +73,21 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
                     }
                   },
                   {
+                    title: "复制",
+                    symbol: "doc.on.doc",
+                    handler: (sender) => {
+                      if (!this._uploader) return;
+                      $clipboard.text = assembleSearchTerms([{
+                        qualifier: "uploader",
+                        term: this._uploader,
+                        dollar: false,
+                        subtract: false,
+                        tilde: false
+                      }]);
+                      $ui.toast("已复制")
+                    }
+                  },
+                  {
                     title: "标记此上传者",
                     symbol: "bookmark",
                     handler: (sender) => {
@@ -123,6 +138,21 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
                     handler: (sender) => { }
                   },
                   {
+                    title: "复制",
+                    symbol: "doc.on.doc",
+                    handler: (sender) => {
+                      if (!this._uploader) return;
+                      $clipboard.text = assembleSearchTerms([{
+                        qualifier: "uploader",
+                        term: this._uploader,
+                        dollar: false,
+                        subtract: false,
+                        tilde: false
+                      }]);
+                      $ui.toast("已复制")
+                    }
+                  },
+                  {
                     title: "取消标记",
                     symbol: "bookmark.slash",
                     handler: (sender) => {
@@ -164,6 +194,21 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
                     title: "立即搜索",
                     symbol: "magnifyingglass",
                     handler: (sender) => { }
+                  },
+                  {
+                    title: "复制",
+                    symbol: "doc.on.doc",
+                    handler: (sender) => {
+                      if (!this._uploader) return;
+                      $clipboard.text = assembleSearchTerms([{
+                        qualifier: "uploader",
+                        term: this._uploader,
+                        dollar: false,
+                        subtract: false,
+                        tilde: false
+                      }]);
+                      $ui.toast("已复制")
+                    }
                   },
                   {
                     title: "取消屏蔽",
@@ -1005,7 +1050,7 @@ export class GalleryInfoController extends BaseController {
       props: { bgcolor: $color("backgroundColor") }
     });
     this.gid = gid;
-    const infoHeaderView = new InfoHeaderView(selected => {this.updateSearchButtonShowingState() })
+    const infoHeaderView = new InfoHeaderView(selected => { this.updateSearchButtonShowingState() })
     const infoMatrix = new DynamicItemSizeMatrix({
       props: {
         maxColumns: 3,
@@ -1200,7 +1245,7 @@ export class GalleryInfoController extends BaseController {
       views: [{
         type: "image",
         props: {
-          symbol: "plus.magnifyingglass",
+          symbol: "magnifyingglass",
           tintColor: $color("white")
         },
         layout: (make, view) => {
@@ -1411,25 +1456,9 @@ export class GalleryInfoController extends BaseController {
     if (this._isShowingSearchButton === shouldShow) return;
     this._isShowingSearchButton = shouldShow;
     if (shouldShow) {
-      $ui.animate({
-        duration: 0.4,
-        animation: () => {
-          this.cviews.createNewSearchButton.view.alpha = 1
-        },
-        completion: () => {
-          this.cviews.createNewSearchButton.view.alpha = 1
-        }
-      })
+      this.cviews.createNewSearchButton.view.alpha = 1
     } else {
-      $ui.animate({
-        duration: 0.4,
-        animation: () => {
-          this.cviews.createNewSearchButton.view.alpha = 0
-        },
-        completion: () => {
-          this.cviews.createNewSearchButton.view.alpha = 0
-        }
-      })
+      this.cviews.createNewSearchButton.view.alpha = 0
     }
   }
 }

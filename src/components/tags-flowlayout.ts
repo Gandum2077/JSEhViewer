@@ -4,7 +4,7 @@ import { EHGallery, EHNetworkError, EHServiceUnavailableError, EHTimeoutError, T
 import { configManager } from "../utils/config";
 import { showDetailedInfoView } from "./detailed-info-view";
 import { api } from "../utils/api";
-import { appLog } from "../utils/tools";
+import { appLog, buildSearchTerm } from "../utils/tools";
 
 const TAG_FONT_SIZE = 15;
 
@@ -129,6 +129,14 @@ class TagView extends Base<UIView, UiTypes.ViewOptions> {
               }
             },
             {
+              title: "复制",
+              symbol: "doc.on.doc",
+              handler: (sender) => {
+                $clipboard.text = buildSearchTerm(this._namespace, this._name);
+                $ui.toast("已复制")
+              }
+            },
+            {
               title: "详细信息",
               symbol: "info.circle",
               handler: async (sender) => {
@@ -137,7 +145,6 @@ class TagView extends Base<UIView, UiTypes.ViewOptions> {
                 } else {
                   await this.updateTagDetailsOnLocal(this._namespace, this._name)
                 }
-
               }
             }
           ]

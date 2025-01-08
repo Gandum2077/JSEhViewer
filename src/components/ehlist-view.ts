@@ -1,7 +1,7 @@
 import { EHListCompactItem, EHListExtendedItem, EHListMinimalItem, EHListThumbnailItem, EHListUploadItem, EHTagListItem, EHUploadList } from "ehentai-parser";
 import { Base, Matrix } from "jsbox-cview"
 import { configManager } from "../utils/config";
-import { catColor, catTranslations, favcatColor, namespaceTranslations, ratingColor, thumbnailPath } from "../utils/glv";
+import { catColor, catTranslations, favcatColor, namespaceTranslations, ratingColor, tagBgcolor, thumbnailPath } from "../utils/glv";
 import { toSimpleUTCTimeString } from "../utils/tools";
 
 type Items = EHListExtendedItem[] | EHListCompactItem[] | EHListThumbnailItem[] | EHListMinimalItem[] | EHListUploadItem[]
@@ -33,10 +33,11 @@ function taglistToStyledText(taglist: EHTagListItem[]): UiTypes.StyledTextOption
     rangeLocation += namespaceTranslation.length + 4
     tags.forEach((tag, i) => {
       const translation = configManager.translate(namespace, tag) ?? tag
-      if (configManager.getMarkedTag(namespace, tag)) {
+      const markedTag = configManager.getMarkedTag(namespace, tag)
+      if (markedTag) {
         styles.push({
           range: $range(rangeLocation, translation.length),
-          bgcolor: $color("#8AFF8E", "#00A206"),
+          bgcolor: markedTag.watched ? tagBgcolor.watched: markedTag.hidden ? tagBgcolor.hidden : tagBgcolor.marked,
         })
       }
       if (i === tags.length - 1) {

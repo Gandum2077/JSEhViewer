@@ -119,6 +119,13 @@ export const tagColor = {
   hidden: $color("#F44336", "#B71C1C"),
 };
 
+// 颜色相比于tagColor更淡，用于标签背景色（文本颜色为primaryText）
+export const tagBgcolor = {
+  marked: $color("#FFEB3B", "#FFA000"),
+  watched: $color("#8AFF8E", "#00A206"),
+  hidden: $color("#FF6830", "#DB592A"),
+}
+
 export const ratingColor = $color("#7D78F7", "#7D78F7")
 
 export const invisibleCauseMap = {

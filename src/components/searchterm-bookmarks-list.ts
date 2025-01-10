@@ -33,7 +33,7 @@ export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOption
                   if (!searchTerms) return;
                   (router.get("splitViewController") as SplitViewController).sideBarShown = false;
                   (router.get("primaryViewController") as TabBarController).index = 0;
-                  (router.get("homepageController") as HomepageController).startLoad({
+                  (router.get("homepageController") as HomepageController).triggerLoad({
                     type: "front_page",
                     options: {
                       searchTerms: searchTerms
@@ -54,10 +54,10 @@ export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOption
                   );
                   (router.get("splitViewController") as SplitViewController).sideBarShown = false;
                   if (options.type === "archive") {
-                    (router.get("archiveController") as ArchiveController).startLoad(options);
+                    (router.get("archiveController") as ArchiveController).triggerLoad(options);
                     (router.get("primaryViewController") as TabBarController).index = 1;
                   } else {
-                    (router.get("homepageController") as HomepageController).startLoad(options);
+                    (router.get("homepageController") as HomepageController).triggerLoad(options);
                     (router.get("primaryViewController") as TabBarController).index = 0;
                   }
                 }
@@ -75,6 +75,9 @@ export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOption
             ]
           },
           template: {
+            props: {
+              bgcolor: $color("tertiarySurface")
+            },
             views: [
               {
                 type: "label",
@@ -106,7 +109,7 @@ export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOption
             if (!searchTerms) return;
             (router.get("splitViewController") as SplitViewController).sideBarShown = false;
             (router.get("primaryViewController") as TabBarController).index = 0;
-            (router.get("homepageController") as HomepageController).startLoad({
+            (router.get("homepageController") as HomepageController).triggerLoad({
               type: "front_page",
               options: {
                 searchTerms: searchTerms

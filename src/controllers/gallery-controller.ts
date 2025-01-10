@@ -110,7 +110,7 @@ export class GalleryController extends PageViewerController {
 
           galleryInfoController.infos = this._infos;
           galleryInfoController.currentReadPage = statusManager.getLastReadPage(this._gid);
-          galleryThumbnailController.thumbnailItems = downloaderManager.get(this._infos.gid).result.thumbnails;
+          galleryThumbnailController.thumbnailItems = downloaderManager.get(this._infos.gid)!.result.thumbnails;
           sender.rootView.view.alpha = 1;
 
           galleryInfoController.startTimer();
@@ -145,8 +145,8 @@ export class GalleryController extends PageViewerController {
     if (!this._infos) return;
     statusManager.storeArchiveItemOrUpdateAccessTime(this._infos, false);
 
-    downloaderManager.get(this._infos.gid).downloadingImages = true;
-    downloaderManager.get(this._infos.gid).currentReadingIndex = Math.max(index - 1, 0); // 提前一页加载
+    downloaderManager.get(this._infos.gid)!.downloadingImages = true;
+    downloaderManager.get(this._infos.gid)!.currentReadingIndex = Math.max(index - 1, 0); // 提前一页加载
     downloaderManager.startOne(this._infos.gid)
     const readerController = new ReaderController({
       gid: this._infos.gid,
@@ -200,7 +200,7 @@ export class GalleryController extends PageViewerController {
     this.subControllers.galleryThumbnailController.gid = this._gid;
     this.subControllers.galleryInfoController.infos = this._infos;
     this.subControllers.galleryInfoController.currentReadPage = statusManager.getLastReadPage(this._gid);
-    this.subControllers.galleryThumbnailController.thumbnailItems = downloaderManager.get(this._gid).result.thumbnails;
+    this.subControllers.galleryThumbnailController.thumbnailItems = downloaderManager.get(this._gid)!.result.thumbnails;
     this.subControllers.galleryInfoController.startTimer();
     this.subControllers.galleryThumbnailController.startTimer();
     $ui.success("刷新成功");

@@ -7,7 +7,7 @@ import { statusManager } from "../utils/status";
 import { downloaderManager } from "../utils/api";
 import { getSearchOptions } from "./search-controller";
 import { CustomSearchBar } from "../components/custom-searchbar";
-import { ArchiveTabOptions } from "../types";
+import { ArchiveTab, ArchiveTabOptions } from "../types";
 import { buildSortedFsearch } from "ehentai-parser";
 
 export class ArchiveController extends BaseController {
@@ -20,7 +20,7 @@ export class ArchiveController extends BaseController {
       },
       events: {
         didAppear: () => {
-          downloaderManager.startArchiveTabDownloader()
+          downloaderManager.startTabDownloader("archive");
         }
       }
     })
@@ -75,25 +75,26 @@ export class ArchiveController extends BaseController {
           {
             symbol: "arrow.left.arrow.right.circle",
             handler: async () => {
-              if (!statusManager.archiveTab || !statusManager.archiveTab.pages.length) {
+              const tab = statusManager.tabsMap.get("archive") as ArchiveTab;
+              if (!tab || tab.pages.length === 0) {
                 $ui.toast("存档列表为空，无法翻页")
                 return;
               }
-              const allCount = statusManager.archiveTab.pages[0].all_count
+              const allCount = tab.pages[0].all_count
               if (allCount === 0) {
                 $ui.toast("存档列表为空，无法翻页")
                 return;
               }
-              const maxPage = Math.ceil(allCount / statusManager.archiveTab.options.pageSize)
-              if (statusManager.archiveTab.pages.length === maxPage) {
+              const maxPage = Math.ceil(allCount / tab.options.pageSize)
+              if (tab.pages.length === maxPage) {
                 $ui.toast("全部内容已加载")
                 return;
               }
               const { page } = await getJumpPageDialog(maxPage)
-              statusManager.archiveTab.options.page = page
-              this.startLoad({
+              tab.options.page = page
+              this.updateLoadingStatus({
                 type: "archive",
-                options: statusManager.archiveTab.options
+                options: tab.options
               })
             }
           }
@@ -108,22 +109,31 @@ export class ArchiveController extends BaseController {
           const args = await getSearchOptions({
             type: "archive",
             options: {
-              searchTerms: statusManager.archiveTab?.options.searchTerms,
+              searchTerms: (statusManager.tabsMap.get("archive") as ArchiveTab).options.searchTerms,
               page: 0,
               pageSize: 50,
               sort: configManager.archiveManagerOrderMethod,
               type: "all"
             }
-          }, "onlyShowArchive") as ArchiveTabOptions
-          this.startLoad(args)
+          }, "onlyShowArchive") as ArchiveTabOptions;
+          await this.triggerLoad(args);
         }
       }
     })
     const list = new EHlistView({
       layoutMode: configManager.archiveManagerLayoutMode,
       searchBar,
-      pulled: () => {
-        this.reload()
+      pulled: async () => {
+        const tab = await statusManager.reloadTab("archive") as ArchiveTab;
+        downloaderManager.getTabDownloader("archive")!.clear();
+        downloaderManager.getTabDownloader("archive")!.add(
+          tab.pages.map(page => page.items).flat().map(item => ({
+            gid: item.gid,
+            url: item.thumbnail_url
+          }))
+        )
+        downloaderManager.startTabDownloader("archive");
+        this.updateLoadedStatus();
       },
       didSelect: async (sender, indexPath, item) => {
         const galleryController = new GalleryController(item.gid, item.token)
@@ -133,7 +143,17 @@ export class ArchiveController extends BaseController {
         })
       },
       didReachBottom: async () => {
-        this.loadMore()
+        const tab = await statusManager.loadMoreTab("archive") as ArchiveTab;
+        downloaderManager.getTabDownloader("archive")!.clear();
+        downloaderManager.getTabDownloader("archive")!.add(
+          tab.pages.map(page => page.items).flat().map(item => ({
+            gid: item.gid,
+            url: item.thumbnail_url
+          }))
+        )
+        downloaderManager.startTabDownloader("archive");
+        this.updateLoadedStatus();
+
       },
       layout: (make, view) => {
         make.top.equalTo(view.prev.bottom)
@@ -145,8 +165,26 @@ export class ArchiveController extends BaseController {
     this.rootView.views = [navbar, list]
   }
 
-  startLoad(options: ArchiveTabOptions) {
-    statusManager.loadArchiveTab(options)
+  async triggerLoad(options: ArchiveTabOptions) {
+    this.updateLoadingStatus(options);
+    const tab = await statusManager.loadTab(options, "archive") as ArchiveTab;
+    if (!tab) return;
+    downloaderManager.getTabDownloader("archive")!.clear();
+    downloaderManager.getTabDownloader("archive")!.add(
+      tab.pages.map(page => page.items).flat().map(item => ({
+        gid: item.gid,
+        url: item.thumbnail_url
+      }))
+    )
+    downloaderManager.startTabDownloader("archive");
+    this.updateLoadedStatus();
+  }
+
+  updateLoadingStatus(options: ArchiveTabOptions) {
+    // 1. 列表归零
+    // 2. 搜索栏更新
+    // 3. 标题更新 TODO
+    this.cviews.list.items = [];
     if (options.options.searchTerms && options.options.searchTerms.length) {
       const fsearch = buildSortedFsearch(options.options.searchTerms);
       configManager.addOrUpdateSearchHistory(fsearch, options.options.searchTerms);
@@ -157,16 +195,8 @@ export class ArchiveController extends BaseController {
     }
   }
 
-  loadMore() {
-    statusManager.loadMoreArchiveTab()
-  }
-
-  reload() {
-    statusManager.reloadArchiveTab()
-  }
-
-  endLoad() {
-    const tab = statusManager.archiveTab;
+  updateLoadedStatus() {
+    const tab = statusManager.tabsMap.get("archive") as ArchiveTab;
     if (!tab) return;
     const items = tab.pages.map(page => page.items).flat();
     this.cviews.list.items = items;

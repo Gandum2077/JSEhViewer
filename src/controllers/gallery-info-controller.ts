@@ -1334,7 +1334,7 @@ export class GalleryInfoController extends BaseController {
 
   set infos(infos: EHGallery) {
     this._infos = infos;
-    const topThumbnailPath = downloaderManager.get(this.gid).result.topThumbnail.path;
+    const topThumbnailPath = downloaderManager.get(this.gid)!.result.topThumbnail.path;
     this._topThumbnailFinished = Boolean(topThumbnailPath);
     this.cviews.infoHeaderView.thumbnail_url = topThumbnailPath || "";
     this.cviews.infoHeaderView.infos = infos;

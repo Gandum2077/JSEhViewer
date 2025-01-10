@@ -282,9 +282,9 @@ export class ReaderController extends BaseController {
             handler: () => {
               if (!this.imagePager) return;
               if (!this.imagePager.srcs[this.imagePager.page].path) {
-                this.imagePager.srcs = downloaderManager.get(this.gid).result.images;
+                this.imagePager.srcs = downloaderManager.get(this.gid)!.result.images;
               }
-              this.cviews.footerThumbnailView.refreshThumbnailItems(downloaderManager.get(this.gid).result.thumbnails);
+              this.cviews.footerThumbnailView.refreshThumbnailItems(downloaderManager.get(this.gid)!.result.thumbnails);
               if (this._autoPagerEnabled) {
                 // 自动翻页
                 // 首先检测本页是否加载完成。如果没有加载完成，不翻页并且重制倒计时为翻页间隔
@@ -311,7 +311,7 @@ export class ReaderController extends BaseController {
         },
         didRemove: () => {
           statusManager.updateLastReadPage(this.gid, this.cviews.footerThumbnailView.index);
-          downloaderManager.get(this.gid).downloadingImages = false;
+          downloaderManager.get(this.gid)!.downloadingImages = false;
           if (this._timer) this._timer.invalidate()
           if (lastUITapGestureRecognizer) {
             $objc_release(lastUITapGestureRecognizer);
@@ -326,7 +326,7 @@ export class ReaderController extends BaseController {
       props: {
         index,
         length,
-        thumbnailItems: galleryDownloader.result.thumbnails
+        thumbnailItems: galleryDownloader!.result.thumbnails
       },
       events: {
         changed: (index) => this.handleTurnPage(index)
@@ -558,7 +558,7 @@ export class ReaderController extends BaseController {
                     },
                     events: {
                       tapped: () => {
-                        const path = downloaderManager.get(this.gid).result.images[this.cviews.footerThumbnailView.index].path;
+                        const path = downloaderManager.get(this.gid)!.result.images[this.cviews.footerThumbnailView.index].path;
                         if (path) {
                           $share.sheet($image(path))
                         } else {
@@ -597,7 +597,7 @@ export class ReaderController extends BaseController {
           if (sender.views.length !== 0) sender.views[0].remove();
           this.imagePager = new CustomImagePager({
             props: {
-              srcs: galleryDownloader.result.images,
+              srcs: galleryDownloader!.result.images,
               page: footerThumbnailView.index,
             },
             layout: (make, view) => {
@@ -648,7 +648,7 @@ export class ReaderController extends BaseController {
   refreshCurrentPage() {
     if (!this.imagePager) return;
     if (!this.imagePager.srcs[this.imagePager.page].path) {
-      this.imagePager.srcs = downloaderManager.get(this.gid).result.images;
+      this.imagePager.srcs = downloaderManager.get(this.gid)!.result.images;
     }
   }
 
@@ -657,6 +657,6 @@ export class ReaderController extends BaseController {
     if (this.imagePager && this.imagePager.page !== page) this.imagePager.page = page;
     this._autoPagerCountDown = this._autoPagerInterval;
     this.refreshCurrentPage();
-    downloaderManager.get(this.gid).currentReadingIndex = Math.max(page - 1, 0);
+    downloaderManager.get(this.gid)!.currentReadingIndex = Math.max(page - 1, 0);
   }
 }

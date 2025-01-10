@@ -1,4 +1,4 @@
-import { BaseController, CustomNavigationBar, SymbolButton, router, SplitViewController } from "jsbox-cview";
+import { BaseController, CustomNavigationBar, SymbolButton, router, SplitViewController, cvid } from "jsbox-cview";
 import { GalleryController } from "./gallery-controller";
 import { getJumpRangeDialogForHomepage, getJumpPageDialog, getJumpRangeDialogForFavorites } from "../components/seekpage-dialog";
 import { configManager } from "../utils/config";
@@ -7,7 +7,7 @@ import { EHlistView } from "../components/ehlist-view";
 import { appLog } from "../utils/tools";
 import { buildSortedFsearch, EHListExtendedItem, EHSearchTerm, extractGidToken } from "ehentai-parser";
 import { StatusTabOptions } from "../types";
-import { downloaderManager } from "../utils/api";
+import { downloaderManager, TabThumbnailDownloader } from "../utils/api";
 import { CustomSearchBar } from "../components/custom-searchbar";
 import { getSearchOptions } from "./search-controller";
 import { SidebarTabController } from "./sidebar-tab-controller";
@@ -26,7 +26,7 @@ export class HomepageController extends BaseController {
           this.cviews.list.isLoading = true;
         },
         didAppear: () => {
-          downloaderManager.startTabDownloader()
+          downloaderManager.startTabDownloader(statusManager.currentTabId);
         }
       }
     })
@@ -122,7 +122,7 @@ export class HomepageController extends BaseController {
               }
               const type = statusManager.currentTab.type;
               if (type === "front_page" || type === "watched") {
-                const firstPage = statusManager.currentTab.pages[0]; 
+                const firstPage = statusManager.currentTab.pages[0];
                 const lastPage = statusManager.currentTab.pages[statusManager.currentTab.pages.length - 1];
                 if (firstPage.items.length === 0 || lastPage.items.length === 0) {
                   $ui.toast("没有内容，无法翻页")
@@ -138,7 +138,7 @@ export class HomepageController extends BaseController {
                   prev_page_available: firstPage.prev_page_available,
                   next_page_available: lastPage.next_page_available
                 })
-                this.startLoad({
+                await this.triggerLoad({
                   type,
                   options: {
                     ...statusManager.currentTab.options,
@@ -168,7 +168,7 @@ export class HomepageController extends BaseController {
                   prev_page_available: firstPage.prev_page_available,
                   next_page_available: lastPage.next_page_available
                 })
-                this.startLoad({
+                await this.triggerLoad({
                   type,
                   options: {
                     ...statusManager.currentTab.options,
@@ -182,7 +182,7 @@ export class HomepageController extends BaseController {
                 })
               } else if (type === "toplist") {
                 const result = await getJumpPageDialog(200)
-                this.startLoad({
+                await this.triggerLoad({
                   type,
                   options: {
                     ...statusManager.currentTab.options,
@@ -214,7 +214,7 @@ export class HomepageController extends BaseController {
             type = statusManager.currentTab.type;
           }
           const args = await getSearchOptions({ type, options: { searchTerms } }, "showAllExceptArchive")
-          this.startLoad(args)
+          await this.triggerLoad(args);
         }
       }
     })
@@ -244,10 +244,32 @@ export class HomepageController extends BaseController {
     this.rootView.views = [navbar, list]
   }
 
-  startLoad(options: StatusTabOptions) {
+  async triggerLoad(options: StatusTabOptions) {
+    this.updateLoadingStatus(options);
+    const tabId = statusManager.currentTabId;
+    const tab = await statusManager.loadTab(options, tabId);
+    if (!tab) return;
+    const dm = downloaderManager.getTabDownloader(statusManager.currentTabId) as TabThumbnailDownloader;
+    dm.clear();
+    if (tab.type !== "upload") {
+      dm.add(
+        tab.pages.map(page => page.items).flat().map(item => ({
+          gid: item.gid,
+          url: item.thumbnail_url
+        }))
+      )
+      downloaderManager.startTabDownloader(statusManager.currentTabId);
+    }
+    this.updateLoadedStatus();
+  }
+
+  updateLoadingStatus(options: StatusTabOptions) {
+    // 1. 列表归零
+    // 2. 搜索栏更新
+    // 3. 标题更新
     this.cviews.list.footerText = "加载中……";
     this.cviews.list.isLoading = true;
-    statusManager.loadTab(options).then().catch(e => appLog(e, "error"))
+    this.cviews.list.items = [];
     if (
       (options.type === "front_page" || options.type === "watched" || options.type === "favorites")
       && options.options.searchTerms
@@ -263,10 +285,9 @@ export class HomepageController extends BaseController {
   }
 
   async loadMore() {
-    if (!statusManager.currentTab || statusManager.currentTab.pages.length === 0) return;
+    if (statusManager.currentTab.type === "blank" || statusManager.currentTab.pages.length === 0) return;
     // popular and upload tab can not load more
     if (statusManager.currentTab.type === "popular" || statusManager.currentTab.type === "upload") return;
-
     if (
       statusManager.currentTab.type === "front_page"
       || statusManager.currentTab.type === "watched"
@@ -281,7 +302,19 @@ export class HomepageController extends BaseController {
     this.cviews.list.footerText = "正在加载更多……";
     this.cviews.list.isLoading = true;
     try {
-      await statusManager.loadMoreTab()
+      const tab = await statusManager.loadMoreTab(statusManager.currentTabId);
+      if (!tab) return;
+      const dm = downloaderManager.getTabDownloader(statusManager.currentTabId) as TabThumbnailDownloader;
+      dm.clear();
+      dm.add(
+        tab.pages.map(page => page.items).flat().map(item => ({
+          gid: item.gid,
+          url: item.thumbnail_url
+        }))
+      )
+      downloaderManager.startTabDownloader(statusManager.currentTabId);
+
+      this.updateLoadedStatus();
     } catch (e) {
       appLog(e, "error")
     }
@@ -291,15 +324,26 @@ export class HomepageController extends BaseController {
     this.cviews.list.footerText = "正在重新加载……";
     this.cviews.list.isLoading = true;
     try {
-      await statusManager.reloadTab()
+      const tab = await statusManager.reloadTab(statusManager.currentTabId);
+      const dm = downloaderManager.getTabDownloader(statusManager.currentTabId) as TabThumbnailDownloader;
+      dm.clear();
+      if (tab.type !== "upload") {
+        dm.add(
+          tab.pages.map(page => page.items).flat().map(item => ({
+            gid: item.gid,
+            url: item.thumbnail_url
+          }))
+        )
+        downloaderManager.startTabDownloader(statusManager.currentTabId);
+      }
+      this.updateLoadedStatus();
     } catch (e) {
       appLog(e, "error")
     }
   }
 
-  endLoad() {
+  updateLoadedStatus() {
     const tab = statusManager.currentTab;
-    if (!tab) return;
     switch (tab.type) {
       case "front_page": {
         const items = tab.pages.map(page => page.items).flat() as EHListExtendedItem[];

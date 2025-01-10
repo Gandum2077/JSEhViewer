@@ -140,7 +140,11 @@ export type ArchiveTabOptions = {
   options: ArchiveSearchOptions;
 }
 
-export type StatusTab = FrontPageTab | WatchedTab | PopularTab | FavoritesTab | ToplistTab | UploadTab | ArchiveTab;
+export type StatusTab = BlankTab | FrontPageTab | WatchedTab | PopularTab | FavoritesTab | ToplistTab | UploadTab | ArchiveTab;
+
+export type BlankTab = {
+  type: "blank";
+}
 
 export type FrontPageTab = {
   type: "front_page";

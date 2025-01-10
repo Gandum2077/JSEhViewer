@@ -59,7 +59,7 @@ class HeaderStackBlur extends Base<UIButtonView, UiTypes.ButtonOptions> {
               default:
                 throw new Error("未知的选项");
             }
-            (router.get("homepageController") as HomepageController).startLoad(options);
+            (router.get("homepageController") as HomepageController).triggerLoad(options);
           }
         },
         views: [
@@ -184,7 +184,7 @@ export class SidebarTabController extends BaseController {
                           handler: () => {
                             (router.get("splitViewController") as SplitViewController).sideBarShown = false;
                             (router.get("primaryViewController") as TabBarController).index = 0;
-                            (router.get("homepageController") as HomepageController).startLoad({
+                            (router.get("homepageController") as HomepageController).triggerLoad({
                               type: "toplist",
                               options: {
                                 timeRange: "yesterday",
@@ -198,7 +198,7 @@ export class SidebarTabController extends BaseController {
                           handler: () => {
                             (router.get("splitViewController") as SplitViewController).sideBarShown = false;
                             (router.get("primaryViewController") as TabBarController).index = 0;
-                            (router.get("homepageController") as HomepageController).startLoad({
+                            (router.get("homepageController") as HomepageController).triggerLoad({
                               type: "toplist",
                               options: {
                                 timeRange: "past_month",
@@ -212,7 +212,7 @@ export class SidebarTabController extends BaseController {
                           handler: () => {
                             (router.get("splitViewController") as SplitViewController).sideBarShown = false;
                             (router.get("primaryViewController") as TabBarController).index = 0;
-                            (router.get("homepageController") as HomepageController).startLoad({
+                            (router.get("homepageController") as HomepageController).triggerLoad({
                               type: "toplist",
                               options: {
                                 timeRange: "past_year",
@@ -226,7 +226,7 @@ export class SidebarTabController extends BaseController {
                           handler: () => {
                             (router.get("splitViewController") as SplitViewController).sideBarShown = false;
                             (router.get("primaryViewController") as TabBarController).index = 0;
-                            (router.get("homepageController") as HomepageController).startLoad({
+                            (router.get("homepageController") as HomepageController).triggerLoad({
                               type: "toplist",
                               options: {
                                 timeRange: "all",
@@ -340,9 +340,9 @@ export class SidebarTabController extends BaseController {
                   },
                   events: {
                     tapped: () => {
-                      statusManager.allTabs.push(undefined);
+                      const newTabId = statusManager.addBlankTab();
                       // TODO：切换到新标签页
-                      statusManager.currentTabIndex = statusManager.allTabs.length - 1;
+                      statusManager.currentTabId = newTabId;
                       this.refresh();
                     }
                   }
@@ -362,7 +362,7 @@ export class SidebarTabController extends BaseController {
         actions: [{
           title: "关闭",
           color: $color("red"),
-          handler: (sender, indexPath) => {}
+          handler: (sender, indexPath) => { }
         }],
         template: {
           props: {
@@ -471,7 +471,7 @@ export class SidebarTabController extends BaseController {
           }
         },
         didSelect: (sender, indexPath, data) => {
-          statusManager.currentTabIndex = indexPath.row;
+          statusManager.currentTabId = statusManager.tabIdsShownInManager[indexPath.row];
           this.refresh();
           // TODO
         }
@@ -487,8 +487,10 @@ export class SidebarTabController extends BaseController {
 
   refresh() {
     // 刷新标签页列表，首先从statusManager中获取标签页列表，然后更新list的data
-    const data = statusManager.allTabs.map((tab, index) => {
-      if (!tab) {
+    const data = statusManager.tabIdsShownInManager.map((id, index) => {
+      const tab = statusManager.tabsMap.get(id);
+      if (!tab) throw new Error("标签页不存在");
+      if (tab.type === "blank") {
         return {
           image: {
             symbol: "rectangle.fill.on.rectangle.angled.fill",
@@ -505,21 +507,21 @@ export class SidebarTabController extends BaseController {
             }
           },
           leftColumn: {
-            hidden: index !== statusManager.currentTabIndex,
+            hidden: id !== statusManager.currentTabId,
             bgcolor: $color("systemLink")
           },
           rightColumn: {
-            hidden: index !== statusManager.currentTabIndex,
+            hidden: id !== statusManager.currentTabId,
             bgcolor: $color("systemLink")
           }
         }
       } else if (
-        tab.type === "toplist" 
-        || tab.type === "popular" 
-        || tab.type === "upload" 
+        tab.type === "toplist"
+        || tab.type === "popular"
+        || tab.type === "upload"
         || (
-          (tab.type === "front_page" || tab.type === "watched" || tab.type === "favorites") 
-          && (!tab.options.searchTerms || tab.options.searchTerms.length  === 0)
+          (tab.type === "front_page" || tab.type === "watched" || tab.type === "favorites")
+          && (!tab.options.searchTerms || tab.options.searchTerms.length === 0)
         )
       ) {
         let title = fixedTabSymbolTitle[tab.type].title;
@@ -547,17 +549,17 @@ export class SidebarTabController extends BaseController {
             }
           },
           leftColumn: {
-            hidden: index !== statusManager.currentTabIndex,
+            hidden: id !== statusManager.currentTabId,
             bgcolor: fixedTabSymbolTitle[tab.type].color
           },
           rightColumn: {
-            hidden: index !== statusManager.currentTabIndex,
+            hidden: id !== statusManager.currentTabId,
             bgcolor: fixedTabSymbolTitle[tab.type].color
           }
         }
       } else if (
-        (tab.type === "front_page" || tab.type === "watched" || tab.type === "favorites") 
-        && tab.options.searchTerms 
+        (tab.type === "front_page" || tab.type === "watched" || tab.type === "favorites")
+        && tab.options.searchTerms
         && tab.options.searchTerms.length
       ) {
         return {
@@ -569,11 +571,11 @@ export class SidebarTabController extends BaseController {
             styledText: _mapSearchTermsToRow(tab.options.searchTerms, 0).label.styledText
           },
           leftColumn: {
-            hidden: index !== statusManager.currentTabIndex,
+            hidden: id !== statusManager.currentTabId,
             bgcolor: fixedTabSymbolTitle[tab.type].color
           },
           rightColumn: {
-            hidden: index !== statusManager.currentTabIndex,
+            hidden: id !== statusManager.currentTabId,
             bgcolor: fixedTabSymbolTitle[tab.type].color
           }
         }

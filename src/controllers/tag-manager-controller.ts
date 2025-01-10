@@ -162,10 +162,10 @@ export class TagManagerController extends BaseController {
               "showAll"
             );
             if (options.type === "archive") {
-              (router.get("archiveController") as ArchiveController).startLoad(options);
+              (router.get("archiveController") as ArchiveController).triggerLoad(options);
               (router.get("primaryViewController") as TabBarController).index = 1;
             } else {
-              (router.get("homepageController") as HomepageController).startLoad(options);
+              (router.get("homepageController") as HomepageController).triggerLoad(options);
               (router.get("primaryViewController") as TabBarController).index = 0;
             }
             this.cviews.createNewSearchButton.tintColor = $color("primaryText")
@@ -276,7 +276,7 @@ export class TagManagerController extends BaseController {
                     subtract: false
                   };
                 (router.get("homepageController") as HomepageController)
-                  .startLoad({ type: "front_page", options: { searchTerms: [searchTerm] } });
+                  .triggerLoad({ type: "front_page", options: { searchTerms: [searchTerm] } });
                 (router.get("primaryViewController") as TabBarController).index = 0;
               }
             },
@@ -305,10 +305,10 @@ export class TagManagerController extends BaseController {
                   "showAll"
                 );
                 if (options.type === "archive") {
-                  (router.get("archiveController") as ArchiveController).startLoad(options);
+                  (router.get("archiveController") as ArchiveController).triggerLoad(options);
                   (router.get("primaryViewController") as TabBarController).index = 1;
                 } else {
-                  (router.get("homepageController") as HomepageController).startLoad(options);
+                  (router.get("homepageController") as HomepageController).triggerLoad(options);
                   (router.get("primaryViewController") as TabBarController).index = 0;
                 }
               }
@@ -475,7 +475,7 @@ export class TagManagerController extends BaseController {
               subtract: false
             };
           (router.get("homepageController") as HomepageController)
-            .startLoad({ type: "front_page", options: { searchTerms: [searchTerm] } });
+            .triggerLoad({ type: "front_page", options: { searchTerms: [searchTerm] } });
           (router.get("primaryViewController") as TabBarController).index = 0;
         }
       }

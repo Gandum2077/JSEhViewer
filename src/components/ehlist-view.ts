@@ -304,7 +304,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
         footer: {
           type: "label",
           props: {
-            id: "footer",
+            id: this.id + "matrix-footer",
             height: 25,
             text: "",
             align: $align.center,
@@ -980,11 +980,11 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
   }
 
   set footerText(text: string) {
-    (this.matrix.view.get("footer") as UILabelView).text = text
+    ($(this.id + "matrix-footer") as UILabelView).text = text
   }
 
   get footerText() {
-    return (this.matrix.view.get("footer") as UILabelView).text
+    return ($(this.id + "matrix-footer") as UILabelView).text
   }
 
   set isLoading(loading: boolean) {

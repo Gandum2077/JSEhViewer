@@ -1,8 +1,8 @@
 import { EHCategory, EHGallery, EHListCompactItem, EHListExtendedItem, EHQualifier, EHTagListItem, TagNamespace } from "ehentai-parser";
 import { api, downloaderManager } from "./api";
 import { dbManager } from "./database";
-import { ArchiveSearchOptions, ArchiveTab, ArchiveTabOptions, DBArchiveItem, DBSearchBookmarks, DBSearchHistory, StatusTab, StatusTabOptions } from "../types";
-import { router } from "jsbox-cview";
+import { ArchiveSearchOptions, ArchiveTab, ArchiveTabOptions, DBArchiveItem, DBSearchBookmarks, DBSearchHistory, FavoritesTab, FrontPageTab, PopularTab, StatusTab, StatusTabOptions, ToplistTab, UploadTab, WatchedTab } from "../types";
+import { cvid, router } from "jsbox-cview";
 import { HomepageController } from "../controllers/homepage-controller";
 import { ArchiveController } from "../controllers/archive-controller";
 
@@ -259,113 +259,154 @@ function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): { sql: strin
  * 管理状态
  */
 class StatusManager {
-  private _statusTabs: (StatusTab | undefined)[] = [undefined];
-  private _currentTabIndex = 0;
-  private _archiveTab: ArchiveTab | undefined;
+  private _tabsMap: Map<string, StatusTab> = new Map();
+  private _tabIdsInManager: string[];
+  private _currentTabId;
   constructor() {
-
+    // 初始化
+    this._tabsMap.set("archive", { type: "archive", options: { page: 0, pageSize: 50, type: "all" }, pages: [] });
+    const firstTabId = cvid.newId;
+    this._tabsMap.set(firstTabId, { type: "blank" });
+    this._tabIdsInManager = [firstTabId];
+    this._currentTabId = firstTabId;
+    // 建立对应的下载器
+    downloaderManager.addTabDownloader("archive");
+    downloaderManager.addTabDownloader(firstTabId);
   }
 
-  get allTabs() {
-    return this._statusTabs;
-  }
-
-  get currentTabIndex() {
-    return this._currentTabIndex;
-  }
-
-  set currentTabIndex(index: number) {
-    this._currentTabIndex = index;
+  get tabsMap() {
+    return this._tabsMap;
   }
 
   get currentTab() {
-    return this._statusTabs[this._currentTabIndex];
+    const tab = this._tabsMap.get(this._currentTabId);
+    if (!tab) throw new Error("Invalid tab id");
+    return tab;
   }
 
-  get archiveTab() {
-    return this._archiveTab;
+  set currentTabId(tabId: string) {
+    if (!this._tabIdsInManager.includes(tabId)) throw new Error("Invalid tab id");
+    this._currentTabId = tabId;
   }
 
-  async loadTab(options: StatusTabOptions) {
-    const index = this._currentTabIndex;
+  get currentTabId() {
+    return this._currentTabId;
+  }
+
+  get tabIdsShownInManager() {
+    return this._tabIdsInManager;
+  }
+
+  addBlankTab({ showInManager }: { showInManager: boolean } = { showInManager: true }) {
+    const tabId = cvid.newId;
+    this._tabsMap.set(tabId, { type: "blank" });
+    if (showInManager) this._tabIdsInManager.push(tabId);
+    downloaderManager.addTabDownloader(tabId);
+    return tabId;
+  }
+
+  removeTab(tabId: string) {
+    if (this._tabIdsInManager.includes(tabId)) {
+      this._tabIdsInManager = this._tabIdsInManager.filter(id => id !== tabId);
+    }
+    this._tabsMap.delete(tabId);
+    downloaderManager.removeTabDownloader(tabId);
+  }
+
+  showTabInManager(tabId: string) {
+    if (this._tabIdsInManager.includes(tabId)) return;
+    this._tabIdsInManager.push(tabId);
+  }
+
+  hideTabInManager(tabId: string) {
+    if (!this._tabIdsInManager.includes(tabId)) return;
+    this._tabIdsInManager = this._tabIdsInManager.filter(id => id !== tabId);
+  }
+
+  async loadTab(options: StatusTabOptions, tabId: string) {
+    const tab = this._tabsMap.get(tabId);
+    if (!tab) throw new Error("Tab not found");
+    let newTab: StatusTab;
     switch (options.type) {
       case "front_page": {
         const page = await api.getFrontPageInfo(options.options);
-        this._statusTabs[index] = {
+        newTab = {
           type: "front_page",
           options: options.options,
           pages: [page]
-        };
+        }
         break;
       }
       case "watched": {
         const page = await api.getWatchedInfo(options.options);
-        this._statusTabs[index] = {
+        newTab = {
           type: "watched",
           options: options.options,
           pages: [page]
-        };
+        }
         break;
       }
       case "popular": {
         const page = await api.getPopularInfo(options.options);
-        this._statusTabs[index] = {
+        newTab = {
           type: "popular",
           options: options.options,
           pages: [page]
-        };
+        }
         break;
       }
       case "favorites": {
         const page = await api.getFavoritesInfo(options.options);
-        this._statusTabs[index] = {
+        newTab = {
           type: "favorites",
           options: options.options,
           pages: [page]
-        };
+        }
         break;
       }
       case "toplist": {
         const page = await api.getTopListInfo(options.options);
-        this._statusTabs[index] = {
+        newTab = {
           type: "toplist",
           options: options.options,
           pages: [page]
-        };
+        }
         break;
       }
       case "upload": {
         const page = await api.getUploadInfo();
-        this._statusTabs[index] = {
+        newTab = {
           type: "upload",
           pages: [page]
-        };
+        }
+        break;
+      }
+      case "archive": {
+        const items = this.queryArchiveItem(options.options);
+        const count = this.queryArchiveItemCount(options.options.type);
+        newTab = {
+          type: "archive",
+          options: options.options,
+          pages: [{
+            type: "archive",
+            all_count: count,
+            items
+          }]
+        }
         break;
       }
       default:
         throw new Error("Invalid tab type");
     }
-    if (index === this._currentTabIndex) {
-      (router.get("homepageController") as HomepageController).endLoad();
-      const tab = this._statusTabs[index];
-      if (!tab) return;
-      if (tab.type !== "upload") {
-        const thumbnails = tab.pages.map(page => page.items).flat().map(item => ({
-          gid: item.gid,
-          url: item.thumbnail_url
-        }));
-        downloaderManager.currentTabDownloader.clear();
-        downloaderManager.currentTabDownloader.add(thumbnails);
-        downloaderManager.startTabDownloader();
-
-      }
-    }
+    // 表示此tab在运行过程中被删除
+    if (!this._tabsMap.has(tabId)) return;
+    this._tabsMap.set(tabId, newTab);
+    return newTab;
   }
 
-  async loadMoreTab() {
-    const index = this._currentTabIndex;
-    const tab = this._statusTabs[index];
-    if (!tab) return;
+  async loadMoreTab(tabId: string) {
+    const tab = this._tabsMap.get(tabId);
+    if (!tab) throw new Error("Tab not found");
     switch (tab.type) {
       case "front_page": {
         const lastPage = tab.pages[tab.pages.length - 1];
@@ -379,7 +420,7 @@ class StatusManager {
         tab.options.maximumGid = miniumGid;
         const page = await api.getFrontPageInfo(tab.options);
         tab.pages.push(page);
-        break;
+        return tab;
       }
       case "watched": {
         const lastPage = tab.pages[tab.pages.length - 1];
@@ -393,7 +434,7 @@ class StatusManager {
         tab.options.maximumGid = miniumGid;
         const page = await api.getWatchedInfo(tab.options);
         tab.pages.push(page);
-        break;
+        return tab;
       }
       case "popular": {
         break;
@@ -412,41 +453,41 @@ class StatusManager {
         }
         const page = await api.getFavoritesInfo(tab.options);
         tab.pages.push(page);
-        break;
+        return tab;
       }
       case "toplist": {
         const lastPage = tab.pages[tab.pages.length - 1];
         if (!lastPage) return;
-        if (lastPage.current_page === lastPage.total_pages - 1) return; // 到达最后一页
+        if (lastPage.current_page === lastPage.total_pages - 1) return; //
         tab.options.page = lastPage.current_page + 1;
         const page = await api.getTopListInfo(tab.options);
         tab.pages.push(page);
-        break;
+        return tab;
       }
       case "upload": {
         break;
       }
+      case "archive": {
+        const lastPage = tab.pages[tab.pages.length - 1];
+        if (!lastPage) return;
+        if ((tab.options.page + 1) * tab.options.pageSize >= lastPage.all_count) return;
+        tab.options.page += 1;
+        const items = this.queryArchiveItem(tab.options);
+        tab.pages.push({
+          type: "archive",
+          all_count: this.queryArchiveItemCount(tab.options.type),
+          items
+        });
+        return tab;
+      }
       default:
         throw new Error("Invalid tab type");
     }
-    if (index === this._currentTabIndex) {
-      (router.get("homepageController") as HomepageController).endLoad();
-      const tab = this._statusTabs[index];
-      if (!tab) return;
-      if (tab.type !== "upload") {
-        const thumbnails = tab.pages[tab.pages.length - 1].items.map(item => ({
-          gid: item.gid,
-          url: item.thumbnail_url
-        }));
-        downloaderManager.currentTabDownloader.add(thumbnails);
-      }
-    }
   }
 
-  async reloadTab() {
-    const index = this._currentTabIndex;
-    const tab = this._statusTabs[index];
-    if (!tab) return;
+  async reloadTab(tabId: string) {
+    const tab = this._tabsMap.get(tabId);
+    if (!tab) throw new Error("Tab not found");
     switch (tab.type) {
       case "front_page": {
         tab.options.range = undefined;
@@ -456,7 +497,7 @@ class StatusManager {
         tab.options.maximumGid = undefined;
         const page = await api.getFrontPageInfo(tab.options);
         tab.pages = [page];
-        break;
+        return tab;
       }
       case "watched": {
         tab.options.range = undefined;
@@ -466,119 +507,49 @@ class StatusManager {
         tab.options.maximumGid = undefined;
         const page = await api.getWatchedInfo(tab.options);
         tab.pages = [page];
-        break;
+        return tab;
       }
       case "popular": {
         const page = await api.getPopularInfo(tab.options);
         tab.pages = [page];
-        break;
+        return tab;
       }
       case "favorites": {
         tab.options.jump = undefined;
-        tab.options.seek = undefined
+        tab.options.seek = undefined;
         tab.options.minimumGid = undefined;
-        tab.options.maximumGid = undefined
+        tab.options.minimumFavoritedTimestamp = undefined;
+        tab.options.maximumGid = undefined;
+        tab.options.maximumFavoritedTimestamp = undefined;
         const page = await api.getFavoritesInfo(tab.options);
         tab.pages = [page];
-        break;
+        return tab;
       }
       case "toplist": {
         tab.options.page = 0;
         const page = await api.getTopListInfo(tab.options);
         tab.pages = [page];
-        break;
+        return tab;
       }
       case "upload": {
         const page = await api.getUploadInfo();
         tab.pages = [page];
-        break;
+        return tab;
+      }
+      case "archive": {
+        tab.options.page = 0;
+        const items = this.queryArchiveItem(tab.options);
+        const count = this.queryArchiveItemCount(tab.options.type);
+        tab.pages = [{
+          type: "archive",
+          all_count: count,
+          items
+        }];
+        return tab;
       }
       default:
         throw new Error("Invalid tab type");
     }
-    if (index === this._currentTabIndex) {
-      (router.get("homepageController") as HomepageController).endLoad();
-      const tab = this._statusTabs[index];
-      if (!tab) return;
-      if (tab.type !== "upload") {
-        const thumbnails = tab.pages.map(page => page.items).flat().map(item => ({
-          gid: item.gid,
-          url: item.thumbnail_url
-        }));
-        downloaderManager.currentTabDownloader.clear();
-        downloaderManager.currentTabDownloader.add(thumbnails);
-        downloaderManager.startTabDownloader();
-
-      }
-    }
-  }
-
-  loadArchiveTab(options: ArchiveTabOptions) {
-    const items = this.queryArchiveItem(options.options);
-    const count = this.queryArchiveItemCount();
-    this._archiveTab = {
-      type: "archive",
-      options: options.options,
-      pages: [{
-        type: "archive",
-        all_count: count,
-        items
-      }]
-    };
-    (router.get("archiveController") as ArchiveController).endLoad();
-
-    const thumbnails = this._archiveTab.pages.map(page => page.items).flat().map(item => ({
-      gid: item.gid,
-      url: item.thumbnail_url
-    }));
-    downloaderManager.currentArchiveTabDownloader.clear();
-    downloaderManager.currentArchiveTabDownloader.add(thumbnails);
-    downloaderManager.startTabDownloader();
-  }
-
-  loadMoreArchiveTab() {
-    const tab = this._archiveTab;
-    if (!tab) return;
-    const lastPage = tab.pages[tab.pages.length - 1];
-    if (!lastPage) return;
-    if ((tab.options.page + 1) * tab.options.pageSize >= lastPage.all_count) return;
-    const options = tab.options;
-    options.page += 1;
-    const items = this.queryArchiveItem(options);
-    tab.pages.push({
-      type: "archive",
-      all_count: lastPage.all_count,
-      items
-    });
-    (router.get("archiveController") as ArchiveController).endLoad();
-
-    const thumbnails = tab.pages[tab.pages.length - 1].items.map(item => ({
-      gid: item.gid,
-      url: item.thumbnail_url
-    }));
-    downloaderManager.currentArchiveTabDownloader.add(thumbnails);
-  }
-
-  reloadArchiveTab() {
-    const tab = this._archiveTab;
-    if (!tab) return;
-    tab.options.page = 0;
-    const items = this.queryArchiveItem(tab.options);
-    const count = this.queryArchiveItemCount();
-    tab.pages = [{
-      type: "archive",
-      all_count: count,
-      items
-    }];
-    (router.get("archiveController") as ArchiveController).endLoad();
-
-    const thumbnails = tab.pages.map(page => page.items).flat().map(item => ({
-      gid: item.gid,
-      url: item.thumbnail_url
-    }));
-    downloaderManager.currentArchiveTabDownloader.clear();
-    downloaderManager.currentArchiveTabDownloader.add(thumbnails);
-    downloaderManager.startArchiveTabDownloader();
   }
 
   queryArchiveItemCount(type: "readlater" | "has_read" | "download" | "all" = "all") {
@@ -664,10 +635,6 @@ class StatusManager {
       taglist: item.taglist
     }));
     return extendedItems;
-  }
-
-  get tabs() {
-    return this._statusTabs;
   }
 
   storeArchiveItemOrUpdateAccessTime(infos: EHGallery | EHListExtendedItem | EHListCompactItem, readlater: boolean) {

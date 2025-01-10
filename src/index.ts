@@ -116,7 +116,7 @@ async function init() {
   }
 
   // 此时可以加载archiveController了
-  $delay(0.3, () => archiveController.startLoad({
+  $delay(0.3, () => archiveController.triggerLoad({
     type: "archive",
     options: {
       page: 0,

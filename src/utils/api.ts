@@ -347,7 +347,7 @@ export class TabThumbnailDownloader extends ConcurrentDownloaderBase {
 }
 
 /**
- * 图库下载器，包括html、图片、缩略图。前提是使用mpv的api。
+ * MPV图库下载器，包括html、图片、缩略图。前提是使用mpv的api。
  * 
  * 步骤：
  * 1. 首先通过mpv api获取数据。
@@ -362,6 +362,7 @@ class GalleryMPVDownloader extends ConcurrentDownloaderBase {
   private mpvInfo?: EHMPV;
   downloadingImages = false; // 是否下载图片，如果为false，则只下载缩略图，可以从外部设置
   currentReadingIndex = 0;  // 当前正在阅读的图片的index，可以从外部设置
+  background = false; // 是否后台下载，可以从外部设置
 
   result: {
     thumbnails: { index: number, path?: string, error: boolean, started: boolean }[],
@@ -607,8 +608,10 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
 
   private infos: EHGallery;
   private gid: number;
+  private finishHandler: () => void;
   downloadingImages = false; // 是否下载图片，如果为false，则只下载缩略图，可以从外部设置
   currentReadingIndex = 0;  // 当前正在阅读的图片的index，可以从外部设置
+  background = false; // 是否后台下载，可以从外部设置
 
   result: {
     htmls: { index: number, success: boolean, error: boolean, started: boolean }[],
@@ -616,10 +619,11 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     images: { index: number, path?: string, error: boolean, started: boolean }[]
     topThumbnail: { path?: string, error: boolean, started: boolean }
   }
-  constructor(infos: EHGallery) {
+  constructor(infos: EHGallery, finishHandler: () => void) {
     super();
     this.infos = infos;
     this.gid = infos.gid;
+    this.finishHandler = finishHandler;
     this.result = {
       htmls: [...Array(this.infos.total_pages)].map((_, i) => ({ index: i, success: false, error: false, started: false })),
       thumbnails: [...Array(this.infos.length)].map((_, i) => ({ index: i, error: false, started: false })),
@@ -847,6 +851,9 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
         } else {
           this.result.topThumbnail.error = true;
         }
+        if (this.isAllFinishedDespiteError) {
+          this.finishHandler();
+        }
       }
     }
   }
@@ -875,6 +882,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
             const index = thumbnail.index;
             const frame = images.find(image => image.page === index)!.frame;
             const dataCropped = cropImageData(data, image, frame);
+            // TODO: 此处有可能会出现dataCropped为空的情况，需要处理
             const path = thumbnailPath + `${this.gid}/${index + 1}.jpg`;
             $file.write({
               data: dataCropped,
@@ -887,6 +895,9 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           this.result.thumbnails
             .filter(thumbnail => thumbnail.index >= startIndex && thumbnail.index <= endIndex)
             .forEach(thumbnail => { thumbnail.error = true });
+        }
+        if (this.isAllFinishedDespiteError) {
+          this.finishHandler();
         }
       }
     }
@@ -913,6 +924,9 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           this.result.images[index].path = path;
         } else {
           this.result.images[index].error = true;
+        }
+        if (this.isAllFinishedDespiteError) {
+          this.finishHandler();
         }
       }
     }
@@ -953,23 +967,33 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
   get isAllFinished(): boolean {
     return this.finished === this.result.htmls.length + this.result.thumbnails.length + this.result.images.length + 1;
   }
+
+  get isAllFinishedDespiteError(): boolean {
+    const topThumbnailFinishedDespiteError = this.result.topThumbnail.path || this.result.topThumbnail.error;
+    const finishedOfHtmlsDespiteError = this.result.htmls.filter(html => html.success || html.error).length;
+    const finishedOfThumbnailsDespiteError = this.result.thumbnails.filter(thumbnail => thumbnail.path || thumbnail.error).length;
+    const finishedOfImagesDespiteError = this.result.images.filter(image => image.path || image.error).length;
+    return Boolean(topThumbnailFinishedDespiteError) &&
+      finishedOfHtmlsDespiteError === this.result.htmls.length &&
+      finishedOfThumbnailsDespiteError === this.result.thumbnails.length &&
+      finishedOfImagesDespiteError === this.result.images.length;
+  }
 }
 
 /**
  * 下载器管理器。
  * 
  * 1. 始终都只能有一个下载器在下载，其他下载器都处于暂停状态。
+ * TODO：为galleryDownloaders添加background属性，当前下载器下载完成后，会自动查找background为true的下载器并启动。
  */
 class DownloaderManager {
-  currentTabDownloader: TabThumbnailDownloader;
-  currentArchiveTabDownloader: TabThumbnailDownloader;
-  galleryDownloaders: Record<number, (GalleryMPVDownloader | GalleryCommonDownloader)>;
-  mpv = false; // 是否使用mpv的api
+  tabDownloaders: Map<string, TabThumbnailDownloader>; // key为tab的id
+  galleryDownloaders: Map<number, GalleryCommonDownloader>;
+  mpv = false; // 是否使用mpv的api TODO：暂时不支持动态修改
 
   constructor() {
-    this.currentTabDownloader = new TabThumbnailDownloader();
-    this.currentArchiveTabDownloader = new TabThumbnailDownloader();
-    this.galleryDownloaders = {};
+    this.tabDownloaders = new Map() as Map<string, TabThumbnailDownloader>;
+    this.galleryDownloaders = new Map() as Map<number, GalleryCommonDownloader>;
   }
 
   /**
@@ -978,7 +1002,16 @@ class DownloaderManager {
    * @param infos 图库信息
    */
   add(gid: number, infos: EHGallery) {
-    this.galleryDownloaders[gid] = this.mpv ? new GalleryMPVDownloader(infos) : new GalleryCommonDownloader(infos);
+    const downloader = new GalleryCommonDownloader(infos, () => {
+      for (const [k, v] of this.galleryDownloaders) {
+        if (k !== gid && v.background && !v.isAllFinishedDespiteError) {
+          this.startOne(k);
+          break;
+        }
+      }
+    })
+    this.galleryDownloaders.set(gid, downloader);
+    return downloader;
   }
 
   /**
@@ -986,63 +1019,89 @@ class DownloaderManager {
    * @param gid 图库id
    */
   remove(gid: number) {
-    this.galleryDownloaders[gid].pause();
-    delete this.galleryDownloaders[gid];
+    this.galleryDownloaders.get(gid)?.pause();
+    return this.galleryDownloaders.delete(gid);
   }
 
   /**
    * 获取一个图库下载器
    */
   get(gid: number) {
-    return this.galleryDownloaders[gid];
+    return this.galleryDownloaders.get(gid);
   }
 
   /**
    * 启动某一个图库下载器，并暂停其他全部图库下载器
    */
   startOne(gid: number) {
-    for (let key in this.galleryDownloaders) {
-      if (parseInt(key) === gid) {
-        this.galleryDownloaders[key].start();
+    let success = false;
+    for (const [k, v] of this.galleryDownloaders) {
+      if (k === gid) {
+        v.start();
+        success = true;
       } else {
-        this.galleryDownloaders[key].pause();
+        v.pause();
       }
     }
-    this.currentTabDownloader.pause();
-    this.currentArchiveTabDownloader.pause();
+    for (const v of this.tabDownloaders.values()) {
+      v.pause();
+    }
+    return success;
   }
 
   /**
-   * 启动标签缩略图下载器，并暂停其他全部下载器
+   * 新建一个标签缩略图下载器
    */
-  startTabDownloader() {
-    this.currentTabDownloader.start();
-    for (let key in this.galleryDownloaders) {
-      this.galleryDownloaders[key].pause();
-    }
-    this.currentArchiveTabDownloader.pause();
+  addTabDownloader(id: string) {
+    const tabDownloader = new TabThumbnailDownloader();
+    this.tabDownloaders.set(id, tabDownloader);
+    return tabDownloader;
   }
 
   /**
-   * 启动归档标签缩略图下载器，并暂停其他全部下载器
+   * 删除一个标签缩略图下载器
    */
-  startArchiveTabDownloader() {
-    this.currentArchiveTabDownloader.start();
-    for (let key in this.galleryDownloaders) {
-      this.galleryDownloaders[key].pause();
+  removeTabDownloader(id: string) {
+    this.tabDownloaders.get(id)?.pause();
+    return this.tabDownloaders.delete(id);
+  }
+
+  /**
+   * 获取一个标签缩略图下载器
+   */
+  getTabDownloader(id: string) {
+    return this.tabDownloaders.get(id);
+  }
+
+  /**
+   * 启动指定的标签缩略图下载器，并暂停其他全部下载器
+   */
+  startTabDownloader(id: string) {
+    let success = false;
+    for (const [k, v] of this.tabDownloaders) {
+      if (k === id) {
+        v.start();
+        success = true;
+      } else {
+        v.pause();
+      }
     }
-    this.currentTabDownloader.pause();
+    for (const v of this.galleryDownloaders.values()) {
+      v.pause();
+    }
+    return success;
   }
 
   /**
    * 暂停所有图库下载器
    */
   pauseAll() {
-    for (let key in this.galleryDownloaders) {
-      this.galleryDownloaders[key].pause();
+    for (const v of this.tabDownloaders.values()) {
+      v.pause();
     }
-    this.currentTabDownloader.pause();
-    this.currentArchiveTabDownloader.pause();
+    for (const v of this.galleryDownloaders.values()) {
+      v.pause();
+    }
   }
 }
 

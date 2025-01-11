@@ -204,7 +204,7 @@ export class GalleryController extends PageViewerController {
     this.subControllers.galleryInfoController.startTimer();
     this.subControllers.galleryThumbnailController.startTimer();
     $ui.success("刷新成功");
-    $delay(0.1, () => {
+    $delay(0.3, () => {
       if (!this._infos) return;
       this.subControllers.galleryCommentController.infos = this._infos
     })

@@ -96,7 +96,7 @@ export class GalleryCommentController extends BaseController {
           })
         },
         decideNavigation: (sender, action) => {
-          // TODO 阻止不合规的请求
+          // 阻止不合规的请求
           if (action.type === 0) {
             const patt = /https:\/\/e[-x]hentai\.org\/\w+\/(\d+)\/(\w+)\/?/;
             const r = patt.exec(action.requestURL);
@@ -201,8 +201,13 @@ export class GalleryCommentController extends BaseController {
             case "voteComment": {
               this._isRequestInProgress = true
               const { comment_id, currentVote, type } = message.info as { comment_id: number, currentVote: number, type: "up" | "down" }
+              let result: {
+                comment_id: number;
+                comment_score: number;
+                comment_vote: 1 | -1 | 0;
+              } | undefined;
               try {
-                await api.voteComment(
+                result = await api.voteComment(
                   this._infos.gid,
                   this._infos.token,
                   comment_id,
@@ -213,30 +218,20 @@ export class GalleryCommentController extends BaseController {
               } catch (e) {
                 this._isRequestInProgress = false
                 $ui.error("API错误，投票失败")
-                webview.view.notify({
-                  event: "failVoteRequest",
-                  message: {}
-                })
                 return;
               }
-              let vote = 0;
-              if (type === "up") {
-                if (currentVote === 1) {
-                  vote = 0
-                } else {
-                  vote = 1
-                }
-              } else {
-                if (currentVote === -1) {
-                  vote = 0
-                } else {
-                  vote = -1
-                }
+              if (!result) {
+                this._isRequestInProgress = false
+                $ui.error("API错误，投票失败")
+                return;
               }
               this._isRequestInProgress = false
+              const comment = this._infos.comments.find(comment => comment.comment_id === comment_id);
+              comment!.score = result.comment_score;
+              comment!.my_vote = result.comment_vote === 0 ? undefined : result.comment_vote;
               webview.view.notify({
                 event: "endVoteRequest",
-                message: { comment_id, vote }
+                message: result
               })
               break;
             }

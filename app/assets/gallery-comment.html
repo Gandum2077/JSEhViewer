@@ -280,8 +280,8 @@
       }', this)">
         <svg class="icon" fill="none" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
           <path d="${
-            comment.my_vote === 1 ? arrowDownFillSvg : arrowUpSvg
-          }" fill="currentColor"/>
+            comment.my_vote === 1 ? arrowUpFillSvg : arrowUpSvg
+          }" fill="${comment.my_vote === 1 ? '#4CAF50' : 'currentColor'}"/>
         </svg>
       </button>
       `;
@@ -292,7 +292,7 @@
         <svg class="icon" fill="none" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
           <path d="${
             comment.my_vote === -1 ? arrowDownFillSvg : arrowDownSvg
-          }" fill="currentColor"/>
+          }" fill="${comment.my_vote === -1 ? '#F44336' : 'currentColor'}"/>
         </svg>
       </button>
       `;
@@ -336,7 +336,7 @@
             </div>
             ${
               comment.score !== undefined
-                ? `<button class="score" onclick="showVoteDetails('${comment.comment_id}')">分数: ${comment.score}</button>`
+                ? `<button class="score" id="score-${comment.comment_id}" onclick="showVoteDetails('${comment.comment_id}')">分数: ${comment.score}</button>`
                 : ""
             }
         </div>
@@ -390,19 +390,19 @@
         });
       }
 
-      function endVoteRequest({comment_id, vote}) {
+      function endVoteRequest({comment_id, comment_score, comment_vote}) {
         const elem = document.getElementById(`${comment_id}`);
         const upButton = elem.querySelector(".upvote");
         const downButton = elem.querySelector(".downvote");
         const upSvg = upButton.querySelector("path");
         const downSvg = downButton.querySelector("path");
-        elem.setAttribute("data-value", vote.toString());
-        if (vote === 0) {
+        elem.setAttribute("data-value", comment_vote.toString());
+        if (comment_vote === 0) {
           upSvg.setAttribute("d", arrowUpSvg);
           upSvg.setAttribute("fill", "currentColor");
           downSvg.setAttribute("d", arrowDownSvg);
           downSvg.setAttribute("fill", "currentColor");
-        } else if (vote === -1) {
+        } else if (comment_vote === -1) {
           upSvg.setAttribute("d", arrowUpSvg);
           upSvg.setAttribute("fill", "currentColor");
           downSvg.setAttribute("d", arrowDownFillSvg);
@@ -413,6 +413,7 @@
           downSvg.setAttribute("d", arrowDownSvg);
           downSvg.setAttribute("fill", "currentColor");
         }
+        document.getElementById(`score-${comment_id}`).innerText = `分数: ${comment_score}`;
       }
 
       function edit(comment_id, button) {

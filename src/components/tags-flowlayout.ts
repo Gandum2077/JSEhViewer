@@ -5,6 +5,7 @@ import { configManager } from "../utils/config";
 import { showDetailedInfoView } from "./detailed-info-view";
 import { api } from "../utils/api";
 import { appLog, buildSearchTerm } from "../utils/tools";
+import { PushedSearchResultController } from "../controllers/pushed-search-result-controller";
 
 const TAG_FONT_SIZE = 15;
 
@@ -124,8 +125,25 @@ class TagView extends Base<UIView, UiTypes.ViewOptions> {
             {
               title: "立即搜索",
               symbol: "magnifyingglass",
-              handler: (sender) => {
-                // TODO
+              handler: async (sender) => {
+                const controller = new PushedSearchResultController();
+                controller.uipush({
+                  navBarHidden: true,
+                  statusBarStyle: 0
+                })
+                await $wait(0.3);
+                await controller.triggerLoad({
+                  type: "front_page",
+                  options: {
+                    searchTerms: [{
+                      namespace: this._namespace,
+                      term: this._name,
+                      dollar: true,
+                      subtract: false,
+                      tilde: false
+                    }]
+                  }
+                })
               }
             },
             {

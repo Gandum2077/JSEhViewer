@@ -1059,18 +1059,25 @@ class DownloaderManager {
   }
 
   /**
+   * 获取一个标签缩略图下载器
+   */
+  getTabDownloader(id: string) {
+    return this.tabDownloaders.get(id);
+  }
+
+  /**
+   * 暂停一个标签缩略图下载器
+   */
+  pauseTabDownloader(id: string) {
+    this.tabDownloaders.get(id)?.pause();
+  }
+
+  /**
    * 删除一个标签缩略图下载器
    */
   removeTabDownloader(id: string) {
     this.tabDownloaders.get(id)?.pause();
     return this.tabDownloaders.delete(id);
-  }
-
-  /**
-   * 获取一个标签缩略图下载器
-   */
-  getTabDownloader(id: string) {
-    return this.tabDownloaders.get(id);
   }
 
   /**

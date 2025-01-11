@@ -81,15 +81,17 @@ function extractTranslationData(data: any): TranslationData {
 
 class ConfigManager {
   private _config: Config;
-  private _markedTagDict: MarkedTagDict
-  private _markedUploaders: string[]
-  private _bannedUploaders: string[]
-  private _favcatTitles: string[]
-  private _translationDict: TranslationDict
-  private _translationList: { namespace: TagNamespace, name: string, translation: string }[]
-  private _searchHistory: DBSearchHistory
-  private _searchBookmarks: DBSearchBookmarks
-  private _webDAVServices: WebDAVService[]
+  private _markedTagDict: MarkedTagDict;
+  private _markedUploaders: string[];
+  private _bannedUploaders: string[];
+  private _favcatTitles: string[];
+  private _translationDict: TranslationDict;
+  private _translationList: { namespace: TagNamespace, name: string, translation: string }[];
+  private _searchHistory: DBSearchHistory;
+  private _searchBookmarks: DBSearchBookmarks;
+  private _webDAVServices: WebDAVService[];
+  pushedSearchResultControllerLayoutMode: "large" | "normal"; 
+  // 用于控制搜索结果页面的布局模式，其初始值和homepageManagerLayoutMode相同，但后续可以被PushedSearchResultController组件修改
   constructor() {
     this._config = this._initConfig()
     this._markedTagDict = this._getMarkedTagsDict()
@@ -102,6 +104,7 @@ class ConfigManager {
     this._searchHistory = this._querySearchHistory()
     this._searchBookmarks = this._querySearchBookmarks()
     this._webDAVServices = this._queryWebDAVServices()
+    this.pushedSearchResultControllerLayoutMode = this.homepageManagerLayoutMode
   }
 
   private _initConfig() {

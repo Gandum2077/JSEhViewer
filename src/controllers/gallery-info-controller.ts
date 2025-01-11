@@ -14,6 +14,7 @@ import { GalleryTorrentsController } from "./gallery-torrents-controller";
 import { GalleryHathController } from "./gallery-hath-controller";
 import { galleryFavoriteDialog } from "../components/gallery-favorite-dialog";
 import { getSearchOptions } from "./search-controller";
+import { PushedSearchResultController } from "./pushed-search-result-controller";
 
 class BlankView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
@@ -67,9 +68,8 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
                   {
                     title: "立即搜索",
                     symbol: "magnifyingglass",
-                    handler: (sender) => {
-                      if (!this._uploader) return;
-                      // TODO: search
+                    handler: async (sender) => {
+                      this._search();
                     }
                   },
                   {
@@ -135,7 +135,9 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
                   {
                     title: "立即搜索",
                     symbol: "magnifyingglass",
-                    handler: (sender) => { }
+                    handler: (sender) => {
+                      this._search();
+                    }
                   },
                   {
                     title: "复制",
@@ -193,7 +195,9 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
                   {
                     title: "立即搜索",
                     symbol: "magnifyingglass",
-                    handler: (sender) => { }
+                    handler: (sender) => {
+                      this._search();
+                    }
                   },
                   {
                     title: "复制",
@@ -257,6 +261,29 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
         ]
       }
     }
+  }
+
+  private async _search() {
+    if (!this._uploader) return;
+    const controller = new PushedSearchResultController();
+    controller.uipush({
+      navBarHidden: true,
+      statusBarStyle: 0
+    })
+    await $wait(0.3);
+    await controller.triggerLoad({
+      type: "front_page",
+      options: {
+        searchTerms: [{
+          qualifier: "uploader",
+          term: this._uploader,
+          dollar: false,
+          subtract: false,
+          tilde: false
+        }]
+      }
+    })
+
   }
 
   private _markUploader() {
@@ -1283,8 +1310,13 @@ export class GalleryInfoController extends BaseController {
             },
             "showAll"
           )
-          // TODO: 传递搜索条件
-          console.log(options)
+          const controller = new PushedSearchResultController();
+          controller.uipush({
+            navBarHidden: true,
+            statusBarStyle: 0
+          })
+          await $wait(0.3);
+          await controller.triggerLoad(options)
         }
       }
     })

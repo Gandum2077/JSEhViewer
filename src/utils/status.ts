@@ -1,10 +1,8 @@
 import { EHCategory, EHGallery, EHListCompactItem, EHListExtendedItem, EHQualifier, EHTagListItem, TagNamespace } from "ehentai-parser";
 import { api, downloaderManager } from "./api";
 import { dbManager } from "./database";
-import { ArchiveSearchOptions, ArchiveTab, ArchiveTabOptions, DBArchiveItem, DBSearchBookmarks, DBSearchHistory, FavoritesTab, FrontPageTab, PopularTab, StatusTab, StatusTabOptions, ToplistTab, UploadTab, WatchedTab } from "../types";
-import { cvid, router } from "jsbox-cview";
-import { HomepageController } from "../controllers/homepage-controller";
-import { ArchiveController } from "../controllers/archive-controller";
+import { ArchiveSearchOptions, DBArchiveItem, StatusTab, StatusTabOptions } from "../types";
+import { cvid } from "jsbox-cview";
 
 function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): { sql: string; args: any[] } {
   const { page, pageSize, type, sort, searchTerms, excludedCategories, minimumPages, maximumPages, minimumRating } = options;

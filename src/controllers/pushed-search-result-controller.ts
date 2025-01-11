@@ -99,9 +99,9 @@ export class PushedSearchResultController extends BaseController {
         title: "搜索",
         leftBarButtonItems: [
           {
-            symbol: "sidebar.left",
+            symbol: "chevron.left",
             handler: () => {
-              (router.get("splitViewController") as SplitViewController).sideBarShown = true
+              $ui.pop();
             }
           },
           {

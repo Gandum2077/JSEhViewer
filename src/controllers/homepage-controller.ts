@@ -263,6 +263,13 @@ export class HomepageController extends BaseController {
     this.updateLoadedStatus();
   }
 
+  updateBlankStatus() {
+    this.cviews.navbar.title = "首页";
+    this.cviews.list.items = [];
+    this.cviews.list.footerText = "";
+    this.cviews.searchBar.searchTerms = [];
+  }
+
   updateLoadingStatus(options: StatusTabOptions) {
     // 1. 列表归零
     // 2. 搜索栏更新
@@ -345,6 +352,12 @@ export class HomepageController extends BaseController {
   updateLoadedStatus() {
     const tab = statusManager.currentTab;
     switch (tab.type) {
+      case "blank": {
+        this.cviews.navbar.title = "首页";
+        this.cviews.list.items = [];
+        this.cviews.list.footerText = "";
+        break;
+      }
       case "front_page": {
         const items = tab.pages.map(page => page.items).flat() as EHListExtendedItem[];
         this.cviews.list.items = items;

@@ -340,9 +340,7 @@ export class SidebarTabController extends BaseController {
                   },
                   events: {
                     tapped: () => {
-                      const newTabId = statusManager.addBlankTab();
-                      // TODO：切换到新标签页
-                      statusManager.currentTabId = newTabId;
+                      statusManager.addBlankTab();
                       this.refresh();
                     }
                   }
@@ -473,7 +471,15 @@ export class SidebarTabController extends BaseController {
         didSelect: (sender, indexPath, data) => {
           statusManager.currentTabId = statusManager.tabIdsShownInManager[indexPath.row];
           this.refresh();
-          // TODO
+          (router.get("splitViewController") as SplitViewController).sideBarShown = false;
+          (router.get("primaryViewController") as TabBarController).index = 0;
+          const tab = statusManager.currentTab;
+          if (tab.type === "blank") {
+            (router.get("homepageController") as HomepageController).updateBlankStatus();
+          } else {
+            (router.get("homepageController") as HomepageController).updateLoadingStatus(tab);
+            (router.get("homepageController") as HomepageController).updateLoadedStatus();
+          }
         }
       }
     });

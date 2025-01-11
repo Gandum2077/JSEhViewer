@@ -96,7 +96,7 @@ export class PushedSearchResultController extends BaseController {
     })
     const navbar = new CustomNavigationBar({
       props: {
-        title: "首页",
+        title: "搜索",
         leftBarButtonItems: [
           {
             symbol: "sidebar.left",
@@ -378,7 +378,7 @@ export class PushedSearchResultController extends BaseController {
         } else {
           this.cviews.list.footerText = "上拉加载更多";
         }
-        this.cviews.navbar.title = "首页";
+        this.cviews.navbar.title = "搜索";
         break;
       }
       case "watched": {

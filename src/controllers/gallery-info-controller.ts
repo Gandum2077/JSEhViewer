@@ -1440,6 +1440,8 @@ export class GalleryInfoController extends BaseController {
     }
     this.cviews.tagsFlowlayoutWrapper.taglist = infos.taglist
     this.cviews.list.view.reload()
+    // 隐藏createNewSearchButton
+    this.cviews.createNewSearchButton.view.alpha = 0
   }
 
   refreshThumbnail() {

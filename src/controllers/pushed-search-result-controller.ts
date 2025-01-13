@@ -1,4 +1,4 @@
-import { BaseController, CustomNavigationBar, SymbolButton, router, SplitViewController } from "jsbox-cview";
+import { BaseController, CustomNavigationBar, SymbolButton, router } from "jsbox-cview";
 import { GalleryController } from "./gallery-controller";
 import { getJumpRangeDialogForHomepage, getJumpPageDialog, getJumpRangeDialogForFavorites } from "../components/seekpage-dialog";
 import { configManager } from "../utils/config";

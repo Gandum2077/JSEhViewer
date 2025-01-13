@@ -1310,9 +1310,9 @@ function _getScoreByMatchingDegree(
 ) {
   if (text === tag.name || text === tag.translation) {
     return 0;
-  } else if (tag.name.startsWith(text) || tag.translation.startsWith(text)) {
+  } else if (tag.name.toLowerCase().startsWith(text) || tag.translation.toLowerCase().startsWith(text)) {
     return 1;
-  } else if (tag.name.includes(text) || tag.translation.includes(text)) {
+  } else if (tag.name.toLowerCase().includes(text) || tag.translation.toLowerCase().includes(text)) {
     return 2;
   } else {
     return 3;
@@ -1354,7 +1354,7 @@ function getSuggestions(terms: {
     const term = terms[0];
     return configManager.translationList
       .filter(n => (!term.namespace || n.namespace === term.namespace)
-        && (n.name.includes(term.term) || n.translation.includes(term.term)))
+        && (n.name.toLowerCase().includes(term.term) || n.translation.toLowerCase().includes(term.term)))
       .sort((a, b) => {
         const primaryScoreA = _getScoreByMatchingDegree(term.term, a);
         const primaryScoreB = _getScoreByMatchingDegree(term.term, b);
@@ -1376,7 +1376,7 @@ function getSuggestions(terms: {
     // 对最后一个term进行搜索，然后根据分数排序
     const term = terms[terms.length - 1];
     return configManager.translationList
-      .filter(n => n.name.includes(term.term) || n.translation.includes(term.term))
+      .filter(n => n.name.toLowerCase().includes(term.term) || n.translation.toLowerCase().includes(term.term))
       .sort((a, b) => {
         const primaryScoreA = _getScoreByTermOrder(a.name, terms);
         const primaryScoreB = _getScoreByTermOrder(b.name, terms);
@@ -1396,7 +1396,7 @@ function getSuggestions(terms: {
       })
       .map(n => {
         // 对terms从前往后遍历，找到第一个匹配的term，remaining就是该term的remaining
-        const remaining = terms.find(t => n.name.includes(t.term) || n.translation.includes(t.term))?.remaining || "";
+        const remaining = terms.find(t => n.name.toLowerCase().includes(t.term) || n.translation.toLowerCase().includes(t.term))?.remaining || "";
         return {
           namespace: n.namespace,
           name: n.name,

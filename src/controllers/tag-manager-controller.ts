@@ -35,6 +35,7 @@ function mapData(
   searchPhrase: string,
   onlyShowMarkred: boolean
 ) {
+  searchPhrase = searchPhrase.toLowerCase()
   const translationList = configManager.translationList
   const markedTagDict = configManager.markedTagDict
   const markedUploaders = configManager.markedUploaders
@@ -75,7 +76,7 @@ function mapData(
     const mappedRows = Array.from(tags)
       .sort((a, b) => a[0].localeCompare(b[0]))
       .filter(([name, translation]) => {
-        return (!onlyShowMarkred || markedTags.get(name)) && (!searchPhrase || name.includes(searchPhrase) || translation.includes(searchPhrase))
+        return (!onlyShowMarkred || markedTags.get(name)) && (!searchPhrase || name.toLowerCase().includes(searchPhrase) || translation.toLowerCase().includes(searchPhrase))
       })
       .map(([name, translation]) => {
         const marked = markedTags.get(name)

@@ -706,7 +706,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
       if (htmlTask) return this.createHtmlTask(htmlTask.index);
     }
 
-    // 将当前的this.infos.images转换为另一种结构，方便查找
+    // 将当前的this.infos.images转换为url唯一的结构
     const compoundThumbnails: CompoundThumbnail[] = [];
     for (let i of Object.keys(this.infos.images)) {
       const page = parseInt(i);
@@ -741,10 +741,15 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
 
     // 4.1 先从currentReadingIndex开始找
     let compoundThumbnailItem = compoundThumbnails
-      .find(n => n.startIndex >= this.currentReadingIndex && this.result.thumbnails[n.images[0].page].started === false);
+      .find(n => n.endIndex >= this.currentReadingIndex
+        && this.result.thumbnails
+          .filter(i => i.index >= n.startIndex && i.index <= n.endIndex)
+          .some(i => i.started === false));
     // 4.2 如果找不到，则从头开始找
     if (!compoundThumbnailItem) compoundThumbnailItem = compoundThumbnails
-      .find(n => this.result.thumbnails[n.images[0].page].started === false);
+      .find(n => this.result.thumbnails
+        .filter(i => i.index >= n.startIndex && i.index <= n.endIndex)
+        .some(i => i.started === false));
 
     // 如果downloadingImages 为false，则只下载缩略图
     if (!this.downloadingImages) {
@@ -882,7 +887,11 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
             const index = thumbnail.index;
             const frame = images.find(image => image.page === index)!.frame;
             const dataCropped = cropImageData(data, image, frame);
-            // TODO: 此处有可能会出现dataCropped为空的情况，需要处理
+            // 此处有可能会出现dataCropped为空的情况，需要处理
+            if (!dataCropped) {
+              thumbnail.error = true;
+              continue;
+            }
             const path = thumbnailPath + `${this.gid}/${index + 1}.jpg`;
             $file.write({
               data: dataCropped,

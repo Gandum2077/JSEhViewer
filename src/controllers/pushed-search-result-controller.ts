@@ -259,7 +259,7 @@ export class PushedSearchResultController extends BaseController {
       layout: (make, view) => {
         make.top.equalTo(view.prev.bottom)
         make.left.right.inset(0)
-        make.bottom.equalTo(view.super.safeAreaBottom)
+        make.bottom.equalTo(view.super.bottom)
       }
     })
     this.cviews = { navbar, list, searchBar }

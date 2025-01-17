@@ -189,10 +189,7 @@ class HistoryMatrixItem extends Base<UILabelView, UiTypes.LabelOptions> {
 
 class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
-  constructor(
-    textHandler: (text: string) => void,
-    willBeginDraggingHandler: () => void // 用于滑动时隐藏键盘
-  ) {
+  constructor(textHandler: (text: string) => void) {
     super();
     const mostAccessedTags = configManager.getTenMostAccessedTags()
     const lastAccessSearchTerms = configManager.getSomeLastAccessSearchTerms()
@@ -255,17 +252,14 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
         selectable: false,
         separatorHidden: true,
         showsVerticalIndicator: false,
-        bgcolor: $color("insetGroupedBackground")
+        bgcolor: $color("insetGroupedBackground"),
+        keyboardDismissMode: 1
       },
       layout: (make, view) => {
         make.left.right.inset(15);
         make.top.bottom.inset(0);
       },
-      events: {
-        willBeginDragging: () => {
-          willBeginDraggingHandler();
-        }
-      }
+      events: {}
     })
     this._defineView = () => ({
       type: "view",
@@ -297,9 +291,7 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     catList: DynamicItemSizeMatrix,
     optionsList: DynamicPreferenceListView
   }
-  constructor(
-    willBeginDraggingHandler: () => void // 用于滑动时隐藏键盘
-  ) {
+  constructor() {
     super();
     const optionsList = new DynamicPreferenceListView({
       sections: this.mapSections(),
@@ -435,13 +427,11 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
               views: [optionsList.definition]
             }
           ]
-        }
+        },
+        keyboardDismissMode: 1
       },
       layout: $layout.fill,
       events: {
-        willBeginDragging: () => {
-          willBeginDraggingHandler();
-        },
         didSelect: (sender, indexPath, data) => {
           const index = indexPath.row;
           const cat = searchableCategories[index];
@@ -586,9 +576,7 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     favcatList: DynamicItemSizeMatrix,
     optionsList: DynamicPreferenceListView
   }
-  constructor(
-    willBeginDraggingHandler: () => void // 用于滑动时隐藏键盘
-  ) {
+  constructor() {
     super();
     const optionsList = new DynamicPreferenceListView({
       sections: [{
@@ -669,13 +657,11 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
             }
           ]
         },
-        footer: optionsList.definition
+        footer: optionsList.definition,
+        keyboardDismissMode: 1
       },
       layout: $layout.fill,
       events: {
-        willBeginDragging: () => {
-          willBeginDraggingHandler();
-        },
         didSelect: (sender, indexPath, data) => {
           const selectedIndex = indexPath.row as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
           if (this._selectedFavcat === selectedIndex) {
@@ -747,9 +733,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     catList: DynamicItemSizeMatrix,
     optionsList: DynamicPreferenceListView
   }
-  constructor(
-    willBeginDraggingHandler: () => void // 用于滑动时隐藏键盘
-  ) {
+  constructor() {
     super();
     const optionsList = new DynamicPreferenceListView({
       sections: this.mapSections(),
@@ -882,13 +866,11 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
               views: [optionsList.definition]
             }
           ]
-        }
+        },
+        keyboardDismissMode: 1
       },
       layout: $layout.fill,
       events: {
-        willBeginDragging: () => {
-          willBeginDraggingHandler();
-        },
         didSelect: (sender, indexPath, data) => {
           const index = indexPath.row;
           const cat = searchableCategories[index];
@@ -1540,13 +1522,12 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
           ? `${currentText}${currentText[currentText.length - 1] === " " ? "" : " "}${text} `
           : text + " ";
         navbar.cviews.input.view.text = newText;
-      },
-      () => { navbar.cviews.input.view.blur() }
+      }
     );
-    const frontPageOptionsView = new FrontPageOptionsView(() => { navbar.cviews.input.view.blur() });
-    const watchedOptionsView = new FrontPageOptionsView(() => { navbar.cviews.input.view.blur() });
-    const favoritesOptionsView = new FavoritesOptionsView(() => { navbar.cviews.input.view.blur() });
-    const archiveOptionsView = new ArchiveOptionsView(() => { navbar.cviews.input.view.blur() });
+    const frontPageOptionsView = new FrontPageOptionsView();
+    const watchedOptionsView = new FrontPageOptionsView();
+    const favoritesOptionsView = new FavoritesOptionsView();
+    const archiveOptionsView = new ArchiveOptionsView();
     this.cviews = {
       navbar,
       searchSuggestionView,

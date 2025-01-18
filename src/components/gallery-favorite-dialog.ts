@@ -275,7 +275,7 @@ export async function galleryFavoriteDialog(infos: EHGallery): Promise< {
       footer: {
         type: "view",
         props: {
-          height: 265
+          height: 350
         },
       }
     },

@@ -18,6 +18,7 @@ import {
   EHWatchedList,
   TagNamespace
 } from "ehentai-parser";
+import { PrefsRow } from "jsbox-cview";
 
 export type TranslationData = {
   namespace: TagNamespace;
@@ -90,10 +91,10 @@ export type DBArchiveItem = {
   last_read_page: number;
 }
 
-export type ArchiveSearchOptions = { 
+export type ArchiveSearchOptions = {
   page: number,  // 从0开始
   pageSize: number,
-  type?: "readlater" | "has_read" | "download" | "all", 
+  type?: "readlater" | "has_read" | "download" | "all",
   sort?: "first_access_time" | "last_access_time" | "posted_time",
   searchTerms?: EHSearchTerm[];
   excludedCategories?: EHSearchedCategory[];
@@ -192,3 +193,12 @@ export type ArchiveTab = {
   options: ArchiveSearchOptions;
   pages: ArchiveList[];
 };
+
+export type AITranslationConfig = {
+  name: string;
+  title: string;
+  link: string;
+  description: string;
+  allowConcurrentRequests: boolean;
+  rows: PrefsRow[];
+}

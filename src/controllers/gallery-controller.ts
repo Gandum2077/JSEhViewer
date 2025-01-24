@@ -150,7 +150,6 @@ export class GalleryController extends PageViewerController {
     downloaderManager.startOne(this._infos.gid)
     const readerController = new ReaderController({
       gid: this._infos.gid,
-      title: this._infos.japanese_title || this._infos.english_title,
       index,
       length: this._infos.length
     })

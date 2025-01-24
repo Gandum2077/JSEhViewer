@@ -8,7 +8,7 @@ import { Base, Matrix } from "jsbox-cview";
  */
 export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
   _props: {
-    srcs: { path?: string; error: boolean }[];
+    srcs: { path?: string; error: boolean, type: "ai-translated" | "reloaded" | "normal" }[];
     page: number;
   };
   _matrix: Matrix;
@@ -27,7 +27,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
    */
   constructor({ props, layout, events = {} }: {
     props: {
-      srcs?: { path?: string; error: boolean }[];
+      srcs?: { path?: string; error: boolean, type: "ai-translated" | "reloaded" | "normal" }[];
       page?: number;
     };
     layout: (make: MASConstraintMaker, view: UIView) => void;
@@ -43,7 +43,6 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
       page: 0,
       ...props
     };
-    this._props.srcs =  this._props.srcs.map(n => ({ ...n }));
     this._pageLoadRecorder = {};
     this._matrix = new Matrix({
       props: {
@@ -204,13 +203,13 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
     return this._props.srcs;
   }
 
-  set srcs(srcs: {path?: string; error: boolean}[]) {
-    this._props.srcs = srcs.map(n => ({ ...n }));
+  set srcs(srcs: { path?: string; error: boolean, type: "ai-translated" | "reloaded" | "normal" }[]) {
+    this._props.srcs = srcs;
     const data = srcs.map(n => this._mapData(n));
     this._matrix.view.data = data;
   }
 
-  _mapData(n: {path?: string; error: boolean}) {
+  _mapData(n: { path?: string; error: boolean }) {
     if (n.error) {
       return {
         image: { src: "" },

@@ -9,7 +9,7 @@ import {
 import { createGeneralSettingsController } from "./settings-general-controller";
 import { createSettingsDownloadsController } from "./settings-downloads-controller";
 import { WebDAVSettingsController } from "./settings-webdav-controller";
-import { createSettingsTranslationController } from "./settings-translation-controller";
+import { setAITranslationConfig } from "./settings-translation-controller";
 
 export class MoreController extends BaseController {
   cviews: { navbar: CustomNavigationBar, list: DynamicItemSizeMatrix };
@@ -214,7 +214,7 @@ export class MoreController extends BaseController {
               text: "通用"
             },
             content: {
-              text: "一些常用的设置\n包括UI偏好、标签翻译、排序方式、清理缓存、重新登录等"
+              text: "一些常用的设置\n包括UI偏好、标签翻译更新、排序方式、清理缓存、重新登录等"
             },
             blur: {
               hidden: true
@@ -225,7 +225,7 @@ export class MoreController extends BaseController {
               colors: [$color("#D7AD6B"), $color("#AD7E2F")]
             },
             icon: {
-              symbol: "externaldrive"
+              symbol: "tray.and.arrow.down"
             },
             title: {
               text: "下载管理"
@@ -243,7 +243,7 @@ export class MoreController extends BaseController {
               colors: [$color("#B8CC1C"), $color("#919B00")]
             },
             icon: {
-              symbol: "externaldrive"
+              symbol: "externaldrive.connected.to.line.below"
             },
             title: {
               text: "WebDAV"
@@ -261,7 +261,7 @@ export class MoreController extends BaseController {
               colors: [$color("#8AB46A"), $color("#587A3D")]
             },
             icon: {
-              symbol: "externaldrive"
+              symbol: "globe"
             },
             title: {
               text: "AI翻译"
@@ -285,7 +285,7 @@ export class MoreController extends BaseController {
               text: "EHentai标签"
             },
             content: {
-              text: "跳转至EHentai我的标签页面\n可以将某个标签设置为关注或者隐藏，并分组管理"
+              text: "在网页端查看和修改EHentai标签(修改后请重启本应用)"
             },
             blur: {
               hidden: false
@@ -306,7 +306,7 @@ export class MoreController extends BaseController {
             },
             content: {
               text:
-                "跳转至EHentai设置页面\n可以对EHentai的搜索、图库、收藏、过滤、UI等进行详细设定"
+                "在网页端调整本应用未涉及的设置，比如清晰度、过滤条件、收藏分类(修改后请重启本应用)"
             },
             blur: {
               hidden: false
@@ -319,7 +319,7 @@ export class MoreController extends BaseController {
       },
       layout: $layout.fillSafeArea,
       events: {
-        didSelect: (sender, indexPath) => {
+        didSelect: async (sender, indexPath) => {
           switch (indexPath.item) {
             case 0:
               $app.openURL("https://github.com/Gandum2077/JSEhViewer")
@@ -346,11 +346,7 @@ export class MoreController extends BaseController {
               })
               break;
             case 4:
-              const translationSettingsController = createSettingsTranslationController()
-              translationSettingsController.uipush({
-                navBarHidden: true,
-                statusBarStyle: 0
-              })
+              await setAITranslationConfig();
               break;
             case 5:
               $app.openURL("https://e-hentai.org/mytags")

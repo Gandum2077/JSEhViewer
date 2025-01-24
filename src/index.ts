@@ -14,11 +14,13 @@ import { configManager } from "./utils/config";
 import { api } from "./utils/api";
 import { appLog } from "./utils/tools";
 import { EHMyTags } from "ehentai-parser";
-import { imagePath, thumbnailPath } from "./utils/glv";
+import { aiTranslationPath, imagePath, thumbnailPath, originalImagePath } from "./utils/glv";
 
 async function init() {
   if (!$file.exists(imagePath)) $file.mkdir(imagePath);
   if (!$file.exists(thumbnailPath)) $file.mkdir(thumbnailPath);
+  if (!$file.exists(aiTranslationPath)) $file.mkdir(aiTranslationPath);
+  if (!$file.exists(originalImagePath)) $file.mkdir(originalImagePath);
   const homepageController = new HomepageController()
   const archiveController = new ArchiveController()
   const tagManagerController = new TagManagerController()

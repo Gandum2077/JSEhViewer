@@ -2,6 +2,9 @@ import { Base, BaseController, Blur, ContentView, cvid, Label, Matrix, Slider, S
 import { CustomImagePager } from "../components/custom-image-pager";
 import { downloaderManager } from "../utils/api";
 import { statusManager } from "../utils/status";
+import { setAITranslationConfig } from "./settings-translation-controller";
+import { AiTranslationButton } from "../components/ai-translation-button";
+import { configManager } from "../utils/config";
 
 let lastUITapGestureRecognizer: any;
 
@@ -257,7 +260,12 @@ export class ReaderController extends BaseController {
   private _autoPagerEnabled: boolean = false;
   private _autoPagerInterval: number = 1;
   private _autoPagerCountDown: number = 1;
+  // 增加两个Set，其中一个记录以原画质重新载入的图片，另一个记录启用AI翻译的图片
+  private reloadedPageSet: Set<number> = new Set();
+  private aiTranslatedPageSet: Set<number> = new Set();
   cviews: {
+    titleLabel: Label,
+    aiTranslationButton: AiTranslationButton,
     header: Blur,
     footer: Blur,
     viewer: ContentView,
@@ -265,12 +273,10 @@ export class ReaderController extends BaseController {
   }
   constructor({
     gid,
-    title,
     index,
     length
   }: {
     gid: number,
-    title: string,
     index: number,
     length: number
   }) {
@@ -281,9 +287,9 @@ export class ReaderController extends BaseController {
             interval: 1,
             handler: () => {
               if (!this.imagePager) return;
-              if (!this.imagePager.srcs[this.imagePager.page].path) {
-                this.imagePager.srcs = downloaderManager.get(this.gid)!.result.images;
-              }
+              this.refreshCurrentPage();
+              this.cviews.titleLabel.view.text = this._generateTitle();
+              this.handleAiTranslationButtonStatus(this.imagePager.page);
               this.cviews.footerThumbnailView.refreshThumbnailItems(downloaderManager.get(this.gid)!.result.thumbnails);
               if (this._autoPagerEnabled) {
                 // 自动翻页
@@ -312,7 +318,7 @@ export class ReaderController extends BaseController {
         didRemove: () => {
           statusManager.updateLastReadPage(this.gid, this.cviews.footerThumbnailView.index);
           downloaderManager.get(this.gid)!.downloadingImages = false;
-          if (this._timer) this._timer.invalidate()
+          if (this._timer) this._timer.invalidate();
           if (lastUITapGestureRecognizer) {
             $objc_release(lastUITapGestureRecognizer);
             lastUITapGestureRecognizer = undefined;
@@ -330,6 +336,19 @@ export class ReaderController extends BaseController {
       },
       events: {
         changed: (index) => this.handleTurnPage(index)
+      }
+    })
+    const titleLabel = new Label({
+      props: {
+        text: (index + 1).toString(),
+        font: $font(16),
+        align: $align.center,
+        lines: 1
+      },
+      layout: (make, view) => {
+        make.left.equalTo(view.prev.prev.right).inset(0)
+        make.right.equalTo(view.prev.left).inset(0)
+        make.top.bottom.inset(0)
       }
     })
     const header = new Blur({
@@ -370,14 +389,46 @@ export class ReaderController extends BaseController {
                   asPrimary: true,
                   items: [
                     {
-                      title: "以原始分辨率重新载入",
-                      symbol: "arrow.clockwise",
-                      handler: sender => { }
+                      title: "加载原图",
+                      symbol: "arrow.down.backward.and.arrow.up.forward.square",
+                      handler: sender => {
+                        const index = this.cviews.footerThumbnailView.index;
+                        if (this.reloadedPageSet.has(index)) return; // 如果已经添加过，不再重复添加
+
+                        this.reloadedPageSet.add(index);
+                        // 查看本页面的info是否已经加载完成
+                        const galleryDownloader = downloaderManager.get(this.gid);
+                        if (!galleryDownloader) return;
+                        const info = galleryDownloader.result.images[index].info;
+                        if (!info) {
+                          $ui.error("页面信息尚未加载，请稍后");
+                          return;
+                        }
+                        if (info && !info.fullSizeUrl) {
+                          $ui.warning("没有更高清的图片了");
+                          return;
+                        }
+                        const originalImage = galleryDownloader.result.originalImages[index];
+                        // 如果已经下载好了，则立即刷新
+                        // 这种情况只存在于下载器初始化时，已经下载好了原图
+                        if (originalImage.path) {
+                          this.refreshCurrentPage();
+                        }
+                        // 如果没有下载好，则选择此图片使下载器准备下载
+                        originalImage.userSelected = true;
+                        // 重新启动下载器
+                        galleryDownloader.start();
+
+                        // 刷新标题
+                        this.cviews.titleLabel.view.text = this._generateTitle();
+                      }
                     },
                     {
-                      title: "保存到相册",
-                      symbol: "square.and.arrow.up",
-                      handler: sender => { }
+                      title: "AI翻译设置",
+                      symbol: "globe",
+                      handler: async sender => {
+                        await setAITranslationConfig();
+                      }
                     }
                   ]
                 }
@@ -387,19 +438,7 @@ export class ReaderController extends BaseController {
                 make.width.equalTo(50)
               }
             }).definition,
-            new Label({
-              props: {
-                text: title,
-                font: $font(16),
-                align: $align.center,
-                lines: 1
-              },
-              layout: (make, view) => {
-                make.left.equalTo(view.prev.prev.right).inset(0)
-                make.right.equalTo(view.prev.left).inset(0)
-                make.top.bottom.inset(0)
-              }
-            }).definition
+            titleLabel.definition
           ]
         }
       ]
@@ -493,6 +532,85 @@ export class ReaderController extends BaseController {
         }
       }
     })
+    const aiTranslationButton = new AiTranslationButton({
+      layout: (make, view) => {
+        make.size.equalTo($size(50, 50))
+        make.center.equalTo(view.super)
+      },
+      events: {
+        tapped: async () => {
+          const index = this.cviews.footerThumbnailView.index;
+          const galleryDownloader = downloaderManager.get(this.gid);
+          if (!galleryDownloader) return;
+
+          // 如果没有设置AI翻译，提示设置
+          if (!configManager.selectedAiTranslationService) {
+            $ui.alert({
+              title: "未设置AI翻译",
+              message: "是否立即设置？",
+              actions: [
+                {
+                  title: "取消",
+                  handler: () => { }
+                },
+                {
+                  title: "确定",
+                  handler: async () => {
+                    await setAITranslationConfig();
+                  }
+                }
+              ]
+            });
+            return;
+          }
+
+          // 如果图片未加载，不响应
+          const path = galleryDownloader.result.images[index].path;
+          if (!path) {
+            $ui.error("当前图片尚未加载");
+            return;
+          }
+
+          // 如果处于AI翻译中，不响应
+          if (aiTranslationButton.status === "loading") return;
+
+          // 其他三种情况：pending、success、error
+          // 如果是success，则返回到pending
+          if (aiTranslationButton.status === "success") {
+            aiTranslationButton.status = "pending";
+            this.aiTranslatedPageSet.delete(index);
+            this.refreshCurrentPage();
+          } else {
+            // 剩下两种情况
+            // 添加到翻译清单
+            this.aiTranslatedPageSet.add(index);
+            // 查询翻译信息
+            const aiTranslation = galleryDownloader.result.aiTranslations[index];
+            if (aiTranslation.path) {
+              // 如果已经翻译成功
+              aiTranslationButton.status = "success";
+              this.refreshCurrentPage();
+            } else {
+              if (aiTranslationButton.status === "error") {
+                // 重新启动翻译
+                aiTranslationButton.status = "loading";
+                aiTranslation.error = false;
+                aiTranslation.started = false;
+              } else {
+                aiTranslationButton.status = "loading";
+                aiTranslation.userSelected = true;
+              }
+              // 重新启动下载器
+              galleryDownloader.start();
+            }
+          }
+
+          // 刷新标题
+          this.cviews.titleLabel.view.text = this._generateTitle();
+        }
+
+      }
+    })
     const footer = new Blur({
       props: {
         style: 16
@@ -539,13 +657,7 @@ export class ReaderController extends BaseController {
                 {
                   type: "view",
                   props: {},
-                  views: [new SymbolButton({
-                    props: { symbol: "arrow.clockwise" },
-                    layout: (make, view) => {
-                      make.size.equalTo($size(50, 50))
-                      make.center.equalTo(view.super)
-                    }
-                  }).definition]
+                  views: [aiTranslationButton.definition]
                 },
                 {
                   type: "view",
@@ -558,7 +670,10 @@ export class ReaderController extends BaseController {
                     },
                     events: {
                       tapped: () => {
-                        const path = downloaderManager.get(this.gid)!.result.images[this.cviews.footerThumbnailView.index].path;
+                        const index = this.cviews.footerThumbnailView.index;
+                        const galleryDownloader = downloaderManager.get(this.gid);
+                        if (!galleryDownloader) return;
+                        const path = galleryDownloader.result.images[index].path;
                         if (path) {
                           $share.sheet($image(path))
                         } else {
@@ -597,7 +712,7 @@ export class ReaderController extends BaseController {
           if (sender.views.length !== 0) sender.views[0].remove();
           this.imagePager = new CustomImagePager({
             props: {
-              srcs: galleryDownloader!.result.images,
+              srcs: this._generateSrcs(),
               page: footerThumbnailView.index,
             },
             layout: (make, view) => {
@@ -616,7 +731,7 @@ export class ReaderController extends BaseController {
               location => {
                 if (!this.imagePager) return;
                 const w = sender.frame.width;
-                const h= sender.frame.height;
+                const h = sender.frame.height;
                 const x = location.x;
                 const y = location.y;
                 if (y / h < 1 / 4 || (y / h >= 1 / 4 && y / h <= 3 / 4 && x / w < 1 / 3)) {
@@ -637,6 +752,8 @@ export class ReaderController extends BaseController {
     })
 
     this.cviews = {
+      titleLabel,
+      aiTranslationButton,
       header,
       footer,
       viewer,
@@ -647,8 +764,10 @@ export class ReaderController extends BaseController {
 
   refreshCurrentPage() {
     if (!this.imagePager) return;
-    if (!this.imagePager.srcs[this.imagePager.page].path) {
-      this.imagePager.srcs = downloaderManager.get(this.gid)!.result.images;
+    const newSrcs = this._generateSrcs();
+    const current = this.imagePager.srcs[this.imagePager.page];
+    if (!current.path || current.type !== newSrcs[this.imagePager.page].type) {
+      this.imagePager.srcs = newSrcs;
     }
   }
 
@@ -657,6 +776,116 @@ export class ReaderController extends BaseController {
     if (this.imagePager && this.imagePager.page !== page) this.imagePager.page = page;
     this._autoPagerCountDown = this._autoPagerInterval;
     this.refreshCurrentPage();
-    downloaderManager.get(this.gid)!.currentReadingIndex = Math.max(page - 1, 0);
+    const galleryDownloader = downloaderManager.get(this.gid);
+    galleryDownloader!.currentReadingIndex = Math.max(page - 1, 0);
+    // 修改标题
+    this.cviews.titleLabel.view.text = this._generateTitle();
+    this.handleAiTranslationButtonStatus(page);
+  }
+
+  private handleAiTranslationButtonStatus(page: number) {
+    const galleryDownloader = downloaderManager.get(this.gid);
+    // 修改AI翻译按钮状态
+    if (!this.aiTranslatedPageSet.has(page)) {
+      // 如果不在翻译清单中，则为pending
+      this.cviews.aiTranslationButton.status = "pending";
+    } else {
+      const aiTranslation = galleryDownloader!.result.aiTranslations[page];
+      if (aiTranslation.path) {
+        this.cviews.aiTranslationButton.status = "success";
+      } else if (aiTranslation.error) {
+        this.cviews.aiTranslationButton.status = "error";
+      } else {
+        this.cviews.aiTranslationButton.status = "loading";
+      }
+    }
+  }
+
+  private _generateTitle(): string {
+    const index = this.cviews.footerThumbnailView.index;
+    let title = `${index + 1}`;
+    const galleryDownloader = downloaderManager.get(this.gid);
+    if (!galleryDownloader) return title;
+    // 查看是否在翻译清单
+    const isInAiTranslatedPageSet = this.aiTranslatedPageSet.has(index);
+    // 查看翻译状态
+    let aiTranslationStatus: "pending" | "loading" | "success" | "error" = "pending";
+    if (isInAiTranslatedPageSet) {
+      const aiTranslation = galleryDownloader.result.aiTranslations[index];
+      if (aiTranslation.error) {
+        aiTranslationStatus = "error";
+      } else if (aiTranslation.path) {
+        aiTranslationStatus = "success";
+      } else {
+        aiTranslationStatus = "loading";
+      }
+    }
+    // 查看是否在重新载入清单
+    const isInReloadedPageSet = this.reloadedPageSet.has(index);
+    // 查看重新载入状态
+    let reloadStatus: "pending" | "loading" | "success" | "error" = "pending";
+    if (isInReloadedPageSet) {
+      const originalImage = galleryDownloader.result.originalImages[index];
+      if (originalImage.error) {
+        reloadStatus = "error";
+      } else if (originalImage.path) {
+        reloadStatus = "success";
+      } else {
+        reloadStatus = "loading";
+      }
+    }
+
+    //生成标题
+    if (isInReloadedPageSet || isInAiTranslatedPageSet) {
+      title += " ";
+    }
+    if (isInReloadedPageSet) {
+      if (reloadStatus === "loading") {
+        title += "[原图加载中]";
+      } else if (reloadStatus === "success") {
+        title += "[原图]";
+      } else if (reloadStatus === "error") {
+        title += "[原图加载失败]";
+      }
+    }
+    if (isInAiTranslatedPageSet) {
+      if (aiTranslationStatus === "loading") {
+        title += "[正在翻译]";
+      } else if (aiTranslationStatus === "success") {
+        title += "[翻译]";
+      } else if (aiTranslationStatus === "error") {
+        title += "[翻译失败]";
+      }
+    }
+    return title;
+  }
+
+  /**
+   * 综合galleryDownloader.result和reloadedPageSet、aiTranslatedPageSet，生成srcs
+   */
+  private _generateSrcs(): { path?: string; error: boolean, type: "ai-translated" | "reloaded" | "normal" }[] {
+    const galleryDownloader = downloaderManager.get(this.gid);
+    if (!galleryDownloader) return []; // 如果没有下载器，返回空数组(不可能发生，因为下载器会在上一界面初始化)
+
+    return galleryDownloader.result.images.map((image, i) => {
+      if (this.aiTranslatedPageSet.has(i)) {
+        // 如果在aiTranslatedPageSet中，查看翻译状态
+        const aiTranslation = galleryDownloader.result.aiTranslations[i];
+        if (aiTranslation.path) {
+          return { path: aiTranslation.path, error: false, type: "ai-translated" };
+        }
+      }
+      if (this.reloadedPageSet.has(i)) {
+        const originalImage = galleryDownloader.result.originalImages[i];
+        if (originalImage.path) {
+          return { path: originalImage.path, error: false, type: "reloaded" };
+        }
+      }
+      return {
+        path: image.path,
+        error: image.error,
+        type: "normal"
+      }
+    })
   }
 }

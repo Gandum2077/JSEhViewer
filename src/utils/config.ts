@@ -1,5 +1,5 @@
 import { EHQualifier, EHSearchTerm, TagNamespace, tagNamespaces } from "ehentai-parser";
-import { MarkedTag, MarkedTagDict, TranslationData, TranslationDict, WebDAVService, DBSearchHistory, DBSearchBookmarks } from "../types";
+import { MarkedTag, MarkedTagDict, TranslationData, TranslationDict, WebDAVService, DBSearchHistory, DBSearchBookmarks, AITranslationConfig } from "../types";
 import { dbManager } from "./database";
 
 interface Config {
@@ -21,6 +21,8 @@ interface Config {
   defaultFavcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   mytagsApiuid: number;
   mytagsApikey: string;
+  selectedAiTranslationService: string;
+  aiTranslationSavedConfigText: string;
 }
 
 const defaultConfig: Config = {
@@ -41,7 +43,9 @@ const defaultConfig: Config = {
   translationUpdateTime: new Date(0).toISOString(),
   defaultFavcat: 0,
   mytagsApiuid: 0,
-  mytagsApikey: ""
+  mytagsApikey: "",
+  selectedAiTranslationService: "",
+  aiTranslationSavedConfigText: "{}"
 }
 
 async function getEhTagTranslationText() {
@@ -90,7 +94,8 @@ class ConfigManager {
   private _searchHistory: DBSearchHistory;
   private _searchBookmarks: DBSearchBookmarks;
   private _webDAVServices: WebDAVService[];
-  pushedSearchResultControllerLayoutMode: "large" | "normal"; 
+  pushedSearchResultControllerLayoutMode: "large" | "normal";
+  private _aiTranslationSavedConfig: Record<string, any>;
   // 用于控制搜索结果页面的布局模式，其初始值和homepageManagerLayoutMode相同，但后续可以被PushedSearchResultController组件修改
   constructor() {
     this._config = this._initConfig()
@@ -105,6 +110,7 @@ class ConfigManager {
     this._searchBookmarks = this._querySearchBookmarks()
     this._webDAVServices = this._queryWebDAVServices()
     this.pushedSearchResultControllerLayoutMode = this.homepageManagerLayoutMode
+    this._aiTranslationSavedConfig = JSON.parse(this.aiTranslationSavedConfigText)
   }
 
   private _initConfig() {
@@ -121,6 +127,7 @@ class ConfigManager {
     dbManager.update("UPDATE config SET value = ? WHERE key = ?", [JSON.stringify(value), key])
   }
 
+  /***CONFIG***/
   get cookie() {
     return this._config.cookie
   }
@@ -264,6 +271,23 @@ class ConfigManager {
   set mytagsApikey(value: string) {
     this._setConfig("mytagsApikey", value)
   }
+
+  get selectedAiTranslationService() {
+    return this._config.selectedAiTranslationService
+  }
+
+  set selectedAiTranslationService(value: string) {
+    this._setConfig("selectedAiTranslationService", value)
+  }
+
+  get aiTranslationSavedConfigText() {
+    return this._config.aiTranslationSavedConfigText
+  }
+
+  set aiTranslationSavedConfigText(value: string) {
+    this._setConfig("aiTranslationSavedConfigText", value)
+  }
+  /***CONFIG END***/
 
   get translationList() {
     return this._translationList
@@ -687,7 +711,7 @@ ON CONFLICT(namespace, qualifier, term)
 DO UPDATE SET count = count + 1;
 `
     // qualifier仅保留uploader
-    dbManager.batchUpdate(sql, tags.map(tag => ([tag.namespace || "", tag.qualifier || "", tag.term  || ""])))
+    dbManager.batchUpdate(sql, tags.map(tag => ([tag.namespace || "", tag.qualifier || "", tag.term || ""])))
   }
 
   getSomeLastAccessSearchTerms(): EHSearchTerm[] {
@@ -774,6 +798,17 @@ LIMIT 20;
   set webDAVServices(services: WebDAVService[]) {
     this._webDAVServices = services
   }
+
+  get aiTranslationServiceConfig() {
+    return this._aiTranslationSavedConfig
+  }
+
+  saveAiTranslationServiceConfig(config: Record<string, any>) {
+    this._aiTranslationSavedConfig = config
+    this.aiTranslationSavedConfigText = JSON.stringify(config)
+  }
+
+
 }
 
 export const configManager = new ConfigManager();

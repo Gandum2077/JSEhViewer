@@ -36,11 +36,8 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
                 const newService = await showWebdavServiceEditor(oldService);
                 if (newService) {
                   configManager.upadteWebDAVService({
-                    id: oldService.id,
-                    name: newService.name,
-                    url: newService.url,
-                    username: newService.username,
-                    password: newService.password
+                    ...newService,
+                    id: oldService.id
                   })
                   this.refresh();
                 }
@@ -307,8 +304,19 @@ function showWebdavIntroduction() {
   sheet.present();
 }
 
-async function showWebdavServiceEditor(oldService?: { name: string, url: string, username?: string, password?: string }) {
-  const service = await formDialog({
+function isValidIPAddress(ip: string) {
+  const ipv4Pattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+  const ipv6Pattern = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
+  return ipv4Pattern.test(ip) || ipv6Pattern.test(ip);
+}
+
+function isValidDomain(domain: string) {
+  const domainRegex = /^(?!-)[A-Za-z0-9-]{1,63}(?<!-)\.(?!-)[A-Za-z]{2,6}$/;
+  return domainRegex.test(domain);
+}
+
+async function showWebdavServiceEditor(oldService?: Omit<WebDAVService, "id">): Promise<Omit<WebDAVService, "id">> {
+  const result = await formDialog({
     title: oldService ? "修改WebDAV服务端" : "添加WebDAV服务端",
     sections: [
       {
@@ -322,23 +330,39 @@ async function showWebdavServiceEditor(oldService?: { name: string, url: string,
           },
           {
             type: "string",
-            title: "URL",
-            key: "url",
-            value: oldService ? oldService.url : "http://192.168.1.1"
+            title: "主机",
+            key: "host",
+            value: oldService ? oldService.host : "192.168.1.1"
+          },
+          {
+            type: "string",
+            title: "路径",
+            key: "path",
+            value: oldService ? oldService.path : ""
+          },
+          {
+            type: "boolean",
+            title: "HTTPS",
+            key: "https",
+            value: oldService ? oldService.https : false
+          },
+          {
+            type: "integer",
+            title: "端口",
+            key: "port",
+            value: oldService ? oldService.port : undefined
           },
           {
             type: "string",
             title: "用户名",
             key: "username",
-            value: oldService ? oldService.username : "",
-            placeholder: "(可选)"
+            value: oldService ? oldService.username : ""
           },
           {
             type: "string",
             title: "密码",
             key: "password",
-            value: oldService ? oldService.password : "",
-            placeholder: "(可选)"
+            value: oldService ? oldService.password : ""
           }
         ]
       }
@@ -348,14 +372,17 @@ async function showWebdavServiceEditor(oldService?: { name: string, url: string,
         $ui.error("请填写名称")
         return false;
       }
-      if (!values.url) {
-        $ui.error("请填写URL")
+      if (!values.host) {
+        $ui.error("请填写主机")
         return false;
       }
-      const test = $detector.link(values.url);
-      if (!test || test.length === 0) {
-        $ui.error("URL格式错误")
-        return false
+      if (values.port && (values.port > 65535 || values.port <= 0)) {
+        $ui.error("请填写合法的端口号")
+        return false;
+      }
+      if (!isValidIPAddress(values.host) && !isValidDomain(values.host)) {
+        $ui.error("请填写合法的主机")
+        return false;
       }
       if ((values.username && !values.password) || (!values.username && values.password)) {
         $ui.error("用户名和密码需要同时填写或留空")
@@ -365,11 +392,23 @@ async function showWebdavServiceEditor(oldService?: { name: string, url: string,
     }
   }) as {
     name: string;
-    url: string;
-    username?: string;
-    password?: string;
+    host: string;
+    port: number;
+    path: string;
+    https: boolean;
+    username: string;
+    password: string;
   };
-  return service;
+
+  return {
+    name: result.name,
+    host: result.host,
+    port: result.port || undefined,
+    path: result.path || undefined,
+    https: result.https,
+    username: result.username || undefined,
+    password: result.password || undefined
+  };
 }
 
 

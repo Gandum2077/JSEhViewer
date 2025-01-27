@@ -46,7 +46,10 @@ export function createDB() {
   db.update(`CREATE TABLE IF NOT EXISTS webdav_services (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
-            url TEXT,
+            host TEXT,
+            port INTEGER,
+            https INTEGER,
+            path TEXT,
             username TEXT,
             password TEXT
             )`);

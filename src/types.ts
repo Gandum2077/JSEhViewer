@@ -45,7 +45,10 @@ export type MarkedTagDict = Map<TagNamespace, Map<string, MarkedTag>>
 export type WebDAVService = {
   id: number;
   name: string;
-  url: string;
+  host: string;
+  port?: number;
+  https: boolean;
+  path?: string;
   username?: string;
   password?: string;
 };

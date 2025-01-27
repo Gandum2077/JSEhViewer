@@ -764,22 +764,57 @@ LIMIT 20;
     }))
   }
 
-  private _queryWebDAVServices() {
+  private _queryWebDAVServices(): WebDAVService[] {
     const sql = "SELECT * FROM webdav_services"
-    const data = dbManager.query(sql) as WebDAVService[]
-    return data
+    const data = dbManager.query(sql) as {
+      id: number;
+      name: string;
+      host: string;
+      port: number | null;
+      path: string | null;
+      https: 0 | 1;
+      username: string | null;
+      password: string | null;
+    }[]
+    return data.map(n => ({
+      id: n.id,
+      name: n.name,
+      host: n.host,
+      port: n.port || undefined,
+      path: n.path || undefined,
+      https: Boolean(n.https),
+      username: n.username || undefined,
+      password: n.password || undefined
+    }))
   }
 
   addWebDAVService(service: Omit<WebDAVService, "id">) {
-    const sql = "INSERT INTO webdav_services (name, url, username, password) VALUES (?, ?, ?, ?)"
-    const args = [service.name, service.url, service.username, service.password]
+    const sql = "INSERT INTO webdav_services (name, host, port, https, path, username, password) VALUES (?, ?, ?, ?, ?, ?, ?)"
+    const args = [
+      service.name, 
+      service.host, 
+      service.port, 
+      service.https, 
+      service.path, 
+      service.username,
+      service.password
+    ]
     dbManager.update(sql, args)
     this._webDAVServices = this._queryWebDAVServices()
   }
 
   upadteWebDAVService(service: WebDAVService) {
-    const sql = "UPDATE webdav_services SET name = ?, url = ?, username = ?, password = ? WHERE id = ?"
-    const args = [service.name, service.url, service.username, service.password, service.id]
+    const sql = "UPDATE webdav_services SET name = ?, host = ?, port = ?, https = ?, path = ?, username = ?, password = ? WHERE id = ?"
+    const args = [
+      service.name, 
+      service.host, 
+      service.port, 
+      service.https, 
+      service.path, 
+      service.username,
+      service.password,
+      service.id
+    ]
     dbManager.update(sql, args)
     this._webDAVServices = this._queryWebDAVServices()
   }

@@ -1,7 +1,7 @@
 /**
  * WebDAV客户端的JSBox实现
  * 仅支持基本功能：列出文件、上传文件、下载文件、删除文件、移动文件、创建文件夹
- * 仅支持基本认证
+ * 支持的认证方式：无、基本认证
  * 
  */
 
@@ -18,10 +18,12 @@ function __URLEncode(path: string) {
 }
 
 export class JBWebDAV {
-  private _auth: string
+  private _auth?: string
   private _baseURL: string
-  constructor(url: string, username: string, password: string) {
-    this._auth = "Basic " + $text.base64Encode(username + ":" + password)
+  constructor({ url, username, password }: { url: string, username?: string, password?: string }) {
+    if (username && password) {
+      this._auth = "Basic " + $text.base64Encode(username + ":" + password)
+    }
     if (!url.endsWith('/')) url += '/'
     this._baseURL = url
   }
@@ -141,13 +143,12 @@ export class JBWebDAV {
     headers?: Record<string, any>
   }) {
     const url = this._baseURL + __URLEncode(path)
+    if (!headers) headers = {}
+    if (this._auth) headers['Authorization'] = this._auth
     const resp = await $http.request({
       url: url,
       method: method,
-      header: {
-        ...headers,
-        Authorization: this._auth
-      },
+      header: headers,
       body: data
     })
     if (resp.error) throw new Error("WebDAV request failed: " + resp.error.localizedDescription)

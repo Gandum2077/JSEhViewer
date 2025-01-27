@@ -46,8 +46,8 @@ export type WebDAVService = {
   id: number;
   name: string;
   url: string;
-  username: string;
-  password: string;
+  username?: string;
+  password?: string;
 };
 
 export type DBSearchBookmarks = {

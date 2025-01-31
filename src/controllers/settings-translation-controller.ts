@@ -288,42 +288,23 @@ class AITranslationConfigController extends BaseController {
     return newRows;
   }
 
-  private _getUserCustomAllowConcurrentRequests() {
-    const userConfig = configManager.aiTranslationServiceConfig;
-    if (!userConfig || !("user-custom" in userConfig)) {
-      return false;
-    }
-    const userConfigForService = userConfig["user-custom"];
-    if (userConfigForService.allowConcurrentRequests) {
-      return userConfigForService.allowConcurrentRequests as boolean;
-    } else {
-      return false;
-    }
-  }
-
   private _generateSections(): PreferenceSection[] {
     if (this._selectedService === "user-custom") {
       return [{
         title: "",
         rows: [
           {
-          type: "list",
-          title: "服务",
-          key: "selectedAiTranslationService",
-          items: serviceTitles,
-          value: serviceNames.indexOf(this._selectedService),
-        },
-        {
-          type: "action",
-          title: "查看指南",
-          value: () => { this._showIntroduction() }
-        },
-        {
-          type: "boolean",
-          title: "允许并发请求",
-          key: "allowConcurrentRequests",
-          value: this._getUserCustomAllowConcurrentRequests()
-        }
+            type: "list",
+            title: "服务",
+            key: "selectedAiTranslationService",
+            items: serviceTitles,
+            value: serviceNames.indexOf(this._selectedService),
+          },
+          {
+            type: "action",
+            title: "查看指南",
+            value: () => { this._showIntroduction() }
+          }
         ]
       }];
     } else {
@@ -346,11 +327,6 @@ class AITranslationConfigController extends BaseController {
             type: "action",
             title: "查看指南",
             value: () => { this._showIntroduction() }
-          },
-          {
-            type: "info",
-            title: "并发请求",
-            value: getDefaultConfig(this._selectedService).allowConcurrentRequests ? "允许" : "不允许"
           }
         ]
       }
@@ -370,10 +346,6 @@ class AITranslationConfigController extends BaseController {
     // 如果是用户自定义，还需要获取用户自定义的脚本
     if (this._selectedService === "user-custom") {
       values.scriptText = this.cviews.textView.text;
-    } else {
-      // 获取默认配置中的allowConcurrentRequests
-      const defaultConfig = getDefaultConfig(this._selectedService);
-      values.allowConcurrentRequests = defaultConfig.allowConcurrentRequests;
     }
     // 删除selectedAiTranslationService
     delete values.selectedAiTranslationService;

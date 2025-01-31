@@ -56,7 +56,6 @@ export const config: AITranslationConfig = {
   title: 'manga-image-translator',
   link: 'https://github.com/zyddnys/manga-image-translator',
   description,
-  allowConcurrentRequests: true,
   rows: [
     {
       type: "string",

@@ -5,7 +5,6 @@ export const config: AITranslationConfig = {
   title: '自定义',
   link: '',
   description: $file.read("assets/user-custom-description.md").string || "",
-  allowConcurrentRequests: false,
   rows: []
 }
 

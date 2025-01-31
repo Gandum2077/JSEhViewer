@@ -202,6 +202,5 @@ export type AITranslationConfig = {
   title: string;
   link: string;
   description: string;
-  allowConcurrentRequests: boolean;
   rows: PrefsRow[];
 }

@@ -71,7 +71,6 @@ export const config: AITranslationConfig = {
   title: 'cotrans.touhou.ai',
   link: 'https://cotrans.touhou.ai',
   description,
-  allowConcurrentRequests: false,
   rows: [
     {
       type: "list",

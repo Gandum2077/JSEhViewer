@@ -399,15 +399,6 @@ export class ReaderController extends BaseController {
                         // 查看本页面的info是否已经加载完成
                         const galleryDownloader = downloaderManager.get(this.gid);
                         if (!galleryDownloader) return;
-                        const info = galleryDownloader.result.images[index].info;
-                        if (!info) {
-                          $ui.error("页面信息尚未加载，请稍后");
-                          return;
-                        }
-                        if (info && !info.fullSizeUrl) {
-                          $ui.warning("没有更高清的图片了");
-                          return;
-                        }
                         const originalImage = galleryDownloader.result.originalImages[index];
                         // 如果已经下载好了，则立即刷新
                         // 这种情况只存在于下载器初始化时，已经下载好了原图
@@ -823,10 +814,12 @@ export class ReaderController extends BaseController {
     // 查看是否在重新载入清单
     const isInReloadedPageSet = this.reloadedPageSet.has(index);
     // 查看重新载入状态
-    let reloadStatus: "pending" | "loading" | "success" | "error" = "pending";
+    let reloadStatus: "pending" | "loading" | "success" | "error" | "noOriginalImage" = "pending";
     if (isInReloadedPageSet) {
       const originalImage = galleryDownloader.result.originalImages[index];
-      if (originalImage.error) {
+      if (originalImage.noOriginalImage) {
+        reloadStatus = "noOriginalImage";
+      } else if (originalImage.error) {
         reloadStatus = "error";
       } else if (originalImage.path) {
         reloadStatus = "success";
@@ -846,6 +839,8 @@ export class ReaderController extends BaseController {
         title += "[原图]";
       } else if (reloadStatus === "error") {
         title += "[原图加载失败]";
+      } else if (reloadStatus === "noOriginalImage") {
+        title += "[原图不存在]";
       }
     }
     if (isInAiTranslatedPageSet) {

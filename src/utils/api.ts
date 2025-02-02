@@ -103,13 +103,11 @@ class APIHandler extends EHAPIHandler {
     gid: number,
     imgkey: string,
     page: number,
-    storeInfoHandler: (info: EHPage) => void,
     reloadKey?: string
   ): Promise<{ success: true, info: EHPage, data: NSData } | { success: false, info?: EHPage, error: string }> {
     let pageInfo;
     try {
       pageInfo = await this.getPageInfo(gid, imgkey, page, reloadKey);
-      storeInfoHandler(pageInfo);
       const data = await this.downloadImage(pageInfo.imageUrl);
       return { success: true, info: pageInfo, data };
     } catch (error: any) {
@@ -121,14 +119,13 @@ class APIHandler extends EHAPIHandler {
   async downloadImageByPageInfoWithThreeRetries(
     gid: number,
     imgkey: string,
-    page: number,
-    storeInfoHandler: (info: EHPage) => void
+    page: number
   ) {
     let result: { success: true, info: EHPage, data: NSData }
       | { success: false, info?: EHPage, error: string } = { success: false, error: "RetryTooManyError" };
     let reloadKey: string | undefined;
     for (let i = 0; i < 3; i++) {
-      result = await this.downloadImageByPageInfo(gid, imgkey, page, storeInfoHandler, reloadKey);
+      result = await this.downloadImageByPageInfo(gid, imgkey, page, reloadKey);
       if (result.success) {
         return result;
       } else {
@@ -201,25 +198,33 @@ class APIHandler extends EHAPIHandler {
     return result;
   }
 
-  async downloadOriginalImageNoError(
-    url: string
+  async downloadOriginalImageByPageInfoNoError(
+    gid: number,
+    imgkey: string,
+    page: number,
   ): Promise<{ success: false, error: string } | { success: true, data: NSData }> {
     try {
-      const data = await this.downloadOriginalImage(url);
+      const pageInfo = await this.getPageInfo(gid, imgkey, page);
+      if (!pageInfo.fullSizeUrl) {
+        return { success: false, error: "noOriginalImage" };
+      }
+      const data = await this.downloadOriginalImage(pageInfo.fullSizeUrl);
       return { success: true, data };
     } catch (error: any) {
-      appLog(error, "error");
+      appLog(`图片下载失败: gid=${gid}, page=${page}`, "error");
       return { success: false, error: error.name };
     }
   }
 
-  async downloadOriginalImageWithTwoRetries(
-    url: string
+  async downloadOriginalImageByPageInfoWithTwoRetries(
+    gid: number,
+    imgkey: string,
+    page: number,
   ): Promise<{ success: false, error: string } | { success: true, data: NSData }> {
     let result: { success: false, error: string }
       | { success: true, data: NSData } = { success: false, error: "RetryTooManyError" };
     for (let i = 0; i < 2; i++) {
-      result = await this.downloadOriginalImageNoError(url);
+      result = await this.downloadOriginalImageByPageInfoNoError(gid, imgkey, page);
       if (result.success) return result;
     }
     return result;
@@ -644,9 +649,9 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
   result: {
     htmls: { index: number, success: boolean, error: boolean, started: boolean }[],
     thumbnails: { index: number, path?: string, error: boolean, started: boolean }[],
-    images: { index: number, path?: string, error: boolean, started: boolean, info?: EHPage }[],
+    images: { index: number, path?: string, error: boolean, started: boolean }[],
     topThumbnail: { path?: string, error: boolean, started: boolean },
-    originalImages: { index: number, userSelected: boolean, path?: string, error: boolean, started: boolean }[],
+    originalImages: { index: number, userSelected: boolean, path?: string, error: boolean, noOriginalImage: boolean, started: boolean }[],
     aiTranslations: { index: number, userSelected: boolean, path?: string, error: boolean, started: boolean }[]
   }
   constructor(infos: EHGallery, finishHandler: () => void) {
@@ -659,7 +664,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
       thumbnails: [...Array(this.infos.length)].map((_, i) => ({ index: i, error: false, started: false })),
       images: [...Array(this.infos.length)].map((_, i) => ({ index: i, error: false, started: false })),
       topThumbnail: { error: false, started: false },
-      originalImages: [...Array(this.infos.length)].map((_, i) => ({ index: i, userSelected: false, error: false, started: false })),
+      originalImages: [...Array(this.infos.length)].map((_, i) => ({ index: i, userSelected: false, error: false, noOriginalImage: false, started: false })),
       aiTranslations: [...Array(this.infos.length)].map((_, i) => ({ index: i, userSelected: false, error: false, started: false }))
     }
     this.initialize();
@@ -776,16 +781,21 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
 
     // 插入originalImages任务
     // 如果存在可执行但未开始的任务，则优先执行它们
-    // 可执行的标准为：userSelected为true，started为false, images中对应index的info存在, 并且info中fullSizeUrl存在
-    const originalImageItem = this.result.originalImages.find(task => {
-      const info = this.result.images[task.index].info;
-      return task.userSelected && !task.started && info && info.fullSizeUrl;
+    // 可执行的标准为：对应html任务已完成，userSelected为true，started为false
+    const originalImageItem = this.result.originalImages.find(originalImage => {
+      const page = this.infos.num_of_images_on_each_page
+          ? Math.floor(originalImage.index / this.infos.num_of_images_on_each_page)
+          : 0;
+      return this.result.htmls[page].success &&originalImage.userSelected && !originalImage.started;
     });
 
     if (originalImageItem) {
+      const htmlPageOfFoundImageItem =  this.infos.num_of_images_on_each_page
+      ? Math.floor(originalImageItem.index / this.infos.num_of_images_on_each_page)
+      : 0;
       return this.createOriginalImageTask(
         originalImageItem.index,
-        this.result.images[originalImageItem.index].info?.fullSizeUrl || ""
+        this.infos.images[htmlPageOfFoundImageItem].find(image => image.page === originalImageItem.index)!.imgkey
       );
     }
 
@@ -1004,10 +1014,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
         const result = await api.downloadImageByPageInfoWithThreeRetries(
           this.gid,
           imgkey,
-          index,
-          (info) => {
-            this.result.images[index].info = info;
-          }
+          index
         );
         if (result.success) {
           appLog(`图库图片下载成功: gid=${this.gid}, index=${index}`, "debug");
@@ -1031,18 +1038,17 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     }
   }
 
-  private createOriginalImageTask(index: number, url: string) {
+  private createOriginalImageTask(index: number, imgkey: string) {
     return {
       index,
       handler: async () => {
         appLog(`开始下载原图: gid=${this.gid}, index=${index}`, "debug");
         this.result.originalImages[index].started = true;
-        // 如果url为空，则直接标记为error
-        if (!url) {
-          this.result.originalImages[index].error = true;
-          return;
-        }
-        const result = await api.downloadOriginalImageWithTwoRetries(url);
+        const result = await api.downloadOriginalImageByPageInfoWithTwoRetries(
+          this.gid,
+          imgkey,
+          index
+        );
         if (result.success) {
           appLog(`原图下载成功: gid=${this.gid}, index=${index}`, "debug");
           let extname = result.data.info.mimeType.split("/")[1];
@@ -1055,6 +1061,9 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           this.result.originalImages[index].path = path;
         } else {
           this.result.originalImages[index].error = true;
+          if (result.error === "noOriginalImage") {
+            this.result.originalImages[index].noOriginalImage = true;
+          }
         }
       }
     }

@@ -203,7 +203,7 @@ export class WebDAVClient {
     })
     if (resp.response.statusCode === 404) {
       throw new WebDAVError({
-        message: 'Not Found',
+        message: '上传目录不存在',
         statusCode: 404,
         type: 'http'
       })
@@ -226,7 +226,7 @@ export class WebDAVClient {
       return resp.rawData
     } else {
       throw new WebDAVError({
-        message: `Failed to download file, status code: ${resp.response.statusCode}`,
+        message: `下载文件失败`,
         statusCode: resp.response.statusCode,
         type: 'http'
       })
@@ -253,7 +253,7 @@ export class WebDAVClient {
       return true
     } else {
       throw new WebDAVError({
-        message: `Failed to delete file or directory, status code: ${resp.response.statusCode}`,
+        message: `删除文件或文件夹失败`,
         statusCode: resp.response.statusCode,
         type: 'http'
       })
@@ -281,7 +281,7 @@ export class WebDAVClient {
       return true
     } else {
       throw new WebDAVError({
-        message: `Failed to move file or directory, status code: ${resp.response.statusCode}`,
+        message: `移动文件或文件夹失败`,
         statusCode: resp.response.statusCode,
         type: 'http'
       })
@@ -303,7 +303,7 @@ export class WebDAVClient {
       return true
     } else {
       throw new WebDAVError({
-        message: `Failed to create directory, status code: ${resp.response.statusCode}`,
+        message: `创建文件夹失败`,
         statusCode: resp.response.statusCode,
         type: 'http'
       })
@@ -336,7 +336,7 @@ export class WebDAVClient {
         })
       } else {
         throw new WebDAVError({
-          message: resp.error.localizedDescription,
+          message: "未知错误",
           type: 'other',
         })
       }
@@ -369,12 +369,12 @@ export class WebDAVClient {
       // 排除404，因为404在某些情况下是正常的错误，不需要抛出异常
       throw new WebDAVError({
         statusCode: resp.response.statusCode,
-        message: "",
+        message: `${resp.response.statusCode}`,
         type: "http"
       })
     } else if (resp.response.statusCode >= 500 && resp.response.statusCode < 600) {
       throw new WebDAVError({
-        message: `Server error, status code: ${resp.response.statusCode}`,
+        message: `服务器错误`,
         type: 'http',
         statusCode: resp.response.statusCode,
       })

@@ -138,7 +138,7 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
               const service = await showWebdavServiceEditor();
               if (service) {
                 configManager.addWebDAVService(service);
-                // 如果只有一个服务端，自动选择
+                // 如果只有一个服务器，自动选择
                 if (configManager.webDAVServices.length === 1) {
                   configManager.selectedWebdavService = configManager.webDAVServices[0].id;
                 }
@@ -202,7 +202,7 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
     const rowAddService = {
       title: {
         hidden: false,
-        text: "添加WebDAV服务端",
+        text: "添加WebDAV服务器",
         textColor: $color("systemLink")
       },
       bgview: { hidden: true },
@@ -317,7 +317,7 @@ function isValidDomain(domain: string) {
 
 async function showWebdavServiceEditor(oldService?: Omit<WebDAVService, "id">): Promise<Omit<WebDAVService, "id">> {
   const result = await formDialog({
-    title: oldService ? "修改WebDAV服务端" : "添加WebDAV服务端",
+    title: oldService ? "修改WebDAV服务器" : "添加WebDAV服务器",
     sections: [
       {
         title: "",
@@ -368,7 +368,7 @@ async function showWebdavServiceEditor(oldService?: Omit<WebDAVService, "id">): 
       }
     ],
     checkHandler: (values: any) => {
-      if (!values.name) {
+      if (!values.name.trim()) {
         $ui.error("请填写名称")
         return false;
       }
@@ -401,7 +401,7 @@ async function showWebdavServiceEditor(oldService?: Omit<WebDAVService, "id">): 
   };
 
   return {
-    name: result.name,
+    name: result.name.trim(),
     host: result.host,
     port: result.port || undefined,
     path: result.path || undefined,

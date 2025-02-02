@@ -44,18 +44,17 @@ class ButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
 }
 
 export class ButtonsWarpper extends Base<UIView, UiTypes.ViewOptions> {
+  private _height: number;
   _defineView: () => UiTypes.ViewOptions;
-  constructor(buttons: Base<any, any>[]) {
+  constructor(buttons: Base<any, any>[], height: number = 100) {
     super();
+    this._height = height;
     this._defineView = () => {
       return {
         type: "view",
         props: {
           id: this.id,
-          bgcolor: $color("clear"),
-          stack: {
-            views: []
-          }
+          bgcolor: $color("clear")
         },
         layout: $layout.fill,
         views: [{
@@ -77,6 +76,6 @@ export class ButtonsWarpper extends Base<UIView, UiTypes.ViewOptions> {
   }
 
   heightToWidth(width: number) {
-    return 100
+    return this._height;
   }
 }

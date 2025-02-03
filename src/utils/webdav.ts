@@ -144,7 +144,7 @@ export class WebDAVClient {
     // 如果根目录不存在，说明用户设置错误，需要抛出错误
     if (resp.response.statusCode === 404) throw new WebDAVError({
       statusCode: 404,
-      message: '文件夹不存在',
+      message: '目录不存在',
       type: "http"
     })
     const $ = cheerio.load(resp.data)
@@ -253,7 +253,7 @@ export class WebDAVClient {
       return true
     } else {
       throw new WebDAVError({
-        message: `删除文件或文件夹失败`,
+        message: isdir ? `删除文件夹失败` : `删除文件失败`,
         statusCode: resp.response.statusCode,
         type: 'http'
       })
@@ -281,7 +281,7 @@ export class WebDAVClient {
       return true
     } else {
       throw new WebDAVError({
-        message: `移动文件或文件夹失败`,
+        message: isdir ? `移动文件夹失败` : `移动文件失败`,
         statusCode: resp.response.statusCode,
         type: 'http'
       })

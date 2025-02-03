@@ -326,7 +326,7 @@ async function showWebdavServiceEditor(oldService?: Omit<WebDAVService, "id">): 
             type: "string",
             title: "名称",
             key: "name",
-            value: oldService ? oldService.name : "WebDAV" + (configManager.webDAVServices.length + 1)
+            value: oldService ? oldService.name : "服务器" + (configManager.webDAVServices.length + 1)
           },
           {
             type: "string",

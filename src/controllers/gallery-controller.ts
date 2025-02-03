@@ -129,6 +129,7 @@ export class GalleryController extends PageViewerController {
           galleryInfoController.stopTimer();
           galleryThumbnailController.stopTimer();
         }
+        // 注: 不需要在销毁时关闭下载器，因为回到上一级的列表页时，列表页的下载器会打开，从而附带关闭此下载器
       }
     })
     this._gid = gid;

@@ -37,7 +37,7 @@ const defaultConfig: Config = {
   autopagerInterval: 5,
   archiveManagerOrderMethod: "last_access_time",
   favoritesOrderMethod: "favorited_time",
-  webdavEnabled: true,
+  webdavEnabled: false,
   selectedWebdavService: -1,
   webdavAutoUpload: false,
   translationUpdateTime: new Date(0).toISOString(),

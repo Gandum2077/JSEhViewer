@@ -1,7 +1,7 @@
 import { BaseController, ContentView, CustomNavigationBar, List, Menu, router, SplitViewController, SymbolButton, TabBarController } from "jsbox-cview";
 import { configManager } from "../utils/config";
 import { namespaceTranslations, tagColor } from "../utils/glv";
-import { MarkedTag, MarkedTagDict } from "../types";
+import { MarkedTag } from "../types";
 import { EHNetworkError, EHSearchTerm, EHServiceUnavailableError, EHTimeoutError, TagNamespace, tagNamespaces } from "ehentai-parser";
 import { showDetailedInfoView } from "../components/detailed-info-view";
 import { HomepageController } from "./homepage-controller";

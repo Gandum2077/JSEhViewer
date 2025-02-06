@@ -161,3 +161,23 @@ export function cropImageData(imageData: NSData, image: UIImage | undefined, rec
     return s2.jpg(1)
   }
 }
+
+/**
+ * 检测某个名称是否匹配某个gid
+ * 具体规则：
+ * 1. 用 GID 命名，例如`1049306`，可以带上分辨率标识，例如`1049306-780x`
+ * 2. 在名字末尾加上用方括号包裹的 GID，例如`水無月のほんとのチカラっ![1049306]`，可以带上分辨率标识。例如`水無月のほんとのチカラっ![1049306-780x]`
+ */
+export function isNameMatchGid(name: string, gid: number): boolean {
+  // 1. 用 GID 命名，例如`1049306`，可以带上分辨率标识，例如`1049306-780x`
+  const regex = new RegExp(`^${gid}(?:-[0-9]+x)?$`);
+  if (regex.test(name)) return true;
+  // 2. 在名字末尾加上用方括号包裹的 GID，例如`水無月のほんとのチカラっ![1049306]`，可以带上分辨率标识。例如`水無月のほんとのチカラっ![1049306-780x]`
+  // 首先提取最后一个方括号中的内容
+  if (!name.endsWith(']')) return false;
+  const index = name.lastIndexOf('[');
+  if (index === -1) return false;
+  const match = name.slice(index + 1, -1);
+  if (regex.test(match)) return true;
+  return false;
+}

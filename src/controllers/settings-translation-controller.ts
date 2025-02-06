@@ -396,15 +396,18 @@ function showIntroduction(text: string, title: string) {
 
 export function setAITranslationConfig() {
   return new Promise<boolean>((resolve, reject) => {
-    const controller = new AITranslationConfigController(() => {
-      const selectedService = controller.selectedService;
-      const values = controller.getValues();
-      const config = configManager.aiTranslationServiceConfig || {};
-      config[selectedService] = values;
-      configManager.selectedAiTranslationService = selectedService;
-      configManager.saveAiTranslationServiceConfig(config);
-      resolve(true);
-    }, () => { reject(false) });
+    const controller = new AITranslationConfigController(
+      () => {
+        const selectedService = controller.selectedService;
+        const values = controller.getValues();
+        const config = configManager.aiTranslationServiceConfig || {};
+        config[selectedService] = values;
+        configManager.selectedAiTranslationService = selectedService;
+        configManager.saveAiTranslationServiceConfig(config);
+        resolve(true);
+      },
+      () => { reject("cancel") }
+    );
     controller.uipush({
       navBarHidden: true,
       statusBarStyle: 0

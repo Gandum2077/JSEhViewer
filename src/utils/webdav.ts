@@ -33,6 +33,7 @@
 
 import * as cheerio from 'cheerio'
 import { WebDAVService } from '../types'
+import { appLog, isNameMatchGid } from './tools';
 
 /**
  * 自定义错误类，用于处理WebDAV操作中的各种错误
@@ -129,7 +130,7 @@ export class WebDAVClient {
     lastModifiedDate: Date,
     createdDate: Date,
     contentType?: string
-  }[] | undefined> {
+  }[]> {
     const resp = await this._request({
       method: 'PROPFIND',
       path: path,
@@ -185,6 +186,60 @@ export class WebDAVClient {
   }
 
   /**
+   * 列出主目录的文件夹后，查找gid对应的文件夹并列出其中的图片文件
+   * 规则：
+   * 1. 图片文件只支持 png、jpg、gif、webp 四种格式的文件
+   * 2. 序号做开头，后面用`.`或`_`连接其他内容。前面可以填充任意个字符`0`。
+   *  比如`2_IMG_0002.jpg`或`2.jpg`或`002.jpg`。请注意，序号必须从 1 开始。
+   * 
+   * @param gid 
+   */
+  async listImageFilesByGid(gid: number): Promise<string[]> {
+    const files = await this.list({ path: '', timeout: 5 })
+    const target = files.find(file => isNameMatchGid(file.name, gid))
+    if (!target) return []
+    const targetFiles = await this.list({ path: target.name, timeout: 5 })
+    const imageFiles = targetFiles
+      .filter(file => {
+        if (!file.isfile) return false;
+        const name = file.name;
+        const index = name.split(".")[0].split("_")[0];
+        if (!index.match(/^[0-9]+$/)) return false;
+        const ext = name.split(".").at(-1);
+        if (!ext || !["png", "jpg", "gif", "jpeg", "webp"].includes(ext.toLowerCase())) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        const aIndex = parseInt(a.name.split(".")[0].split("_")[0]);
+        const bIndex = parseInt(b.name.split(".")[0].split("_")[0]);
+        return aIndex - bIndex;
+      })
+      .map(file => target.name + "/" + file.name)
+      return imageFiles
+  }
+
+  /**
+   * 列出主目录的文件夹后，查找gid对应的文件夹并列出其中的图片文件, 不抛出错误
+   * @param gid 
+   * @returns 
+   */
+  async listImageFilesByGidNoError(gid: number): Promise<{
+    success: true;
+    data: string[];
+  } | {
+    success: false;
+    error: string;
+  }> {
+    try {
+      const data = await this.listImageFilesByGid(gid);
+      return { success: true, data };
+    } catch (e: any) {
+      appLog(e, "error");
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
    * 上传文件
    * @param path 文件路径
    * @param data NSData
@@ -212,6 +267,28 @@ export class WebDAVClient {
   }
 
   /**
+   * 上传文件，不抛出错误
+   * @param path 文件路径
+   * @param data NSData
+   * @param contentType 文件类型
+   * @returns 
+   */
+  async uploadNoError(path: string, data: NSData, contentType: string): Promise<{
+    success: true;
+  } | {
+    success: false;
+    error: string;
+  }> {
+    try {
+      await this.upload(path, data, contentType);
+      return { success: true };
+    } catch (e: any) {
+      appLog(e, "error");
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
    * 下载文件
    * @param path 文件路径
    * @returns 
@@ -230,6 +307,27 @@ export class WebDAVClient {
         statusCode: resp.response.statusCode,
         type: 'http'
       })
+    }
+  }
+
+  /**
+   * 下载文件，不抛出错误
+   * @param path 文件路径
+   * @returns 
+   */
+  async downloadNoError(path: string): Promise<{
+    success: true;
+    data: NSData;
+  } | {
+    success: false;
+    error: string;
+  }> {
+    try {
+      const data = await this.download(path);
+      return { success: true, data };
+    } catch (e: any) {
+      appLog(e, "error");
+      return { success: false, error: e.message };
     }
   }
 

@@ -44,14 +44,14 @@ export function createDB() {
             )`);
   // webdavServices
   db.update(`CREATE TABLE IF NOT EXISTS webdav_services (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
             host TEXT,
             port INTEGER,
             https INTEGER,
             path TEXT,
             username TEXT,
-            password TEXT
+            password TEXT,
+            enabled INTEGER
             )`);
   // 翻译表
   db.update(`CREATE TABLE IF NOT EXISTS translation_data (
@@ -133,6 +133,16 @@ export function createDB() {
             count INTEGER,
             UNIQUE(namespace, qualifier, term)
             )`);
+
+  // 创建trigger, 限制webdav_services表的enabled最多只能有一行
+  db.update(`CREATE TRIGGER IF NOT EXISTS enforce_webdav_services_single_enabled
+            BEFORE INSERT OR UPDATE ON webdav_services
+            FOR EACH ROW
+            WHEN NEW.enabled = 1
+            BEGIN
+                SELECT RAISE(ABORT, 'Only one row can have enabled = 1')
+                WHERE (SELECT COUNT(*) FROM webdav_services WHERE enabled = 1) >= 1;
+            END;`);
   $sqlite.close(db);
 }
 

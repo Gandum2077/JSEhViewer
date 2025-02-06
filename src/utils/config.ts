@@ -15,7 +15,6 @@ interface Config {
   archiveManagerOrderMethod: "first_access_time" | "last_access_time" | "posted_time";
   favoritesOrderMethod: "favorited_time" | "published_time";
   webdavEnabled: boolean;
-  selectedWebdavService: number;
   webdavAutoUpload: boolean;
   translationUpdateTime: string;
   defaultFavcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
@@ -38,7 +37,6 @@ const defaultConfig: Config = {
   archiveManagerOrderMethod: "last_access_time",
   favoritesOrderMethod: "favorited_time",
   webdavEnabled: false,
-  selectedWebdavService: -1,
   webdavAutoUpload: false,
   translationUpdateTime: new Date(0).toISOString(),
   defaultFavcat: 0,
@@ -222,14 +220,6 @@ class ConfigManager {
 
   set webdavEnabled(value: boolean) {
     this._setConfig("webdavEnabled", value)
-  }
-
-  get selectedWebdavService() {
-    return this._config.selectedWebdavService
-  }
-
-  set selectedWebdavService(value: number) {
-    this._setConfig("selectedWebdavService", value)
   }
 
   get webdavAutoUpload() {
@@ -767,7 +757,6 @@ LIMIT 20;
   private _queryWebDAVServices(): WebDAVService[] {
     const sql = "SELECT * FROM webdav_services"
     const data = dbManager.query(sql) as {
-      id: number;
       name: string;
       host: string;
       port: number | null;
@@ -775,63 +764,47 @@ LIMIT 20;
       https: 0 | 1;
       username: string | null;
       password: string | null;
+      enabled: 0 | 1;
     }[]
     return data.map(n => ({
-      id: n.id,
       name: n.name,
       host: n.host,
       port: n.port || undefined,
       path: n.path || undefined,
       https: Boolean(n.https),
       username: n.username || undefined,
-      password: n.password || undefined
+      password: n.password || undefined,
+      enabled: Boolean(n.enabled)
     }))
   }
 
-  addWebDAVService(service: Omit<WebDAVService, "id">) {
-    const sql = "INSERT INTO webdav_services (name, host, port, https, path, username, password) VALUES (?, ?, ?, ?, ?, ?, ?)"
-    const args = [
-      service.name, 
-      service.host, 
-      service.port, 
-      service.https, 
-      service.path, 
-      service.username,
-      service.password
-    ]
-    dbManager.update(sql, args)
-    this._webDAVServices = this._queryWebDAVServices()
-  }
-
-  upadteWebDAVService(service: WebDAVService) {
-    const sql = "UPDATE webdav_services SET name = ?, host = ?, port = ?, https = ?, path = ?, username = ?, password = ? WHERE id = ?"
-    const args = [
-      service.name, 
-      service.host, 
-      service.port, 
-      service.https, 
-      service.path, 
+  updateAllWebDAVServices(services: WebDAVService[]) {
+    const sql_remove = "DELETE FROM webdav_services";
+    const sql_update = "INSERT INTO webdav_services (name, host, port, https, path, username, password, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    dbManager.update(sql_remove);
+    dbManager.batchUpdate(sql_update, services.map(service => [
+      service.name,
+      service.host,
+      service.port,
+      service.https,
+      service.path,
       service.username,
       service.password,
-      service.id
-    ]
-    dbManager.update(sql, args)
-    this._webDAVServices = this._queryWebDAVServices()
+      service.enabled
+    ]))
+    this._webDAVServices = services;
   }
 
-  deleteWebDAVService(id: number) {
-    const sql = "DELETE FROM webdav_services WHERE id = ?"
-    const args = [id]
-    dbManager.update(sql, args)
-    this._webDAVServices = this._queryWebDAVServices()
+  getCopiedWebDAVServices() {
+    return this._webDAVServices.map(service => ({ ...service }))
   }
 
   get webDAVServices() {
     return this._webDAVServices
   }
 
-  set webDAVServices(services: WebDAVService[]) {
-    this._webDAVServices = services
+  get currentWebDAVService() {
+    return this._webDAVServices.find(service => service.enabled)
   }
 
   get aiTranslationServiceConfig() {

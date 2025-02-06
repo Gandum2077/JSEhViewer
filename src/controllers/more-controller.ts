@@ -8,8 +8,9 @@ import {
 } from "jsbox-cview";
 import { createGeneralSettingsController } from "./settings-general-controller";
 import { createSettingsDownloadsController } from "./settings-downloads-controller";
-import { WebDAVSettingsController } from "./settings-webdav-controller";
+import { setWebDAVConfig } from "./settings-webdav-controller";
 import { setAITranslationConfig } from "./settings-translation-controller";
+import { configManager } from "../utils/config";
 
 export class MoreController extends BaseController {
   cviews: { navbar: CustomNavigationBar, list: DynamicItemSizeMatrix };
@@ -339,11 +340,10 @@ export class MoreController extends BaseController {
               })
               break;
             case 3:
-              const webDAVSettingsController = new WebDAVSettingsController()
-              webDAVSettingsController.uipush({
-                navBarHidden: true,
-                statusBarStyle: 0
-              })
+              const values = await setWebDAVConfig();
+              configManager.webdavEnabled = values.enabled;
+              configManager.webdavAutoUpload = values.autoUpload;
+              configManager.updateAllWebDAVServices(values.services);
               break;
             case 4:
               await setAITranslationConfig();

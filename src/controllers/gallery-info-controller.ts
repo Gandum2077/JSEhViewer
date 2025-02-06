@@ -15,6 +15,7 @@ import { GalleryHathController } from "./gallery-hath-controller";
 import { galleryFavoriteDialog } from "../components/gallery-favorite-dialog";
 import { getSearchOptions } from "./search-controller";
 import { PushedSearchResultController } from "./pushed-search-result-controller";
+import { WebDAVStatus, WebDAVWidget } from "../components/webdav-widget";
 
 class BlankView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
@@ -978,12 +979,13 @@ class FavoriteButton extends Base<UIView, UiTypes.ViewOptions> {
 
 class CommonButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
   _defineView: () => UiTypes.ButtonOptions;
-  constructor({ title, symbol, image, symbolColor, contentMode, handler }: {
+  constructor({ title, symbol, image, symbolColor, contentMode, symbolSize, handler }: {
     title: string;
     symbol?: string;
     image?: UIImage;
     symbolColor?: UIColor;
     contentMode?: number;
+    symbolSize?: JBSize;
     handler: () => void;
   }) {
     super();
@@ -1008,7 +1010,7 @@ class CommonButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
             layout: (make, view) => {
               make.centerX.equalTo(view.super)
               make.centerY.equalTo(view.super).offset(-10)
-              make.size.equalTo($size(50, 50))
+              make.size.equalTo(symbolSize ?? $size(50, 50))
             }
           },
           {
@@ -1070,14 +1072,19 @@ export class GalleryInfoController extends BaseController {
     infoMatrixWarpper: InfoMatrixWrapper;
     tagsFlowlayoutWrapper: TagsFlowlayoutWrapper;
     list: DynamicRowHeightList;
-    createNewSearchButton: Button
+    createNewSearchButton: Button;
+    webDAVWidget: WebDAVWidget;
   };
+
+  onWebDAVAction?: (action: 'retry' | 'upload') => void;
+  onWebDAVConfig?: () => void;
+
   constructor(gid: number, readHandler: (index: number) => void) {
     super({
       props: { bgcolor: $color("backgroundColor") }
     });
     this.gid = gid;
-    const infoHeaderView = new InfoHeaderView(selected => { this.updateSearchButtonShowingState() })
+    const infoHeaderView = new InfoHeaderView(selected => { this.updateSearchButtonShowingStatus() })
     const infoMatrix = new DynamicItemSizeMatrix({
       props: {
         maxColumns: 3,
@@ -1211,16 +1218,23 @@ export class GalleryInfoController extends BaseController {
       }
     })
 
+    const readLaterButton = new CommonButton({
+      title: "稍后阅读",
+      symbol: "bookmark.circle",
+      symbolSize: $size(40, 40),
+      handler: () => { }
+    })
+
     const downloadButton = new DownloadButton({
       status: "pending",
       progress: 0,
       handler: () => { }
-    })
+    }) 
 
     const torrentButton = new CommonButton({
       title: "种子",
-      image: $image("assets/magnet-sf-svgrepo-com-128.png").alwaysTemplate,
-      contentMode: 1,
+      symbol: "link.circle",
+      symbolSize: $size(40, 40),
       handler: () => {
         if (!this._infos) return;
         const galleryTorrentsController = new GalleryTorrentsController(this._infos)
@@ -1231,17 +1245,12 @@ export class GalleryInfoController extends BaseController {
     const hathDownloadButton = new CommonButton({
       title: "Hath下载",
       symbol: "at",
+      symbolSize: $size(40, 40),
       handler: () => {
         if (!this._infos) return;
         const galleryHathController = new GalleryHathController(this._infos)
         galleryHathController.present()
       }
-    })
-
-    const webDAVButton = new CommonButton({
-      title: "WebDAV",
-      symbol: "externaldrive.connected.to.line.below",
-      handler: () => { }
     })
 
     const primaryButtonsWrapper = new ButtonsWarpper([
@@ -1251,13 +1260,13 @@ export class GalleryInfoController extends BaseController {
     ])
 
     const secondaryButtonsWrapper = new ButtonsWarpper([
+      readLaterButton,
       downloadButton,
       torrentButton,
-      hathDownloadButton,
-      webDAVButton
-    ])
+      hathDownloadButton
+    ], 90)
 
-    const tagsFlowlayoutWrapper = new TagsFlowlayoutWrapper(() => { this.updateSearchButtonShowingState() })
+    const tagsFlowlayoutWrapper = new TagsFlowlayoutWrapper(() => { this.updateSearchButtonShowingStatus() })
     const createNewSearchButton = new Button({
       props: {
         bgcolor: $color("systemLink"),
@@ -1320,6 +1329,15 @@ export class GalleryInfoController extends BaseController {
         }
       }
     })
+    const webDAVWidget = new WebDAVWidget({
+      mainButtonHandler: (action) => { 
+        this.onWebDAVAction?.(action)
+      },
+      configButtonHandler: () => {
+        this.onWebDAVConfig?.()
+      }
+    })
+
     const list = new DynamicRowHeightList({
       rows: [
         new BlankView(10),
@@ -1330,6 +1348,8 @@ export class GalleryInfoController extends BaseController {
         infoMatrixWarpper,
         new BlankView(10),
         secondaryButtonsWrapper,
+        new BlankView(10),
+        webDAVWidget,
         new BlankView(10),
         tagsFlowlayoutWrapper,
         new BlankView(80)
@@ -1359,7 +1379,8 @@ export class GalleryInfoController extends BaseController {
       infoMatrixWarpper,
       tagsFlowlayoutWrapper,
       list,
-      createNewSearchButton
+      createNewSearchButton,
+      webDAVWidget
     }
     this.rootView.views = [list, createNewSearchButton]
   }
@@ -1478,11 +1499,11 @@ export class GalleryInfoController extends BaseController {
     if (page === 0) {
       this.cviews.readButton.title = `阅读`
     } else {
-      this.cviews.readButton.title = `继续阅读\n第${page + 1}页`
+      this.cviews.readButton.title = `第${page + 1}页`
     }
   }
 
-  updateSearchButtonShowingState() {
+  updateSearchButtonShowingStatus() {
     // 检测uploaderView和tagsFlowLayout是否有选中的tag，如果有则显示搜索按钮
     const uploaderViewSelected = this.cviews.infoHeaderView.cviews.uploaderView.selected;
     const tagsFlowlayoutSelected = Boolean(this.cviews.tagsFlowlayoutWrapper.flowlayout?.selectedTags.length);
@@ -1494,5 +1515,9 @@ export class GalleryInfoController extends BaseController {
     } else {
       this.cviews.createNewSearchButton.view.alpha = 0
     }
+  }
+
+  updateWebDAVWidget(status: WebDAVStatus) {
+    this.cviews.webDAVWidget.setStatus(status)
   }
 }

@@ -43,7 +43,6 @@ export type MarkedTag = {
 export type MarkedTagDict = Map<TagNamespace, Map<string, MarkedTag>>
 
 export type WebDAVService = {
-  id: number;
   name: string;
   host: string;
   port?: number;
@@ -51,6 +50,7 @@ export type WebDAVService = {
   path?: string;
   username?: string;
   password?: string;
+  enabled: boolean;
 };
 
 export type DBSearchBookmarks = {

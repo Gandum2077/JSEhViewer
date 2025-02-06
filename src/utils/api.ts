@@ -1,7 +1,8 @@
 import { EHAPIHandler, EHGallery, EHMPV, EHPage } from "ehentai-parser";
-import { appLog, cropImageData } from "./tools";
+import { appLog, cropImageData, isNameMatchGid } from "./tools";
 import { aiTranslationPath, imagePath, originalImagePath, thumbnailPath } from "./glv";
 import { aiTranslate } from "../ai-translations/ai-translate";
+import { WebDAVClient } from "./webdav";
 
 type CompoundThumbnail = {
   thumbnail_url: string;
@@ -642,9 +643,11 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
   private infos: EHGallery;
   private gid: number;
   private finishHandler: () => void;
+
   downloadingImages = false; // 是否下载图片，如果为false，则只下载缩略图，可以从外部设置
   currentReadingIndex = 0;  // 当前正在阅读的图片的index，可以从外部设置
   background = false; // 是否后台下载，可以从外部设置
+  webDAVConfig: { enabled: true, client: WebDAVClient, filesOnWebDAV: string[] } | { enabled: false } = { enabled: false };
 
   result: {
     htmls: { index: number, success: boolean, error: boolean, started: boolean }[],
@@ -725,7 +728,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
         this.result.originalImages[page1 - 1].started = true;
         this.result.originalImages[page1 - 1].userSelected = true;
       });
-    
+
     // 查找已经存在的AI翻译
     const aiTranslationPathThisGallery = aiTranslationPath + `${this.gid}`;
     if (!$file.exists(aiTranslationPathThisGallery)) $file.mkdir(aiTranslationPathThisGallery);
@@ -784,15 +787,15 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     // 可执行的标准为：对应html任务已完成，userSelected为true，started为false
     const originalImageItem = this.result.originalImages.find(originalImage => {
       const page = this.infos.num_of_images_on_each_page
-          ? Math.floor(originalImage.index / this.infos.num_of_images_on_each_page)
-          : 0;
-      return this.result.htmls[page].success &&originalImage.userSelected && !originalImage.started;
+        ? Math.floor(originalImage.index / this.infos.num_of_images_on_each_page)
+        : 0;
+      return this.result.htmls[page].success && originalImage.userSelected && !originalImage.started;
     });
 
     if (originalImageItem) {
-      const htmlPageOfFoundImageItem =  this.infos.num_of_images_on_each_page
-      ? Math.floor(originalImageItem.index / this.infos.num_of_images_on_each_page)
-      : 0;
+      const htmlPageOfFoundImageItem = this.infos.num_of_images_on_each_page
+        ? Math.floor(originalImageItem.index / this.infos.num_of_images_on_each_page)
+        : 0;
       return this.createOriginalImageTask(
         originalImageItem.index,
         this.infos.images[htmlPageOfFoundImageItem].find(image => image.page === originalImageItem.index)!.imgkey
@@ -1009,20 +1012,21 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     return {
       index,
       handler: async () => {
-        appLog(`开始下载图库图片: gid=${this.gid}, index=${index}`, "debug");
+        appLog(`开始下载图库图片: gid=${this.gid}, index=${index}, webdav=${this.webDAVConfig.enabled}`, "debug");
         this.result.images[index].started = true;
-        const result = await api.downloadImageByPageInfoWithThreeRetries(
-          this.gid,
-          imgkey,
-          index
-        );
+        const result = this.webDAVConfig.enabled
+          ? await this.webDAVConfig.client.downloadNoError(this.webDAVConfig.filesOnWebDAV[index])
+          : await api.downloadImageByPageInfoWithThreeRetries(
+            this.gid,
+            imgkey,
+            index
+          );
+
         if (result.success) {
-          appLog(`图库图片下载成功: gid=${this.gid}, index=${index}`, "debug");
-          const page = this.infos.num_of_images_on_each_page ? Math.floor(index / this.infos.num_of_images_on_each_page) : 0;
-          const name = this.infos.images[page].find(image => image.page === index)!.name;
-          let extname = name.slice(name.lastIndexOf(".")).toLowerCase();
-          if (extname === ".jpeg") extname = ".jpg";
-          const path = imagePath + `${this.gid}/${index + 1}` + extname;
+          appLog(`图库图片下载成功: gid=${this.gid}, index=${index}, webdav=${this.webDAVConfig.enabled}`, "debug");
+          let extname = result.data.info.mimeType.split("/")[1];;
+          if (extname === "jpeg") extname = "jpg";
+          const path = imagePath + `${this.gid}/${index + 1}.${extname}`;
           $file.write({
             data: result.data,
             path
@@ -1140,6 +1144,125 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
 }
 
 /**
+ * 
+ */
+class GalleryWebDAVUploader extends ConcurrentDownloaderBase {
+  protected _maxConcurrency = 1;
+
+  private gid: number;
+  private finishHandler: () => void;
+  private _client: WebDAVClient;
+  result: {
+    mkdir: { path?: string, success: boolean, error: boolean, started: boolean },
+    upload: { index: number, src: string, success: boolean, error: boolean, started: boolean }[],
+  }
+  constructor(gid: number, client: WebDAVClient, finishHandler: () => void) {
+    super();
+    this.gid = gid;
+    this.finishHandler = finishHandler;
+    this._client = client;
+    const filesOnLocal = $file.list(imagePath + `${this.gid}/`).map(n => imagePath + `${this.gid}/` + n)
+    this.result = {
+      mkdir: { success: false, error: false, started: false },
+      upload: filesOnLocal.map((n, index) => ({ index, src: n, success: false, error: false, started: false }))
+    }
+  }
+
+  protected _getNextTask() {
+    // 如果mkdir未开始，则创建mkdir任务
+    if (!this.result.mkdir.started) {
+      return this.createMkdirTask();
+    }
+    // 需要先等待mkdir任务完成
+    if (!this.result.mkdir.success) {
+      return;
+    }
+    // 在upload中查找未开始的任务，并创建upload任务
+    const uploadTask = this.result.upload.find(n => !n.started);
+    if (uploadTask) {
+      return this.createUploadTask(uploadTask.index, uploadTask.src);
+    }
+  }
+
+  private createMkdirTask() {
+    return {
+      index: 0,
+      handler: async () => {
+        this.result.mkdir.started = true;
+        // 执行3个动作：
+        // 1. 查询目录是否存在
+        // 2. 如果不存在，则创建目录
+        // 3. 如果存在，则清空目录下的所有文件
+        try {
+          const files = await this._client.list({ path: '' });
+          const target = files.find(file => isNameMatchGid(file.name, this.gid));
+          if (!target) {
+            // 不存在，则创建目录
+            await this._client.mkdir(this.gid.toString());
+            this.result.mkdir.success = true;
+            this.result.mkdir.path = this.gid.toString();
+          } else {
+            // 存在，则清空目录下的所有文件
+            const needToDeleteFiles = await this._client.list({ path: target.name });
+            for (const file of needToDeleteFiles) {
+              if (file.isfile) {
+                await this._client.delete(target.name + "/" + file.name);
+              }
+            }
+            this.result.mkdir.success = true;
+            this.result.mkdir.path = target.name;
+          }
+        } catch (e: any) {
+          this.result.mkdir.error = true;
+        }
+      }
+    }
+  }
+
+  private createUploadTask(index: number, src: string) {
+    return {
+      index,
+      handler: async () => {
+        this.result.upload[index].started = true;
+        if (!this.result.mkdir.path) {
+          this.result.upload[index].error = true;
+          return;
+        }
+        const data = $file.read(src);
+        const contentType = data.info.mimeType;
+        const dst = `${this.result.mkdir.path}/${index + 1}.${contentType.split("/")[1]}`;
+        console.log(dst);
+        const result = await this._client.uploadNoError(dst, data, contentType);
+        if (result.success) {
+          this.result.upload[index].success = true;
+        } else {
+          this.result.upload[index].error = true;
+        }
+        if (this.isAllFinishedDespiteError) {
+          this.finishHandler();
+        }
+      }
+    }
+  }
+
+  get pending() {
+    return this.result.upload.filter(n => !n.started).length;
+  }
+
+  get finished() {
+    return this.result.upload.filter(n => n.success).length;
+  }
+
+  get isAllFinished() {
+    return this.result.upload.every(n => n.success);
+  }
+
+  get isAllFinishedDespiteError() {
+    return this.result.upload.every(n => n.success || n.error);
+  }
+}
+
+/**
  * 下载器管理器。
  * 
  * 1. 始终都只能有一个下载器在下载，其他下载器都处于暂停状态。
@@ -1148,11 +1271,13 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
 class DownloaderManager {
   tabDownloaders: Map<string, TabThumbnailDownloader>; // key为tab的id
   galleryDownloaders: Map<number, GalleryCommonDownloader>;
+  galleryWebDAVUploaders: Map<number, GalleryWebDAVUploader>;
   mpv = false; // 是否使用mpv的api TODO：暂时不支持动态修改
 
   constructor() {
     this.tabDownloaders = new Map() as Map<string, TabThumbnailDownloader>;
     this.galleryDownloaders = new Map() as Map<number, GalleryCommonDownloader>;
+    this.galleryWebDAVUploaders = new Map() as Map<number, GalleryWebDAVUploader>;
   }
 
   /**
@@ -1205,6 +1330,9 @@ class DownloaderManager {
     for (const v of this.tabDownloaders.values()) {
       v.pause();
     }
+    for (const v of this.galleryWebDAVUploaders.values()) {
+      v.pause();
+    }
     return success;
   }
 
@@ -1255,6 +1383,62 @@ class DownloaderManager {
     for (const v of this.galleryDownloaders.values()) {
       v.pause();
     }
+    for (const v of this.galleryWebDAVUploaders.values()) {
+      v.pause();
+    }
+    return success;
+  }
+
+  /**
+   * 新建一个图库WebDAV上传器
+   */
+  addGalleryWebDAVUploader(gid: number, client: WebDAVClient) {
+    const uploader = new GalleryWebDAVUploader(gid, client, () => { });
+    this.galleryWebDAVUploaders.set(gid, uploader);
+    return uploader;
+  }
+
+  /**
+   * 获取一个图库WebDAV上传器
+   */
+  getGalleryWebDAVUploader(gid: number) {
+    return this.galleryWebDAVUploaders.get(gid);
+  }
+
+  /**
+   * 暂停一个图库WebDAV上传器
+   */
+  pauseGalleryWebDAVUploader(gid: number) {
+    this.galleryWebDAVUploaders.get(gid)?.pause();
+  }
+
+  /**
+   * 删除一个图库WebDAV上传器
+   */
+  removeGalleryWebDAVUploader(gid: number) {
+    this.galleryWebDAVUploaders.get(gid)?.pause();
+    return this.galleryWebDAVUploaders.delete(gid);
+  }
+
+  /**
+   * 启动指定的图库WebDAV上传器，并暂停其他全部下载器
+   */
+  startGalleryWebDAVUploader(gid: number) {
+    let success = false;
+    for (const [k, v] of this.galleryWebDAVUploaders) {
+      if (k === gid) {
+        v.start();
+        success = true;
+      } else {
+        v.pause();
+      }
+    }
+    for (const v of this.tabDownloaders.values()) {
+      v.pause();
+    }
+    for (const v of this.galleryDownloaders.values()) {
+      v.pause();
+    }
     return success;
   }
 
@@ -1266,6 +1450,9 @@ class DownloaderManager {
       v.pause();
     }
     for (const v of this.galleryDownloaders.values()) {
+      v.pause();
+    }
+    for (const v of this.galleryWebDAVUploaders.values()) {
       v.pause();
     }
   }

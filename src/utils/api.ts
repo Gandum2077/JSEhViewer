@@ -1241,7 +1241,6 @@ class GalleryWebDAVUploader extends ConcurrentDownloaderBase {
         const data = $file.read(src);
         const contentType = data.info.mimeType;
         const dst = `${this.result.mkdir.path}/${index + 1}.${contentType.split("/")[1]}`;
-        console.log(dst);
         const result = await this._client.uploadNoError(dst, data, contentType);
         if (result.success) {
           this.result.upload[index].success = true;

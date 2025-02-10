@@ -184,9 +184,6 @@ async function init() {
   }
   homepageController.cviews.list.footerText = "";
   homepageController.cviews.list.isLoading = false;
-  
-  $delay(0.3, () => sidebarHistoryController.appear())
-  $delay(0.3, () => sidebarBookmarkController.appear())
 }
 
 if ($app.env === $env.app) {

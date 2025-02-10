@@ -12,6 +12,9 @@ import { statusManager } from "../utils/status";
 import { appLog } from "../utils/tools";
 import { WebDAVClient } from "../utils/webdav";
 import { setWebDAVConfig } from "./settings-webdav-controller";
+import { globalTimer } from "../utils/timer";
+
+// TODO: 定时器功能从GalleryInfoController和GalleryThumbnailController中移除，并移入GalleryController中
 
 export class GalleryController extends PageViewerController {
   private _infos?: EHGallery;
@@ -33,6 +36,9 @@ export class GalleryController extends PageViewerController {
     galleryThumbnailController: GalleryThumbnailController;
     galleryCommentController: GalleryCommentController;
   }
+
+  timer?: TimerTypes.Timer;
+
   constructor(gid: number, token: string) {
     const galleryInfoController = new GalleryInfoController(
       gid,
@@ -125,14 +131,20 @@ export class GalleryController extends PageViewerController {
           galleryThumbnailController.thumbnailItems = downloaderManager.get(this._infos.gid)!.result.thumbnails;
           sender.rootView.view.alpha = 1;
 
-          galleryInfoController.startTimer();
-          galleryThumbnailController.startTimer();
-
+          globalTimer.addTask({
+            id: this._gid.toString(),
+            interval: 1,
+            handler: () => {
+              galleryInfoController.scheduledRefresh();
+              galleryThumbnailController.scheduledRefresh();
+            }
+          })
           galleryInfoController.onWebDAVAction = (action) => {
             if (action === "upload") {
               // 上传功能
               if (!this._webDAVClient) return;
-              downloaderManager.addGalleryWebDAVUploader(this._gid, this._webDAVClient);
+              if (!this._infos) return;
+              downloaderManager.addGalleryWebDAVUploader(this._infos, this._webDAVClient);
               downloaderManager.startGalleryWebDAVUploader(this._gid);
             } else if (action === "retry") {
               // 重连
@@ -158,12 +170,13 @@ export class GalleryController extends PageViewerController {
         },
         didAppear: () => {
           galleryInfoController.currentReadPage = statusManager.getLastReadPage(this._gid);
-          galleryInfoController.startTimer();
-          galleryThumbnailController.startTimer();
+          globalTimer.resumeTask(this._gid.toString());
         },
         didDisappear: () => {
-          galleryInfoController.stopTimer();
-          galleryThumbnailController.stopTimer();
+          globalTimer.pauseTask(this._gid.toString());
+        },
+        didRemove: () => {
+          globalTimer.removeTask(this._gid.toString());
         }
         // 注: 不需要在销毁时关闭下载器，因为回到上一级的列表页时，列表页的下载器会打开，从而附带关闭此下载器
       }
@@ -182,7 +195,7 @@ export class GalleryController extends PageViewerController {
     if (!this._infos) return;
     statusManager.storeArchiveItemOrUpdateAccessTime(this._infos, false);
 
-    downloaderManager.get(this._infos.gid)!.downloadingImages = true;
+    downloaderManager.get(this._infos.gid)!.reading = true;
     downloaderManager.get(this._infos.gid)!.currentReadingIndex = Math.max(index - 1, 0); // 提前一页加载
     downloaderManager.startOne(this._infos.gid)
     const readerController = new ReaderController({
@@ -219,8 +232,7 @@ export class GalleryController extends PageViewerController {
     }
     if (!infos) return;
     // 关闭当前的下载器、定时器，更新信息，重新启动下载器、定时器
-    this.subControllers.galleryInfoController.stopTimer();
-    this.subControllers.galleryThumbnailController.stopTimer();
+    globalTimer.removeTask(this._gid.toString());
     if (!isSameGallery) {
       downloaderManager.remove(this._gid); // 删除旧的下载器
     }
@@ -241,8 +253,14 @@ export class GalleryController extends PageViewerController {
     this.subControllers.galleryInfoController.infos = this._infos;
     this.subControllers.galleryInfoController.currentReadPage = statusManager.getLastReadPage(this._gid);
     this.subControllers.galleryThumbnailController.thumbnailItems = downloaderManager.get(this._gid)!.result.thumbnails;
-    this.subControllers.galleryInfoController.startTimer();
-    this.subControllers.galleryThumbnailController.startTimer();
+    globalTimer.addTask({
+      id: this._gid.toString(),
+      interval: 1,
+      handler: () => {
+        this.subControllers.galleryInfoController.scheduledRefresh();
+        this.subControllers.galleryThumbnailController.scheduledRefresh();
+      }
+    })
     $ui.success("刷新成功");
     $delay(0.3, () => {
       if (!this._infos) return;
@@ -306,14 +324,14 @@ export class GalleryController extends PageViewerController {
     const service = configManager.currentWebDAVService;
     if (service) {
       if (this._webDAVInfo.status === "error") {
-        this.subControllers.galleryInfoController.updateWebDAVWidget({
+        this.subControllers.galleryInfoController.updateWebDAVWidgetStatus({
           on: true,
           type: "error",
           serverName: service.name,
           message: this._webDAVInfo.errorMessage || "未知原因"
         })
       } else if (this._webDAVInfo.status === "loading") {
-        this.subControllers.galleryInfoController.updateWebDAVWidget({
+        this.subControllers.galleryInfoController.updateWebDAVWidgetStatus({
           on: true,
           type: "loading",
           serverName: service.name,
@@ -321,7 +339,7 @@ export class GalleryController extends PageViewerController {
       } else {
         const isFileOnServerComplete = this._webDAVInfo.filesOnServer.length === this._infos.length;
         const isFileOnLocalComplete = downloaderManager.get(this._gid)!.result.images.filter(image => image.path).length === this._infos.length;
-        this.subControllers.galleryInfoController.updateWebDAVWidget({
+        this.subControllers.galleryInfoController.updateWebDAVWidgetStatus({
           on: true,
           type: "connected",
           serverName: service.name,
@@ -330,7 +348,7 @@ export class GalleryController extends PageViewerController {
         })
       }
     } else {
-      this.subControllers.galleryInfoController.updateWebDAVWidget({
+      this.subControllers.galleryInfoController.updateWebDAVWidgetStatus({
         on: false,
         message: !configManager.webdavEnabled ? "WebDAV未启用" : "未选择服务器"
       })
@@ -416,4 +434,6 @@ export class GalleryController extends PageViewerController {
       return fixed
     }
   }
+
+
 }

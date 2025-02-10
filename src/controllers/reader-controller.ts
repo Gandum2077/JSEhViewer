@@ -5,6 +5,7 @@ import { statusManager } from "../utils/status";
 import { setAITranslationConfig } from "./settings-translation-controller";
 import { AiTranslationButton } from "../components/ai-translation-button";
 import { configManager } from "../utils/config";
+import { globalTimer } from "../utils/timer";
 
 let lastUITapGestureRecognizer: any;
 
@@ -256,7 +257,6 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
 export class ReaderController extends BaseController {
   private gid: number;
   private imagePager?: CustomImagePager;
-  private _timer?: TimerTypes.Timer;
   private _autoPagerEnabled: boolean = false;
   private _autoPagerInterval: number = 1;
   private _autoPagerCountDown: number = 1;
@@ -283,7 +283,8 @@ export class ReaderController extends BaseController {
     super({
       events: {
         didAppear: () => {
-          this._timer = $timer.schedule({
+          globalTimer.addTask({
+            id: this.gid.toString() + "reader",
             interval: 1,
             handler: () => {
               if (!this.imagePager) return;
@@ -317,8 +318,8 @@ export class ReaderController extends BaseController {
         },
         didRemove: () => {
           statusManager.updateLastReadPage(this.gid, this.cviews.footerThumbnailView.index);
-          downloaderManager.get(this.gid)!.downloadingImages = false;
-          if (this._timer) this._timer.invalidate();
+          downloaderManager.get(this.gid)!.reading = false;
+          globalTimer.removeTask(this.gid.toString() + "reader");
           if (lastUITapGestureRecognizer) {
             $objc_release(lastUITapGestureRecognizer);
             lastUITapGestureRecognizer = undefined;

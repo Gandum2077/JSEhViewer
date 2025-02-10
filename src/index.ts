@@ -15,6 +15,7 @@ import { api } from "./utils/api";
 import { appLog } from "./utils/tools";
 import { EHMyTags } from "ehentai-parser";
 import { aiTranslationPath, imagePath, thumbnailPath, originalImagePath } from "./utils/glv";
+import { globalTimer } from "./utils/timer";
 
 async function init() {
   if (!$file.exists(imagePath)) $file.mkdir(imagePath);
@@ -117,6 +118,9 @@ async function init() {
     api.mpvAvailable = configManager.mpvAvailable
   }
 
+  // 启动全局定时器
+  globalTimer.init();
+
   // 此时可以加载archiveController了
   $delay(0.3, () => archiveController.triggerLoad({
     type: "archive",
@@ -184,8 +188,9 @@ async function init() {
   $delay(0.3, () => sidebarHistoryController.appear())
   $delay(0.3, () => sidebarBookmarkController.appear())
 }
+
 if ($app.env === $env.app) {
-  init().then().catch(e => console.error(e))
+  init().then().catch(e => console.error(e));
 } else {
-  $ui.error("请在JSBox主程序中运行")
+  $ui.error("请在JSBox主程序中运行");
 }

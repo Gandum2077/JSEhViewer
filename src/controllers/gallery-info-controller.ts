@@ -1055,7 +1055,6 @@ class CommonButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
 export class GalleryInfoController extends BaseController {
   gid: number;
   private _infos?: EHGallery;
-  private _timer?: TimerTypes.Timer;
   private _topThumbnailFinished: boolean = false;
   private _isShowingSearchButton: boolean = false;
   cviews: {
@@ -1228,7 +1227,30 @@ export class GalleryInfoController extends BaseController {
     const downloadButton = new DownloadButton({
       status: "pending",
       progress: 0,
-      handler: () => { }
+      handler: (sender, status) => {
+        const d = downloaderManager.get(this.gid);
+        if (!d) return;
+        if (status === "pause" ) {
+          // 当前是暂停状态，转变为下载状态
+          d.background = true;
+          d.backgroundPaused = false;
+          sender.status = "downloading";
+        } else if (status === "downloading") {
+          // 当前是下载状态，转变为暂停状态
+          d.background = true;
+          d.backgroundPaused = true;
+          sender.status = "pause";
+        } else {
+          // 当前是待机状态，转变为下载状态
+          d.background = true;
+          d.backgroundPaused = false;
+          // 查询下载进度
+          const progress = d.finishedOfImages / d.result.images.length;
+          sender.progress = progress;
+          sender.status = progress === 1 ? "finished" : "downloading";
+        }
+        downloaderManager.startOne(this.gid);
+      }
     }) 
 
     const torrentButton = new CommonButton({
@@ -1465,34 +1487,30 @@ export class GalleryInfoController extends BaseController {
     this.cviews.createNewSearchButton.view.alpha = 0
   }
 
-  refreshThumbnail() {
+  private _refreshThumbnail() {
+    if (this._topThumbnailFinished) return;
     const d = downloaderManager.get(this.gid)
     if (!d) return;
     const topThumbnailPath = d.result.topThumbnail.path
     this._topThumbnailFinished = Boolean(topThumbnailPath)
     this.cviews.infoHeaderView.thumbnail_url = topThumbnailPath || "";
-    if (this._topThumbnailFinished && this._timer) {
-      this._timer.invalidate();
-      this._timer = undefined;
-    }
   }
 
-  startTimer() {
-    if (this._timer) return;
-    if (this._topThumbnailFinished) return;
-    this._timer = $timer.schedule({
-      interval: 2,
-      handler: () => {
-        this.refreshThumbnail()
-      }
-    })
+  private _refreshDownloadButton() {
+    if (this.cviews.downloadButton.status === "pending" || this.cviews.downloadButton.status === "finished") return;
+    const d = downloaderManager.get(this.gid);
+    if (!d) return;
+    this.cviews.downloadButton.progress = d.finishedOfImages / d.result.images.length;
   }
 
-  stopTimer() {
-    if (this._timer) {
-      this._timer.invalidate()
-      this._timer = undefined;
-    }
+  private _refreshWebDAVWidget() {
+
+  }
+
+  scheduledRefresh() {
+    this._refreshThumbnail();
+    this._refreshDownloadButton();
+    this._refreshWebDAVWidget();
   }
 
   set currentReadPage(page: number) {
@@ -1517,7 +1535,7 @@ export class GalleryInfoController extends BaseController {
     }
   }
 
-  updateWebDAVWidget(status: WebDAVStatus) {
+  updateWebDAVWidgetStatus(status: WebDAVStatus) {
     this.cviews.webDAVWidget.setStatus(status)
   }
 }

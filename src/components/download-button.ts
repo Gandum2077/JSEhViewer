@@ -18,9 +18,120 @@ const downloadButtonTitles = {
 const downloadButtonSymbolColors = {
   pending: defaultButtonColor,
   pause: $color("#ffb242"),
-  downloading: $color("#ffb242"),
+  downloading: $color('#34C759', '#30D158'),
   finished: $color('#34C759', '#30D158')
 }
+
+/**
+ * 显示进度的圆环
+ * 其构成为两个重叠的圆环，下层为灰色、完整圆环，上层为彩色、弧线
+ * 其中上层的弧线由蒙版来实现
+ * 
+ * @param progress 0-1
+ * @param paused 是否暂停(控制颜色)
+ * @param size 圆环的尺寸，其中长宽必须相等，否则报错
+ * @param hidden 是否隐藏
+ * @param layout 布局，其中的尺寸需要和上面的size一致
+ */
+class ProgressArc extends Base<UIView, UiTypes.ViewOptions> {
+  _defineView: () => UiTypes.ViewOptions;
+  private _progress: number;
+  private _paused: boolean;
+  private _mask: UICanvasView;
+  constructor({
+    progress,
+    paused,
+    size,
+    hidden,
+    layout
+  }: {
+    progress: number,
+    paused: boolean,
+    size: JBSize,
+    hidden: boolean,
+    layout: (make: MASConstraintMaker, view: UIView) => void
+  }) {
+    super();
+    this._progress = progress;
+    this._paused = paused;
+    this._mask = $ui.create({
+      type: "canvas",
+      props: {
+        size,
+      },
+      events: {
+        draw: (view, ctx) => {
+          ctx.addLineToPoint(size.width / 2, 0);
+          ctx.addArc(size.width / 2, size.height / 2, size.width / 2, -0.5 * Math.PI, (2 * this._progress - 0.5) * Math.PI, false);
+          ctx.addLineToPoint(size.width / 2, size.height / 2);
+          ctx.fillPath();
+        }
+      }
+    });
+    this._defineView = () => {
+      return {
+        type: "view",
+        props: {
+          id: this.id,
+          hidden
+        },
+        layout,
+        views: [
+          {
+            type: "image",
+            props: {
+              id: this.id + "background",
+              image: $image("circle"),
+              tintColor: $color({
+                light: "#B7BEC6",
+                dark: "#303030",
+                black: "#292929"
+              }),
+              contentMode: 2
+            },
+            layout: $layout.fill
+          },
+          {
+            type: "image",
+            props: {
+              id: this.id + "progress",
+              image: $image("circle"),
+              tintColor: this._paused ? downloadButtonSymbolColors.pause : downloadButtonSymbolColors.downloading,
+              contentMode: 2
+            },
+            layout: $layout.fill,
+            events: {
+              ready: sender => {
+                const layer = sender.ocValue().invoke("layer");
+                const maskLayer = this._mask.ocValue().invoke("layer");
+                layer.$setMask(maskLayer);
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+
+  get progress() {
+    return this._progress;
+  }
+
+  set progress(value: number) {
+    this._progress = value;
+    this._mask.invoke("setNeedsDisplay");
+  }
+
+  get paused() {
+    return this._paused;
+  }
+
+  set paused(value: boolean) {
+    this._paused = value;
+    ($(this.id + "progress") as UIImageView).tintColor = this._paused ? downloadButtonSymbolColors.pause : downloadButtonSymbolColors.downloading;
+  }
+}
+
 
 /**
  * 计算显示的进度
@@ -38,6 +149,7 @@ export class DownloadButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
   _defineView: () => UiTypes.ButtonOptions;
   private _status: "pending" | "pause" | "downloading" | "finished";
   private _progress: number;  // 0-1
+  private _progressArc: ProgressArc;
   constructor({
     status,
     progress,
@@ -50,7 +162,13 @@ export class DownloadButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
     super();
     this._status = status;
     this._progress = progress;
-
+    this._progressArc = new ProgressArc({
+      progress: this._progress,
+      paused: this._status === "pause",
+      size: $size(40, 40),
+      hidden: this._status !== "downloading" && this._status !== "pause",
+      layout: $layout.fill
+    });
     this._defineView = () => {
       return {
         type: "button",
@@ -61,18 +179,29 @@ export class DownloadButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
         layout: $layout.fill,
         views: [
           {
-            type: "image",
+            type: "view",
             props: {
-              id: this.id + "icon",
-              tintColor: downloadButtonSymbolColors[this._status],
-              symbol: downloadButtonSymbols[this._status],
-              contentMode: 2
+              userInteractionEnabled: false
             },
             layout: (make, view) => {
               make.centerX.equalTo(view.super)
               make.centerY.equalTo(view.super).offset(-10)
               make.size.equalTo($size(40, 40))
-            }
+            },
+            views: [
+              {
+                type: "image",
+                props: {
+                  id: this.id + "icon",
+                  tintColor: downloadButtonSymbolColors[this._status],
+                  symbol: downloadButtonSymbols[this._status],
+                  contentMode: 2,
+                  hidden: this._status !== "finished" && this._status !== "pending"
+                },
+                layout: $layout.fill
+              },
+              this._progressArc.definition
+            ]
           },
           {
             type: "label",
@@ -119,6 +248,14 @@ export class DownloadButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
 
   set status(value: "pending" | "pause" | "downloading" | "finished") {
     this._status = value;
+    if (value === "downloading" || value === "pause") {
+      this._progressArc.view.hidden = false;
+      this._progressArc.paused = value === "pause";
+      $(this.id + "icon").hidden = true;
+    } else {
+      this._progressArc.view.hidden = true;
+      $(this.id + "icon").hidden = false;
+    }
     ($(this.id + "icon") as UIImageView).symbol = downloadButtonSymbols[value];
     ($(this.id + "icon") as UIImageView).tintColor = downloadButtonSymbolColors[value];
     ($(this.id + "title") as UILabelView).text = downloadButtonTitles[value];
@@ -133,6 +270,7 @@ export class DownloadButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
   set progress(value: number) {
     this._progress = value;
     ($(this.id + "progress") as UILabelView).text = _calDisplayProgress(this._progress);
+    this._progressArc.progress = value;
     if (value === 1) {
       this.status = "finished";
     }

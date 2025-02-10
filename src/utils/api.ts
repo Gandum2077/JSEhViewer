@@ -640,13 +640,14 @@ class GalleryMPVDownloader extends ConcurrentDownloaderBase {
 class GalleryCommonDownloader extends ConcurrentDownloaderBase {
   protected _maxConcurrency = 5;
 
-  private infos: EHGallery;
-  private gid: number;
+  readonly infos: EHGallery;
+  readonly gid: number;
   private finishHandler: () => void;
 
-  downloadingImages = false; // 是否下载图片，如果为false，则只下载缩略图，可以从外部设置
   currentReadingIndex = 0;  // 当前正在阅读的图片的index，可以从外部设置
+  reading = false; // 是否正在阅读，可以从外部设置
   background = false; // 是否后台下载，可以从外部设置
+  backgroundPaused = false; // 是否后台暂停，可以从外部设置
   webDAVConfig: { enabled: true, client: WebDAVClient, filesOnWebDAV: string[] } | { enabled: false } = { enabled: false };
 
   result: {
@@ -847,12 +848,8 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
         .filter(i => i.index >= n.startIndex && i.index <= n.endIndex)
         .some(i => i.started === false));
 
-    // 如果downloadingImages 为false，则只下载缩略图
-    if (!this.downloadingImages) {
-      if (compoundThumbnailItem) {
-        return this.createCompoundThumbnailTask(compoundThumbnailItem);
-      }
-    } else {
+    // 如果background为true且backgroundPaused为false，或者downloadingImages为true，则尝试进行图片任务
+    if (this.background && !this.backgroundPaused || this.reading) {
       // 5. 查找未开始的图片任务
       // 规则为：在对应html任务已经完成的图片任务中，先从currentReadingIndex开始找，如果找不到，则从头开始找
       let imageItem = this.result.images.find(image => {
@@ -892,6 +889,10 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           imageItem.index,
           this.infos.images[htmlPageOfFoundImageItem].find(image => image.page === imageItemIndex)!.imgkey
         );
+      }
+    } else {
+      if (compoundThumbnailItem) {
+        return this.createCompoundThumbnailTask(compoundThumbnailItem);
       }
     }
     return
@@ -1149,16 +1150,21 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
 class GalleryWebDAVUploader extends ConcurrentDownloaderBase {
   protected _maxConcurrency = 1;
 
-  private gid: number;
+  readonly infos: EHGallery;
+  readonly gid: number;
   private finishHandler: () => void;
   private _client: WebDAVClient;
+
+  backgroundPaused = false; // 用户主动暂停, 可从外部设置
+
   result: {
     mkdir: { path?: string, success: boolean, error: boolean, started: boolean },
     upload: { index: number, src: string, success: boolean, error: boolean, started: boolean }[],
   }
-  constructor(gid: number, client: WebDAVClient, finishHandler: () => void) {
+  constructor(infos: EHGallery, client: WebDAVClient, finishHandler: () => void) {
     super();
-    this.gid = gid;
+    this.infos = infos;
+    this.gid = infos.gid;
     this.finishHandler = finishHandler;
     this._client = client;
     const filesOnLocal = $file.list(imagePath + `${this.gid}/`).map(n => imagePath + `${this.gid}/` + n)
@@ -1175,6 +1181,10 @@ class GalleryWebDAVUploader extends ConcurrentDownloaderBase {
     }
     // 需要先等待mkdir任务完成
     if (!this.result.mkdir.success) {
+      return;
+    }
+    // 如果backgroundPaused为true，则暂停
+    if (this.backgroundPaused) {
       return;
     }
     // 在upload中查找未开始的任务，并创建upload任务
@@ -1288,7 +1298,7 @@ class DownloaderManager {
   add(gid: number, infos: EHGallery) {
     const downloader = new GalleryCommonDownloader(infos, () => {
       for (const [k, v] of this.galleryDownloaders) {
-        if (k !== gid && v.background && !v.isAllFinishedDespiteError) {
+        if (k !== gid && v.background && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
           this.startOne(k);
           break;
         }
@@ -1392,9 +1402,9 @@ class DownloaderManager {
   /**
    * 新建一个图库WebDAV上传器
    */
-  addGalleryWebDAVUploader(gid: number, client: WebDAVClient) {
-    const uploader = new GalleryWebDAVUploader(gid, client, () => { });
-    this.galleryWebDAVUploaders.set(gid, uploader);
+  addGalleryWebDAVUploader(infos: EHGallery, client: WebDAVClient) {
+    const uploader = new GalleryWebDAVUploader(infos, client, () => { });
+    this.galleryWebDAVUploaders.set(infos.gid, uploader);
     return uploader;
   }
 

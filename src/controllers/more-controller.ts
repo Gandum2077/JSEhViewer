@@ -7,7 +7,7 @@ import {
   SplitViewController,
 } from "jsbox-cview";
 import { createGeneralSettingsController } from "./settings-general-controller";
-import { createSettingsDownloadsController } from "./settings-downloads-controller";
+import { SettingsDownloadsController } from "./settings-downloads-controller";
 import { setWebDAVConfig } from "./settings-webdav-controller";
 import { setAITranslationConfig } from "./settings-translation-controller";
 import { configManager } from "../utils/config";
@@ -226,14 +226,14 @@ export class MoreController extends BaseController {
               colors: [$color("#D7AD6B"), $color("#AD7E2F")]
             },
             icon: {
-              symbol: "tray.and.arrow.down"
+              symbol: "arrow.up.arrow.down.circle"
             },
             title: {
-              text: "下载管理"
+              text: "下载与上传"
             },
             content: {
               text:
-                "当前n个图库排队下载中\n共计n张图片等待下载"
+                "当前下载: n / m\n当前上传: n / m"
             },
             blur: {
               hidden: true
@@ -333,8 +333,8 @@ export class MoreController extends BaseController {
               })
               break;
             case 2:
-              const downloadsSettingsController = createSettingsDownloadsController()
-              downloadsSettingsController.uipush({
+              const downloadsController = new SettingsDownloadsController()
+              downloadsController.uipush({
                 navBarHidden: true,
                 statusBarStyle: 0
               })

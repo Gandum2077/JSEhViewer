@@ -120,7 +120,7 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
         },
         layout: (make, view) => {
           make.top.equalTo(view.prev.bottom);
-          make.left.right.bottom.equalTo(view.super.safeArea);
+          make.left.right.bottom.equalTo(view.super);
         },
         events: {
           swipeEnabled: (sender, indexPath) => {

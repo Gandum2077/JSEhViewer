@@ -4,7 +4,6 @@ import { downloaderManager } from "../utils/api";
 export class GalleryThumbnailController extends BaseController {
   gid: number;
   private _finished: boolean = false;
-  private _timer?: TimerTypes.Timer;
   cviews: { matrix: DynamicItemSizeMatrix };
   constructor(gid: number, readHandler: (index: number) => void) {
     super({
@@ -87,32 +86,10 @@ export class GalleryThumbnailController extends BaseController {
     this._finished = thumbnailItems.every(item => item.path)
   }
 
-  refreshThumbnails() {
+  scheduledRefresh() {
     if (this._finished) return;
     const d = downloaderManager.get(this.gid)
     if (!d) return;
     this.thumbnailItems = d.result.thumbnails
-    if (this._finished && this._timer) {
-      this._timer.invalidate()
-      this._timer = undefined;
-    }
-  }
-
-  startTimer() {
-    if (this._timer) return;
-    if (this._finished) return;
-    this._timer = $timer.schedule({
-      interval: 2,
-      handler: () => {
-        this.refreshThumbnails()
-      }
-    })
-  }
-
-  stopTimer() {
-    if (this._timer) {
-      this._timer.invalidate()
-      this._timer = undefined;
-    }
   }
 }

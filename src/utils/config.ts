@@ -330,9 +330,12 @@ class ConfigManager {
   updateAllMarkedTags(markedTags: MarkedTag[]) {
     // 更新marked_tags表, 从服务器获取数据后调用（而非本地添加/删除）
     const sql_remove = "DELETE FROM marked_tags"
-    const sql_update = "INSERT INTO marked_tags (tagid, namespace, name, watched, hidden, color, weight) VALUES (?, ?, ?, ?, ?, ?, ?)"
     dbManager.update(sql_remove)
-    dbManager.batchUpdate(sql_update, markedTags.map(t => [t.tagid, t.namespace, t.name, t.watched, t.hidden, t.color || "", t.weight]))
+    dbManager.batchInsert(
+      "marked_tags", 
+      ["tagid", "namespace", "name", "watched", "hidden", "color", "weight"], 
+      markedTags.map(t => [t.tagid, t.namespace, t.name, t.watched, t.hidden, t.color || "", t.weight])
+    )
     const result = new Map() as MarkedTagDict
     for (const namespace of tagNamespaces) {
       const data: [string, MarkedTag][] = markedTags.filter(t => t.namespace === namespace).map(t => ([t.name, t]))
@@ -415,11 +418,14 @@ class ConfigManager {
 
   updateAllBannedUploaders(uploaders: string[]) {
     const sql_remove = "DELETE FROM banned_uploaders"
-    const sql_update = "INSERT INTO banned_uploaders (uploader) VALUES (?)"
     // 另外需要删除marked_uploaders中的被禁止的上传者
     const sql_remove_marked = `DELETE FROM marked_uploaders WHERE uploader IN (SELECT uploader FROM banned_uploaders);`
     dbManager.update(sql_remove)
-    dbManager.batchUpdate(sql_update, uploaders.map(u => [u]))
+    dbManager.batchInsert(
+      "banned_uploaders", 
+      ["uploader"], 
+      uploaders.map(u => [u])
+    );
     dbManager.update(sql_remove_marked)
     this._bannedUploaders = uploaders
   }
@@ -439,9 +445,12 @@ class ConfigManager {
 
   updateAllFavcatTitles(titles: string[]) {
     const sql_remove = "DELETE FROM favcat_titles"
-    const sql_update = "INSERT INTO favcat_titles (favcat, title) VALUES (?, ?)"
     dbManager.update(sql_remove)
-    dbManager.batchUpdate(sql_update, titles.map((t, i) => ([i, t])))
+    dbManager.batchInsert(
+      "favcat_titles", 
+      ["favcat", "title"], 
+      titles.map((t, i) => [i, t])
+    )
     this._favcatTitles = titles
   }
 
@@ -482,15 +491,18 @@ class ConfigManager {
   }
 
   async updateTranslationData() {
-    const sql_update_translation_data = "INSERT INTO translation_data (namespace, name, translation, intro, links) VALUES (?, ?, ?, ?, ?)"
     const sql_delete_translation_data = "DELETE FROM translation_data"
     const text = await getEhTagTranslationText();
-    const data: any = JSON.parse(text)
-    const time: string = data.head.committer.when
-    const translationData = extractTranslationData(data)
-    dbManager.update(sql_delete_translation_data)
-    this.translationUpdateTime = time
-    dbManager.batchUpdate(sql_update_translation_data, translationData.map(d => [d.namespace, d.name, d.translation, d.intro, d.links]))
+    const data: any = JSON.parse(text);
+    const time: string = data.head.committer.when;
+    const translationData = extractTranslationData(data);
+    dbManager.update(sql_delete_translation_data);
+    this.translationUpdateTime = time;
+    dbManager.batchInsert(
+      "translation_data", 
+      ["namespace", "name", "translation", "intro", "links"], 
+      translationData.map(d => [d.namespace, d.name, d.translation, d.intro, d.links])
+    );
     const r = this._queryTranslationDict()
     this._translationList = r.translationList
     this._translationDict = r.translationDict

@@ -191,28 +191,52 @@ function updateDBBatch(db: SqliteTypes.SqliteInstance, sql: string, manyArgs: an
   db.commit();
 }
 
+/**
+ * 大规模插入数据(只能执行基本的插入操作)
+ * @param db 数据库实例
+ * @param tableName 表名
+ * @param columns 列名, 需要按照正确的顺序来排列
+ * @param manyArgs 数据, 和列名对应
+ */
+function insertDBBatch(db: SqliteTypes.SqliteInstance, tableName: string, columns: string[], manyArgs: any[][]) {
+  const batchSize = 10000;
+  const sql0 = `INSERT INTO ${tableName} (${columns.join(",")}) VALUES `;
+  const columnQuotes = '(' + columns.map(() => "?").join(",") + ')';
+  db.beginTransaction();
+  // 分批插入
+  for (let i = 0; i < manyArgs.length; i += batchSize) {
+    const batchArgs = manyArgs.slice(i, i + batchSize);
+    const sql = sql0 + batchArgs.map(() => columnQuotes).join(",");
+    db.update({ sql, args: batchArgs.flat() });
+  }
+  db.commit();
+}
 
 class DBManager {
-  private __db: SqliteTypes.SqliteInstance;
+  private _db: SqliteTypes.SqliteInstance;
   constructor() {
     createDB();
-    this.__db = openDB();
+    this._db = openDB();
   }
 
   close() {
-    closeDB(this.__db);
+    closeDB(this._db);
   }
 
   query(sql: string, args?: any[]) {
-    return queryDB(this.__db, sql, args);
+    return queryDB(this._db, sql, args);
   }
 
   update(sql: string, args?: (string | number | boolean | null | undefined)[]) {
-    return updateDB(this.__db, sql, args);
+    return updateDB(this._db, sql, args);
   }
 
   batchUpdate(sql: string, manyArgs: (string | number | boolean | null | undefined)[][]) {
-    return updateDBBatch(this.__db, sql, manyArgs);
+    return updateDBBatch(this._db, sql, manyArgs);
+  }
+
+  batchInsert(tableName: string, columns: string[], manyArgs: (string | number | boolean | null | undefined)[][]) {
+    return insertDBBatch(this._db, tableName, columns, manyArgs);
   }
 }
 

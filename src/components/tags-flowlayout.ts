@@ -392,8 +392,7 @@ export class TagsFlowlayout extends Base<UIView, UiTypes.ViewOptions> {
       return {
         type: "view",
         props: {
-          id: this.id,
-          bgcolor: $color("red")
+          id: this.id
         },
         events: {
           layoutSubviews: sender => {

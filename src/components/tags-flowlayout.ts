@@ -188,10 +188,11 @@ class TagView extends Base<UIView, UiTypes.ViewOptions> {
           text,
           textColor: this._selected ? tagColor.selected : $color("primaryText"),
           font: $font(TAG_FONT_SIZE),
-          align: $align.center,
+          align: $align.left,
         },
         layout: (make, view) => {
-          make.center.equalTo(view.super)
+          make.centerY.equalTo(view.super)
+          make.left.right.inset(8)
         }
       }]
     })
@@ -391,14 +392,15 @@ export class TagsFlowlayout extends Base<UIView, UiTypes.ViewOptions> {
       return {
         type: "view",
         props: {
-          id: this.id
+          id: this.id,
+          bgcolor: $color("red")
         },
         events: {
           layoutSubviews: sender => {
             if (this._width !== sender.frame.width) {
               this._width = sender.frame.width;
-              const height = this._layoutTags();
-              sender.updateLayout((make) => make.height.equalTo(height));
+              this._layoutTags();
+              //sender.updateLayout((make) => make.height.equalTo(height));
             }
           },
         },
@@ -436,14 +438,18 @@ export class TagsFlowlayout extends Base<UIView, UiTypes.ViewOptions> {
       x = namespaceWidth + sectionSpacing;
       let rowWidth = 0;
       tags.forEach(tag => {
-        if (rowWidth + tag.width > tagsTotalWidth) {
+        // 如果这不是当前行的第一个标签，那么需要考虑换行的问题；
+        // 否则，其宽度为Math.min(tag.width, tagsTotalWidth)，即如果tag超宽，则取tagsTotalWidth
+        if (rowWidth > 0 && rowWidth + tag.width > tagsTotalWidth) {
           y += itemHeight + itemSpacing;
           x = namespaceWidth + sectionSpacing;
           rowWidth = 0;
         }
-        tag.frame = $rect(x, y, Math.min(tag.width, tagsTotalWidth), itemHeight);
-        x += tag.width + itemSpacing;
-        rowWidth += tag.width + itemSpacing;
+        const w = Math.min(tag.width, tagsTotalWidth);
+        tag.frame = $rect(x, y, w, itemHeight);
+        x += w + itemSpacing;
+        rowWidth += w + itemSpacing;
+
       })
       y += itemHeight + sectionSpacing;
       x = namespaceWidth + sectionSpacing;
@@ -465,17 +471,18 @@ export class TagsFlowlayout extends Base<UIView, UiTypes.ViewOptions> {
       x = namespaceWidth + sectionSpacing;
       let rowWidth = 0;
       tags.forEach(tag => {
-        if (rowWidth + tag.width > tagsTotalWidth) {
+        if (rowWidth > 0 && rowWidth + tag.width > tagsTotalWidth) {
           y += itemHeight + itemSpacing;
           x = namespaceWidth + sectionSpacing;
           rowWidth = 0;
         }
-        x += tag.width + itemSpacing;
-        rowWidth += tag.width + itemSpacing;
+        const w = Math.min(tag.width, tagsTotalWidth);
+        x += w + itemSpacing;
+        rowWidth += w + itemSpacing;
       })
       y += itemHeight + sectionSpacing;
       x = namespaceWidth + sectionSpacing;
     })
-    return y + sectionSpacing;
+    return y - sectionSpacing;
   }
 }

@@ -1,27 +1,33 @@
 import { EHQualifier, EHSearchTerm, TagNamespace, tagNamespaces } from "ehentai-parser";
 import { MarkedTag, MarkedTagDict, TranslationData, TranslationDict, WebDAVService, DBSearchHistory, DBSearchBookmarks } from "../types";
 import { dbManager } from "./database";
+import { aiTranslationPath, imagePath, originalImagePath, thumbnailPath } from "./glv";
 
 interface Config {
-  cookie: string;
-  exhentai: boolean;
-  syncMyTags: boolean;
-  mpvAvailable: boolean;
-  homepageManagerLayoutMode: "large" | "normal";
-  archiveManagerLayoutMode: "large" | "normal";
-  tagManagerOnlyShowBookmarked: boolean;
-  webdavIntroductionFirstRead: boolean;
-  autopagerInterval: number;
-  archiveManagerOrderMethod: "first_access_time" | "last_access_time" | "posted_time";
-  favoritesOrderMethod: "favorited_time" | "published_time";
-  webdavEnabled: boolean;
-  webdavAutoUpload: boolean;
-  translationUpdateTime: string;
-  defaultFavcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
-  mytagsApiuid: number;
-  mytagsApikey: string;
-  selectedAiTranslationService: string;
-  aiTranslationSavedConfigText: string;
+  cookie: string;  // 登录Cookie
+  exhentai: boolean;  // 是否登录Exhentai
+  syncMyTags: boolean;  // 是否同步我的标签
+  mpvAvailable: boolean;  // 是否可用MPV
+  homepageManagerLayoutMode: "large" | "normal";  // 主页管理器布局模式
+  archiveManagerLayoutMode: "large" | "normal";  // 存档管理器布局模式
+  tagManagerOnlyShowBookmarked: boolean;  // 标签管理器仅显示已收藏的标签
+  webdavIntroductionFirstRead: boolean;  // 是否首次阅读WebDAV介绍
+  archiveManagerOrderMethod: "first_access_time" | "last_access_time" | "posted_time";  // 存档管理器排序方式
+  favoritesOrderMethod: "published_time" | "favorited_time";  // 收藏页排序方式（与网页同步）
+  webdavEnabled: boolean;  // 是否启用WebDAV
+  webdavAutoUpload: boolean;  // 是否自动上传到WebDAV
+  translationUpdateTime: string;  // 标签翻译更新时间
+  defaultFavcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;  // 默认收藏到
+  mytagsApiuid: number;  
+  mytagsApikey: string;  
+  selectedAiTranslationService: string;  // 选择的AI翻译服务
+  aiTranslationSavedConfigText: string;  // AI翻译配置
+  autoClearCache: boolean;  // 是否在关闭时自动清除缓存
+  autoCacheWhenReading: boolean;  // 阅读时是否自动缓存整个图库
+  pageTurnMethod: "click_and_swipe" | "click" | "swipe";  // 翻页方式
+  startPageType: "blank_page" | "last_access" | "specific_page";  // 起始页面类型
+  specificStartPageJson: string;  // 特定起始页面, 以json格式存储的StatusTabOptions
+  lastAccessPageJson: string;  // 上次访问页面, 以json格式存储的StatusTabOptions
 }
 
 const defaultConfig: Config = {
@@ -33,9 +39,8 @@ const defaultConfig: Config = {
   archiveManagerLayoutMode: "large",
   tagManagerOnlyShowBookmarked: false,
   webdavIntroductionFirstRead: false,
-  autopagerInterval: 5,
   archiveManagerOrderMethod: "last_access_time",
-  favoritesOrderMethod: "favorited_time",
+  favoritesOrderMethod: "published_time",
   webdavEnabled: false,
   webdavAutoUpload: false,
   translationUpdateTime: new Date(0).toISOString(),
@@ -43,7 +48,13 @@ const defaultConfig: Config = {
   mytagsApiuid: 0,
   mytagsApikey: "",
   selectedAiTranslationService: "",
-  aiTranslationSavedConfigText: "{}"
+  aiTranslationSavedConfigText: "{}",
+  autoClearCache: false,
+  autoCacheWhenReading: true,
+  pageTurnMethod: "click_and_swipe",
+  startPageType: "blank_page",
+  specificStartPageJson: "",
+  lastAccessPageJson: ""
 }
 
 async function getEhTagTranslationText() {
@@ -190,14 +201,6 @@ class ConfigManager {
     this._setConfig("webdavIntroductionFirstRead", value)
   }
 
-  get autopagerInterval() {
-    return this._config.autopagerInterval
-  }
-
-  set autopagerInterval(value: number) {
-    this._setConfig("autopagerInterval", value)
-  }
-
   get archiveManagerOrderMethod() {
     return this._config.archiveManagerOrderMethod
   }
@@ -277,6 +280,55 @@ class ConfigManager {
   set aiTranslationSavedConfigText(value: string) {
     this._setConfig("aiTranslationSavedConfigText", value)
   }
+
+  get autoClearCache() {
+    return this._config.autoClearCache
+  }
+
+  set autoClearCache(value: boolean) {
+    this._setConfig("autoClearCache", value)
+  }
+
+  get autoCacheWhenReading() {
+    return this._config.autoCacheWhenReading
+  }
+
+  set autoCacheWhenReading(value: boolean) {
+    this._setConfig("autoCacheWhenReading", value)
+  }
+
+  get pageTurnMethod() {
+    return this._config.pageTurnMethod
+  }
+
+  set pageTurnMethod(value: "click_and_swipe" | "click" | "swipe") {
+    this._setConfig("pageTurnMethod", value)
+  }
+
+  get startPageType() {
+    return this._config.startPageType
+  }
+
+  set startPageType(value: "blank_page" | "last_access" | "specific_page") {
+    this._setConfig("startPageType", value)
+  }
+
+  get specificStartPageJson() {
+    return this._config.specificStartPageJson
+  }
+
+  set specificStartPageJson(value: string) {
+    this._setConfig("specificStartPageJson", value)
+  }
+
+  get lastAccessPageJson() {
+    return this._config.lastAccessPageJson
+  }
+
+  set lastAccessPageJson(value: string) {
+    this._setConfig("lastAccessPageJson", value)
+  }
+
   /***CONFIG END***/
 
   get translationList() {
@@ -332,8 +384,8 @@ class ConfigManager {
     const sql_remove = "DELETE FROM marked_tags"
     dbManager.update(sql_remove)
     dbManager.batchInsert(
-      "marked_tags", 
-      ["tagid", "namespace", "name", "watched", "hidden", "color", "weight"], 
+      "marked_tags",
+      ["tagid", "namespace", "name", "watched", "hidden", "color", "weight"],
       markedTags.map(t => [t.tagid, t.namespace, t.name, t.watched, t.hidden, t.color || "", t.weight])
     )
     const result = new Map() as MarkedTagDict
@@ -422,8 +474,8 @@ class ConfigManager {
     const sql_remove_marked = `DELETE FROM marked_uploaders WHERE uploader IN (SELECT uploader FROM banned_uploaders);`
     dbManager.update(sql_remove)
     dbManager.batchInsert(
-      "banned_uploaders", 
-      ["uploader"], 
+      "banned_uploaders",
+      ["uploader"],
       uploaders.map(u => [u])
     );
     dbManager.update(sql_remove_marked)
@@ -447,8 +499,8 @@ class ConfigManager {
     const sql_remove = "DELETE FROM favcat_titles"
     dbManager.update(sql_remove)
     dbManager.batchInsert(
-      "favcat_titles", 
-      ["favcat", "title"], 
+      "favcat_titles",
+      ["favcat", "title"],
       titles.map((t, i) => [i, t])
     )
     this._favcatTitles = titles
@@ -499,8 +551,8 @@ class ConfigManager {
     dbManager.update(sql_delete_translation_data);
     this.translationUpdateTime = time;
     dbManager.batchInsert(
-      "translation_data", 
-      ["namespace", "name", "translation", "intro", "links"], 
+      "translation_data",
+      ["namespace", "name", "translation", "intro", "links"],
       translationData.map(d => [d.namespace, d.name, d.translation, d.intro, d.links])
     );
     const r = this._queryTranslationDict()
@@ -826,6 +878,104 @@ LIMIT 20;
   saveAiTranslationServiceConfig(config: Record<string, any>) {
     this._aiTranslationSavedConfig = config
     this.aiTranslationSavedConfigText = JSON.stringify(config)
+  }
+
+  /**
+   * 清除较旧的搜索记录
+   * @param index 0: 一个月前, 1: 三个月前, 2: 六个月前, 3: 一年前
+   */
+  clearOldSearchRecords(index: number) {
+    // 先根据index计算出对应的日期
+    const date = new Date();
+    if (index === 0) {
+      date.setMonth(date.getMonth() - 1);
+    } else if (index === 1) {
+      date.setMonth(date.getMonth() - 3);
+    } else if (index === 2) {
+      date.setMonth(date.getMonth() - 6);
+    } else {
+      date.setFullYear(date.getFullYear() - 1);
+    }
+    // 再根据日期对出符合条件的id
+    const sql = "SELECT id FROM search_history WHERE last_access_time < ?";
+    const data = dbManager.query(sql, [date.toISOString()]) as {
+      id: number;
+    }[];
+    const needDeleteIds = data.map(n => n.id);
+    const sql_delete = "DELETE FROM search_history WHERE id = ?";
+    const sql_delete_terms = "DELETE FROM search_history_search_terms WHERE search_history_id = ?";
+    dbManager.batchUpdate(sql_delete_terms, needDeleteIds.map(id => [id]));
+    dbManager.batchUpdate(sql_delete, needDeleteIds.map(id => [id]));
+    this._searchHistory = this._querySearchHistory()
+  }
+
+  /**
+   * 清除较旧的阅读记录, 排除下载项
+   * @param index 0: 一个月前, 1: 三个月前, 2: 六个月前, 3: 一年前
+   */
+  clearOldReadRecords(index: number) {
+    // 先根据index计算出对应的日期
+    const date = new Date();
+    if (index === 0) {
+      date.setMonth(date.getMonth() - 1);
+    } else if (index === 1) {
+      date.setMonth(date.getMonth() - 3);
+    } else if (index === 2) {
+      date.setMonth(date.getMonth() - 6);
+    } else {
+      date.setFullYear(date.getFullYear() - 1);
+    }
+    // 再根据日期对出符合条件的gid
+    const sql = "SELECT gid FROM archives WHERE last_access_time < ? AND downloaded <> 1";
+    const data = dbManager.query(sql, [date.toISOString()]) as {
+      gid: number;
+    }[];
+    const needDeleteGids = data.map(n => n.gid);
+    const sql_delete = "DELETE FROM archives WHERE gid = ?";
+    const sql_delete_taglist = "DELETE FROM archive_taglist WHERE gid = ?";
+    dbManager.batchUpdate(sql_delete, needDeleteGids.map(gid => [gid]));
+    dbManager.batchUpdate(sql_delete_taglist, needDeleteGids.map(gid => [gid]));
+  }
+
+  /**
+ * 清除缓存
+ * 规则：
+ * 1. 删除thumbnailPath
+ * 2. 删除originalImagePath
+ * 3. 删除aiTranslationPath
+ * 4. 在imagePath中，查找所有没有被标注为"downloaded"的文件夹，删除它们
+ */
+  clearCache() {
+    $file.delete(thumbnailPath);
+    $file.delete(originalImagePath);
+    $file.delete(aiTranslationPath);
+    const sql = "SELECT gid FROM archives WHERE downloaded <> 1";
+    const data = dbManager.query(sql) as {
+      gid: number;
+    }[];
+    const needDeleteGids = data.map(n => n.gid);
+    const imageDirs = $file.list(imagePath);
+    for (const dir of imageDirs) {
+      const gid = parseInt(dir);
+      if (needDeleteGids.includes(gid)) {
+        $file.delete(imagePath + dir);
+      }
+    }
+  }
+
+  /**
+   * 清除所有缓存和下载内容
+   */
+  clearAll() {
+    $file.delete(thumbnailPath);
+    $file.delete(originalImagePath);
+    $file.delete(aiTranslationPath);
+    $file.delete(imagePath);
+    // 删除archives和archive_taglist表中所有数据
+    const sql_delete_archive_taglist = "DELETE FROM archive_taglist";
+    const sql_delete_archives = "DELETE FROM archives";
+    dbManager.update(sql_delete_archive_taglist);
+    dbManager.update(sql_delete_archives);
   }
 
 

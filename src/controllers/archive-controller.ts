@@ -124,16 +124,7 @@ export class ArchiveController extends BaseController {
       layoutMode: configManager.archiveManagerLayoutMode,
       searchBar,
       pulled: async () => {
-        const tab = await statusManager.reloadTab("archive") as ArchiveTab;
-        downloaderManager.getTabDownloader("archive")!.clear();
-        downloaderManager.getTabDownloader("archive")!.add(
-          tab.pages.map(page => page.items).flat().map(item => ({
-            gid: item.gid,
-            url: item.thumbnail_url
-          }))
-        )
-        downloaderManager.startTabDownloader("archive");
-        this.updateLoadedStatus();
+        await this.reload()
       },
       didSelect: async (sender, indexPath, item) => {
         const galleryController = new GalleryController(item.gid, item.token)
@@ -169,6 +160,19 @@ export class ArchiveController extends BaseController {
     this.updateLoadingStatus(options);
     const tab = await statusManager.loadTab(options, "archive") as ArchiveTab;
     if (!tab) return;
+    downloaderManager.getTabDownloader("archive")!.clear();
+    downloaderManager.getTabDownloader("archive")!.add(
+      tab.pages.map(page => page.items).flat().map(item => ({
+        gid: item.gid,
+        url: item.thumbnail_url
+      }))
+    )
+    downloaderManager.startTabDownloader("archive");
+    this.updateLoadedStatus();
+  }
+
+  async reload() {
+    const tab = await statusManager.reloadTab("archive") as ArchiveTab;
     downloaderManager.getTabDownloader("archive")!.clear();
     downloaderManager.getTabDownloader("archive")!.add(
       tab.pages.map(page => page.items).flat().map(item => ({

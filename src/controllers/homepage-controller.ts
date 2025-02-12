@@ -72,7 +72,7 @@ export class HomepageController extends BaseController {
         tapped: async () => {
           const result = await $input.text({
             type: $kbType.url,
-            placeholder: "输入链接，直接打开ehentai图库",
+            placeholder: "输入链接，直接打开图库",
             text: ""
           })
           if (!result) return;

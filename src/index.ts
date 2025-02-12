@@ -36,7 +36,7 @@ async function init() {
       items: [
         {
           symbol: "photo.on.rectangle",
-          title: "主页",
+          title: "浏览",
           controller: homepageController
         },
         {
@@ -176,6 +176,8 @@ async function init() {
       config.favorite_8,
       config.favorite_9
     ])
+    // 更新收藏页排序
+    configManager.favoritesOrderMethod = config.fs === "0" ? "published_time" : "favorited_time";
   }
   if (ehMyTags) {
     configManager.updateAllMarkedTags(ehMyTags.tags)

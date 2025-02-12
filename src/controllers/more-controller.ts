@@ -6,7 +6,7 @@ import {
   router,
   SplitViewController,
 } from "jsbox-cview";
-import { createGeneralSettingsController } from "./settings-general-controller";
+import { GeneralSettingsController } from "./settings-general-controller";
 import { SettingsDownloadsController } from "./settings-downloads-controller";
 import { setWebDAVConfig } from "./settings-webdav-controller";
 import { setAITranslationConfig } from "./settings-translation-controller";
@@ -28,7 +28,12 @@ export class MoreController extends BaseController {
         rightBarButtonItems: [{
           symbol: "power", 
           tintColor: $color("red"),
-          handler: () => $app.close()
+          handler: () => {
+            if (configManager.autoClearCache) {
+              configManager.clearCache();
+            }
+            $app.close();
+          }
         }]
       }
     });
@@ -326,7 +331,7 @@ export class MoreController extends BaseController {
               $app.openURL("https://github.com/Gandum2077/JSEhViewer")
               break;
             case 1:
-              const generalSettingsController = createGeneralSettingsController()
+              const generalSettingsController = new GeneralSettingsController()
               generalSettingsController.uipush({
                 navBarHidden: true,
                 statusBarStyle: 0

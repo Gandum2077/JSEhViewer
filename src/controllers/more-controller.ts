@@ -1,7 +1,7 @@
 import {
-  BaseController, 
+  BaseController,
   CustomNavigationBar,
-  setLayer, 
+  setLayer,
   DynamicItemSizeMatrix,
   router,
   SplitViewController,
@@ -11,11 +11,29 @@ import { SettingsDownloadsController } from "./settings-downloads-controller";
 import { setWebDAVConfig } from "./settings-webdav-controller";
 import { setAITranslationConfig } from "./settings-translation-controller";
 import { configManager } from "../utils/config";
+import { downloaderManager } from "../utils/api";
+import { globalTimer } from "../utils/timer";
+import { toLocalTimeString } from "../utils/tools";
 
 export class MoreController extends BaseController {
   cviews: { navbar: CustomNavigationBar, list: DynamicItemSizeMatrix };
   constructor() {
-    super()
+    super({
+      events: {
+        didAppear: () => {
+          this.scheduledRefresh()
+          globalTimer.addTask({
+            id: "more-controller-refresh",
+            handler: () => {
+              this.scheduledRefresh()
+            }
+          })
+        },
+        didDisappear: () => {
+          globalTimer.removeTask("more-controller-refresh")
+        }
+      }
+    })
     const navbar = new CustomNavigationBar({
       props: {
         title: "其他",
@@ -26,7 +44,7 @@ export class MoreController extends BaseController {
           }
         }],
         rightBarButtonItems: [{
-          symbol: "power", 
+          symbol: "power",
           tintColor: $color("red"),
           handler: () => {
             if (configManager.autoClearCache) {
@@ -101,7 +119,7 @@ export class MoreController extends BaseController {
                   },
                   layout: $layout.fill,
                   views: [
-                    {
+                    /* { // 由于使用渐变色，导致列表快速下拉的时候，新出现的item会闪烁一下，因此弃用
                       type: "gradient",
                       props: {
                         id: "gradient",
@@ -109,6 +127,13 @@ export class MoreController extends BaseController {
                         startPoint: $point(0, 0),
                         endPoint: $point(1, 1),
                         colors: [$color("#DA8080"), $color("#BE3737")]
+                      },
+                      layout: $layout.fill
+                    }, */
+                    {
+                      type: "view",
+                      props: {
+                        id: "bgview"
                       },
                       layout: $layout.fill
                     },
@@ -177,7 +202,7 @@ export class MoreController extends BaseController {
                             bgcolor: $color("clear"),
                             font: $font("bold", 15),
                             textColor: $color("white")
-                      },
+                          },
                           layout: $layout.fill
                         }
                       ]
@@ -188,140 +213,7 @@ export class MoreController extends BaseController {
             }
           ]
         },
-        data: [
-          {
-            gradient: {
-              colors: [$color("#DA8080"), $color("#BE3737")]
-            },
-            icon: {
-              icon: $icon("177", $color("white"))
-            },
-            title: {
-              text: "项目地址"
-            },
-            content: {
-              text: "欢迎关注JSEhViewer！\n在GitHub上查看说明文档，或者在issues页面留下你的建议"
-            },
-            blur: {
-              hidden: false
-            },
-            button: {
-              text: "前往GitHub"
-            }
-          },
-          {
-            gradient: {
-              colors: [$color("#E18B7A"), $color("#C7472D")]
-            },
-            icon: {
-              symbol: "gear"
-            },
-            title: {
-              text: "通用"
-            },
-            content: {
-              text: "一些常用的设置\n包括UI偏好、标签翻译更新、排序方式、清理缓存、重新登录等"
-            },
-            blur: {
-              hidden: true
-            }
-          },
-          {
-            gradient: {
-              colors: [$color("#D7AD6B"), $color("#AD7E2F")]
-            },
-            icon: {
-              symbol: "arrow.up.arrow.down.circle"
-            },
-            title: {
-              text: "下载与上传"
-            },
-            content: {
-              text:
-                "当前下载: n / m\n当前上传: n / m"
-            },
-            blur: {
-              hidden: true
-            }
-          },
-          {
-            gradient: {
-              colors: [$color("#B8CC1C"), $color("#919B00")]
-            },
-            icon: {
-              symbol: "externaldrive.connected.to.line.below"
-            },
-            title: {
-              text: "WebDAV"
-            },
-            content: {
-              text:
-                "多端共享，及时备份\n对服务端有要求，请注意查看说明\n当前地址: http://192.168.1.1:5007/Public"
-            },
-            blur: {
-              hidden: true
-            }
-          },
-          {
-            gradient: {
-              colors: [$color("#8AB46A"), $color("#587A3D")]
-            },
-            icon: {
-              symbol: "globe"
-            },
-            title: {
-              text: "AI翻译"
-            },
-            content: {
-              text:
-                "图片AI翻译设置"
-            },
-            blur: {
-              hidden: true
-            }
-          },
-          {
-            gradient: {
-              colors: [$color("#8CB1C0"), $color("#518294")]
-            },
-            icon: {
-              symbol: "flag.and.flag.filled.crossed"
-            },
-            title: {
-              text: "EHentai标签"
-            },
-            content: {
-              text: "在网页端查看和修改EHentai标签(修改后请重启本应用)"
-            },
-            blur: {
-              hidden: false
-            },
-            button: {
-              text: "在Safari查看"
-            }
-          },
-          {
-            gradient: {
-              colors: [$color("#8E96CD"), $color("#4B58A9")]
-            },
-            icon: {
-              symbol: "square.text.square"
-            },
-            title: {
-              text: "EHentai设置"
-            },
-            content: {
-              text:
-                "在网页端调整本应用未涉及的设置，比如清晰度、过滤条件、收藏分类(修改后请重启本应用)"
-            },
-            blur: {
-              hidden: false
-            },
-            button: {
-              text: "在Safari查看"
-            }
-          } //b8cc1c A6BC00
-        ]
+        data: this._getCurrentData()
       },
       layout: $layout.fillSafeArea,
       events: {
@@ -369,4 +261,145 @@ export class MoreController extends BaseController {
     this.rootView.views = [list, navbar]
   }
 
+  private _getCurrentData() {
+    // 需要获取四个数据：
+    // 1. 标签翻译更新时间
+    const tagTranslationUpdateTimeText = toLocalTimeString(configManager.translationUpdateTime)
+    // 2. 下载与上传的数量
+    let downloadText = ""
+    let uploadText = ""
+    // 先从下载管理器中获取正在进行的下载和上传任务, 并提取出需要展示的数据
+    const downloading = [...downloaderManager.galleryDownloaders.values()]
+      .filter(n => n.background)
+      .map(n => {
+        const finishedCount = n.finishedOfImages;
+        const totalCount = n.infos.length;
+        const errorCount = n.result.images.filter(n => n.error).length;
+        return {
+          finishedCount,
+          totalCount,
+          errorCount
+        }
+      });
+    const downloadingTotal = downloading.length;
+    const downloadingFinished = downloading.filter(n => n.finishedCount === n.totalCount).length;
+    const downloadingError = downloading.filter(n => n.errorCount > 0).length;
+    if (downloadingTotal > 0) {
+      downloadText = `当前下载: ${downloadingFinished} / ${downloadingTotal}`
+      if (downloadingError > 0) {
+        downloadText += `, 错误: ${downloadingError}`
+      }
+    } else {
+      downloadText = "没有正在进行的下载"
+    }
+    const uploading = [...downloaderManager.galleryWebDAVUploaders.values()]
+      .map(n => {
+        const finishedCount = n.finished;
+        const totalCount = n.infos.length;
+        const errorCount = n.result.upload.filter(n => n.error).length;
+        return {
+          finishedCount,
+          totalCount,
+          errorCount
+        }
+      })
+    const uploadingTotal = uploading.length;
+    const uploadingFinished = uploading.filter(n => n.finishedCount === n.totalCount).length;
+    const uploadingError = uploading.filter(n => n.errorCount > 0).length;
+    if (uploadingTotal > 0) {
+      uploadText = `当前上传: ${uploadingFinished} / ${uploadingTotal}`
+      if (uploadingError > 0) {
+        uploadText += `, 错误: ${uploadingError}`
+      }
+    } else {
+      uploadText = "没有正在进行的上传"
+    }
+    // 3. WebDAV的地址
+    let webdavEnabledText = ""
+    if (configManager.webdavEnabled) {
+      webdavEnabledText = "已启用WebDAV\n当前服务器: "
+      if (configManager.currentWebDAVService) {
+        webdavEnabledText += configManager.currentWebDAVService.name
+      } else {
+        webdavEnabledText += "未设置"
+      }
+    } else {
+      webdavEnabledText = "未启用WebDAV"
+    }
+    // 4. AI翻译的选项
+    let aiTranslationServiceText = ""
+    if (configManager.selectedAiTranslationService === "") {
+      aiTranslationServiceText = "尚未设置AI翻译服务"
+    } else if (configManager.selectedAiTranslationService === "user-custom") {
+      aiTranslationServiceText = "当前服务: 用户自定义"
+    } else {
+      aiTranslationServiceText = "当前服务: " + configManager.selectedAiTranslationService
+    }
+    const data = [
+      {
+        // gradient: { colors: [$color("#DA8080"), $color("#BE3737")] },
+        bgview: { bgcolor: $color("#CC5C5C") },
+        icon: { icon: $icon("177", $color("white")) },
+        title: { text: "项目地址" },
+        content: { text: "欢迎关注JSEhViewer！\n在GitHub上查看说明文档，或者在issues页面留下你的建议" },
+        blur: { hidden: false },
+        button: { text: "前往GitHub" }
+      },
+      {
+        // gradient: { colors: [$color("#E18B7A"), $color("#C7472D")] },
+        bgview: { bgcolor: $color("#D46954") },
+        icon: { symbol: "gear" },
+        title: { text: "通用" },
+        content: { text: "常用的设置：UI偏好、标签翻译更新、排序方式、清理缓存、重新登录等\n标签翻译更新时间: " + tagTranslationUpdateTimeText },
+        blur: { hidden: true }
+      },
+      {
+        // gradient: { colors: [$color("#D7AD6B"), $color("#AD7E2F")] },
+        bgview: { bgcolor: $color("#C2964D") },
+        icon: { symbol: "arrow.up.arrow.down.circle" },
+        title: { text: "下载与上传" },
+        content: { text: downloadText + "\n" + uploadText },
+        blur: { hidden: true }
+      },
+      {
+        // gradient: { colors: [$color("#B8CC1C"), $color("#919B00")] },
+        bgview: { bgcolor: $color("#A5B40E") },
+        icon: { symbol: "externaldrive.connected.to.line.below" },
+        title: { text: "WebDAV" },
+        content: { text: webdavEnabledText },
+        blur: { hidden: true }
+      },
+      {
+        // gradient: { colors: [$color("#8AB46A"), $color("#587A3D")] },
+        bgview: { bgcolor: $color("#719754") },
+        icon: { symbol: "globe" },
+        title: { text: "AI翻译" },
+        content: { text: "图片AI翻译设置\n" + aiTranslationServiceText },
+        blur: { hidden: true }
+      },
+      {
+        // gradient: { colors: [$color("#8CB1C0"), $color("#518294")] },
+        bgview: { bgcolor: $color("#6F9AAA") },
+        icon: { symbol: "flag.and.flag.filled.crossed" },
+        title: { text: "EHentai标签" },
+        content: { text: "在网页端查看和修改EHentai标签(修改后请重启本应用)" },
+        blur: { hidden: false },
+        button: { text: "在Safari查看" }
+      },
+      {
+        // gradient: { colors: [$color("#8E96CD"), $color("#4B58A9")] },
+        bgview: { bgcolor: $color("#6D77BB") },
+        icon: { symbol: "square.text.square" },
+        title: { text: "EHentai设置" },
+        content: { text: "在网页端调整本应用未涉及的设置，比如清晰度、过滤条件、收藏分类(修改后请重启本应用)" },
+        blur: { hidden: false },
+        button: { text: "在Safari查看" }
+      } //b8cc1c A6BC00
+    ]
+    return data
+  }
+
+  scheduledRefresh() {
+    this.cviews.list.data = this._getCurrentData()
+  }
 }

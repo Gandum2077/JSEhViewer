@@ -1,4 +1,4 @@
-import { EHListCompactItem, EHListExtendedItem, EHListMinimalItem, EHListThumbnailItem, EHListUploadItem, EHTagListItem, EHUploadList } from "ehentai-parser";
+import { EHListCompactItem, EHListExtendedItem, EHListMinimalItem, EHListThumbnailItem, EHListUploadItem, EHTagListItem } from "ehentai-parser";
 import { Base, Matrix } from "jsbox-cview"
 import { configManager } from "../utils/config";
 import { catColor, catTranslations, favcatColor, namespaceTranslations, ratingColor, tagBgcolor, thumbnailPath } from "../utils/glv";
@@ -276,7 +276,8 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
   private _items: Items = [];
   private _layoutMode: "normal" | "large";
   private _showingUpLoadItem = false;
-  private _isLoading = false;
+  private _isPulling = false;  // 是否处于下拉刷新状态
+  private _isReachingBottom = false;  // 是否处于到达底部后的加载状态
   _defineView: () => UiTypes.ViewOptions;
 
   constructor({ layoutMode, searchBar, pulled, didSelect, didReachBottom, layout }: {
@@ -895,17 +896,23 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
           }
         },
         pulled: async sender => {
-          if (this._isLoading) return
-          sender.beginRefreshing()
-          this._isLoading = true
-          await pulled()
-          sender.endRefreshing()
-          this._isLoading = false
+          if (this._isPulling || this._isReachingBottom) return;
+          sender.beginRefreshing();
+          this._isPulling = true;
+          await pulled();
+          if (this._isPulling) {
+            sender.endRefreshing();
+            this._isPulling = false;
+          }
         },
         didReachBottom: async sender => {
-          if (this._isLoading) return
-          await didReachBottom()
-          sender.endFetchingMore()
+          if (this._isReachingBottom || this._isPulling) return;
+          this._isReachingBottom = true;
+          await didReachBottom();
+          if (this._isReachingBottom) {
+            sender.endFetchingMore();
+            this._isReachingBottom = false;
+          }
         },
         didSelect: async (sender, indexPath, data) => {
           await didSelect(this, indexPath, this._items[indexPath.item])
@@ -972,6 +979,8 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
   set items(items: Items) {
     this._showingUpLoadItem = (items.length > 0 && items[0].type === "upload");
     this._items = items;
+    if (this._isPulling) this.matrix.view.endRefreshing();
+    if (this._isReachingBottom) this.matrix.view.endFetchingMore();
     this.matrix.view.data = _mapData(items, this._layoutMode);
   }
 
@@ -985,13 +994,5 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
 
   get footerText() {
     return ($(this.id + "matrix-footer") as UILabelView).text
-  }
-
-  set isLoading(loading: boolean) {
-    this._isLoading = loading
-  }
-
-  get isLoading() {
-    return this._isLoading
   }
 }

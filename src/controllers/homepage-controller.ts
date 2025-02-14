@@ -1,4 +1,4 @@
-import { BaseController, CustomNavigationBar, SymbolButton, router, SplitViewController, cvid } from "jsbox-cview";
+import { BaseController, CustomNavigationBar, SymbolButton, router, SplitViewController } from "jsbox-cview";
 import { GalleryController } from "./gallery-controller";
 import { getJumpRangeDialogForHomepage, getJumpPageDialog, getJumpRangeDialogForFavorites } from "../components/seekpage-dialog";
 import { configManager } from "../utils/config";
@@ -11,6 +11,7 @@ import { downloaderManager, TabThumbnailDownloader } from "../utils/api";
 import { CustomSearchBar } from "../components/custom-searchbar";
 import { getSearchOptions } from "./search-controller";
 import { SidebarTabController } from "./sidebar-tab-controller";
+import { globalTimer } from "../utils/timer";
 
 export class HomepageController extends BaseController {
   cviews: { navbar: CustomNavigationBar, list: EHlistView, searchBar: CustomSearchBar };
@@ -22,11 +23,20 @@ export class HomepageController extends BaseController {
       },
       events: {
         didLoad: () => {
-          this.cviews.list.footerText = "请等待配置同步……";
-          this.cviews.list.isLoading = true;
+          globalTimer.addTask({
+            id: "homepageController",
+            paused: true,
+            handler: () => {
+              this.cviews.list.reload()
+            }
+          })
         },
         didAppear: () => {
           downloaderManager.startTabDownloader(statusManager.currentTabId);
+          globalTimer.resumeTask("homepageController")
+        },
+        didDisappear: () => {
+          globalTimer.pauseTask("homepageController")
         }
       }
     })
@@ -275,7 +285,6 @@ export class HomepageController extends BaseController {
     // 2. 搜索栏更新
     // 3. 标题更新
     this.cviews.list.footerText = "加载中……";
-    this.cviews.list.isLoading = true;
     this.cviews.list.items = [];
     if (
       (options.type === "front_page" || options.type === "watched" || options.type === "favorites")
@@ -307,7 +316,6 @@ export class HomepageController extends BaseController {
       if (lastPage.current_page === lastPage.total_pages - 1) return;
     }
     this.cviews.list.footerText = "正在加载更多……";
-    this.cviews.list.isLoading = true;
     try {
       const tab = await statusManager.loadMoreTab(statusManager.currentTabId);
       if (!tab) return;
@@ -329,7 +337,6 @@ export class HomepageController extends BaseController {
 
   async reload() {
     this.cviews.list.footerText = "正在重新加载……";
-    this.cviews.list.isLoading = true;
     try {
       const tab = await statusManager.reloadTab(statusManager.currentTabId);
       const dm = downloaderManager.getTabDownloader(statusManager.currentTabId) as TabThumbnailDownloader;
@@ -429,7 +436,6 @@ export class HomepageController extends BaseController {
       default:
         throw new Error("Invalid tab type");
     }
-    this.cviews.list.isLoading = false;
     (router.get("sidebarTabController") as SidebarTabController).refresh()
   }
 }

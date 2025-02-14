@@ -83,6 +83,43 @@ class DownloadList extends Base<UIListView, UiTypes.ListOptions> {
         layout: (make, view) => {
           make.top.equalTo(view.prev.bottom);
           make.left.right.bottom.equalTo(view.super);
+        },
+        events: {
+          didSelect: (sender, indexPath, data: {
+            info: {
+              type: "download" | "upload";
+              title: string;
+              finishedCount: number;
+              totalCount: number;
+              errorCount: number;
+              gid: number;
+              thumbnail?: string;
+              paused: boolean;
+            }
+          }) => {
+            const gid = data.info.gid;
+            if (data.info.type === "download") {
+              if (data.info.paused) {
+                const d = downloaderManager.get(gid);
+                if (d) {
+                  d.backgroundPaused = false;
+                  downloaderManager.startOne(gid);
+                }
+              } else {
+                downloaderManager.backgroundPause(gid);
+              }
+            } else {
+              if (data.info.paused) {
+                const u = downloaderManager.getGalleryWebDAVUploader(gid);
+                if (u) {
+                  u.backgroundPaused = false;
+                  downloaderManager.startGalleryWebDAVUploader(gid);
+                }
+              } else {
+                downloaderManager.backgroundPauseGalleryWebDAVUploader(gid);
+              }
+            }
+          }
         }
       }
     }
@@ -90,6 +127,7 @@ class DownloadList extends Base<UIListView, UiTypes.ListOptions> {
 
   updateData({ downloading, uploading }: {
     downloading: {
+      type: "download",
       title: string;
       finishedCount: number;
       totalCount: number;
@@ -99,6 +137,7 @@ class DownloadList extends Base<UIListView, UiTypes.ListOptions> {
       paused: boolean;
     }[];
     uploading: {
+      type: "upload",
       title: string;
       finishedCount: number;
       totalCount: number;
@@ -122,13 +161,14 @@ class DownloadList extends Base<UIListView, UiTypes.ListOptions> {
         progressText += `, 错误: ${n.errorCount}`;
       }
 
-      const progressColor = (n.finishedCount + n.errorCount === n.totalCount) || !n.paused 
+      const progressColor = (n.finishedCount + n.errorCount === n.totalCount) || !n.paused
         ? $color('#34C759', '#30D158') // green
         : $color('#FFCC00', '#FFD60A'); // yellow
       return {
+        info: n,
         thumbnail: { src: n.thumbnail },
         title: { text: n.title },
-        progress: { 
+        progress: {
           value: n.finishedCount / n.totalCount,
           progressColor
         },
@@ -149,13 +189,14 @@ class DownloadList extends Base<UIListView, UiTypes.ListOptions> {
         progressText += `, 错误: ${n.errorCount}`;
       }
 
-      const progressColor = (n.finishedCount + n.errorCount === n.totalCount) || !n.paused 
+      const progressColor = (n.finishedCount + n.errorCount === n.totalCount) || !n.paused
         ? $color('#34C759', '#30D158') // green
         : $color('#FFCC00', '#FFD60A'); // yellow
       return {
+        info: n,
         thumbnail: { src: n.thumbnail },
         title: { text: n.title },
-        progress: { 
+        progress: {
           value: n.finishedCount / n.totalCount,
           progressColor
         },
@@ -273,6 +314,7 @@ export class SettingsDownloadsController extends BaseController {
         const thumbnail = n.result.topThumbnail.path;
         const paused = n.backgroundPaused;
         return {
+          type: "download" as "download",
           title,
           finishedCount,
           totalCount,
@@ -292,6 +334,7 @@ export class SettingsDownloadsController extends BaseController {
         const thumbnail = thumbnailPath + `${gid}.jpg`;
         const paused = n.backgroundPaused;
         return {
+          type: "upload" as "upload",
           title,
           finishedCount,
           totalCount,

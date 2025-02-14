@@ -11,6 +11,7 @@ import { downloaderManager, TabThumbnailDownloader } from "../utils/api";
 import { CustomSearchBar } from "../components/custom-searchbar";
 import { getSearchOptions } from "./search-controller";
 import { SidebarTabController } from "./sidebar-tab-controller";
+import { globalTimer } from "../utils/timer";
 
 export class PushedSearchResultController extends BaseController {
   readonly tabId: string;
@@ -23,14 +24,26 @@ export class PushedSearchResultController extends BaseController {
       },
       events: {
         didLoad: () => {
+          globalTimer.addTask({
+            id: this.tabId,
+            paused: true,
+            handler: () => {
+              this.cviews.list.reload()
+            }
+          })
         },
         didAppear: () => {
           downloaderManager.startTabDownloader(this.tabId);
+          globalTimer.resumeTask(this.tabId)
+        },
+        didDisappear: () => {
+          globalTimer.pauseTask(this.tabId)
         },
         didRemove: () => {
-          downloaderManager.pauseTabDownloader(this.tabId);
           if (!statusManager.tabIdsShownInManager.includes(this.tabId)) {
-            statusManager.removeTab(this.tabId);
+          downloaderManager.removeTabDownloader(this.tabId);
+          statusManager.removeTab(this.tabId);
+            globalTimer.removeTask(this.tabId);
           }
         }
       }
@@ -289,7 +302,6 @@ export class PushedSearchResultController extends BaseController {
     // 2. 搜索栏更新
     // 3. 标题更新
     this.cviews.list.footerText = "加载中……";
-    this.cviews.list.isLoading = true;
     this.cviews.list.items = [];
     if (
       (options.type === "front_page" || options.type === "watched" || options.type === "favorites" || options.type === "archive")
@@ -323,7 +335,6 @@ export class PushedSearchResultController extends BaseController {
       if (lastPage.current_page === lastPage.total_pages - 1) return;
     }
     this.cviews.list.footerText = "正在加载更多……";
-    this.cviews.list.isLoading = true;
     try {
       const tab = await statusManager.loadMoreTab(this.tabId);
       if (!tab) return;
@@ -345,7 +356,6 @@ export class PushedSearchResultController extends BaseController {
 
   async reload() {
     this.cviews.list.footerText = "正在重新加载……";
-    this.cviews.list.isLoading = true;
     try {
       const tab = await statusManager.reloadTab(this.tabId);
       const dm = downloaderManager.getTabDownloader(this.tabId) as TabThumbnailDownloader;
@@ -447,7 +457,6 @@ export class PushedSearchResultController extends BaseController {
       default:
         throw new Error("Invalid tab type");
     }
-    this.cviews.list.isLoading = false;
     (router.get("sidebarTabController") as SidebarTabController).refresh()
   }
 }

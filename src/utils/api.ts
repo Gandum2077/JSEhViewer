@@ -303,10 +303,12 @@ export class TabThumbnailDownloader extends ConcurrentDownloaderBase {
     success: boolean;
     error: boolean;
   }[];
+  private _finishHandler: () => void;
 
-  constructor() {
+  constructor(finishHandler: () => void) {
     super();
     this._items = []
+    this._finishHandler = finishHandler;
   }
 
   protected _getNextTask(): Task | undefined {
@@ -359,6 +361,9 @@ export class TabThumbnailDownloader extends ConcurrentDownloaderBase {
         } else {
           this._items[index].error = true;
         }
+        if (this.isAllFinishedDespiteError) {
+          this._finishHandler();
+        }
       }
     }
   }
@@ -377,6 +382,14 @@ export class TabThumbnailDownloader extends ConcurrentDownloaderBase {
 
   get failed() {
     return this._items.filter(thumbnail => thumbnail.error).length;
+  }
+
+  get isAllFinished() {
+    return this.finished === this._items.length;
+  }
+
+  get isAllFinishedDespiteError() {
+    return this._items.filter(thumbnail => thumbnail.error || thumbnail.success).length === this._items.length;
   }
 }
 
@@ -1299,7 +1312,13 @@ class DownloaderManager {
       for (const [k, v] of this.galleryDownloaders) {
         if (k !== gid && v.background && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
           this.startOne(k);
-          break;
+          return;
+        }
+      }
+      for (const [k, v] of this.galleryWebDAVUploaders) {
+        if (k !== gid && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
+          this.startOne(k);
+          return;
         }
       }
     })
@@ -1346,10 +1365,45 @@ class DownloaderManager {
   }
 
   /**
+   * 暂停一个图库下载器，并且查找下一个需要启动的图库下载器或WebDAV上传器
+   */
+  backgroundPause(gid: number) {
+    const downloader = this.galleryDownloaders.get(gid);
+    if (downloader) {
+      downloader.backgroundPaused = true;
+    }
+    for (const [k, v] of this.galleryDownloaders) {
+      if (k !== gid && v.background && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
+        this.startOne(k);
+        return;
+      }
+    }
+    for (const [k, v] of this.galleryWebDAVUploaders) {
+      if (k !== gid && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
+        this.startOne(k);
+        return;
+      }
+    }
+  }
+
+  /**
    * 新建一个标签缩略图下载器
    */
   addTabDownloader(id: string) {
-    const tabDownloader = new TabThumbnailDownloader();
+    const tabDownloader = new TabThumbnailDownloader(() => {
+      for (const v of this.galleryDownloaders.values()) {
+        if (v.background && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
+          this.startOne(v.gid);
+          return;
+        }
+      }
+      for (const v of this.galleryWebDAVUploaders.values()) {
+        if (!v.backgroundPaused && !v.isAllFinishedDespiteError) {
+          this.startOne(v.gid);
+          return;
+        }
+      }
+    });
     this.tabDownloaders.set(id, tabDownloader);
     return tabDownloader;
   }
@@ -1402,8 +1456,22 @@ class DownloaderManager {
    * 新建一个图库WebDAV上传器
    */
   addGalleryWebDAVUploader(infos: EHGallery, client: WebDAVClient) {
-    const uploader = new GalleryWebDAVUploader(infos, client, () => { });
-    this.galleryWebDAVUploaders.set(infos.gid, uploader);
+    const gid = infos.gid;
+    const uploader = new GalleryWebDAVUploader(infos, client, () => { 
+      for (const [k, v] of this.galleryDownloaders) {
+        if (k !== gid && v.background && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
+          this.startOne(k);
+          return;
+        }
+      }
+      for (const [k, v] of this.galleryWebDAVUploaders) {
+        if (k !== gid && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
+          this.startOne(k);
+          return;
+        }
+      }
+    });
+    this.galleryWebDAVUploaders.set(gid, uploader);
     return uploader;
   }
 
@@ -1449,6 +1517,28 @@ class DownloaderManager {
       v.pause();
     }
     return success;
+  }
+
+  /**
+   * 暂停一个WebDAV上传器，并且查找下一个需要启动的下载器或WebDAV上传器
+   */
+  backgroundPauseGalleryWebDAVUploader(gid: number) {
+    const uploader = this.galleryWebDAVUploaders.get(gid);
+    if (uploader) {
+      uploader.backgroundPaused = true;
+    }
+    for (const [k, v] of this.galleryDownloaders) {
+      if (k !== gid && v.background && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
+        this.startOne(k);
+        return;
+      }
+    }
+    for (const [k, v] of this.galleryWebDAVUploaders) {
+      if (k !== gid && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
+        this.startOne(k);
+        return;
+      }
+    }
   }
 
   /**

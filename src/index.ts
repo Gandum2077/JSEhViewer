@@ -120,7 +120,11 @@ async function init() {
 
   // 启动全局定时器
   globalTimer.init();
-
+  // 主界面显示"请等待配置同步……"
+  // 为什么要延迟0.2秒：matrix从属的footer，可能会延后出现（matrix能查找的时候，footer可能还没出现）
+  $delay(0.2, () => {
+    homepageController.cviews.list.footerText = "请等待配置同步……";
+  })
   // 此时可以加载archiveController了
   $delay(0.3, () => archiveController.triggerLoad({
     type: "archive",
@@ -184,8 +188,9 @@ async function init() {
     configManager.mytagsApiuid = ehMyTags.apiuid
     configManager.mytagsApikey = ehMyTags.apikey
   }
-  homepageController.cviews.list.footerText = "";
-  homepageController.cviews.list.isLoading = false;
+  if (homepageController.cviews.list.footerText === "请等待配置同步……") {
+    homepageController.cviews.list.footerText = "";
+  }
 }
 
 if ($app.env === $env.app) {

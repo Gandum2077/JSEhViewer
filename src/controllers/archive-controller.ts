@@ -9,6 +9,7 @@ import { getSearchOptions } from "./search-controller";
 import { CustomSearchBar } from "../components/custom-searchbar";
 import { ArchiveTab, ArchiveTabOptions } from "../types";
 import { buildSortedFsearch } from "ehentai-parser";
+import { globalTimer } from "../utils/timer";
 
 export class ArchiveController extends BaseController {
   cviews: { navbar: CustomNavigationBar, list: EHlistView, searchBar: CustomSearchBar };
@@ -19,8 +20,21 @@ export class ArchiveController extends BaseController {
         bgcolor: $color("backgroundColor")
       },
       events: {
+        didLoad: () => {
+          globalTimer.addTask({
+            id: "archiveController",
+            paused: true,
+            handler: () => {
+              this.cviews.list.reload()
+            }
+          })
+        },
         didAppear: () => {
           downloaderManager.startTabDownloader("archive");
+          globalTimer.resumeTask("archiveController")
+        },
+        didDisappear: () => {
+          globalTimer.pauseTask("archiveController")
         }
       }
     })
@@ -208,8 +222,6 @@ export class ArchiveController extends BaseController {
       this.cviews.list.footerText = "没有更多了";
     } else {
       this.cviews.list.footerText = "上拉加载更多";
-
     }
-    this.cviews.list.isLoading = false;
   }
 }

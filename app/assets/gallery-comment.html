@@ -272,6 +272,8 @@
         const commentsList = document.getElementById("commentsList");
         commentsList.innerHTML = "";
         comments.forEach((comment) => {
+          // 将comment_div中的`https://s.exhentai.org/`替换为`https://ehgt.org/`
+          const fixedCommentDiv = comment.comment_div.replace(/https:\/\/s\.exhentai\.org\//g, "https://ehgt.org/");
           const commentElement = document.createElement("div");
           commentElement.classList.add("comment");
           const voteupButton = `
@@ -322,7 +324,7 @@
                     comment.posted_time
                   )}</span>
               </div>
-              <div class="comment-body">${comment.comment_div}</div>
+              <div class="comment-body">${fixedCommentDiv}</div>
           </div>
           <div class="comment-controls${
             comment.is_uploader ? " uploader" : ""

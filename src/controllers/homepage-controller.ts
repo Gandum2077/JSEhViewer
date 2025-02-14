@@ -419,9 +419,9 @@ export class HomepageController extends BaseController {
         }
         const timeRange = tab.options.timeRange;
         this.cviews.navbar.title = {
-          "yesterday": "排行 - 昨天",
-          "past_month": "排行 - 最近一月",
-          "past_year": "排行 - 最近一年",
+          "yesterday": "排行-昨天",
+          "past_month": "排行-最近一月",
+          "past_year": "排行-最近一年",
           "all": "总排行"
         }[timeRange];
         break;

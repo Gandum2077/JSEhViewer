@@ -724,7 +724,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   private _excludedCategories: Set<EHSearchedCategory> = new Set();
   private _enablePageFilters: boolean = false;
   private _options: {
-    type: "readlater" | "has_read" | "download" | "all"
+    type: "readlater" | "download" | "all"
     minimumPages?: number,
     maximumPages?: number,
     minimumRating?: number
@@ -749,7 +749,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
           const reloadFlag = this._enablePageFilters !== values.enablePageFilters;
 
           this._options = {
-            type: ["readlater", "has_read", "download", "all"][values.type] as "readlater" | "has_read" | "download" | "all",
+            type: ["readlater", "download", "all"][values.type] as "readlater" | "download" | "all",
             minimumPages: values.enablePageFilters ? values.minimumPages : undefined,
             maximumPages: values.enablePageFilters ? values.maximumPages : undefined,
             minimumRating: values.minimumRating ? values.minimumRating + 1 : undefined
@@ -912,8 +912,8 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       type: "list",
       title: "类型",
       key: "type",
-      value: ["readlater", "has_read", "download", "all"].indexOf(this._options.type),
-      items: ["稍后阅读", "已阅读", "已下载", "全部"]
+      value: ["readlater", "download", "all"].indexOf(this._options.type),
+      items: ["稍后阅读", "已下载", "全部"]
     }
     const enablePageFiltersPrefsRow: PrefsRowBoolean = {
       type: "boolean",

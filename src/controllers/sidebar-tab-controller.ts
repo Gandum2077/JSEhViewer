@@ -533,9 +533,9 @@ export class SidebarTabController extends BaseController {
         let title = fixedTabSymbolTitle[tab.type].title;
         if (tab.type === "toplist") {
           title = {
-            "yesterday": "排行-昨天",
-            "past_month": "排行-最近一月",
-            "past_year": "排行-最近一年",
+            "yesterday": "日排行",
+            "past_month": "月排行",
+            "past_year": "年排行",
             "all": "总排行"
           }[tab.options.timeRange];
         }

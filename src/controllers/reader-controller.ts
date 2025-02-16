@@ -282,10 +282,11 @@ export class ReaderController extends BaseController {
   }) {
     super({
       events: {
-        didAppear: () => {
+        didLoad: () => {
           globalTimer.addTask({
             id: this.gid.toString() + "reader",
             interval: 1,
+            paused: true,
             handler: () => {
               if (!this.imagePager) return;
               this.refreshCurrentPage();
@@ -313,7 +314,11 @@ export class ReaderController extends BaseController {
             }
           })
         },
+        didAppear: () => {
+          globalTimer.resumeTask(this.gid.toString() + "reader");
+        },
         didDisappear: () => {
+          globalTimer.pauseTask(this.gid.toString() + "reader");
           statusManager.updateLastReadPage(this.gid, this.cviews.footerThumbnailView.index);
         },
         didRemove: () => {

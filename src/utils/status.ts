@@ -21,8 +21,6 @@ function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): { sql: strin
   if (type && type !== "all") {
     if (type === "readlater") {
       conditions.push("readlater = 1");
-    } else if (type === "has_read") {
-      conditions.push("readlater = 0");
     } else if (type === "download") {
       conditions.push("downloaded = 1");
     }
@@ -550,7 +548,7 @@ class StatusManager {
     }
   }
 
-  queryArchiveItemCount(type: "readlater" | "has_read" | "download" | "all" = "all") {
+  queryArchiveItemCount(type: "readlater" | "download" | "all" = "all") {
     const sql = type === "all" ? `SELECT COUNT(*) FROM archives;` : `SELECT COUNT(*) FROM archives WHERE type = ?;`;
     const args = type === "all" ? undefined : [type];
     const rawData = dbManager.query(sql, args) as { "COUNT(*)": number }[];

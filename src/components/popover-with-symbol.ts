@@ -15,7 +15,7 @@ export function popoverWithSymbol({
     sourceView,
     sourceRect,
     directions,
-    size: $size(width, 44 * items.length),
+    size: $size(width, 44 * items.length - 0.5),
     views: [
       {
         type: "list",
@@ -62,7 +62,7 @@ export function popoverWithSymbol({
         },
         layout: (make, view) => {
           make.left.right.inset(0)
-          make.bottom.inset(-1)
+          make.bottom.inset(-0.5)
           make.height.equalTo(44 * items.length)
         },
         events: {
@@ -96,7 +96,7 @@ export async function popoverWithSymbolAsync({
       sourceView,
       sourceRect,
       directions,
-      size: $size(width, 44 * items.length),
+      size: $size(width, 44 * items.length - 0.5),
       views: [
         {
           type: "list",
@@ -143,7 +143,7 @@ export async function popoverWithSymbolAsync({
           },
           layout: (make, view) => {
             make.left.right.inset(0)
-            make.bottom.inset(-1)
+            make.bottom.inset(-0.5)
             make.height.equalTo(44 * items.length)
           },
           events: {

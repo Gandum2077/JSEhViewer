@@ -549,9 +549,15 @@ class StatusManager {
   }
 
   queryArchiveItemCount(type: "readlater" | "download" | "all" = "all") {
-    const sql = type === "all" ? `SELECT COUNT(*) FROM archives;` : `SELECT COUNT(*) FROM archives WHERE type = ?;`;
-    const args = type === "all" ? undefined : [type];
-    const rawData = dbManager.query(sql, args) as { "COUNT(*)": number }[];
+    const sql_all = `SELECT COUNT(*) FROM archives;`;
+    const sql_readlater = `SELECT COUNT(*) FROM archives WHERE readlater = 1;`
+    const sql_download = `SELECT COUNT(*) FROM archives WHERE downloaded = 1;`
+    const sql = type === "all"
+      ? sql_all
+      : type === "download"
+      ? sql_download
+      : sql_readlater
+    const rawData = dbManager.query(sql) as { "COUNT(*)": number }[];
     return rawData[0]["COUNT(*)"];
   }
 

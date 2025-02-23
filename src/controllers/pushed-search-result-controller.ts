@@ -7,16 +7,23 @@ import { EHlistView } from "../components/ehlist-view";
 import { appLog } from "../utils/tools";
 import { buildSortedFsearch, EHListExtendedItem, EHSearchTerm } from "ehentai-parser";
 import { StatusTabOptions } from "../types";
-import { downloaderManager, TabThumbnailDownloader } from "../utils/api";
+import { api, downloaderManager, TabThumbnailDownloader } from "../utils/api";
 import { CustomSearchBar } from "../components/custom-searchbar";
 import { getSearchOptions } from "./search-controller";
 import { SidebarTabController } from "./sidebar-tab-controller";
 import { globalTimer } from "../utils/timer";
+import { EhlistTitleView } from "../components/ehlist-titleview";
+import { popoverForTitleView } from "../components/titleview-popover";
 
 export class PushedSearchResultController extends BaseController {
   readonly tabId: string;
   layoutMode: "normal" | "large";
-  cviews: { navbar: CustomNavigationBar, list: EHlistView, searchBar: CustomSearchBar };
+  cviews: {
+    navbar: CustomNavigationBar,
+    list: EHlistView,
+    searchBar: CustomSearchBar,
+    titleView: EhlistTitleView
+  };
   constructor() {
     super({
       props: {
@@ -107,9 +114,131 @@ export class PushedSearchResultController extends BaseController {
         }
       }
     })
+    const titleView = new EhlistTitleView({
+      defaultTitle: "搜索",
+      tapped: async (sender) => {
+        const tab = statusManager.tabsMap.get(this.tabId);
+        if (!tab) return;
+        switch (tab.type) {
+          case "front_page": {
+            const values = await popoverForTitleView({
+              sourceView: sender,
+              sourceRect: sender.bounds,
+              popoverOptions: {
+                type: tab.type,
+                filterOptions: {
+                  disableLanguageFilters: tab.options.disableLanguageFilters ?? false,
+                  disableUploaderFilters: tab.options.disableUploaderFilters ?? false,
+                  disableTagFilters: tab.options.disableTagFilters ?? false,
+                },
+                count: {
+                  loaded: tab.pages.map(n => n.items.length).reduce((prev, curr) => prev + curr),
+                  all: tab.pages[0].total_item_count,
+                  filtered: tab.pages.map(n => n.filtered_count).reduce((prev, curr) => prev + curr)
+                }
+              }
+            })
+            if (
+              (tab.options.disableLanguageFilters ?? false) !== values.filterOptions.disableLanguageFilters
+              || (tab.options.disableUploaderFilters ?? false) !== values.filterOptions.disableUploaderFilters
+              || (tab.options.disableTagFilters ?? false) !== values.filterOptions.disableTagFilters
+            ) {
+              tab.options.disableLanguageFilters = values.filterOptions.disableLanguageFilters || undefined;
+              tab.options.disableUploaderFilters = values.filterOptions.disableUploaderFilters || undefined;
+              tab.options.disableTagFilters = values.filterOptions.disableTagFilters || undefined;
+              await this.reload()
+            }
+            break;
+          }
+          case "watched": {
+            const values = await popoverForTitleView({
+              sourceView: sender,
+              sourceRect: sender.bounds,
+              popoverOptions: {
+                type: tab.type,
+                filterOptions: {
+                  disableLanguageFilters: tab.options.disableLanguageFilters ?? false,
+                  disableUploaderFilters: tab.options.disableUploaderFilters ?? false,
+                  disableTagFilters: tab.options.disableTagFilters ?? false,
+                },
+                count: {
+                  loaded: tab.pages.map(n => n.items.length).reduce((prev, curr) => prev + curr),
+                  filtered: tab.pages.map(n => n.filtered_count).reduce((prev, curr) => prev + curr)
+                }
+              }
+            })
+            if (
+              (tab.options.disableLanguageFilters ?? false) !== values.filterOptions.disableLanguageFilters
+              || (tab.options.disableUploaderFilters ?? false) !== values.filterOptions.disableUploaderFilters
+              || (tab.options.disableTagFilters ?? false) !== values.filterOptions.disableTagFilters
+            ) {
+              tab.options.disableLanguageFilters = values.filterOptions.disableLanguageFilters || undefined;
+              tab.options.disableUploaderFilters = values.filterOptions.disableUploaderFilters || undefined;
+              tab.options.disableTagFilters = values.filterOptions.disableTagFilters || undefined;
+              await this.reload()
+            }
+            break;
+          }
+          case "favorites": {
+            const values = await popoverForTitleView({
+              sourceView: sender,
+              sourceRect: sender.bounds,
+              popoverOptions: {
+                type: tab.type,
+                favoritesOrderMethod: configManager.favoritesOrderMethod,
+                count: {
+                  loaded: tab.pages.map(n => n.items.length).reduce((prev, curr) => prev + curr)
+                }
+              }
+            })
+            if (values.favoritesOrderMethod !== configManager.favoritesOrderMethod) {
+              api.setFavoritesSortOrder(values.favoritesOrderMethod)
+                .then(() => {
+                  configManager.favoritesOrderMethod = values.favoritesOrderMethod;
+                  this.reload().then();
+                })
+                .catch(() => {
+                  $ui.error("收藏页排序更新失败");
+                });
+            }
+            break;
+          }
+          case "archive": {
+            const values = await popoverForTitleView({
+              sourceView: sender,
+              sourceRect: sender.bounds,
+              popoverOptions: {
+                type: "archive",
+                archiveType: tab.options.type ?? "all",
+                archiveManagerOrderMethod: configManager.archiveManagerOrderMethod,
+                count: {
+                  loaded: tab.pages.map(n => n.items.length).reduce((prev, curr) => prev + curr),
+                  all: tab.pages[tab.pages.length - 1].all_count
+                }
+              }
+            })
+            let reloadFlag = false;
+            if (values.archiveType !== (tab.options.type ?? "all")) {
+              reloadFlag = true;
+              tab.options.type = values.archiveType;
+            }
+            if (values.archiveManagerOrderMethod !== configManager.archiveManagerOrderMethod) {
+              reloadFlag = true;
+              configManager.archiveManagerOrderMethod = values.archiveManagerOrderMethod;
+              tab.options.sort = values.archiveManagerOrderMethod;
+            }
+            if (reloadFlag) this.reload();
+            break;
+          }
+          default:
+            break;
+        }
+
+      }
+    });
     const navbar = new CustomNavigationBar({
       props: {
-        title: "搜索",
+        titleView,
         leftBarButtonItems: [
           {
             symbol: "chevron.left",
@@ -275,7 +404,7 @@ export class PushedSearchResultController extends BaseController {
         make.bottom.equalTo(view.super.bottom)
       }
     })
-    this.cviews = { navbar, list, searchBar }
+    this.cviews = { navbar, list, searchBar, titleView }
     this.rootView.views = [navbar, list]
   }
 
@@ -388,7 +517,7 @@ export class PushedSearchResultController extends BaseController {
         } else {
           this.cviews.list.footerText = "上拉加载更多";
         }
-        this.cviews.navbar.title = "搜索";
+        this.cviews.titleView.title = "搜索";
         break;
       }
       case "watched": {
@@ -400,14 +529,14 @@ export class PushedSearchResultController extends BaseController {
         } else {
           this.cviews.list.footerText = "上拉加载更多";
         }
-        this.cviews.navbar.title = "订阅";
+        this.cviews.titleView.title = "订阅";
         break;
       }
       case "popular": {
         const items = tab.pages.map(page => page.items).flat() as EHListExtendedItem[];
         this.cviews.list.items = items;
         this.cviews.list.footerText = "没有更多了";
-        this.cviews.navbar.title = "热门";
+        this.cviews.titleView.title = "热门";
         break;
       }
       case "favorites": {
@@ -419,7 +548,7 @@ export class PushedSearchResultController extends BaseController {
         } else {
           this.cviews.list.footerText = "上拉加载更多";
         }
-        this.cviews.navbar.title = "收藏";
+        this.cviews.titleView.title = "收藏";
         break;
       }
       case "toplist": {
@@ -432,7 +561,7 @@ export class PushedSearchResultController extends BaseController {
           this.cviews.list.footerText = "上拉加载更多";
         }
         const timeRange = tab.options.timeRange;
-        this.cviews.navbar.title = {
+        this.cviews.titleView.title = {
           "yesterday": "日排行",
           "past_month": "月排行",
           "past_year": "年排行",
@@ -444,14 +573,14 @@ export class PushedSearchResultController extends BaseController {
         const items = tab.pages.map(page => page.items).flat();
         this.cviews.list.items = items;
         this.cviews.list.footerText = "没有更多了";
-        this.cviews.navbar.title = "我的上传";
+        this.cviews.titleView.title = "我的上传";
         break;
       }
       case "archive": {
         const items = tab.pages.map(page => page.items).flat();
         this.cviews.list.items = items;
         this.cviews.list.footerText = "没有更多了";
-        this.cviews.navbar.title = "归档";
+        this.cviews.titleView.title = "归档";
         break;
       }
       default:

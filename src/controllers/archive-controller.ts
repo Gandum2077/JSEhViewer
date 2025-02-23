@@ -1,4 +1,4 @@
-import { BaseController, CustomNavigationBar, SymbolButton, router, SplitViewController } from "jsbox-cview";
+import { BaseController, CustomNavigationBar, SymbolButton, router, SplitViewController, Base } from "jsbox-cview";
 import { GalleryController } from "./gallery-controller";
 import { getJumpPageDialog } from "../components/seekpage-dialog";
 import { configManager } from "../utils/config";
@@ -10,9 +10,16 @@ import { CustomSearchBar } from "../components/custom-searchbar";
 import { ArchiveTab, ArchiveTabOptions } from "../types";
 import { buildSortedFsearch } from "ehentai-parser";
 import { globalTimer } from "../utils/timer";
+import { EhlistTitleView } from "../components/ehlist-titleview";
+import { popoverForTitleView } from "../components/titleview-popover";
 
 export class ArchiveController extends BaseController {
-  cviews: { navbar: CustomNavigationBar, list: EHlistView, searchBar: CustomSearchBar };
+  cviews: {
+    navbar: CustomNavigationBar,
+    list: EHlistView,
+    searchBar: CustomSearchBar,
+    titleView: EhlistTitleView
+  };
   constructor() {
     super({
       props: {
@@ -71,9 +78,39 @@ export class ArchiveController extends BaseController {
       },
       layout: $layout.fill
     })
+    const titleView = new EhlistTitleView({
+      defaultTitle: "全部存档",
+      tapped: async (sender) => {
+        const tab = statusManager.tabsMap.get("archive") as ArchiveTab;
+        const values = await popoverForTitleView({
+          sourceView: sender,
+          sourceRect: sender.bounds,
+          popoverOptions: {
+            type: "archive",
+            archiveType: tab.options.type ?? "all",
+            archiveManagerOrderMethod: configManager.archiveManagerOrderMethod,
+            count: {
+              loaded: tab.pages.map(n => n.items.length).reduce((prev, curr) => prev + curr),
+              all: tab.pages[tab.pages.length - 1].all_count
+            }
+          }
+        })
+        let reloadFlag = false;
+        if (values.archiveType !== (tab.options.type ?? "all")) {
+          reloadFlag = true;
+          tab.options.type = values.archiveType;
+        }
+        if (values.archiveManagerOrderMethod !== configManager.archiveManagerOrderMethod) {
+          reloadFlag = true;
+          configManager.archiveManagerOrderMethod = values.archiveManagerOrderMethod;
+          tab.options.sort = values.archiveManagerOrderMethod;
+        }
+        if (reloadFlag) this.reload();
+      }
+    });
     const navbar = new CustomNavigationBar({
       props: {
-        title: "首页",
+        titleView: titleView,
         leftBarButtonItems: [
           {
             symbol: "sidebar.left",
@@ -148,7 +185,8 @@ export class ArchiveController extends BaseController {
         })
       },
       didReachBottom: async () => {
-        const tab = await statusManager.loadMoreTab("archive") as ArchiveTab;
+        const tab = await statusManager.loadMoreTab("archive") as ArchiveTab | undefined;
+        if (!tab) return;
         downloaderManager.getTabDownloader("archive")!.clear();
         downloaderManager.getTabDownloader("archive")!.add(
           tab.pages.map(page => page.items).flat().map(item => ({
@@ -166,7 +204,7 @@ export class ArchiveController extends BaseController {
         make.bottom.equalTo(view.super.safeAreaBottom).offset(-50)
       }
     })
-    this.cviews = { navbar, list, searchBar }
+    this.cviews = { navbar, list, searchBar, titleView }
     this.rootView.views = [navbar, list]
   }
 
@@ -216,6 +254,8 @@ export class ArchiveController extends BaseController {
   updateLoadedStatus() {
     const tab = statusManager.tabsMap.get("archive") as ArchiveTab;
     if (!tab) return;
+    const type = tab.options.type ?? 'all';
+    this.cviews.titleView.title = type === "all" ? "全部存档" : type === "download" ? "下载内容" : "稍后阅读";
     const items = tab.pages.map(page => page.items).flat();
     this.cviews.list.items = items;
     if ((tab.options.page + 1) * tab.options.pageSize >= tab.pages[0].all_count) {

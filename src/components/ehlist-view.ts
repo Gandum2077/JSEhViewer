@@ -906,7 +906,10 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
           }
         },
         didReachBottom: async sender => {
-          if (this._isReachingBottom || this._isPulling) return;
+          if (this._isReachingBottom || this._isPulling) {
+            sender.endFetchingMore();
+            return;
+          }
           this._isReachingBottom = true;
           await didReachBottom();
           if (this._isReachingBottom) {

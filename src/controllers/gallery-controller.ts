@@ -14,8 +14,6 @@ import { WebDAVClient } from "../utils/webdav";
 import { setWebDAVConfig } from "./settings-webdav-controller";
 import { globalTimer } from "../utils/timer";
 
-// TODO: 定时器功能从GalleryInfoController和GalleryThumbnailController中移除，并移入GalleryController中
-
 export class GalleryController extends PageViewerController {
   private _infos?: EHGallery;
   private _gid: number;
@@ -194,14 +192,17 @@ export class GalleryController extends PageViewerController {
   readGallery(index: number) {
     if (!this._infos) return;
     statusManager.storeArchiveItemOrUpdateAccessTime(this._infos, false);
-
-    downloaderManager.get(this._infos.gid)!.reading = true;
-    downloaderManager.get(this._infos.gid)!.currentReadingIndex = Math.max(index - 1, 0); // 提前一页加载
+    const d = downloaderManager.get(this._infos.gid);
+    if (!d) return;
+    d.reading = true;
+    d.currentReadingIndex = Math.max(index - 1, 0); // 提前一页加载
     downloaderManager.startOne(this._infos.gid)
     const readerController = new ReaderController({
       gid: this._infos.gid,
       index,
-      length: this._infos.length
+      length: this._infos.length,
+      autoCacheWhenReading: (d.background && !d.backgroundPaused) || configManager.autoCacheWhenReading
+      // 如果d.background被开启，或者总配置的autoCacheWhenReading被开启，那么阅读器开启自动下载
     })
     readerController.uipush({
       theme: "dark",

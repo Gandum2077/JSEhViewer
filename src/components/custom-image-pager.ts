@@ -7,12 +7,12 @@ import { Base, Matrix } from "jsbox-cview";
  * 
  */
 export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
-  _props: {
+  private _props: {
     srcs: { path?: string; error: boolean, type: "ai-translated" | "reloaded" | "normal" }[];
     page: number;
   };
-  _matrix: Matrix;
-  _pageLoadRecorder: { [key: number]: boolean };
+  private _matrix: Matrix;
+  private _pageLoadRecorder: { [key: number]: boolean };
   _defineView: () => UiTypes.ViewOptions;
 
   /**
@@ -161,6 +161,13 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
         didScroll: sender => {
           this.loadsrc(this.page + 1, true);
           this.loadsrc(this.page - 1, true);
+        },
+        didLongPress: (sender, indexPath, data) => {
+          const path = this._props.srcs[indexPath.item].path;
+          if (path) {
+            const img = $file.read(path).image;
+            if (img) $share.universal(img);
+          }
         }
       }
     });
@@ -187,7 +194,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
     }
   }
 
-  loadsrc(page: number, forced = false) {
+  private loadsrc(page: number, forced = false) {
     if (page < 0 || page >= this._props.srcs.length) return;
     const cell = this._matrix.view.cell($indexPath(0, page));
     if (!cell) return;
@@ -209,7 +216,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
     this._matrix.view.data = data;
   }
 
-  _mapData(n: { path?: string; error: boolean }) {
+  private _mapData(n: { path?: string; error: boolean }) {
     if (n.error) {
       return {
         image: { src: "" },
@@ -236,13 +243,6 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
 
   get page() {
     return this._props.page;
-  }
-
-  get currentImage() {
-    const cell = this._matrix.view.cell($indexPath(0, this.page));
-    if (!cell) return;
-    const image = cell.get("image") as UIImageView;
-    return image.image;
   }
 
   set page(page) {

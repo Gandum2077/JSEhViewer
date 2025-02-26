@@ -1230,7 +1230,7 @@ export class GalleryInfoController extends BaseController {
       handler: (sender, status) => {
         const d = downloaderManager.get(this.gid);
         if (!d) return;
-        if (status === "pause" ) {
+        if (status === "paused" ) {
           // 当前是暂停状态，转变为下载状态
           d.background = true;
           d.backgroundPaused = false;
@@ -1239,7 +1239,7 @@ export class GalleryInfoController extends BaseController {
           // 当前是下载状态，转变为暂停状态
           d.background = true;
           d.backgroundPaused = true;
-          sender.status = "pause";
+          sender.status = "paused";
         } else {
           // 当前是待机状态，转变为下载状态
           d.background = true;

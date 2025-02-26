@@ -6,6 +6,8 @@ import { setAITranslationConfig } from "./settings-translation-controller";
 import { AiTranslationButton } from "../components/ai-translation-button";
 import { configManager } from "../utils/config";
 import { globalTimer } from "../utils/timer";
+import { NoscrollImagePager } from "../components/noscroll-image-pager";
+import { DownloadButtonForReader } from "../components/download-button-for-reader";
 
 let lastUITapGestureRecognizer: any;
 
@@ -34,6 +36,203 @@ function define(view: any, handler: (location: JBPoint) => void) {
   $objc_retain(r);
   lastUITapGestureRecognizer = r;
   return r;
+}
+
+class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
+  _defineView: () => UiTypes.ViewOptions;
+  constructor({ loadOrginalHandler, reloadPagerHandler }: {
+    loadOrginalHandler: () => void;
+    reloadPagerHandler: () => void;
+  }) {
+    super();
+    const button1 = new SymbolButton({
+      props: {
+        hidden: configManager.pageTurnMethod !== "click_and_swipe",
+        symbol: "ellipsis",
+        menu: {
+          pullDown: true,
+          asPrimary: true,
+          items: [
+            {
+              title: "加载原图",
+              symbol: "arrow.down.backward.and.arrow.up.forward.square",
+              handler: sender => {
+                loadOrginalHandler()
+              }
+            },
+            {
+              title: "AI翻译设置",
+              symbol: "globe",
+              handler: async sender => {
+                await setAITranslationConfig();
+              }
+            },
+            {
+              title: "翻页方式",
+              inline: true,
+              items: [
+                {
+                  title: "点击和滑动",
+                  symbol: "checkmark",
+                  handler: () => { }
+                },
+                {
+                  title: "仅点击",
+                  handler: () => {
+                    configManager.pageTurnMethod = 'click';
+                    button1.view.hidden = true;
+                    button2.view.hidden = false;
+                    button3.view.hidden = true;
+                    reloadPagerHandler();
+                  }
+                },
+                {
+                  title: "仅滑动",
+                  handler: () => {
+                    configManager.pageTurnMethod = 'swipe';
+                    button1.view.hidden = true;
+                    button2.view.hidden = true;
+                    button3.view.hidden = false;
+                    reloadPagerHandler();
+                  }
+                },
+              ]
+            }
+          ]
+        }
+      },
+      layout: $layout.fill
+    })
+    const button2 = new SymbolButton({
+      props: {
+        hidden: configManager.pageTurnMethod !== "click",
+        symbol: "ellipsis",
+        menu: {
+          pullDown: true,
+          asPrimary: true,
+          items: [
+            {
+              title: "加载原图",
+              symbol: "arrow.down.backward.and.arrow.up.forward.square",
+              handler: sender => {
+                loadOrginalHandler()
+              }
+            },
+            {
+              title: "AI翻译设置",
+              symbol: "globe",
+              handler: async sender => {
+                await setAITranslationConfig();
+              }
+            },
+            {
+              title: "翻页方式",
+              inline: true,
+              items: [
+                {
+                  title: "点击和滑动",
+                  handler: () => {
+                    configManager.pageTurnMethod = 'click_and_swipe';
+                    button1.view.hidden = false;
+                    button2.view.hidden = true;
+                    button3.view.hidden = true;
+                    reloadPagerHandler();
+                  }
+                },
+                {
+                  title: "仅点击",
+                  symbol: "checkmark",
+                  handler: () => { }
+                },
+                {
+                  title: "仅滑动",
+                  handler: () => {
+                    configManager.pageTurnMethod = 'swipe';
+                    button1.view.hidden = true;
+                    button2.view.hidden = true;
+                    button3.view.hidden = false;
+                    reloadPagerHandler();
+                  }
+                },
+              ]
+            }
+          ]
+        }
+      },
+      layout: $layout.fill
+    })
+    const button3 = new SymbolButton({
+      props: {
+        hidden: configManager.pageTurnMethod !== "swipe",
+        symbol: "ellipsis",
+        menu: {
+          pullDown: true,
+          asPrimary: true,
+          items: [
+            {
+              title: "加载原图",
+              symbol: "arrow.down.backward.and.arrow.up.forward.square",
+              handler: sender => {
+                loadOrginalHandler()
+              }
+            },
+            {
+              title: "AI翻译设置",
+              symbol: "globe",
+              handler: async sender => {
+                await setAITranslationConfig();
+              }
+            },
+            {
+              title: "翻页方式",
+              inline: true,
+              items: [
+                {
+                  title: "点击和滑动",
+                  handler: () => {
+                    configManager.pageTurnMethod = 'click_and_swipe';
+                    button1.view.hidden = false;
+                    button2.view.hidden = true;
+                    button3.view.hidden = true;
+                    reloadPagerHandler();
+                  }
+                },
+                {
+                  title: "仅点击",
+                  handler: () => {
+                    configManager.pageTurnMethod = 'click';
+                    button1.view.hidden = true;
+                    button2.view.hidden = false;
+                    button3.view.hidden = true;
+                    reloadPagerHandler();
+                  }
+                },
+                {
+                  title: "仅滑动",
+                  symbol: "checkmark",
+                  handler: () => { }
+                },
+              ]
+            }
+          ]
+        }
+      },
+      layout: $layout.fill
+    })
+    this._defineView = () => {
+      return {
+        type: "view",
+        props: {
+          id: this.id
+        },
+        layout: (make, view) => {
+          make.right.top.bottom.inset(0)
+          make.width.equalTo(50)
+        },
+        views: [button1.definition, button2.definition, button3.definition]
+      }
+    }
+  }
 }
 
 class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
@@ -256,29 +455,34 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
 
 export class ReaderController extends BaseController {
   private gid: number;
-  private imagePager?: CustomImagePager;
+  private imagePager?: CustomImagePager | NoscrollImagePager;
   private _autoPagerEnabled: boolean = false;
   private _autoPagerInterval: number = 1;
   private _autoPagerCountDown: number = 1;
   // 增加两个Set，其中一个记录以原画质重新载入的图片，另一个记录启用AI翻译的图片
   private reloadedPageSet: Set<number> = new Set();
   private aiTranslatedPageSet: Set<number> = new Set();
+  // 增加autoCacheWhenReading，用于表示是否自动缓存整个图库
+  private _autoCacheWhenReading: boolean;
   cviews: {
     titleLabel: Label,
     aiTranslationButton: AiTranslationButton,
     header: Blur,
     footer: Blur,
     viewer: ContentView,
-    footerThumbnailView: FooterThumbnailView
+    footerThumbnailView: FooterThumbnailView,
+    downloadButton: DownloadButtonForReader
   }
   constructor({
     gid,
     index,
-    length
+    length,
+    autoCacheWhenReading
   }: {
     gid: number,
     index: number,
-    length: number
+    length: number,
+    autoCacheWhenReading: boolean
   }) {
     super({
       events: {
@@ -289,10 +493,18 @@ export class ReaderController extends BaseController {
             paused: true,
             handler: () => {
               if (!this.imagePager) return;
+              if (!galleryDownloader) return;
               this.refreshCurrentPage();
               this.cviews.titleLabel.view.text = this._generateTitle();
               this.handleAiTranslationButtonStatus(this.imagePager.page);
-              this.cviews.footerThumbnailView.refreshThumbnailItems(downloaderManager.get(this.gid)!.result.thumbnails);
+              this.cviews.footerThumbnailView.refreshThumbnailItems(galleryDownloader.result.thumbnails);
+
+              this.cviews.downloadButton.progress = galleryDownloader.finishedOfImages / length;
+
+              if (!this._autoCacheWhenReading && !galleryDownloader.isAllFinishedDespiteError) {
+                // 如果autoCacheWhenReading没有启用，并且任务没有结束，则需要不断地启动当前任务
+                downloaderManager.startOne(this.gid);
+              }
               if (this._autoPagerEnabled) {
                 // 自动翻页
                 // 首先检测本页是否加载完成。如果没有加载完成，不翻页并且重制倒计时为翻页间隔
@@ -332,13 +544,15 @@ export class ReaderController extends BaseController {
         }
       }
     });
+    this._autoCacheWhenReading = autoCacheWhenReading;
     this.gid = gid;
     const galleryDownloader = downloaderManager.get(gid);
+    if (!galleryDownloader) throw new Error("galleryDownloader not found");
     const footerThumbnailView = new FooterThumbnailView({
       props: {
         index,
         length,
-        thumbnailItems: galleryDownloader!.result.thumbnails
+        thumbnailItems: galleryDownloader.result.thumbnails
       },
       events: {
         changed: (index) => this.handleTurnPage(index)
@@ -355,6 +569,33 @@ export class ReaderController extends BaseController {
         make.left.equalTo(view.prev.prev.right).inset(0)
         make.right.equalTo(view.prev.left).inset(0)
         make.top.bottom.inset(0)
+      }
+    })
+    const rightSymbolButton = new RightSymbolButtonWarpper({
+      loadOrginalHandler: () => {
+        const index = this.cviews.footerThumbnailView.index;
+        if (this.reloadedPageSet.has(index)) return; // 如果已经添加过，不再重复添加
+
+        this.reloadedPageSet.add(index);
+        // 查看本页面的info是否已经加载完成
+        const galleryDownloader = downloaderManager.get(this.gid);
+        if (!galleryDownloader) return;
+        const originalImage = galleryDownloader.result.originalImages[index];
+        // 如果已经下载好了，则立即刷新
+        // 这种情况只存在于下载器初始化时，已经下载好了原图
+        if (originalImage.path) {
+          this.refreshCurrentPage();
+        }
+        // 如果没有下载好，则选择此图片使下载器准备下载
+        originalImage.userSelected = true;
+        // 重新启动下载器
+        galleryDownloader.start();
+
+        // 刷新标题
+        this.cviews.titleLabel.view.text = this._generateTitle();
+      },
+      reloadPagerHandler: () => {
+        viewerLayoutSubviews(viewer.view)
       }
     })
     const header = new Blur({
@@ -387,58 +628,31 @@ export class ReaderController extends BaseController {
                 }
               }
             }).definition,
-            new SymbolButton({
-              props: {
-                symbol: "ellipsis",
-                menu: {
-                  pullDown: true,
-                  asPrimary: true,
-                  items: [
-                    {
-                      title: "加载原图",
-                      symbol: "arrow.down.backward.and.arrow.up.forward.square",
-                      handler: sender => {
-                        const index = this.cviews.footerThumbnailView.index;
-                        if (this.reloadedPageSet.has(index)) return; // 如果已经添加过，不再重复添加
-
-                        this.reloadedPageSet.add(index);
-                        // 查看本页面的info是否已经加载完成
-                        const galleryDownloader = downloaderManager.get(this.gid);
-                        if (!galleryDownloader) return;
-                        const originalImage = galleryDownloader.result.originalImages[index];
-                        // 如果已经下载好了，则立即刷新
-                        // 这种情况只存在于下载器初始化时，已经下载好了原图
-                        if (originalImage.path) {
-                          this.refreshCurrentPage();
-                        }
-                        // 如果没有下载好，则选择此图片使下载器准备下载
-                        originalImage.userSelected = true;
-                        // 重新启动下载器
-                        galleryDownloader.start();
-
-                        // 刷新标题
-                        this.cviews.titleLabel.view.text = this._generateTitle();
-                      }
-                    },
-                    {
-                      title: "AI翻译设置",
-                      symbol: "globe",
-                      handler: async sender => {
-                        await setAITranslationConfig();
-                      }
-                    }
-                  ]
-                }
-              },
-              layout: (make, view) => {
-                make.right.top.bottom.inset(0)
-                make.width.equalTo(50)
-              }
-            }).definition,
+            rightSymbolButton.definition,
             titleLabel.definition
           ]
         }
       ]
+    })
+    const progress = galleryDownloader.finishedOfImages / length;
+    const downloadButton = new DownloadButtonForReader({
+      progress,
+      status: progress === 1 ? "finished" : this._autoCacheWhenReading ? "downloading" : "paused",
+      handler: (sender, status) => {
+        if (sender.status === "downloading") {
+          sender.status = "paused"
+        } else  if (sender.status === "paused") {
+          sender.status = "downloading"
+        }
+        this._autoCacheWhenReading = !this._autoCacheWhenReading;
+        // downloader进行转换
+        galleryDownloader.autoCacheWhenReading = this._autoCacheWhenReading;
+        downloaderManager.startOne(this.gid);
+      },
+      layout: (make, view) => {
+        make.size.equalTo($size(50, 50))
+        make.center.equalTo(view.super)
+      }
     })
     const startAutoPagerButton = new SymbolButton({
       props: {
@@ -638,13 +852,7 @@ export class ReaderController extends BaseController {
                 {
                   type: "view",
                   props: {},
-                  views: [new SymbolButton({
-                    props: { symbol: "play.circle" },
-                    layout: (make, view) => {
-                      make.size.equalTo($size(50, 50))
-                      make.center.equalTo(view.super)
-                    }
-                  }).definition]
+                  views: [downloadButton.definition]
                 },
                 {
                   type: "view",
@@ -693,6 +901,79 @@ export class ReaderController extends BaseController {
     })
     let lastFrameWidth = 0;
     let lastFrameHeight = 0;
+    const viewerLayoutSubviews = (sender: UIBaseView) => {
+      lastFrameWidth = sender.frame.width;
+      lastFrameHeight = sender.frame.height;
+      if (sender.views.length !== 0) sender.views[0].remove();
+      this.imagePager = configManager.pageTurnMethod === "click"
+        ? new NoscrollImagePager({
+          props: {
+            srcs: this._generateSrcs(),
+            page: footerThumbnailView.index,
+          },
+          layout: (make, view) => {
+            make.left.right.inset(2);
+            make.top.bottom.inset(0);
+          },
+          events: {
+            changed: (page) => this.handleTurnPage(page),
+            reloadHandler: (page) => {
+              galleryDownloader.result.images[page].error = false;
+              galleryDownloader.result.images[page].started = false;
+              downloaderManager.startOne(this.gid);
+              this.refreshCurrentPage()
+            }
+          }
+        })
+        : new CustomImagePager({
+          props: {
+            srcs: this._generateSrcs(),
+            page: footerThumbnailView.index,
+          },
+          layout: (make, view) => {
+            make.left.right.inset(2);
+            make.top.bottom.inset(0);
+          },
+          events: {
+            changed: (page) => this.handleTurnPage(page),
+            reloadHandler: (page) => {
+              galleryDownloader.result.images[page].error = false;
+              galleryDownloader.result.images[page].started = false;
+              downloaderManager.startOne(this.gid);
+              this.refreshCurrentPage()
+            }
+          }
+        })
+      sender.add(this.imagePager.definition)
+      $delay(0.3, () => {
+        if (!this.imagePager) return;
+        define(
+          this.imagePager.view.ocValue(),
+          location => {
+            if (!this.imagePager) return;
+            if (configManager.pageTurnMethod === "swipe") {
+              footer.view.hidden = !footer.view.hidden;
+              header.view.hidden = !header.view.hidden;
+              return;
+            }
+            const w = sender.frame.width;
+            const h = sender.frame.height;
+            const x = location.x;
+            const y = location.y;
+            if (y / h < 1 / 4 || (y / h >= 1 / 4 && y / h <= 3 / 4 && x / w < 1 / 3)) {
+              if (footerThumbnailView.index === 0) return;
+              this.handleTurnPage(footerThumbnailView.index - 1);
+            } else if (y / h > 3 / 4 || (y / h >= 1 / 4 && y / h <= 3 / 4 && x / w > 2 / 3)) {
+              if (footerThumbnailView.index === this.imagePager.srcs.length - 1) return;
+              this.handleTurnPage(footerThumbnailView.index + 1);
+            } else {
+              footer.view.hidden = !footer.view.hidden;
+              header.view.hidden = !header.view.hidden;
+            }
+          }
+        ).$create()
+      })
+    }
     const viewer = new ContentView({
       props: { bgcolor: $color("clear") },
       layout: $layout.fillSafeArea,
@@ -704,46 +985,7 @@ export class ReaderController extends BaseController {
             || sender.frame.height <= 0
             || (sender.frame.width === lastFrameWidth && sender.frame.height === lastFrameHeight)
           ) return;
-          lastFrameWidth = sender.frame.width;
-          lastFrameHeight = sender.frame.height;
-          if (sender.views.length !== 0) sender.views[0].remove();
-          this.imagePager = new CustomImagePager({
-            props: {
-              srcs: this._generateSrcs(),
-              page: footerThumbnailView.index,
-            },
-            layout: (make, view) => {
-              make.left.right.inset(2);
-              make.top.bottom.inset(0);
-            },
-            events: {
-              changed: (page) => this.handleTurnPage(page)
-            }
-          })
-          sender.add(this.imagePager.definition)
-          $delay(0.3, () => {
-            if (!this.imagePager) return;
-            define(
-              this.imagePager.view.ocValue(),
-              location => {
-                if (!this.imagePager) return;
-                const w = sender.frame.width;
-                const h = sender.frame.height;
-                const x = location.x;
-                const y = location.y;
-                if (y / h < 1 / 4 || (y / h >= 1 / 4 && y / h <= 3 / 4 && x / w < 1 / 3)) {
-                  if (footerThumbnailView.index === 0) return;
-                  this.handleTurnPage(footerThumbnailView.index - 1);
-                } else if (y / h > 3 / 4 || (y / h >= 1 / 4 && y / h <= 3 / 4 && x / w > 2 / 3)) {
-                  if (footerThumbnailView.index === this.imagePager.srcs.length - 1) return;
-                  this.handleTurnPage(footerThumbnailView.index + 1);
-                } else {
-                  footer.view.hidden = !footer.view.hidden;
-                  header.view.hidden = !header.view.hidden;
-                }
-              }
-            ).$create()
-          })
+          viewerLayoutSubviews(sender)
         }
       }
     })
@@ -754,7 +996,8 @@ export class ReaderController extends BaseController {
       header,
       footer,
       viewer,
-      footerThumbnailView
+      footerThumbnailView,
+      downloadButton
     }
     this.rootView.views = [viewer, header, footer]
   }

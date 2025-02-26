@@ -239,7 +239,7 @@ export class ArchiveController extends BaseController {
   updateLoadingStatus(options: ArchiveTabOptions) {
     // 1. 列表归零
     // 2. 搜索栏更新
-    // 3. 标题更新 TODO
+    // 3. 标题更新
     this.cviews.list.items = [];
     if (options.options.searchTerms && options.options.searchTerms.length) {
       const fsearch = buildSortedFsearch(options.options.searchTerms);

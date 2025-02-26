@@ -708,7 +708,7 @@ class StatusManager {
     const data: DBArchiveItem = {
       gid: infos.gid,
       readlater,
-      downloaded: false,  // TODO 暂未推出下载功能
+      downloaded: false,
       first_access_time: new Date().toISOString(),
       last_access_time: new Date().toISOString(),
       token: infos.token,

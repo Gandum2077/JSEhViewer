@@ -3,8 +3,6 @@ import { webdavIntroductionPath } from "../utils/glv";
 import { configManager } from "../utils/config";
 import { WebDAVService } from "../types";
 
-// TODO: 需要对此controller进行重构，改为启动时获取当前的webdav服务器设置并进行渲染，用户设置后需要点击保存按钮，否则不会保存
-
 class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
   private _services: WebDAVService[];
   private _webDAVEnabled: boolean;

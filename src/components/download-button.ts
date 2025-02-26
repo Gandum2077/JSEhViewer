@@ -3,21 +3,21 @@ import { defaultButtonColor } from "../utils/glv";
 
 const downloadButtonSymbols = {
   pending: "arrowshape.down.circle",
-  pause: "circle",
+  paused: "circle",
   downloading: "circle",
   finished: "checkmark.circle"
 }
 
 const downloadButtonTitles = {
   pending: "本地下载",
-  pause: "已暂停",
+  paused: "已暂停",
   downloading: "下载中",
   finished: "完成"
 }
 
 const downloadButtonSymbolColors = {
   pending: defaultButtonColor,
-  pause: $color("#ffb242"),
+  paused: $color("#ffb242"),
   downloading: $color('#34C759', '#30D158'),
   finished: $color('#34C759', '#30D158')
 }
@@ -73,6 +73,7 @@ class ProgressArc extends Base<UIView, UiTypes.ViewOptions> {
         type: "view",
         props: {
           id: this.id,
+          userInteractionEnabled: false,
           hidden
         },
         layout,
@@ -81,7 +82,7 @@ class ProgressArc extends Base<UIView, UiTypes.ViewOptions> {
             type: "image",
             props: {
               id: this.id + "background",
-              image: $image("circle"),
+              symbol: "circle",
               tintColor: $color({
                 light: "#B7BEC6",
                 dark: "#303030",
@@ -95,8 +96,8 @@ class ProgressArc extends Base<UIView, UiTypes.ViewOptions> {
             type: "image",
             props: {
               id: this.id + "progress",
-              image: $image("circle"),
-              tintColor: this._paused ? downloadButtonSymbolColors.pause : downloadButtonSymbolColors.downloading,
+              symbol: "circle",
+              tintColor: this._paused ? downloadButtonSymbolColors.paused : downloadButtonSymbolColors.downloading,
               contentMode: 2
             },
             layout: $layout.fill,
@@ -128,7 +129,7 @@ class ProgressArc extends Base<UIView, UiTypes.ViewOptions> {
 
   set paused(value: boolean) {
     this._paused = value;
-    ($(this.id + "progress") as UIImageView).tintColor = this._paused ? downloadButtonSymbolColors.pause : downloadButtonSymbolColors.downloading;
+    ($(this.id + "progress") as UIImageView).tintColor = this._paused ? downloadButtonSymbolColors.paused : downloadButtonSymbolColors.downloading;
   }
 }
 
@@ -147,7 +148,7 @@ function _calDisplayProgress(progress: number) {
 
 export class DownloadButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
   _defineView: () => UiTypes.ButtonOptions;
-  private _status: "pending" | "pause" | "downloading" | "finished";
+  private _status: "pending" | "paused" | "downloading" | "finished";
   private _progress: number;  // 0-1
   private _progressArc: ProgressArc;
   constructor({
@@ -155,18 +156,18 @@ export class DownloadButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
     progress,
     handler
   }: {
-    status: "pending" | "pause" | "downloading" | "finished",
+    status: "pending" | "paused" | "downloading" | "finished",
     progress: number,
-    handler: (sender: DownloadButton, status: "pending" | "pause" | "downloading") => void
+    handler: (sender: DownloadButton, status: "pending" | "paused" | "downloading") => void
   }) {
     super();
     this._status = status;
     this._progress = progress;
     this._progressArc = new ProgressArc({
       progress: this._progress,
-      paused: this._status === "pause",
+      paused: this._status === "paused",
       size: $size(40, 40),
-      hidden: this._status !== "downloading" && this._status !== "pause",
+      hidden: this._status !== "downloading" && this._status !== "paused",
       layout: $layout.fill
     });
     this._defineView = () => {
@@ -210,7 +211,7 @@ export class DownloadButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
               font: $font(10),
               textColor: $color("primaryText"),
               align: $align.center,
-              hidden: this._status !== "downloading" && this._status !== "pause",
+              hidden: this._status !== "downloading" && this._status !== "paused",
               text: _calDisplayProgress(this._progress)
             },
             layout: (make, view) => {
@@ -246,11 +247,11 @@ export class DownloadButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
     return this._status;
   }
 
-  set status(value: "pending" | "pause" | "downloading" | "finished") {
+  set status(value: "pending" | "paused" | "downloading" | "finished") {
     this._status = value;
-    if (value === "downloading" || value === "pause") {
+    if (value === "downloading" || value === "paused") {
       this._progressArc.view.hidden = false;
-      this._progressArc.paused = value === "pause";
+      this._progressArc.paused = value === "paused";
       $(this.id + "icon").hidden = true;
     } else {
       this._progressArc.view.hidden = true;
@@ -259,7 +260,7 @@ export class DownloadButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
     ($(this.id + "icon") as UIImageView).symbol = downloadButtonSymbols[value];
     ($(this.id + "icon") as UIImageView).tintColor = downloadButtonSymbolColors[value];
     ($(this.id + "title") as UILabelView).text = downloadButtonTitles[value];
-    ($(this.id + "progress") as UILabelView).hidden = value !== "downloading" && this._status !== "pause";
+    ($(this.id + "progress") as UILabelView).hidden = value !== "downloading" && this._status !== "paused";
     ($(this.id + "progress") as UILabelView).text = _calDisplayProgress(this._progress);
   }
 

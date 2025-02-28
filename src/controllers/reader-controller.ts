@@ -501,10 +501,6 @@ export class ReaderController extends BaseController {
 
               this.cviews.downloadButton.progress = galleryDownloader.finishedOfImages / length;
 
-              if (!this._autoCacheWhenReading && !galleryDownloader.isAllFinishedDespiteError) {
-                // 如果autoCacheWhenReading没有启用，并且任务没有结束，则需要不断地启动当前任务
-                downloaderManager.startOne(this.gid);
-              }
               if (this._autoPagerEnabled) {
                 // 自动翻页
                 // 首先检测本页是否加载完成。如果没有加载完成，不翻页并且重制倒计时为翻页间隔
@@ -639,14 +635,24 @@ export class ReaderController extends BaseController {
       progress,
       status: progress === 1 ? "finished" : this._autoCacheWhenReading ? "downloading" : "paused",
       handler: (sender, status) => {
+        const progress = galleryDownloader.finishedOfImages / length;
+        if (progress === 1) return;
         if (sender.status === "downloading") {
           sender.status = "paused"
-        } else  if (sender.status === "paused") {
+        } else if (sender.status === "paused") {
           sender.status = "downloading"
         }
         this._autoCacheWhenReading = !this._autoCacheWhenReading;
         // downloader进行转换
         galleryDownloader.autoCacheWhenReading = this._autoCacheWhenReading;
+        if (galleryDownloader.background) {
+          // 如果启动了后台下载，需要对后台下载暂停或者继续
+          if (this._autoCacheWhenReading) {
+            galleryDownloader.backgroundPaused = false;
+          } else {
+            galleryDownloader.backgroundPaused = true;
+          }
+        }
         downloaderManager.startOne(this.gid);
       },
       layout: (make, view) => {
@@ -1017,7 +1023,18 @@ export class ReaderController extends BaseController {
     this._autoPagerCountDown = this._autoPagerInterval;
     this.refreshCurrentPage();
     const galleryDownloader = downloaderManager.get(this.gid);
-    galleryDownloader!.currentReadingIndex = Math.max(page - 1, 0);
+    if (!galleryDownloader) throw new Error("galleryDownloader not found");
+    galleryDownloader.currentReadingIndex = Math.max(page - 1, 0);
+    if (!this._autoCacheWhenReading) {
+      // 检查前后三张图片是否存在 未开始 的任务
+      const shouldStartDownloader = galleryDownloader.result.images.slice(
+        galleryDownloader.currentReadingIndex,
+        galleryDownloader.currentReadingIndex + 3
+      ).some(n => !n.started);
+      if (shouldStartDownloader) {
+        downloaderManager.startOne(this.gid);
+      }
+    }
     // 修改标题
     this.cviews.titleLabel.view.text = this._generateTitle();
     this.handleAiTranslationButtonStatus(page);

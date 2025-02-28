@@ -302,7 +302,7 @@ class PopoverViewForTitleView<T extends PopoverOptions> extends Base<UIView, UiT
     const translations = {
       readlater: "稍后阅读",
       download: "下载内容",
-      all: "全部存档"
+      all: "阅读记录"
     }
     return (["readlater", "download", "all"] as ("readlater" | "download" | "all")[]).map(n => ({
       title: {

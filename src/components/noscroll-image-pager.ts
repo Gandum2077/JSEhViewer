@@ -52,8 +52,8 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
             type: "spinner",
             props: {
               id: this.id + "spinner",
-              loading: false,
-              hidden: true
+              loading: !this._props.srcs[this._props.page].path && !this._props.srcs[this._props.page].error,
+              hidden: Boolean(this._props.srcs[this._props.page].path || this._props.srcs[this._props.page].error)
             },
             layout: $layout.center
           },
@@ -61,7 +61,7 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
             type: "view",
             props: {
               id: this.id + "error_view",
-              hidden: true
+              hidden: !this._props.srcs[this._props.page].error
             },
             layout: $layout.fill,
             views: [
@@ -156,7 +156,6 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
 
   // 刷新当前页面
   private _refreshData(n: { path?: string; error: boolean }) {
-    console.log(n)
     if (n.error) {
       $(this.id + "spinner").hidden = true;
       ($(this.id + "spinner") as UISpinnerView).loading = false;

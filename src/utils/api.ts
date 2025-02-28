@@ -1,8 +1,14 @@
 import { EHAPIHandler, EHGallery, EHMPV, EHPage } from "ehentai-parser";
 import { appLog, cropImageData, isNameMatchGid } from "./tools";
-import { aiTranslationPath, imagePath, originalImagePath, thumbnailPath } from "./glv";
+import {
+  aiTranslationPath,
+  imagePath,
+  originalImagePath,
+  thumbnailPath,
+} from "./glv";
 import { aiTranslate } from "../ai-translations/ai-translate";
 import { WebDAVClient } from "./webdav";
+import { configManager } from "./config";
 
 type CompoundThumbnail = {
   thumbnail_url: string;
@@ -19,9 +25,9 @@ type CompoundThumbnail = {
       y: number;
       width: number;
       height: number;
-    }
-  }[]
-}
+    };
+  }[];
+};
 
 class RetryTooManyError extends Error {
   name = "RetryTooManyError";
@@ -49,7 +55,9 @@ class APIHandler extends EHAPIHandler {
   async getMPVInfoWithNoError(
     gid: number,
     token: string
-  ): Promise<{ success: false, error: string } | { success: true, info: EHMPV }> {
+  ): Promise<
+    { success: false; error: string } | { success: true; info: EHMPV }
+  > {
     try {
       const info = await this.getMPVInfo(gid, token);
       return { success: true, info };
@@ -62,9 +70,15 @@ class APIHandler extends EHAPIHandler {
   async getMPVInfoWithTwoRetries(
     gid: number,
     token: string
-  ): Promise<{ success: false, error: string } | { success: true, info: EHMPV }> {
-    let result: { success: false, error: string }
-      | { success: true, info: EHMPV } = { success: false, error: "RetryTooManyError" };
+  ): Promise<
+    { success: false; error: string } | { success: true; info: EHMPV }
+  > {
+    let result:
+      | { success: false; error: string }
+      | { success: true; info: EHMPV } = {
+      success: false,
+      error: "RetryTooManyError",
+    };
     for (let i = 0; i < 2; i++) {
       result = await this.getMPVInfoWithNoError(gid, token);
       if (result.success) return result;
@@ -76,7 +90,10 @@ class APIHandler extends EHAPIHandler {
     gid: number,
     token: string,
     page: number
-  ): Promise<{ success: false, error: string } | { success: true, images: EHGallery["images"] }> {
+  ): Promise<
+    | { success: false; error: string }
+    | { success: true; images: EHGallery["images"] }
+  > {
     try {
       const info = await this.getGalleryInfo(gid, token, false, page);
       return { success: true, images: info.images };
@@ -90,9 +107,17 @@ class APIHandler extends EHAPIHandler {
     gid: number,
     token: string,
     page: number
-  ): Promise<{ success: false, error: string } | { success: true, images: EHGallery["images"] }> {
+  ): Promise<
+    | { success: false; error: string }
+    | { success: true; images: EHGallery["images"] }
+  > {
     let info;
-    let result: { success: false, error: string } | { success: true, images: EHGallery["images"] } = { success: false, error: "RetryTooManyError" };
+    let result:
+      | { success: false; error: string }
+      | { success: true; images: EHGallery["images"] } = {
+      success: false,
+      error: "RetryTooManyError",
+    };
     for (let i = 0; i < 2; i++) {
       result = await this.getGalleryImagesWithNoError(gid, token, page);
       if (result.success) return result;
@@ -105,7 +130,10 @@ class APIHandler extends EHAPIHandler {
     imgkey: string,
     page: number,
     reloadKey?: string
-  ): Promise<{ success: true, info: EHPage, data: NSData } | { success: false, info?: EHPage, error: string }> {
+  ): Promise<
+    | { success: true; info: EHPage; data: NSData }
+    | { success: false; info?: EHPage; error: string }
+  > {
     let pageInfo;
     try {
       pageInfo = await this.getPageInfo(gid, imgkey, page, reloadKey);
@@ -122,8 +150,12 @@ class APIHandler extends EHAPIHandler {
     imgkey: string,
     page: number
   ) {
-    let result: { success: true, info: EHPage, data: NSData }
-      | { success: false, info?: EHPage, error: string } = { success: false, error: "RetryTooManyError" };
+    let result:
+      | { success: true; info: EHPage; data: NSData }
+      | { success: false; info?: EHPage; error: string } = {
+      success: false,
+      error: "RetryTooManyError",
+    };
     let reloadKey: string | undefined;
     for (let i = 0; i < 3; i++) {
       result = await this.downloadImageByPageInfo(gid, imgkey, page, reloadKey);
@@ -142,7 +174,10 @@ class APIHandler extends EHAPIHandler {
     mpvkey: string,
     page: number,
     reloadKey?: string
-  ): Promise<{ success: true, info: EHPage, data: NSData } | { success: false, info?: EHPage, error: string }> {
+  ): Promise<
+    | { success: true; info: EHPage; data: NSData }
+    | { success: false; info?: EHPage; error: string }
+  > {
     let pageInfo;
     try {
       pageInfo = await this.fetchImageInfo(gid, key, mpvkey, page, reloadKey);
@@ -158,10 +193,14 @@ class APIHandler extends EHAPIHandler {
     gid: number,
     key: string,
     mpvkey: string,
-    page: number   // 注意：这里的page是从1开始的
+    page: number // 注意：这里的page是从1开始的
   ) {
-    let result: { success: true, info: EHPage, data: NSData }
-      | { success: false, info?: EHPage, error: string } = { success: false, error: "RetryTooManyError" };
+    let result:
+      | { success: true; info: EHPage; data: NSData }
+      | { success: false; info?: EHPage; error: string } = {
+      success: false,
+      error: "RetryTooManyError",
+    };
     let reloadKey: string | undefined;
     for (let i = 0; i < 3; i++) {
       result = await this.downloadImageByMpv(gid, key, mpvkey, page, reloadKey);
@@ -176,7 +215,9 @@ class APIHandler extends EHAPIHandler {
 
   async downloadThumbnailNoError(
     url: string
-  ): Promise<{ success: false, error: string } | { success: true, data: NSData }> {
+  ): Promise<
+    { success: false; error: string } | { success: true; data: NSData }
+  > {
     const ehgt = !this.exhentai;
     try {
       const data = await this.downloadThumbnail(url, ehgt);
@@ -189,9 +230,15 @@ class APIHandler extends EHAPIHandler {
 
   async downloadThumbnailWithTwoRetries(
     url: string
-  ): Promise<{ success: false, error: string } | { success: true, data: NSData }> {
-    let result: { success: false, error: string }
-      | { success: true, data: NSData } = { success: false, error: "RetryTooManyError" };
+  ): Promise<
+    { success: false; error: string } | { success: true; data: NSData }
+  > {
+    let result:
+      | { success: false; error: string }
+      | { success: true; data: NSData } = {
+      success: false,
+      error: "RetryTooManyError",
+    };
     for (let i = 0; i < 2; i++) {
       result = await this.downloadThumbnailNoError(url);
       if (result.success) return result;
@@ -202,8 +249,10 @@ class APIHandler extends EHAPIHandler {
   async downloadOriginalImageByPageInfoNoError(
     gid: number,
     imgkey: string,
-    page: number,
-  ): Promise<{ success: false, error: string } | { success: true, data: NSData }> {
+    page: number
+  ): Promise<
+    { success: false; error: string } | { success: true; data: NSData }
+  > {
     try {
       const pageInfo = await this.getPageInfo(gid, imgkey, page);
       if (!pageInfo.fullSizeUrl) {
@@ -220,12 +269,22 @@ class APIHandler extends EHAPIHandler {
   async downloadOriginalImageByPageInfoWithTwoRetries(
     gid: number,
     imgkey: string,
-    page: number,
-  ): Promise<{ success: false, error: string } | { success: true, data: NSData }> {
-    let result: { success: false, error: string }
-      | { success: true, data: NSData } = { success: false, error: "RetryTooManyError" };
+    page: number
+  ): Promise<
+    { success: false; error: string } | { success: true; data: NSData }
+  > {
+    let result:
+      | { success: false; error: string }
+      | { success: true; data: NSData } = {
+      success: false,
+      error: "RetryTooManyError",
+    };
     for (let i = 0; i < 2; i++) {
-      result = await this.downloadOriginalImageByPageInfoNoError(gid, imgkey, page);
+      result = await this.downloadOriginalImageByPageInfoNoError(
+        gid,
+        imgkey,
+        page
+      );
       if (result.success) return result;
     }
     return result;
@@ -243,7 +302,7 @@ abstract class ConcurrentDownloaderBase {
   protected _paused = true;
   protected abstract _maxConcurrency: number;
   protected _running = 0;
-  constructor() { }
+  constructor() {}
 
   protected abstract _getNextTask(): Task | undefined;
 
@@ -288,7 +347,7 @@ abstract class ConcurrentDownloaderBase {
 
 /**
  * 标签缩略图下载器。
- * 
+ *
  * 它的实例应该跟随标签而存在。任务的index对应标签item的index。
  */
 export class TabThumbnailDownloader extends ConcurrentDownloaderBase {
@@ -307,15 +366,19 @@ export class TabThumbnailDownloader extends ConcurrentDownloaderBase {
 
   constructor(finishHandler: () => void) {
     super();
-    this._items = []
+    this._items = [];
     this._finishHandler = finishHandler;
   }
 
   protected _getNextTask(): Task | undefined {
     // 查找未开始的缩略图，先从currentReadingIndex开始找
-    let thumbnailItem = this._items.find(thumbnail => thumbnail.index >= this.currentReadingIndex && !thumbnail.started);
+    let thumbnailItem = this._items.find(
+      (thumbnail) =>
+        thumbnail.index >= this.currentReadingIndex && !thumbnail.started
+    );
     // 如果找不到，则从头开始查找
-    if (!thumbnailItem) thumbnailItem = this._items.find(thumbnail => !thumbnail.started);
+    if (!thumbnailItem)
+      thumbnailItem = this._items.find((thumbnail) => !thumbnail.started);
     if (thumbnailItem) {
       return this.createThumbnailTask(
         thumbnailItem.index,
@@ -323,10 +386,10 @@ export class TabThumbnailDownloader extends ConcurrentDownloaderBase {
         thumbnailItem.url
       );
     }
-    return
+    return;
   }
 
-  add(thumbnailItems: { gid: number, url: string }[]) {
+  add(thumbnailItems: { gid: number; url: string }[]) {
     const currentLength = this._items.length;
     const mapped = thumbnailItems.map(({ gid, url }, index) => {
       const exist = $file.exists(thumbnailPath + `${gid}.jpg`);
@@ -337,9 +400,9 @@ export class TabThumbnailDownloader extends ConcurrentDownloaderBase {
         path: thumbnailPath + `${gid}.jpg`,
         started: exist,
         success: exist,
-        error: false
-      }
-    })
+        error: false,
+      };
+    });
     this._items.push(...mapped);
     if (!this._paused) this._run();
   }
@@ -355,33 +418,34 @@ export class TabThumbnailDownloader extends ConcurrentDownloaderBase {
           appLog(`标签缩略图下载成功: gid=${gid}, index=${index}`, "debug");
           $file.write({
             data: result.data,
-            path: thumbnailPath + `${gid}.jpg`
-          })
+            path: thumbnailPath + `${gid}.jpg`,
+          });
           this._items[index].success = true;
         } else {
           this._items[index].error = true;
         }
-        if (this.isAllFinishedDespiteError) {
+        if (this._paused && this.isAllFinishedDespiteError) {
           this._finishHandler();
         }
-      }
-    }
+      },
+    };
   }
 
   clear() {
     this._items = [];
+    this.currentReadingIndex = 0;
   }
 
   get pending() {
-    return this._items.filter(thumbnail => !thumbnail.started).length;
+    return this._items.filter((thumbnail) => !thumbnail.started).length;
   }
 
   get finished() {
-    return this._items.filter(thumbnail => thumbnail.success).length;
+    return this._items.filter((thumbnail) => thumbnail.success).length;
   }
 
   get failed() {
-    return this._items.filter(thumbnail => thumbnail.error).length;
+    return this._items.filter((thumbnail) => thumbnail.error).length;
   }
 
   get isAllFinished() {
@@ -389,17 +453,20 @@ export class TabThumbnailDownloader extends ConcurrentDownloaderBase {
   }
 
   get isAllFinishedDespiteError() {
-    return this._items.filter(thumbnail => thumbnail.error || thumbnail.success).length === this._items.length;
+    return (
+      this._items.filter((thumbnail) => thumbnail.error || thumbnail.success)
+        .length === this._items.length
+    );
   }
 }
 
 /**
  * MPV图库下载器，包括html、图片、缩略图。前提是使用mpv的api。
- * 
+ *
  * 步骤：
  * 1. 首先通过mpv api获取数据。
  * 2. 混编缩略图和图片队列，并开始下载
- * 
+ *
  * 不存在清除任务的方法，此对象要废除的话，可以暂停后删除对象
  */
 class GalleryMPVDownloader extends ConcurrentDownloaderBase {
@@ -408,26 +475,44 @@ class GalleryMPVDownloader extends ConcurrentDownloaderBase {
   private gid: number;
   private mpvInfo?: EHMPV;
   downloadingImages = false; // 是否下载图片，如果为false，则只下载缩略图，可以从外部设置
-  currentReadingIndex = 0;  // 当前正在阅读的图片的index，可以从外部设置
+  currentReadingIndex = 0; // 当前正在阅读的图片的index，可以从外部设置
   background = false; // 是否后台下载，可以从外部设置
 
   result: {
-    thumbnails: { index: number, path?: string, error: boolean, started: boolean }[],
-    images: { index: number, path?: string, error: boolean, started: boolean }[]
-    topThumbnail: { path?: string, error: boolean, started: boolean }
-  }
+    thumbnails: {
+      index: number;
+      path?: string;
+      error: boolean;
+      started: boolean;
+    }[];
+    images: {
+      index: number;
+      path?: string;
+      error: boolean;
+      started: boolean;
+    }[];
+    topThumbnail: { path?: string; error: boolean; started: boolean };
+  };
   constructor(infos: EHGallery) {
     super();
     this.infos = infos;
     this.gid = infos.gid;
     this.result = {
-      thumbnails: [...Array(this.infos.length)].map((_, i) => ({ index: i, error: false, started: false })),
-      images: [...Array(this.infos.length)].map((_, i) => ({ index: i, error: false, started: false })),
+      thumbnails: [...Array(this.infos.length)].map((_, i) => ({
+        index: i,
+        error: false,
+        started: false,
+      })),
+      images: [...Array(this.infos.length)].map((_, i) => ({
+        index: i,
+        error: false,
+        started: false,
+      })),
       topThumbnail: {
         error: false,
-        started: false
-      }
-    }
+        started: false,
+      },
+    };
     this.initialize();
   }
 
@@ -441,26 +526,32 @@ class GalleryMPVDownloader extends ConcurrentDownloaderBase {
     }
     if (!this.mpvInfo) {
       // 如果mpvInfo不存在，则查找this.infos.images中尚未下载的缩略图
-      const imagesOnPage0 = this.infos.images[0]
+      const imagesOnPage0 = this.infos.images[0];
       for (let i = 0; i < imagesOnPage0.length; i++) {
         if (!this.result.thumbnails[i].started) {
-          return this.createThumbnailTask(
-            i,
-            imagesOnPage0[i].thumbnail_url
-          );
+          return this.createThumbnailTask(i, imagesOnPage0[i].thumbnail_url);
         }
       }
       return;
     }
     // 查找未开始的缩略图，先从currentReadingIndex开始找
-    let thumbnailItem = this.result.thumbnails.find(thumbnail => (thumbnail.index >= this.currentReadingIndex) && !thumbnail.started);
+    let thumbnailItem = this.result.thumbnails.find(
+      (thumbnail) =>
+        thumbnail.index >= this.currentReadingIndex && !thumbnail.started
+    );
     // 如果找不到，则从头开始查找
-    if (!thumbnailItem) thumbnailItem = this.result.thumbnails.find(thumbnail => !thumbnail.started);
+    if (!thumbnailItem)
+      thumbnailItem = this.result.thumbnails.find(
+        (thumbnail) => !thumbnail.started
+      );
     if (this.downloadingImages) {
       // 查找未开始的图片，先从currentReadingIndex开始找
-      let imageItem = this.result.images.find(image => (image.index >= this.currentReadingIndex) && !image.started);
+      let imageItem = this.result.images.find(
+        (image) => image.index >= this.currentReadingIndex && !image.started
+      );
       // 如果找不到，则从头开始查找
-      if (!imageItem) imageItem = this.result.images.find(image => !image.started);
+      if (!imageItem)
+        imageItem = this.result.images.find((image) => !image.started);
 
       if (thumbnailItem && imageItem) {
         // 如果缩略图的index和图片的index都大于currentReadingIndex，则比较index，先下载index小的
@@ -468,17 +559,21 @@ class GalleryMPVDownloader extends ConcurrentDownloaderBase {
         // 如果缩略图的index大于currentReadingIndex，图片的index小于currentReadingIndex，则下载缩略图
         // 如果缩略图的index小于currentReadingIndex，图片的index大于currentReadingIndex，则下载图片
         if (
-          (thumbnailItem.index >= this.currentReadingIndex && imageItem.index >= this.currentReadingIndex) ||
-          (thumbnailItem.index < this.currentReadingIndex && imageItem.index < this.currentReadingIndex)
+          (thumbnailItem.index >= this.currentReadingIndex &&
+            imageItem.index >= this.currentReadingIndex) ||
+          (thumbnailItem.index < this.currentReadingIndex &&
+            imageItem.index < this.currentReadingIndex)
         ) {
-          return thumbnailItem.index <= imageItem.index ? this.createThumbnailTask(
-            thumbnailItem.index,
-            this.mpvInfo.images[thumbnailItem.index].thumbnail_url
-          ) : this.createImageTask(
-            imageItem.index,
-            this.mpvInfo.images[imageItem.index].key,
-            this.mpvInfo.mpvkey
-          );
+          return thumbnailItem.index <= imageItem.index
+            ? this.createThumbnailTask(
+                thumbnailItem.index,
+                this.mpvInfo.images[thumbnailItem.index].thumbnail_url
+              )
+            : this.createImageTask(
+                imageItem.index,
+                this.mpvInfo.images[imageItem.index].key,
+                this.mpvInfo.mpvkey
+              );
         } else if (thumbnailItem.index >= this.currentReadingIndex) {
           return this.createThumbnailTask(
             thumbnailItem.index,
@@ -521,26 +616,25 @@ class GalleryMPVDownloader extends ConcurrentDownloaderBase {
     // 查找已经存在的缩略图
     const galleryThumbnailPath = thumbnailPath + `${this.gid}`;
     if (!$file.exists(galleryThumbnailPath)) $file.mkdir(galleryThumbnailPath);
-    $file.list(galleryThumbnailPath)
-      .forEach(name => {
-        if (!name.endsWith(".jpg")) return;
-        const page1 = parseInt(name.split(".")[0]); // 此处的page1是从1开始的
-        if (isNaN(page1)) return;
-        this.result.thumbnails[page1 - 1].path = galleryThumbnailPath + "/" + name;
-        this.result.thumbnails[page1 - 1].started = true;
-      });
+    $file.list(galleryThumbnailPath).forEach((name) => {
+      if (!name.endsWith(".jpg")) return;
+      const page1 = parseInt(name.split(".")[0]); // 此处的page1是从1开始的
+      if (isNaN(page1)) return;
+      this.result.thumbnails[page1 - 1].path =
+        galleryThumbnailPath + "/" + name;
+      this.result.thumbnails[page1 - 1].started = true;
+    });
 
     // 查找已经存在的图片
     const galleryImagePath = imagePath + `${this.gid}`;
     if (!$file.exists(galleryImagePath)) $file.mkdir(galleryImagePath);
-    $file.list(galleryImagePath)
-      .forEach(name => {
-        if (!name.endsWith(".jpg") && !name.endsWith(".png") && !name.endsWith(".gif")) return;
-        const page1 = parseInt(name.split(".")[0].split("_")[0]); // 此处的page1是从1开始的
-        if (isNaN(page1)) return;
-        this.result.images[page1 - 1].path = galleryImagePath + "/" + name;
-        this.result.images[page1 - 1].started = true;
-      });
+    $file.list(galleryImagePath).forEach((name) => {
+      if (!/\.(png|jpe?g|gif|webp)$/i.test(name)) return;
+      const page1 = parseInt(name.split(".")[0].split("_")[0]); // 此处的page1是从1开始的
+      if (isNaN(page1)) return;
+      this.result.images[page1 - 1].path = galleryImagePath + "/" + name;
+      this.result.images[page1 - 1].started = true;
+    });
 
     // 查找已经存在的顶部缩略图
     const topThumbnailPath = thumbnailPath + `${this.gid}.jpg`;
@@ -551,7 +645,10 @@ class GalleryMPVDownloader extends ConcurrentDownloaderBase {
   }
 
   async refreshMPVInfo() {
-    const result = await api.getMPVInfoWithTwoRetries(this.gid, this.infos.token)
+    const result = await api.getMPVInfoWithTwoRetries(
+      this.gid,
+      this.infos.token
+    );
     if (result.success) {
       this.mpvInfo = result.info;
       // 如果没有处于暂停状态，那么重新启动任务
@@ -559,14 +656,18 @@ class GalleryMPVDownloader extends ConcurrentDownloaderBase {
     } else {
       appLog("获取MPV信息失败", "error");
       // 如果获取失败，将所有未开始的缩略图任务和图片任务标记为error
-      this.result.thumbnails.filter(thumbnail => !thumbnail.started).forEach(thumbnail => {
-        thumbnail.error = true;
-        thumbnail.started = true;
-      });
-      this.result.images.filter(image => !image.started).forEach(image => {
-        image.error = true;
-        image.started = true;
-      });
+      this.result.thumbnails
+        .filter((thumbnail) => !thumbnail.started)
+        .forEach((thumbnail) => {
+          thumbnail.error = true;
+          thumbnail.started = true;
+        });
+      this.result.images
+        .filter((image) => !image.started)
+        .forEach((image) => {
+          image.error = true;
+          image.started = true;
+        });
     }
     return result;
   }
@@ -579,16 +680,19 @@ class GalleryMPVDownloader extends ConcurrentDownloaderBase {
         this.result.thumbnails[index].started = true;
         const result = await api.downloadThumbnailWithTwoRetries(url);
         if (result.success) {
-          appLog(`图库缩略图下载成功: gid=${this.gid}, index=${index}`, "debug");
+          appLog(
+            `图库缩略图下载成功: gid=${this.gid}, index=${index}`,
+            "debug"
+          );
           if (!path) path = thumbnailPath + `${this.gid}/${index + 1}.jpg`;
           $file.write({
             data: result.data,
-            path
-          })
+            path,
+          });
           this.result.thumbnails[index].path = path;
         }
-      }
-    }
+      },
+    };
   }
 
   private createImageTask(index: number, key: string, mpvkey: string) {
@@ -597,7 +701,12 @@ class GalleryMPVDownloader extends ConcurrentDownloaderBase {
       handler: async () => {
         appLog(`开始下载图库图片: gid=${this.gid}, index=${index}`, "debug");
         this.result.images[index].started = true;
-        const result = await api.downloadImageByMpvWithThreeRetries(this.gid, key, mpvkey, index + 1);
+        const result = await api.downloadImageByMpvWithThreeRetries(
+          this.gid,
+          key,
+          mpvkey,
+          index + 1
+        );
         if (result.success) {
           appLog(`图库图片下载成功: gid=${this.gid}, index=${index}`, "debug");
           const name = this.mpvInfo!.images[index].name;
@@ -606,48 +715,60 @@ class GalleryMPVDownloader extends ConcurrentDownloaderBase {
           const path = imagePath + `${this.gid}/${index + 1}` + extname;
           $file.write({
             data: result.data,
-            path
-          })
+            path,
+          });
           this.result.images[index].path = path;
         } else {
           this.result.images[index].error = true;
         }
-      }
-    }
+      },
+    };
   }
 
   get pendingOfThumbnails() {
-    return this.result.thumbnails.filter(thumbnail => !thumbnail.started).length;
+    return this.result.thumbnails.filter((thumbnail) => !thumbnail.started)
+      .length;
   }
 
   get pendingOfImages() {
-    return this.result.images.filter(image => !image.started).length;
+    return this.result.images.filter((image) => !image.started).length;
   }
 
   get pending() {
-    return this.pendingOfThumbnails + this.pendingOfImages + (this.result.topThumbnail.started ? 0 : 1);
+    return (
+      this.pendingOfThumbnails +
+      this.pendingOfImages +
+      (this.result.topThumbnail.started ? 0 : 1)
+    );
   }
 
   get finishedOfThumbnails() {
-    return this.result.thumbnails.filter(thumbnail => thumbnail.path).length;
+    return this.result.thumbnails.filter((thumbnail) => thumbnail.path).length;
   }
 
   get finishedOfImages() {
-    return this.result.images.filter(image => image.path).length;
+    return this.result.images.filter((image) => image.path).length;
   }
 
   get finished() {
-    return this.finishedOfThumbnails + this.finishedOfImages + (this.result.topThumbnail.path ? 1 : 0);
+    return (
+      this.finishedOfThumbnails +
+      this.finishedOfImages +
+      (this.result.topThumbnail.path ? 1 : 0)
+    );
   }
 
   get isAllFinished(): boolean {
-    return this.finished === this.result.thumbnails.length + this.result.images.length + 1;
+    return (
+      this.finished ===
+      this.result.thumbnails.length + this.result.images.length + 1
+    );
   }
 }
 
 /**
  * 通用图库下载器，包括html、图片、缩略图。不需要使用mpv的api。
- * 
+ *
  * 不存在清除任务的方法，此对象要废除的话，可以暂停后删除对象
  */
 class GalleryCommonDownloader extends ConcurrentDownloaderBase {
@@ -657,34 +778,88 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
   readonly gid: number;
   private finishHandler: () => void;
 
-  currentReadingIndex = 0;  // 当前正在阅读的图片的index，可以从外部设置
+  currentReadingIndex = 0; // 当前正在阅读的图片的index，可以从外部设置
   reading = false; // 是否正在阅读，可以从外部设置
-  autoCacheWhenReading = true; // 阅读的时候是否自动下载，可以从外部设置 // TODO
+  autoCacheWhenReading = true; // 阅读的时候是否自动下载，可以从外部设置
   background = false; // 是否后台下载，可以从外部设置
   backgroundPaused = false; // 是否后台暂停，可以从外部设置
-  webDAVConfig: { enabled: true, client: WebDAVClient, filesOnWebDAV: string[] } | { enabled: false } = { enabled: false };
+  webDAVConfig:
+    | { enabled: true; client: WebDAVClient; filesOnWebDAV: string[] }
+    | { enabled: false } = { enabled: false };
 
   result: {
-    htmls: { index: number, success: boolean, error: boolean, started: boolean }[],
-    thumbnails: { index: number, path?: string, error: boolean, started: boolean }[],
-    images: { index: number, path?: string, error: boolean, started: boolean }[],
-    topThumbnail: { path?: string, error: boolean, started: boolean },
-    originalImages: { index: number, userSelected: boolean, path?: string, error: boolean, noOriginalImage: boolean, started: boolean }[],
-    aiTranslations: { index: number, userSelected: boolean, path?: string, error: boolean, started: boolean }[]
-  }
+    htmls: {
+      index: number;
+      success: boolean;
+      error: boolean;
+      started: boolean;
+    }[];
+    thumbnails: {
+      index: number;
+      path?: string;
+      error: boolean;
+      started: boolean;
+    }[];
+    images: {
+      index: number;
+      path?: string;
+      error: boolean;
+      started: boolean;
+    }[];
+    topThumbnail: { path?: string; error: boolean; started: boolean };
+    originalImages: {
+      index: number;
+      userSelected: boolean;
+      path?: string;
+      error: boolean;
+      noOriginalImage: boolean;
+      started: boolean;
+    }[];
+    aiTranslations: {
+      index: number;
+      userSelected: boolean;
+      path?: string;
+      error: boolean;
+      started: boolean;
+    }[];
+  };
   constructor(infos: EHGallery, finishHandler: () => void) {
     super();
     this.infos = infos;
     this.gid = infos.gid;
     this.finishHandler = finishHandler;
     this.result = {
-      htmls: [...Array(this.infos.total_pages)].map((_, i) => ({ index: i, success: false, error: false, started: false })),
-      thumbnails: [...Array(this.infos.length)].map((_, i) => ({ index: i, error: false, started: false })),
-      images: [...Array(this.infos.length)].map((_, i) => ({ index: i, error: false, started: false })),
+      htmls: [...Array(this.infos.total_pages)].map((_, i) => ({
+        index: i,
+        success: false,
+        error: false,
+        started: false,
+      })),
+      thumbnails: [...Array(this.infos.length)].map((_, i) => ({
+        index: i,
+        error: false,
+        started: false,
+      })),
+      images: [...Array(this.infos.length)].map((_, i) => ({
+        index: i,
+        error: false,
+        started: false,
+      })),
       topThumbnail: { error: false, started: false },
-      originalImages: [...Array(this.infos.length)].map((_, i) => ({ index: i, userSelected: false, error: false, noOriginalImage: false, started: false })),
-      aiTranslations: [...Array(this.infos.length)].map((_, i) => ({ index: i, userSelected: false, error: false, started: false }))
-    }
+      originalImages: [...Array(this.infos.length)].map((_, i) => ({
+        index: i,
+        userSelected: false,
+        error: false,
+        noOriginalImage: false,
+        started: false,
+      })),
+      aiTranslations: [...Array(this.infos.length)].map((_, i) => ({
+        index: i,
+        userSelected: false,
+        error: false,
+        started: false,
+      })),
+    };
     this.initialize();
   }
 
@@ -703,26 +878,25 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     // 查找已经存在的缩略图
     const galleryThumbnailPath = thumbnailPath + `${this.gid}`;
     if (!$file.exists(galleryThumbnailPath)) $file.mkdir(galleryThumbnailPath);
-    $file.list(galleryThumbnailPath)
-      .forEach(name => {
-        if (!name.endsWith(".jpg")) return;
-        const page1 = parseInt(name.split(".")[0]); // 此处的page1是从1开始的
-        if (isNaN(page1)) return;
-        this.result.thumbnails[page1 - 1].path = galleryThumbnailPath + "/" + name;
-        this.result.thumbnails[page1 - 1].started = true;
-      });
+    $file.list(galleryThumbnailPath).forEach((name) => {
+      if (!name.endsWith(".jpg")) return;
+      const page1 = parseInt(name.split(".")[0]); // 此处的page1是从1开始的
+      if (isNaN(page1)) return;
+      this.result.thumbnails[page1 - 1].path =
+        galleryThumbnailPath + "/" + name;
+      this.result.thumbnails[page1 - 1].started = true;
+    });
 
     // 查找已经存在的图片
     const galleryImagePath = imagePath + `${this.gid}`;
     if (!$file.exists(galleryImagePath)) $file.mkdir(galleryImagePath);
-    $file.list(galleryImagePath)
-      .forEach(name => {
-        if (!name.endsWith(".jpg") && !name.endsWith(".png") && !name.endsWith(".gif") && !name.endsWith("webp")) return;
-        const page1 = parseInt(name.split(".")[0].split("_")[0]); // 此处的page1是从1开始的
-        if (isNaN(page1)) return;
-        this.result.images[page1 - 1].path = galleryImagePath + "/" + name;
-        this.result.images[page1 - 1].started = true;
-      });
+    $file.list(galleryImagePath).forEach((name) => {
+      if (!/\.(png|jpe?g|gif|webp)$/i.test(name)) return;
+      const page1 = parseInt(name.split(".")[0].split("_")[0]); // 此处的page1是从1开始的
+      if (isNaN(page1)) return;
+      this.result.images[page1 - 1].path = galleryImagePath + "/" + name;
+      this.result.images[page1 - 1].started = true;
+    });
 
     // 查找已经存在的顶部缩略图
     const topThumbnailPath = thumbnailPath + `${this.gid}.jpg`;
@@ -733,29 +907,31 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
 
     // 查找已经存在的原图
     const originalImagePathThisGallery = originalImagePath + `${this.gid}`;
-    if (!$file.exists(originalImagePathThisGallery)) $file.mkdir(originalImagePathThisGallery);
-    $file.list(originalImagePathThisGallery)
-      .forEach(name => {
-        if (!name.endsWith(".jpg") && !name.endsWith(".png") && !name.endsWith(".gif") && !name.endsWith("webp")) return;
-        const page1 = parseInt(name.split(".")[0].split("_")[0]); // 此处的page1是从1开始的
-        if (isNaN(page1)) return;
-        this.result.originalImages[page1 - 1].path = originalImagePathThisGallery + "/" + name;
-        this.result.originalImages[page1 - 1].started = true;
-        this.result.originalImages[page1 - 1].userSelected = true;
-      });
+    if (!$file.exists(originalImagePathThisGallery))
+      $file.mkdir(originalImagePathThisGallery);
+    $file.list(originalImagePathThisGallery).forEach((name) => {
+      if (!/\.(png|jpe?g|gif|webp)$/i.test(name)) return;
+      const page1 = parseInt(name.split(".")[0].split("_")[0]); // 此处的page1是从1开始的
+      if (isNaN(page1)) return;
+      this.result.originalImages[page1 - 1].path =
+        originalImagePathThisGallery + "/" + name;
+      this.result.originalImages[page1 - 1].started = true;
+      this.result.originalImages[page1 - 1].userSelected = true;
+    });
 
     // 查找已经存在的AI翻译
     const aiTranslationPathThisGallery = aiTranslationPath + `${this.gid}`;
-    if (!$file.exists(aiTranslationPathThisGallery)) $file.mkdir(aiTranslationPathThisGallery);
-    $file.list(aiTranslationPathThisGallery)
-      .forEach(name => {
-        if (!name.endsWith(".jpg") && !name.endsWith(".png") && !name.endsWith(".gif") && !name.endsWith("webp")) return;
-        const page1 = parseInt(name.split(".")[0].split("_")[0]); // 此处的page1是从1开始的
-        if (isNaN(page1)) return;
-        this.result.aiTranslations[page1 - 1].path = aiTranslationPathThisGallery + "/" + name;
-        this.result.aiTranslations[page1 - 1].started = true;
-        this.result.aiTranslations[page1 - 1].userSelected = true;
-      });
+    if (!$file.exists(aiTranslationPathThisGallery))
+      $file.mkdir(aiTranslationPathThisGallery);
+    $file.list(aiTranslationPathThisGallery).forEach((name) => {
+      if (!/\.(png|jpe?g|gif|webp)$/i.test(name)) return;
+      const page1 = parseInt(name.split(".")[0].split("_")[0]); // 此处的page1是从1开始的
+      if (isNaN(page1)) return;
+      this.result.aiTranslations[page1 - 1].path =
+        aiTranslationPathThisGallery + "/" + name;
+      this.result.aiTranslations[page1 - 1].started = true;
+      this.result.aiTranslations[page1 - 1].userSelected = true;
+    });
   }
 
   protected _getNextTask(): Task | undefined {
@@ -770,7 +946,9 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     // 2. 如果currentReadingIndex所对应的html还没有开始，则下载html
     if (this.infos.num_of_images_on_each_page) {
       // 如果没有num_of_images_on_each_page，则无需考虑html任务（因为只有1页）
-      const page = Math.floor(this.currentReadingIndex / this.infos.num_of_images_on_each_page);
+      const page = Math.floor(
+        this.currentReadingIndex / this.infos.num_of_images_on_each_page
+      );
       if (!this.result.htmls[page].started) {
         return this.createHtmlTask(page);
       }
@@ -778,17 +956,23 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
 
     // 3. 在html任务中查找已开始但未完成的任务（started为true, success和error都是false）
     // 如果数量小于等于1，则查找未开始的html任务。保证有两个html任务在同时下载，优先完成html任务。
-    const runningHtmlTaskNum = this.result.htmls.filter(html => html.started && !html.success && !html.error).length;
+    const runningHtmlTaskNum = this.result.htmls.filter(
+      (html) => html.started && !html.success && !html.error
+    ).length;
     if (runningHtmlTaskNum <= 1) {
-      const htmlTask = this.result.htmls.find(html => !html.started);
+      const htmlTask = this.result.htmls.find((html) => !html.started);
       if (htmlTask) return this.createHtmlTask(htmlTask.index);
     }
 
     // 插入aiTranslation任务
     // 如果存在可执行但未开始的任务，则优先执行它们
     // 可执行的标准为：userSelected为true，started为false, images中对应index的path存在
-    const aiTranslationItem = this.result.aiTranslations.find(task => {
-      return task.userSelected && !task.started && this.result.images[task.index].path;
+    const aiTranslationItem = this.result.aiTranslations.find((task) => {
+      return (
+        task.userSelected &&
+        !task.started &&
+        this.result.images[task.index].path
+      );
     });
     if (aiTranslationItem) {
       return this.createAiTranslationTask(
@@ -800,20 +984,32 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     // 插入originalImages任务
     // 如果存在可执行但未开始的任务，则优先执行它们
     // 可执行的标准为：对应html任务已完成，userSelected为true，started为false
-    const originalImageItem = this.result.originalImages.find(originalImage => {
-      const page = this.infos.num_of_images_on_each_page
-        ? Math.floor(originalImage.index / this.infos.num_of_images_on_each_page)
-        : 0;
-      return this.result.htmls[page].success && originalImage.userSelected && !originalImage.started;
-    });
+    const originalImageItem = this.result.originalImages.find(
+      (originalImage) => {
+        const page = this.infos.num_of_images_on_each_page
+          ? Math.floor(
+              originalImage.index / this.infos.num_of_images_on_each_page
+            )
+          : 0;
+        return (
+          this.result.htmls[page].success &&
+          originalImage.userSelected &&
+          !originalImage.started
+        );
+      }
+    );
 
     if (originalImageItem) {
       const htmlPageOfFoundImageItem = this.infos.num_of_images_on_each_page
-        ? Math.floor(originalImageItem.index / this.infos.num_of_images_on_each_page)
+        ? Math.floor(
+            originalImageItem.index / this.infos.num_of_images_on_each_page
+          )
         : 0;
       return this.createOriginalImageTask(
         originalImageItem.index,
-        this.infos.images[htmlPageOfFoundImageItem].find(image => image.page === originalImageItem.index)!.imgkey
+        this.infos.images[htmlPageOfFoundImageItem].find(
+          (image) => image.page === originalImageItem.index
+        )!.imgkey
       );
     }
 
@@ -828,10 +1024,12 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
         thumbnail_url: imagesOnThisPage[0].thumbnail_url,
         startIndex: imagesOnThisPage[0].page,
         endIndex: imagesOnThisPage[0].page,
-        images: [imagesOnThisPage[0]]
-      }
+        images: [imagesOnThisPage[0]],
+      };
       for (let i = 1; i < imagesOnThisPage.length; i++) {
-        if (imagesOnThisPage[i].thumbnail_url === compoundThumbnail.thumbnail_url) {
+        if (
+          imagesOnThisPage[i].thumbnail_url === compoundThumbnail.thumbnail_url
+        ) {
           compoundThumbnail.endIndex = imagesOnThisPage[i].page;
           compoundThumbnail.images.push(imagesOnThisPage[i]);
         } else {
@@ -840,8 +1038,8 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
             thumbnail_url: imagesOnThisPage[i].thumbnail_url,
             startIndex: imagesOnThisPage[i].page,
             endIndex: imagesOnThisPage[i].page,
-            images: [imagesOnThisPage[i]]
-          }
+            images: [imagesOnThisPage[i]],
+          };
         }
       }
       compoundThumbnails.push(compoundThumbnail);
@@ -851,45 +1049,86 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     // 2024-11-20 update: 由于ehentai图库页面改版，改为从compoundThumbnails中查找
 
     // 4.1 先从currentReadingIndex开始找
-    let compoundThumbnailItem = compoundThumbnails
-      .find(n => n.endIndex >= this.currentReadingIndex
-        && this.result.thumbnails
-          .filter(i => i.index >= n.startIndex && i.index <= n.endIndex)
-          .some(i => i.started === false));
+    let compoundThumbnailItem = compoundThumbnails.find(
+      (n) =>
+        n.endIndex >= this.currentReadingIndex &&
+        this.result.thumbnails
+          .filter((i) => i.index >= n.startIndex && i.index <= n.endIndex)
+          .some((i) => i.started === false)
+    );
     // 4.2 如果找不到，则从头开始找
-    if (!compoundThumbnailItem) compoundThumbnailItem = compoundThumbnails
-      .find(n => this.result.thumbnails
-        .filter(i => i.index >= n.startIndex && i.index <= n.endIndex)
-        .some(i => i.started === false));
+    if (!compoundThumbnailItem)
+      compoundThumbnailItem = compoundThumbnails.find((n) =>
+        this.result.thumbnails
+          .filter((i) => i.index >= n.startIndex && i.index <= n.endIndex)
+          .some((i) => i.started === false)
+      );
 
     // 如果background为true且backgroundPaused为false，或者reading为true，则尝试进行图片任务
-    if (this.background && !this.backgroundPaused || this.reading) {
+    if ((this.background && !this.backgroundPaused) || this.reading) {
       // 5. 查找未开始的图片任务
-      // 规则为：在对应html任务已经完成的图片任务中，先从currentReadingIndex开始找，如果找不到，则从头开始找
-      let imageItem = this.result.images.find(image => {
+      // 规则为：
+      // 1. 如果reading为true，autoCacheWhenReading为false，则需要执行一个特殊的逻辑：
+      //    只下载currentReadingIndex对应的、以及往后2张图片，不下载其他图片
+      // 2. 在对应html任务已经完成的图片任务中，先从currentReadingIndex开始找，如果找不到，则从头开始找
+      let imageItem = this.result.images.find((image) => {
         const page = this.infos.num_of_images_on_each_page
           ? Math.floor(image.index / this.infos.num_of_images_on_each_page)
           : 0;
-        return this.result.htmls[page].success && (image.index >= this.currentReadingIndex) && !image.started
+        // 如果不处于后台下载状态，且处于阅读状态，且autoCacheWhenReading为false，
+        // 则只会下载currentReadingIndex对应的、以及往后2张图片
+        if (
+          !(this.background && !this.backgroundPaused) &&
+          this.reading &&
+          !this.autoCacheWhenReading
+        ) {
+          return (
+            this.result.htmls[page].success &&
+            image.index >= this.currentReadingIndex &&
+            image.index <= this.currentReadingIndex + 2 &&
+            !image.started
+          );
+        } else {
+          return (
+            this.result.htmls[page].success &&
+            image.index >= this.currentReadingIndex &&
+            !image.started
+          );
+        }
       });
-      if (!imageItem) imageItem = this.result.images.find(image => {
-        const page = this.infos.num_of_images_on_each_page
-          ? Math.floor(image.index / this.infos.num_of_images_on_each_page)
-          : 0;
-        return this.result.htmls[page].success && !image.started
-      });
+      if (!imageItem)
+        imageItem = this.result.images.find((image) => {
+          // 如果不处于后台下载状态，且处于阅读状态，且autoCacheWhenReading为false，则不下载
+          if (
+            !(this.background && !this.backgroundPaused) &&
+            this.reading &&
+            !this.autoCacheWhenReading
+          )
+            return false;
+          const page = this.infos.num_of_images_on_each_page
+            ? Math.floor(image.index / this.infos.num_of_images_on_each_page)
+            : 0;
+          return this.result.htmls[page].success && !image.started;
+        });
       if (compoundThumbnailItem && imageItem) {
         // 如果图片对应的缩略图还没有开始，则下载缩略图，否则下载图片
         const imageItemIndex = imageItem.index;
-        if (imageItem.index >= compoundThumbnailItem.startIndex && imageItem.index <= compoundThumbnailItem.endIndex) {
+        if (
+          imageItem.index >= compoundThumbnailItem.startIndex &&
+          imageItem.index <= compoundThumbnailItem.endIndex
+        ) {
           return this.createCompoundThumbnailTask(compoundThumbnailItem);
         } else {
           const htmlPageOfFoundImageItem = this.infos.num_of_images_on_each_page
-            ? Math.floor(imageItem.index / this.infos.num_of_images_on_each_page)
+            ? Math.floor(
+                imageItem.index / this.infos.num_of_images_on_each_page
+              )
             : 0;
           return this.createImageTask(
             imageItem.index,
-            this.infos.images[htmlPageOfFoundImageItem].find(image => image.page === imageItemIndex)!.imgkey
+            this.infos.images[htmlPageOfFoundImageItem].find(
+              (image) => image.page === imageItemIndex
+            )!.imgkey
           );
         }
       } else if (compoundThumbnailItem) {
@@ -901,7 +1140,9 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           : 0;
         return this.createImageTask(
           imageItem.index,
-          this.infos.images[htmlPageOfFoundImageItem].find(image => image.page === imageItemIndex)!.imgkey
+          this.infos.images[htmlPageOfFoundImageItem].find(
+            (image) => image.page === imageItemIndex
+          )!.imgkey
         );
       }
     } else {
@@ -909,7 +1150,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
         return this.createCompoundThumbnailTask(compoundThumbnailItem);
       }
     }
-    return
+    return;
   }
 
   private createHtmlTask(index: number) {
@@ -918,13 +1159,17 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
       handler: async () => {
         appLog(`开始下载图库页面: gid=${this.gid}, index=${index}`, "debug");
         this.result.htmls[index].started = true;
-        const result = await api.getGalleryImagesWithTwoRetries(this.gid, this.infos.token, index);
+        const result = await api.getGalleryImagesWithTwoRetries(
+          this.gid,
+          this.infos.token,
+          index
+        );
         if (result.success) {
           appLog(`图库页面下载成功: gid=${this.gid}, index=${index}`, "debug");
           this.result.htmls[index].success = true;
           this.infos.images[index] = result.images[index];
           // 特殊：在完成后，重新启动任务
-          if (!this._paused) await this._run();
+          if (!this._paused) this._run();
         } else {
           this.result.htmls[index].error = true;
           // 除了html任务自己标记为失败，与此任务关联的未开始的缩略图和图片任务也标记为失败
@@ -932,22 +1177,37 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
             // 如果没有num_of_images_on_each_page，则无需考虑此种情况（因为只有1页）
             const startIndex = index * this.infos.num_of_images_on_each_page;
             const endIndex = startIndex + this.infos.num_of_images_on_each_page;
-            this.result.thumbnails.filter(thumbnail => {
-              return thumbnail.index >= startIndex && thumbnail.index < endIndex && !thumbnail.started;
-            }).forEach(thumbnail => {
-              thumbnail.started = true;
-              thumbnail.error = true;
-            });
-            this.result.images.filter(image => {
-              return image.index >= startIndex && image.index < endIndex && !image.started;
-            }).forEach(image => {
-              image.started = true;
-              image.error = true;
-            });
+            this.result.thumbnails
+              .filter((thumbnail) => {
+                return (
+                  thumbnail.index >= startIndex &&
+                  thumbnail.index < endIndex &&
+                  !thumbnail.started
+                );
+              })
+              .forEach((thumbnail) => {
+                thumbnail.started = true;
+                thumbnail.error = true;
+              });
+            this.result.images
+              .filter((image) => {
+                return (
+                  image.index >= startIndex &&
+                  image.index < endIndex &&
+                  !image.started
+                );
+              })
+              .forEach((image) => {
+                image.started = true;
+                image.error = true;
+              });
           }
         }
-      }
-    }
+        if (!this._paused && this.isAllFinishedDespiteError) {
+          this.finishHandler();
+        }
+      },
+    };
   }
 
   private createTopThumbnailTask(url: string, path: string) {
@@ -961,20 +1221,22 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           appLog(`图库顶部缩略图下载成功: gid=${this.gid}`, "debug");
           $file.write({
             data: result.data,
-            path
-          })
+            path,
+          });
           this.result.topThumbnail.path = path;
         } else {
           this.result.topThumbnail.error = true;
         }
-        if (this.isAllFinishedDespiteError) {
+        if (!this._paused && this.isAllFinishedDespiteError) {
           this.finishHandler();
         }
-      }
-    }
+      },
+    };
   }
 
-  private createCompoundThumbnailTask(compoundThumbnailItem: CompoundThumbnail) {
+  private createCompoundThumbnailTask(
+    compoundThumbnailItem: CompoundThumbnail
+  ) {
     const startIndex = compoundThumbnailItem.startIndex;
     const endIndex = compoundThumbnailItem.endIndex;
     const url = compoundThumbnailItem.thumbnail_url;
@@ -982,21 +1244,34 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     return {
       index: startIndex,
       handler: async () => {
-        appLog(`开始下载图库缩略图: gid=${this.gid}, startIndex=${startIndex}, endIndex=${endIndex}`, "debug");
+        appLog(
+          `开始下载图库缩略图: gid=${this.gid}, startIndex=${startIndex}, endIndex=${endIndex}`,
+          "debug"
+        );
         this.result.thumbnails
-          .filter(thumbnail => thumbnail.index >= startIndex && thumbnail.index <= endIndex)
-          .forEach(thumbnail => { thumbnail.started = true });
+          .filter(
+            (thumbnail) =>
+              thumbnail.index >= startIndex && thumbnail.index <= endIndex
+          )
+          .forEach((thumbnail) => {
+            thumbnail.started = true;
+          });
         const result = await api.downloadThumbnailWithTwoRetries(url);
         if (result.success) {
-          appLog(`图库缩略图下载成功: gid=${this.gid}, startIndex=${startIndex}, endIndex=${endIndex}`, "debug");
+          appLog(
+            `图库缩略图下载成功: gid=${this.gid}, startIndex=${startIndex}, endIndex=${endIndex}`,
+            "debug"
+          );
           const data = result.data;
-          const image = data.image;  // 此处的读取image必须放在循环外面，以减少调用次数，否则会出现莫名其妙为空的情况
-          const filtered = this.result.thumbnails
-            .filter(thumbnail => thumbnail.index >= startIndex && thumbnail.index <= endIndex)
+          const image = data.image; // 此处的读取image必须放在循环外面，以减少调用次数，否则会出现莫名其妙为空的情况
+          const filtered = this.result.thumbnails.filter(
+            (thumbnail) =>
+              thumbnail.index >= startIndex && thumbnail.index <= endIndex
+          );
           for (let i = 0; i < filtered.length; i++) {
             const thumbnail = filtered[i];
             const index = thumbnail.index;
-            const frame = images.find(image => image.page === index)!.frame;
+            const frame = images.find((image) => image.page === index)!.frame;
             const dataCropped = cropImageData(data, image, frame);
             // 此处有可能会出现dataCropped为空的情况，需要处理
             if (!dataCropped) {
@@ -1006,55 +1281,68 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
             const path = thumbnailPath + `${this.gid}/${index + 1}.jpg`;
             $file.write({
               data: dataCropped,
-              path
-            })
+              path,
+            });
             this.result.thumbnails[index].path = path;
             await $wait(0.2);
           }
         } else {
           this.result.thumbnails
-            .filter(thumbnail => thumbnail.index >= startIndex && thumbnail.index <= endIndex)
-            .forEach(thumbnail => { thumbnail.error = true });
+            .filter(
+              (thumbnail) =>
+                thumbnail.index >= startIndex && thumbnail.index <= endIndex
+            )
+            .forEach((thumbnail) => {
+              thumbnail.error = true;
+            });
         }
-        if (this.isAllFinishedDespiteError) {
+        if (!this._paused && this.isAllFinishedDespiteError) {
           this.finishHandler();
         }
-      }
-    }
+      },
+    };
   }
 
   private createImageTask(index: number, imgkey: string) {
     return {
       index,
       handler: async () => {
-        appLog(`开始下载图库图片: gid=${this.gid}, index=${index}, webdav=${this.webDAVConfig.enabled}`, "debug");
+        appLog(
+          `开始下载图库图片: gid=${this.gid}, index=${index}, webdav=${this.webDAVConfig.enabled}`,
+          "debug"
+        );
         this.result.images[index].started = true;
         const result = this.webDAVConfig.enabled
-          ? await this.webDAVConfig.client.downloadNoError(this.webDAVConfig.filesOnWebDAV[index])
+          ? await this.webDAVConfig.client.downloadNoError(
+              this.webDAVConfig.filesOnWebDAV[index]
+            )
           : await api.downloadImageByPageInfoWithThreeRetries(
-            this.gid,
-            imgkey,
-            index
-          );
+              this.gid,
+              imgkey,
+              index
+            );
 
         if (result.success) {
-          appLog(`图库图片下载成功: gid=${this.gid}, index=${index}, webdav=${this.webDAVConfig.enabled}`, "debug");
-          let extname = result.data.info.mimeType.split("/")[1];;
+          appLog(
+            `图库图片下载成功: gid=${this.gid}, index=${index}, webdav=${this.webDAVConfig.enabled}`,
+            "debug"
+          );
+          let extname = result.data.info.mimeType.split("/")[1];
           if (extname === "jpeg") extname = "jpg";
           const path = imagePath + `${this.gid}/${index + 1}.${extname}`;
           $file.write({
             data: result.data,
-            path
-          })
+            path,
+          });
           this.result.images[index].path = path;
         } else {
           this.result.images[index].error = true;
         }
-        if (this.isAllFinishedDespiteError) {
+        if (!this._paused && this.isAllFinishedDespiteError) {
           this.finishHandler();
         }
-      }
-    }
+      },
+    };
   }
 
   private createOriginalImageTask(index: number, imgkey: string) {
@@ -1072,11 +1360,12 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           appLog(`原图下载成功: gid=${this.gid}, index=${index}`, "debug");
           let extname = result.data.info.mimeType.split("/")[1];
           if (extname === "jpeg") extname = "jpg";
-          const path = originalImagePath + `${this.gid}/${index + 1}.${extname}`;
+          const path =
+            originalImagePath + `${this.gid}/${index + 1}.${extname}`;
           $file.write({
             data: result.data,
-            path
-          })
+            path,
+          });
           this.result.originalImages[index].path = path;
         } else {
           this.result.originalImages[index].error = true;
@@ -1084,8 +1373,11 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
             this.result.originalImages[index].noOriginalImage = true;
           }
         }
-      }
-    }
+        if (!this._paused && this.isAllFinishedDespiteError) {
+          this.finishHandler();
+        }
+      },
+    };
   }
 
   private createAiTranslationTask(index: number, path: string) {
@@ -1100,69 +1392,98 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           const path = aiTranslationPath + `${this.gid}/${index + 1}.jpg`;
           $file.write({
             data: result.data,
-            path
-          })
+            path,
+          });
           this.result.aiTranslations[index].path = path;
         } else {
           this.result.aiTranslations[index].error = true;
         }
-      }
-    }
+        if (!this._paused && this.isAllFinishedDespiteError) {
+          this.finishHandler();
+        }
+      },
+    };
   }
 
   get pendingOfHtmls() {
-    return this.result.htmls.filter(html => !html.started).length;
+    return this.result.htmls.filter((html) => !html.started).length;
   }
 
   get pendingOfThumbnails() {
-    return this.result.thumbnails.filter(thumbnail => !thumbnail.started).length;
+    return this.result.thumbnails.filter((thumbnail) => !thumbnail.started)
+      .length;
   }
 
   get pendingOfImages() {
-    return this.result.images.filter(image => !image.started).length;
+    return this.result.images.filter((image) => !image.started).length;
   }
 
   get pending() {
-    return this.pendingOfHtmls + this.pendingOfThumbnails + this.pendingOfImages + (this.result.topThumbnail.started ? 0 : 1);
+    return (
+      this.pendingOfHtmls +
+      this.pendingOfThumbnails +
+      this.pendingOfImages +
+      (this.result.topThumbnail.started ? 0 : 1)
+    );
   }
 
   get finishedOfHtmls() {
-    return this.result.htmls.filter(html => html.success).length;
+    return this.result.htmls.filter((html) => html.success).length;
   }
 
   get finishedOfThumbnails() {
-    return this.result.thumbnails.filter(thumbnail => thumbnail.path).length;
+    return this.result.thumbnails.filter((thumbnail) => thumbnail.path).length;
   }
 
   get finishedOfImages() {
-    return this.result.images.filter(image => image.path).length;
+    return this.result.images.filter((image) => image.path).length;
   }
 
   get finished() {
-    return this.finishedOfHtmls + this.finishedOfThumbnails + this.finishedOfImages + (this.result.topThumbnail.path ? 1 : 0);
+    return (
+      this.finishedOfHtmls +
+      this.finishedOfThumbnails +
+      this.finishedOfImages +
+      (this.result.topThumbnail.path ? 1 : 0)
+    );
   }
 
   get isAllFinished(): boolean {
-    return this.finished === this.result.htmls.length + this.result.thumbnails.length + this.result.images.length + 1;
+    return (
+      this.finished ===
+      this.result.htmls.length +
+        this.result.thumbnails.length +
+        this.result.images.length +
+        1
+    );
   }
 
   get isAllFinishedDespiteError(): boolean {
-    const topThumbnailFinishedDespiteError = this.result.topThumbnail.path || this.result.topThumbnail.error;
-    const finishedOfHtmlsDespiteError = this.result.htmls.filter(html => html.success || html.error).length;
-    const finishedOfThumbnailsDespiteError = this.result.thumbnails.filter(thumbnail => thumbnail.path || thumbnail.error).length;
-    const finishedOfImagesDespiteError = this.result.images.filter(image => image.path || image.error).length;
-    return Boolean(topThumbnailFinishedDespiteError) &&
+    const topThumbnailFinishedDespiteError =
+      this.result.topThumbnail.path || this.result.topThumbnail.error;
+    const finishedOfHtmlsDespiteError = this.result.htmls.filter(
+      (html) => html.success || html.error
+    ).length;
+    const finishedOfThumbnailsDespiteError = this.result.thumbnails.filter(
+      (thumbnail) => thumbnail.path || thumbnail.error
+    ).length;
+    const finishedOfImagesDespiteError = this.result.images.filter(
+      (image) => image.path || image.error
+    ).length;
+    return (
+      Boolean(topThumbnailFinishedDespiteError) &&
       finishedOfHtmlsDespiteError === this.result.htmls.length &&
       finishedOfThumbnailsDespiteError === this.result.thumbnails.length &&
-      finishedOfImagesDespiteError === this.result.images.length;
+      finishedOfImagesDespiteError === this.result.images.length
+    );
   }
 }
 
 /**
- * 
+ * WebDAV上传器，用于将本地图片上传到WebDAV服务器。
  */
 class GalleryWebDAVUploader extends ConcurrentDownloaderBase {
-  protected _maxConcurrency = 1;
+  protected _maxConcurrency = 5;
 
   readonly infos: EHGallery;
   readonly gid: number;
@@ -1172,20 +1493,49 @@ class GalleryWebDAVUploader extends ConcurrentDownloaderBase {
   backgroundPaused = false; // 用户主动暂停, 可从外部设置
 
   result: {
-    mkdir: { path?: string, success: boolean, error: boolean, started: boolean },
-    upload: { index: number, src: string, success: boolean, error: boolean, started: boolean }[],
-  }
-  constructor(infos: EHGallery, client: WebDAVClient, finishHandler: () => void) {
+    mkdir: {
+      path?: string;
+      success: boolean;
+      error: boolean;
+      started: boolean;
+    };
+    upload: {
+      index: number;
+      src: string;
+      success: boolean;
+      error: boolean;
+      started: boolean;
+    }[];
+  };
+  constructor(
+    infos: EHGallery,
+    client: WebDAVClient,
+    finishHandler: () => void
+  ) {
     super();
     this.infos = infos;
     this.gid = infos.gid;
     this.finishHandler = finishHandler;
     this._client = client;
-    const filesOnLocal = $file.list(imagePath + `${this.gid}/`).map(n => imagePath + `${this.gid}/` + n)
+    const filesOnLocal = $file
+      .list(imagePath + `${this.gid}/`)
+      .filter((n) => /\.(png|jpe?g|gif|webp)$/i.test(n))
+      .sort((a, b) => {
+        const aIndex = parseInt(a.split(".")[0]);
+        const bIndex = parseInt(b.split(".")[0]);
+        return aIndex - bIndex;
+      })
+      .map((n) => imagePath + `${this.gid}/` + n);
     this.result = {
       mkdir: { success: false, error: false, started: false },
-      upload: filesOnLocal.map((n, index) => ({ index, src: n, success: false, error: false, started: false }))
-    }
+      upload: filesOnLocal.map((n, index) => ({
+        index,
+        src: n,
+        success: false,
+        error: false,
+        started: false,
+      })),
+    };
   }
 
   protected _getNextTask() {
@@ -1202,7 +1552,7 @@ class GalleryWebDAVUploader extends ConcurrentDownloaderBase {
       return;
     }
     // 在upload中查找未开始的任务，并创建upload任务
-    const uploadTask = this.result.upload.find(n => !n.started);
+    const uploadTask = this.result.upload.find((n) => !n.started);
     if (uploadTask) {
       return this.createUploadTask(uploadTask.index, uploadTask.src);
     }
@@ -1218,8 +1568,10 @@ class GalleryWebDAVUploader extends ConcurrentDownloaderBase {
         // 2. 如果不存在，则创建目录
         // 3. 如果存在，则清空目录下的所有文件
         try {
-          const files = await this._client.list({ path: '' });
-          const target = files.find(file => isNameMatchGid(file.name, this.gid));
+          const files = await this._client.list({ path: "" });
+          const target = files.find((file) =>
+            isNameMatchGid(file.name, this.gid)
+          );
           if (!target) {
             // 不存在，则创建目录
             await this._client.mkdir(this.gid.toString());
@@ -1227,7 +1579,9 @@ class GalleryWebDAVUploader extends ConcurrentDownloaderBase {
             this.result.mkdir.path = this.gid.toString();
           } else {
             // 存在，则清空目录下的所有文件
-            const needToDeleteFiles = await this._client.list({ path: target.name });
+            const needToDeleteFiles = await this._client.list({
+              path: target.name,
+            });
             for (const file of needToDeleteFiles) {
               if (file.isfile) {
                 await this._client.delete(target.name + "/" + file.name);
@@ -1236,11 +1590,13 @@ class GalleryWebDAVUploader extends ConcurrentDownloaderBase {
             this.result.mkdir.success = true;
             this.result.mkdir.path = target.name;
           }
+          // 如果mkdir成功，则重新启动任务
+          if (!this._paused) this._run();
         } catch (e: any) {
           this.result.mkdir.error = true;
         }
-      }
-    }
+      },
+    };
   }
 
   private createUploadTask(index: number, src: string) {
@@ -1254,40 +1610,42 @@ class GalleryWebDAVUploader extends ConcurrentDownloaderBase {
         }
         const data = $file.read(src);
         const contentType = data.info.mimeType;
-        const dst = `${this.result.mkdir.path}/${index + 1}.${contentType.split("/")[1]}`;
+        const dst = `${this.result.mkdir.path}/${index + 1}.${
+          contentType.split("/")[1]
+        }`;
         const result = await this._client.uploadNoError(dst, data, contentType);
         if (result.success) {
           this.result.upload[index].success = true;
         } else {
           this.result.upload[index].error = true;
         }
-        if (this.isAllFinishedDespiteError) {
+        if (!this._paused && this.isAllFinishedDespiteError) {
           this.finishHandler();
         }
-      }
-    }
+      },
+    };
   }
 
   get pending() {
-    return this.result.upload.filter(n => !n.started).length;
+    return this.result.upload.filter((n) => !n.started).length;
   }
 
   get finished() {
-    return this.result.upload.filter(n => n.success).length;
+    return this.result.upload.filter((n) => n.success).length;
   }
 
   get isAllFinished() {
-    return this.result.upload.every(n => n.success);
+    return this.result.upload.every((n) => n.success);
   }
 
   get isAllFinishedDespiteError() {
-    return this.result.upload.every(n => n.success || n.error);
+    return this.result.upload.every((n) => n.success || n.error);
   }
 }
 
 /**
  * 下载器管理器。
- * 
+ *
  * 1. 始终都只能有一个下载器在下载，其他下载器都处于暂停状态。
  * TODO：为galleryDownloaders添加background属性，当前下载器下载完成后，会自动查找background为true的下载器并启动。
  */
@@ -1300,7 +1658,10 @@ class DownloaderManager {
   constructor() {
     this.tabDownloaders = new Map() as Map<string, TabThumbnailDownloader>;
     this.galleryDownloaders = new Map() as Map<number, GalleryCommonDownloader>;
-    this.galleryWebDAVUploaders = new Map() as Map<number, GalleryWebDAVUploader>;
+    this.galleryWebDAVUploaders = new Map() as Map<
+      number,
+      GalleryWebDAVUploader
+    >;
   }
 
   /**
@@ -1310,19 +1671,27 @@ class DownloaderManager {
    */
   add(gid: number, infos: EHGallery) {
     const downloader = new GalleryCommonDownloader(infos, () => {
-      for (const [k, v] of this.galleryDownloaders) {
-        if (k !== gid && v.background && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
-          this.startOne(k);
-          return;
-        }
-      }
       for (const [k, v] of this.galleryWebDAVUploaders) {
-        if (k !== gid && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
+        if (!v.backgroundPaused && !v.isAllFinishedDespiteError) {
           this.startOne(k);
           return;
         }
       }
-    })
+      for (const [k, v] of this.galleryDownloaders) {
+        if (
+          k !== gid &&
+          v.background &&
+          !v.backgroundPaused &&
+          !v.isAllFinishedDespiteError
+        ) {
+          this.startOne(k);
+          return;
+        }
+      }
+      if (downloader.finishedOfImages) {
+        checkWebDAVAndCreateUploader(gid, infos);
+      }
+    });
     this.galleryDownloaders.set(gid, downloader);
     return downloader;
   }
@@ -1347,6 +1716,24 @@ class DownloaderManager {
    * 启动某一个图库下载器，并暂停其他全部图库下载器
    */
   startOne(gid: number) {
+    // 先检测该下载器是否还有未完成的任务，如果没有，则不启动
+    // 两种情况：
+    // 1. reading为true，autoCacheWhenReading为false，只下载currentReadingIndex对应的、以及往后2张图片
+    // 2. 其他情况，下载所有未开始的图片
+    const d = this.galleryDownloaders.get(gid);
+    if (!d) return false;
+    if (
+      !(d.background && !d.backgroundPaused) &&
+      d.reading &&
+      !d.autoCacheWhenReading
+    ) {
+      const hasPendingImages = d.result.images
+        .slice(d.currentReadingIndex, d.currentReadingIndex + 3)
+        .some((n) => !n.started);
+      if (!hasPendingImages) return false;
+    } else if (d.isAllFinishedDespiteError) {
+      return false;
+    }
     let success = false;
     for (const [k, v] of this.galleryDownloaders) {
       if (k === gid) {
@@ -1373,14 +1760,19 @@ class DownloaderManager {
     if (downloader) {
       downloader.backgroundPaused = true;
     }
-    for (const [k, v] of this.galleryDownloaders) {
-      if (k !== gid && v.background && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
+    for (const [k, v] of this.galleryWebDAVUploaders) {
+      if (!v.backgroundPaused && !v.isAllFinishedDespiteError) {
         this.startOne(k);
         return;
       }
     }
-    for (const [k, v] of this.galleryWebDAVUploaders) {
-      if (k !== gid && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
+    for (const [k, v] of this.galleryDownloaders) {
+      if (
+        k !== gid &&
+        v.background &&
+        !v.backgroundPaused &&
+        !v.isAllFinishedDespiteError
+      ) {
         this.startOne(k);
         return;
       }
@@ -1392,14 +1784,18 @@ class DownloaderManager {
    */
   addTabDownloader(id: string) {
     const tabDownloader = new TabThumbnailDownloader(() => {
-      for (const v of this.galleryDownloaders.values()) {
-        if (v.background && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
+      for (const v of this.galleryWebDAVUploaders.values()) {
+        if (!v.backgroundPaused && !v.isAllFinishedDespiteError) {
           this.startOne(v.gid);
           return;
         }
       }
-      for (const v of this.galleryWebDAVUploaders.values()) {
-        if (!v.backgroundPaused && !v.isAllFinishedDespiteError) {
+      for (const v of this.galleryDownloaders.values()) {
+        if (
+          v.background &&
+          !v.backgroundPaused &&
+          !v.isAllFinishedDespiteError
+        ) {
           this.startOne(v.gid);
           return;
         }
@@ -1435,6 +1831,9 @@ class DownloaderManager {
    * 启动指定的标签缩略图下载器，并暂停其他全部下载器
    */
   startTabDownloader(id: string) {
+    const downloader = this.tabDownloaders.get(id);
+    if (!downloader) return false;
+    if (downloader.isAllFinishedDespiteError) return false;
     let success = false;
     for (const [k, v] of this.tabDownloaders) {
       if (k === id) {
@@ -1458,15 +1857,19 @@ class DownloaderManager {
    */
   addGalleryWebDAVUploader(infos: EHGallery, client: WebDAVClient) {
     const gid = infos.gid;
-    const uploader = new GalleryWebDAVUploader(infos, client, () => { 
-      for (const [k, v] of this.galleryDownloaders) {
-        if (k !== gid && v.background && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
+    const uploader = new GalleryWebDAVUploader(infos, client, () => {
+      for (const [k, v] of this.galleryWebDAVUploaders) {
+        if (k !== gid && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
           this.startOne(k);
           return;
         }
       }
-      for (const [k, v] of this.galleryWebDAVUploaders) {
-        if (k !== gid && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
+      for (const [k, v] of this.galleryDownloaders) {
+        if (
+          v.background &&
+          !v.backgroundPaused &&
+          !v.isAllFinishedDespiteError
+        ) {
           this.startOne(k);
           return;
         }
@@ -1502,6 +1905,9 @@ class DownloaderManager {
    * 启动指定的图库WebDAV上传器，并暂停其他全部下载器
    */
   startGalleryWebDAVUploader(gid: number) {
+    const uploader = this.galleryWebDAVUploaders.get(gid);
+    if (!uploader) return false;
+    if (uploader.isAllFinishedDespiteError) return false;
     let success = false;
     for (const [k, v] of this.galleryWebDAVUploaders) {
       if (k === gid) {
@@ -1529,7 +1935,12 @@ class DownloaderManager {
       uploader.backgroundPaused = true;
     }
     for (const [k, v] of this.galleryDownloaders) {
-      if (k !== gid && v.background && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
+      if (
+        k !== gid &&
+        v.background &&
+        !v.backgroundPaused &&
+        !v.isAllFinishedDespiteError
+      ) {
         this.startOne(k);
         return;
       }
@@ -1559,3 +1970,31 @@ class DownloaderManager {
 }
 
 export const downloaderManager = new DownloaderManager();
+
+/**
+ * 检测WebDAV是否可用，如果可用，创建WebDAV上传任务
+ */
+function checkWebDAVAndCreateUploader(gid: number, infos: EHGallery) {
+  if (!configManager.webdavAutoUpload) return;
+  const service = configManager.currentWebDAVService;
+  if (!service) return;
+  const client = new WebDAVClient(service);
+  // 检测WebDAV是否可用
+  client
+    .listImageFilesByGidNoError(gid)
+    .then((result) => {
+      if (result.success) {
+        const filesOnServer = result.data;
+        if (filesOnServer.length !== infos.length) {
+          // 如果WebDAV可用，并且服务器上没有完整图库，则创建WebDAV上传任务
+          downloaderManager.addGalleryWebDAVUploader(infos, client);
+          downloaderManager.startGalleryWebDAVUploader(gid);
+        }
+      } else {
+        console.error("WebDAV 连接失败, 无法创建上传任务");
+      }
+    })
+    .catch((error) => {
+      console.error("WebDAV 连接失败, 无法创建上传任务");
+    });
+}

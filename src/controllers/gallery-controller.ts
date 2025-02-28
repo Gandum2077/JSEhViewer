@@ -196,13 +196,15 @@ export class GalleryController extends PageViewerController {
     if (!d) return;
     d.reading = true;
     d.currentReadingIndex = Math.max(index - 1, 0); // 提前一页加载
+    // 如果d.background被开启，或者总配置的autoCacheWhenReading被开启，那么阅读器开启自动下载
+    const autoCacheWhenReading = (d.background && !d.backgroundPaused) || configManager.autoCacheWhenReading;
+    d.autoCacheWhenReading = autoCacheWhenReading;
     downloaderManager.startOne(this._infos.gid)
     const readerController = new ReaderController({
       gid: this._infos.gid,
       index,
       length: this._infos.length,
-      autoCacheWhenReading: (d.background && !d.backgroundPaused) || configManager.autoCacheWhenReading
-      // 如果d.background被开启，或者总配置的autoCacheWhenReading被开启，那么阅读器开启自动下载
+      autoCacheWhenReading
     })
     readerController.uipush({
       theme: "dark",

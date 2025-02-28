@@ -35,6 +35,28 @@ import * as cheerio from 'cheerio'
 import { WebDAVService } from '../types'
 import { appLog, isNameMatchGid } from './tools';
 
+// 定义一个有timeout的下载函数，通过Promise.race实现
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+  const timeoutPromise = new Promise<T>((_, reject) => setTimeout(() => reject(new WebDAVError({
+    message: '请求超时',
+    type: 'timeout'
+  })), timeoutMs));
+  return Promise.race([
+    promise,
+    timeoutPromise
+  ]);
+}
+
+async function _download(url: string, header: Record<string, any>) {
+  const resp = await $http.download({url, header})
+  return resp
+}
+
+async function downloadWithTimeout(url: string, header: Record<string, any>, timeout: number) {
+  const resp = await withTimeout(_download(url, header), timeout * 1000)
+  return resp
+}
+
 /**
  * 自定义错误类，用于处理WebDAV操作中的各种错误
  * @param options - 错误信息、状态码和错误类型
@@ -297,10 +319,11 @@ export class WebDAVClient {
     const resp = await this._request({
       method: 'GET',
       path: path,
-      isdir: false
+      isdir: false,
+      useDownloadMethod: true
     })
     if (resp.response.statusCode < 300) {
-      return resp.rawData
+      return resp.data as NSData
     } else {
       throw new WebDAVError({
         message: `下载文件失败`,
@@ -408,18 +431,21 @@ export class WebDAVClient {
     }
   }
 
-  async _request({ method, path, isdir, data, headers, timeout }: {
+  async _request({ method, path, isdir, data, headers, timeout, useDownloadMethod }: {
     method: string,
     path: string,
     isdir: boolean,
     data?: NSData,
     headers?: Record<string, any>,
-    timeout?: number
+    timeout?: number,
+    useDownloadMethod?: boolean
   }) {
     const url = this._baseURL + __URLEncode(path, isdir);
     if (!headers) headers = {};
     if (this._auth) headers['Authorization'] = this._auth;
-    const resp = await $http.request({
+    const resp = useDownloadMethod 
+    ? await downloadWithTimeout(url, headers, timeout || 30)
+    : await $http.request({
       url: url,
       method: method,
       header: headers,

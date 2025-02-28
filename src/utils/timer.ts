@@ -50,7 +50,6 @@ export class GlobalTimer {
     this._timer = $timer.schedule({
       interval: this._interval,
       handler: () => {
-        appLog("timer initialized", "debug");
         this._tasks.forEach((task) => {
           // 如果任务暂停，那么直接中断
           if (task.paused) {

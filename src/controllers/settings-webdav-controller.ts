@@ -191,7 +191,7 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
     const rowAutoUpload = {
       title: {
         hidden: false,
-        text: "自动上传",
+        text: "下载完成后自动上传",
         textColor: $color("primaryText")
       },
       switch: {

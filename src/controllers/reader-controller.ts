@@ -8,6 +8,7 @@ import { configManager } from "../utils/config";
 import { globalTimer } from "../utils/timer";
 import { NoscrollImagePager } from "../components/noscroll-image-pager";
 import { DownloadButtonForReader } from "../components/download-button-for-reader";
+import { GalleryController } from "./gallery-controller";
 
 let lastUITapGestureRecognizer: any;
 
@@ -464,6 +465,9 @@ export class ReaderController extends BaseController {
   private aiTranslatedPageSet: Set<number> = new Set();
   // 增加autoCacheWhenReading，用于表示是否自动缓存整个图库
   private _autoCacheWhenReading: boolean;
+
+  // 上级GalleryController
+  private _superGalleryController: GalleryController;
   cviews: {
     titleLabel: Label,
     aiTranslationButton: AiTranslationButton,
@@ -477,12 +481,14 @@ export class ReaderController extends BaseController {
     gid,
     index,
     length,
-    autoCacheWhenReading
+    autoCacheWhenReading,
+    superGalleryController
   }: {
     gid: number,
     index: number,
     length: number,
-    autoCacheWhenReading: boolean
+    autoCacheWhenReading: boolean,
+    superGalleryController: GalleryController
   }) {
     super({
       events: {
@@ -541,6 +547,7 @@ export class ReaderController extends BaseController {
       }
     });
     this._autoCacheWhenReading = autoCacheWhenReading;
+    this._superGalleryController = superGalleryController;
     this.gid = gid;
     const galleryDownloader = downloaderManager.get(gid);
     if (!galleryDownloader) throw new Error("galleryDownloader not found");
@@ -649,8 +656,10 @@ export class ReaderController extends BaseController {
           // 如果启动了后台下载，需要对后台下载暂停或者继续
           if (this._autoCacheWhenReading) {
             galleryDownloader.backgroundPaused = false;
+            this._superGalleryController.subControllers.galleryInfoController.cviews.downloadButton.status = "downloading";
           } else {
             galleryDownloader.backgroundPaused = true;
+            this._superGalleryController.subControllers.galleryInfoController.cviews.downloadButton.status = "paused";
           }
         }
         downloaderManager.startOne(this.gid);
@@ -1038,6 +1047,9 @@ export class ReaderController extends BaseController {
     // 修改标题
     this.cviews.titleLabel.view.text = this._generateTitle();
     this.handleAiTranslationButtonStatus(page);
+
+    // 修改上级GalleryController的阅读进度
+    this._superGalleryController.subControllers.galleryInfoController.currentReadPage = page;
   }
 
   private handleAiTranslationButtonStatus(page: number) {

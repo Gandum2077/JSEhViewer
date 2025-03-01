@@ -1500,7 +1500,16 @@ export class GalleryInfoController extends BaseController {
     if (this.cviews.downloadButton.status === "pending" || this.cviews.downloadButton.status === "finished") return;
     const d = downloaderManager.get(this.gid);
     if (!d) return;
-    this.cviews.downloadButton.progress = d.finishedOfImages / d.result.images.length;
+    if (!d.background) return;
+    const progress = d.finishedOfImages / d.result.images.length;
+    this.cviews.downloadButton.progress = progress;
+      if (progress === 1) {
+      this.cviews.downloadButton.status = "finished";
+    } else if (d.backgroundPaused) {
+      this.cviews.downloadButton.status = "paused";
+    } else {
+      this.cviews.downloadButton.status = "downloading";
+    }
   }
 
   private _refreshWebDAVWidget() {

@@ -204,7 +204,8 @@ export class GalleryController extends PageViewerController {
       gid: this._infos.gid,
       index,
       length: this._infos.length,
-      autoCacheWhenReading
+      autoCacheWhenReading,
+      superGalleryController: this
     })
     readerController.uipush({
       theme: "dark",

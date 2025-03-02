@@ -19,6 +19,7 @@ export class GalleryController extends PageViewerController {
   private _gid: number;
   private _token: string;
   private refreshButton: RefreshButton;
+  autoCacheWhenReading: boolean;
   private _webDAVClient?: WebDAVClient;
   private _webDAVInfo: {
     status: "loading" | "connected" | "error";
@@ -181,6 +182,7 @@ export class GalleryController extends PageViewerController {
     })
     this._gid = gid;
     this._token = token;
+    this.autoCacheWhenReading = configManager.autoCacheWhenReading;
     this.subControllers = {
       galleryInfoController,
       galleryThumbnailController,
@@ -196,15 +198,14 @@ export class GalleryController extends PageViewerController {
     if (!d) return;
     d.reading = true;
     d.currentReadingIndex = Math.max(index - 1, 0); // 提前一页加载
-    // 如果d.background被开启，或者总配置的autoCacheWhenReading被开启，那么阅读器开启自动下载
-    const autoCacheWhenReading = (d.background && !d.backgroundPaused) || configManager.autoCacheWhenReading;
-    d.autoCacheWhenReading = autoCacheWhenReading;
-    downloaderManager.startOne(this._infos.gid)
+    // 在阅读前检查autoCacheWhenReading：如果后台下载被开启，那么自动开启缓存，否则保持不变
+    this.autoCacheWhenReading = (d.background && !d.backgroundPaused) || this.autoCacheWhenReading;
+    d.autoCacheWhenReading = this.autoCacheWhenReading;
+    downloaderManager.startOne(this._infos.gid);
     const readerController = new ReaderController({
       gid: this._infos.gid,
       index,
       length: this._infos.length,
-      autoCacheWhenReading,
       superGalleryController: this
     })
     readerController.uipush({

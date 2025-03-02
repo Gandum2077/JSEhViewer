@@ -464,7 +464,8 @@ export class ReaderController extends BaseController {
   private reloadedPageSet: Set<number> = new Set();
   private aiTranslatedPageSet: Set<number> = new Set();
   // 增加autoCacheWhenReading，用于表示是否自动缓存整个图库
-  private _autoCacheWhenReading: boolean;
+  // private _autoCacheWhenReading: boolean;
+  // 使用上级的autoCacheWhenReading
 
   // 上级GalleryController
   private _superGalleryController: GalleryController;
@@ -477,17 +478,16 @@ export class ReaderController extends BaseController {
     footerThumbnailView: FooterThumbnailView,
     downloadButton: DownloadButtonForReader
   }
+
   constructor({
     gid,
     index,
     length,
-    autoCacheWhenReading,
     superGalleryController
   }: {
     gid: number,
     index: number,
     length: number,
-    autoCacheWhenReading: boolean,
     superGalleryController: GalleryController
   }) {
     super({
@@ -546,7 +546,6 @@ export class ReaderController extends BaseController {
         }
       }
     });
-    this._autoCacheWhenReading = autoCacheWhenReading;
     this._superGalleryController = superGalleryController;
     this.gid = gid;
     const galleryDownloader = downloaderManager.get(gid);
@@ -640,8 +639,8 @@ export class ReaderController extends BaseController {
     const progress = galleryDownloader.finishedOfImages / length;
     const downloadButton = new DownloadButtonForReader({
       progress,
-      status: progress === 1 ? "finished" : this._autoCacheWhenReading ? "downloading" : "paused",
-      handler: (sender, status) => {
+      status: progress === 1 ? "finished" : this._superGalleryController.autoCacheWhenReading ? "downloading" : "paused",
+      handler: (sender) => {
         const progress = galleryDownloader.finishedOfImages / length;
         if (progress === 1) return;
         if (sender.status === "downloading") {
@@ -649,12 +648,12 @@ export class ReaderController extends BaseController {
         } else if (sender.status === "paused") {
           sender.status = "downloading"
         }
-        this._autoCacheWhenReading = !this._autoCacheWhenReading;
+        this._superGalleryController.autoCacheWhenReading = !this._superGalleryController.autoCacheWhenReading;
         // downloader进行转换
-        galleryDownloader.autoCacheWhenReading = this._autoCacheWhenReading;
+        galleryDownloader.autoCacheWhenReading = this._superGalleryController.autoCacheWhenReading;
         if (galleryDownloader.background) {
           // 如果启动了后台下载，需要对后台下载暂停或者继续
-          if (this._autoCacheWhenReading) {
+          if (this._superGalleryController.autoCacheWhenReading) {
             galleryDownloader.backgroundPaused = false;
             this._superGalleryController.subControllers.galleryInfoController.cviews.downloadButton.status = "downloading";
           } else {
@@ -1034,7 +1033,7 @@ export class ReaderController extends BaseController {
     const galleryDownloader = downloaderManager.get(this.gid);
     if (!galleryDownloader) throw new Error("galleryDownloader not found");
     galleryDownloader.currentReadingIndex = Math.max(page - 1, 0);
-    if (!this._autoCacheWhenReading) {
+    if (!this._superGalleryController.autoCacheWhenReading) {
       // 检查前后三张图片是否存在 未开始 的任务
       const shouldStartDownloader = galleryDownloader.result.images.slice(
         galleryDownloader.currentReadingIndex,

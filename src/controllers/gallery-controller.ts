@@ -136,6 +136,7 @@ export class GalleryController extends PageViewerController {
             handler: () => {
               galleryInfoController.scheduledRefresh();
               galleryThumbnailController.scheduledRefresh();
+              this.updateWebDAVWidget();
             }
           })
           galleryInfoController.onWebDAVAction = (action) => {
@@ -148,6 +149,23 @@ export class GalleryController extends PageViewerController {
             } else if (action === "retry") {
               // 重连
               this.resetWebDAV();
+            } else if (action === "resume-upload") {
+              const u = downloaderManager.getGalleryWebDAVUploader(this._gid);
+              if (u) {
+                u.backgroundPaused = false;
+                downloaderManager.startGalleryWebDAVUploader(this._gid);
+                this.updateWebDAVWidget();
+              }
+            } else if (action === "retry-upload") {
+              const u = downloaderManager.getGalleryWebDAVUploader(this._gid);
+              if (u) {
+                u.result.upload.filter(item => item.error).forEach(item => {
+                  item.error = false;
+                  item.started = false;
+                });
+                downloaderManager.startGalleryWebDAVUploader(this._gid);
+                this.updateWebDAVWidget();
+              }
             }
           }
 
@@ -262,6 +280,7 @@ export class GalleryController extends PageViewerController {
       id: this._gid.toString(),
       interval: 1,
       handler: () => {
+        this.updateWebDAVWidget();
         this.subControllers.galleryInfoController.scheduledRefresh();
         this.subControllers.galleryThumbnailController.scheduledRefresh();
       }
@@ -323,7 +342,7 @@ export class GalleryController extends PageViewerController {
   }
 
   updateWebDAVWidget() {
-    // 综合configManager和_webDAVInfo，更新webdav小部件
+    // 综合configManager, _webDAVInfo, webDAVUploader三方面的信息，更新webdav小部件
     // 单方面操作，不涉及更新信息
     if (!this._infos) return;
     const service = configManager.currentWebDAVService;
@@ -344,12 +363,30 @@ export class GalleryController extends PageViewerController {
       } else {
         const isFileOnServerComplete = this._webDAVInfo.filesOnServer.length === this._infos.length;
         const isFileOnLocalComplete = downloaderManager.get(this._gid)!.result.images.filter(image => image.path).length === this._infos.length;
+        const webDAVUploader = downloaderManager.getGalleryWebDAVUploader(this._gid);
+        let uploadStatus: "uploading" | "success" | "failed" | "paused" | undefined = undefined;
+        if (webDAVUploader) {
+          const finishedCount = webDAVUploader.result.upload.filter(item => item.success).length;
+          const failedCount = webDAVUploader.result.upload.filter(item => item.error).length;
+          if (finishedCount + failedCount === this._infos.length) {
+            if (failedCount === 0) {
+              uploadStatus = "success";
+            } else {
+              uploadStatus = "failed";
+            }
+          } else if (webDAVUploader.backgroundPaused) {
+            uploadStatus = "paused";
+          } else {
+            uploadStatus = "uploading";
+          }
+        }
         this.subControllers.galleryInfoController.updateWebDAVWidgetStatus({
           on: true,
           type: "connected",
           serverName: service.name,
           galleryStatusOnServer: isFileOnServerComplete ? "complete" : this._webDAVInfo.filesOnServer.length === 0 ? "none" : "incomplete",
-          galleryStatusOnLocal: isFileOnLocalComplete ? "complete" : "incomplete"
+          galleryStatusOnLocal: isFileOnLocalComplete ? "complete" : "incomplete",
+          uploadStatus: uploadStatus
         })
       }
     } else {

@@ -1075,7 +1075,7 @@ export class GalleryInfoController extends BaseController {
     webDAVWidget: WebDAVWidget;
   };
 
-  onWebDAVAction?: (action: 'retry' | 'upload') => void;
+  onWebDAVAction?: (action: 'retry' | 'upload' | 'retry-upload' | 'resume-upload') => void;
   onWebDAVConfig?: () => void;
 
   constructor(gid: number, readHandler: (index: number) => void) {

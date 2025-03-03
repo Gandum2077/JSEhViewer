@@ -49,19 +49,20 @@ type WebDAVStatusConnected = {
   // 2. 服务器没有完整的图库，且本地图库已经下载完成，此时mainButton为上传
   // 3. 服务器没有完整的图库，且本地图库没有下载完成，此时mainButton隐藏
   galleryStatusOnServer: 'complete' | 'none' | 'incomplete';
-  galleryStatusOnLocal: 'complete' | 'upload-started' | 'incomplete';
+  galleryStatusOnLocal: 'complete' | 'incomplete';
+  uploadStatus?: 'uploading' | 'paused' | 'failed' | 'success';
 }
 
 export type WebDAVStatus = WebDAVStatusOff | WebDAVStatusError | WebDAVStatusLoading | WebDAVStatusConnected;
 
 export class WebDAVWidget extends Base<UIView, UiTypes.ViewOptions> {
-  private _mainButtonActionType: "upload" | "retry" | undefined = undefined;
+  private _mainButtonActionType: "upload" | "retry" | "retry-upload" | "resume-upload" | undefined = undefined;
   _defineView: () => UiTypes.ViewOptions;
   constructor({
     mainButtonHandler,
     configButtonHandler
   }: {
-    mainButtonHandler: (action: "upload" | "retry") => void
+    mainButtonHandler: (action: "upload" | "retry" | "retry-upload" | "resume-upload") => void
     configButtonHandler: () => void
   }) {
     super();
@@ -263,29 +264,76 @@ export class WebDAVWidget extends Base<UIView, UiTypes.ViewOptions> {
         mainButtonHidden: true
       });
       this._mainButtonActionType = undefined;
-    } else if (status.galleryStatusOnServer === 'complete') {
-      this._setProps({
-        serverName: status.serverName,
-        serverStatus: "connected",
-        content: "服务器上已找到此图库",
-        mainButtonHidden: true
-      });
-      this._mainButtonActionType = undefined;
     } else {
-      let content = status.galleryStatusOnServer === 'none' ? "服务器上未找到此图库" : "服务器上此图库不完整";
-      if (status.galleryStatusOnLocal === 'complete') {
-        content += "\n可上传";
-      } else if (status.galleryStatusOnLocal === 'upload-started') {
-        content += "\n上传中...";
+      if (status.galleryStatusOnServer === 'complete') {
+        this._setProps({
+          serverName: status.serverName,
+          serverStatus: "connected",
+          content: (status.galleryStatusOnLocal === "complete") ? "已与服务器同步" : "服务器上已找到此图库",
+          mainButtonHidden: true
+        });
+        this._mainButtonActionType = undefined;
+      } else {
+        // 服务器上没有完整的图库
+        let content = status.galleryStatusOnServer === 'none' ? "服务器上未找到此图库" : "服务器上此图库不完整";
+        if (status.galleryStatusOnLocal === 'incomplete') {
+          // 本地图库不完整
+          this._setProps({
+            serverName: status.serverName,
+            serverStatus: "connected",
+            content,
+            mainButtonTitle: undefined,
+            mainButtonHidden: true
+          });
+          this._mainButtonActionType = undefined;
+        } else {
+          // 服务器上没有完整的图库，本地图库已经下载完成
+          if (status.uploadStatus === 'uploading') {
+            this._setProps({
+              serverName: status.serverName,
+              serverStatus: "connected",
+              content: "正在上传...",
+              mainButtonHidden: true
+            });
+            this._mainButtonActionType = undefined;
+          } else if (status.uploadStatus === 'failed') {
+            this._setProps({
+              serverName: status.serverName,
+              serverStatus: "connected",
+              content: "❌上传失败",
+              mainButtonTitle: "重试",
+              mainButtonHidden: false
+            });
+            this._mainButtonActionType = "retry-upload";
+          } else if (status.uploadStatus === 'paused') {
+            this._setProps({
+              serverName: status.serverName,
+              serverStatus: "connected",
+              content: "上传暂停中",
+              mainButtonTitle: "继续",
+              mainButtonHidden: false
+            });
+            this._mainButtonActionType = "resume-upload";
+          } else if (status.uploadStatus === 'success') {
+            this._setProps({
+              serverName: status.serverName,
+              serverStatus: "connected",
+              content: "已与服务器同步",
+              mainButtonHidden: true
+            });
+            this._mainButtonActionType = undefined;
+          } else {
+            this._setProps({
+              serverName: status.serverName,
+              serverStatus: "connected",
+              content,
+              mainButtonTitle: "上传",
+              mainButtonHidden: false
+            });
+            this._mainButtonActionType = "upload";
+          }
+        }
       }
-      this._setProps({
-        serverName: status.serverName,
-        serverStatus: "connected",
-        content,
-        mainButtonTitle: status.galleryStatusOnLocal === 'complete' ? "上传" : undefined,
-        mainButtonHidden: status.galleryStatusOnLocal === 'complete' ? false : true
-      });
-      this._mainButtonActionType = status.galleryStatusOnLocal === 'complete' ? "upload" : undefined;
     }
   }
 
@@ -299,7 +347,7 @@ export class WebDAVWidget extends Base<UIView, UiTypes.ViewOptions> {
     serverName?: string;
     serverStatus: 'connected' | 'loading' | 'error' | 'warning';
     content: string;
-    mainButtonTitle?: '上传' | '下载' | '重试';
+    mainButtonTitle?: '上传' | '重试' | '继续';
     mainButtonHidden?: boolean;
   }) {
     ($(this.id + "serverName") as UILabelView).text = serverName || "点此设置服务器";

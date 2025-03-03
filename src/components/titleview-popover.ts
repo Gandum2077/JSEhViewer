@@ -66,7 +66,7 @@ type UploadPopoverOptions = {
 
 type ArchivePopoverOptions = {
   type: "archive";
-  archiveType: "readlater" | "download" | "all"
+  archiveType: "readlater" | "downloaded" | "all"
   archiveManagerOrderMethod: "first_access_time" | "last_access_time" | "posted_time";
   count: {
     loaded: number;
@@ -96,7 +96,7 @@ type PopoverOptionsToResult<T extends PopoverOptions> = T extends FrontPagePopov
 
 class PopoverViewForTitleView<T extends PopoverOptions> extends Base<UIView, UiTypes.ViewOptions> {
   private readonly _options: T;
-  private _archiveType?: "readlater" | "download" | "all";
+  private _archiveType?: "readlater" | "downloaded" | "all";
   _defineView: () => UiTypes.ViewOptions;
   cviews: {
     filtersList?: DynamicPreferenceListView;
@@ -244,7 +244,7 @@ class PopoverViewForTitleView<T extends PopoverOptions> extends Base<UIView, UiT
         },
         events: {
           didSelect: (sender, indexPath, data) => {
-            this._archiveType = (["readlater", "download", "all"] as ("readlater" | "download" | "all")[])[indexPath.row]
+            this._archiveType = (["readlater", "downloaded", "all"] as ("readlater" | "downloaded" | "all")[])[indexPath.row]
             sender.data = this._mapArchiveMatrixData(this._archiveType)
           },
         }
@@ -297,14 +297,14 @@ class PopoverViewForTitleView<T extends PopoverOptions> extends Base<UIView, UiT
     }
   }
 
-  private _mapArchiveMatrixData(archiveType: "readlater" | "download" | "all") {
+  private _mapArchiveMatrixData(archiveType: "readlater" | "downloaded" | "all") {
     if (!archiveType) throw new Error("invalid archiveType");
     const translations = {
       readlater: "稍后阅读",
-      download: "下载内容",
+      downloaded: "下载内容",
       all: "阅读记录"
     }
-    return (["readlater", "download", "all"] as ("readlater" | "download" | "all")[]).map(n => ({
+    return (["readlater", "downloaded", "all"] as ("readlater" | "downloaded" | "all")[]).map(n => ({
       title: {
         text: translations[n],
         textColor: n === archiveType ? $color("white") : $color("secondaryText"),

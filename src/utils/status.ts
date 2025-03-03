@@ -21,7 +21,7 @@ function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): { sql: strin
   if (type && type !== "all") {
     if (type === "readlater") {
       conditions.push("readlater = 1");
-    } else if (type === "download") {
+    } else if (type === "downloaded") {
       conditions.push("downloaded = 1");
     }
   }
@@ -548,15 +548,15 @@ class StatusManager {
     }
   }
 
-  queryArchiveItemCount(type: "readlater" | "download" | "all" = "all") {
+  queryArchiveItemCount(type: "readlater" | "downloaded" | "all" = "all") {
     const sql_all = `SELECT COUNT(*) FROM archives;`;
     const sql_readlater = `SELECT COUNT(*) FROM archives WHERE readlater = 1;`
     const sql_download = `SELECT COUNT(*) FROM archives WHERE downloaded = 1;`
     const sql = type === "all"
       ? sql_all
-      : type === "download"
-      ? sql_download
-      : sql_readlater
+      : type === "downloaded"
+        ? sql_download
+        : sql_readlater
     const rawData = dbManager.query(sql) as { "COUNT(*)": number }[];
     return rawData[0]["COUNT(*)"];
   }
@@ -790,6 +790,19 @@ class StatusManager {
     const rawData = dbManager.query(sql, [gid]) as { last_read_page: number }[];
     if (rawData.length === 0) return 0;
     return rawData[0].last_read_page;
+  }
+
+  updateArchiveItem(gid: number, options: {
+    info?: EHGallery | EHListExtendedItem | EHListCompactItem;
+    updateInfoForced?: boolean; // 是否强制更新信息，如果为false则只在数据库没有此条目时更新
+    last_read_page?: number;
+    updateLastAccessTime?: boolean;
+    readlater?: boolean;
+    downloaded?: boolean;
+    my_rating?: number;
+    favorite_info?: { favorited: false } | { favorited: true, favcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 };
+  }) {
+
   }
 
 }

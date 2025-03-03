@@ -211,7 +211,7 @@ export class GalleryController extends PageViewerController {
 
   readGallery(index: number) {
     if (!this._infos) return;
-    statusManager.storeArchiveItemOrUpdateAccessTime(this._infos, false);
+    statusManager.updateArchiveItem(this._gid, { infos: this._infos })
     const d = downloaderManager.get(this._infos.gid);
     if (!d) return;
     d.reading = true;

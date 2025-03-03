@@ -533,10 +533,10 @@ export class ReaderController extends BaseController {
         },
         didDisappear: () => {
           globalTimer.pauseTask(this.gid.toString() + "reader");
-          statusManager.updateLastReadPage(this.gid, this.cviews.footerThumbnailView.index);
+          statusManager.updateArchiveItem(this.gid, { last_read_page: this.cviews.footerThumbnailView.index })
         },
         didRemove: () => {
-          statusManager.updateLastReadPage(this.gid, this.cviews.footerThumbnailView.index);
+          statusManager.updateArchiveItem(this.gid, { last_read_page: this.cviews.footerThumbnailView.index })
           downloaderManager.get(this.gid)!.reading = false;
           globalTimer.removeTask(this.gid.toString() + "reader");
           if (lastUITapGestureRecognizer) {

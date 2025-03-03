@@ -639,20 +639,28 @@ class StatusManager {
     return extendedItems;
   }
 
-  storeArchiveItemOrUpdateAccessTime(infos: EHGallery | EHListExtendedItem | EHListCompactItem, readlater: boolean) {
-    // 先查询是否已经存在，如果存在则更新访问时间
-    const sql_query = `SELECT * FROM archives WHERE gid = ?;`;
-    const result = dbManager.query(sql_query, [infos.gid]);
-    if (result.length > 0) {
-      this.updateLastAccessTime(infos.gid);
-      return;
-    } else {
-      this.storeArchiveItem(infos, readlater);
-    }
-  }
-
-  storeArchiveItem(infos: EHGallery | EHListExtendedItem | EHListCompactItem, readlater: boolean) {
-    // 需要先查询是否已经存在，如果存在则不应该做任何事情
+  /**
+   * 调用此方法之前，需要先查询是否存在
+   * 如果存在，需要传入forceUpdate=true，否则会出错
+   * 
+   */
+  private _storeArchiveItem({
+    infos,
+    first_access_time,
+    last_access_time,
+    forceUpdate = false,
+    readlater = false,
+    downloaded = false,
+    last_read_page = 0
+  }: {
+    infos: EHGallery | EHListExtendedItem | EHListCompactItem;
+    first_access_time?: string;
+    last_access_time?: string;
+    forceUpdate?: boolean;
+    readlater?: boolean;
+    downloaded?: boolean;
+    last_read_page?: number;
+  }) {
     const sql_insert = `INSERT OR REPLACE INTO archives (
       "gid",
       "readlater",
@@ -679,12 +687,8 @@ class StatusManager {
       "comment",
       "last_read_page"
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(gid) DO NOTHING;`;
-    const sql_taglist = `INSERT OR REPLACE INTO archive_taglist (
-      "gid",
-      "namespace",
-      "tag"
-    ) VALUES (?, ?, ?);`;
+    ${forceUpdate ? "" : "ON CONFLICT(gid) DO NOTHING"}`;
+    const sql_delete_taglist = `DELETE FROM archive_taglist WHERE gid = ?;`;
     // 将EHGallery | EHListExtendedItem | EHListCompactItem转换为DBArchiveItem
     let title = "";
     let english_title = "";
@@ -704,13 +708,13 @@ class StatusManager {
       torrent_available = infos.torrent_count > 0;
       comment = infos.comments.length > 0 && infos.comments[0].is_uploader ? $text.HTMLUnescape(infos.comments[0].comment_div) : "";
     }
-
+    const dateNow = new Date().toISOString();
     const data: DBArchiveItem = {
       gid: infos.gid,
       readlater,
-      downloaded: false,
-      first_access_time: new Date().toISOString(),
-      last_access_time: new Date().toISOString(),
+      downloaded,
+      first_access_time: first_access_time || dateNow,
+      last_access_time: last_access_time || dateNow,
       token: infos.token,
       title,
       english_title,
@@ -729,7 +733,7 @@ class StatusManager {
       disowned: infos.disowned,
       taglist: infos.taglist,
       comment,
-      last_read_page: 0
+      last_read_page
     };
     const taglist_string: [number, TagNamespace, string][] = []
     infos.taglist.map(item => {
@@ -763,7 +767,10 @@ class StatusManager {
       data.comment,
       data.last_read_page
     ]);
-    dbManager.batchUpdate(sql_taglist, taglist_string);
+    if (forceUpdate) {
+      dbManager.update(sql_delete_taglist, [infos.gid]);
+    }
+    dbManager.batchInsert("archive_taglist", ["gid", "namespace", "tag"], taglist_string);
   }
 
   deleteArchiveItem(gid: number) {
@@ -771,18 +778,6 @@ class StatusManager {
     dbManager.update(sql, [gid]);
     const sql_taglist = `DELETE FROM archive_taglist WHERE gid = ?;`;
     dbManager.update(sql_taglist, [gid]);
-  }
-
-  updateLastAccessTime(gid: number) {
-    // 应该在访问图库的时候更新
-    const sql = `UPDATE archives SET last_access_time = datetime('now') WHERE gid = ?;`;
-    dbManager.update(sql, [gid]);
-  }
-
-  updateLastReadPage(gid: number, page: number) {
-    // 应该在退出阅读器的时候更新
-    const sql = `UPDATE archives SET last_read_page = ? WHERE gid = ?;`;
-    dbManager.update(sql, [page, gid]);
   }
 
   getLastReadPage(gid: number) {
@@ -793,8 +788,7 @@ class StatusManager {
   }
 
   updateArchiveItem(gid: number, options: {
-    info?: EHGallery | EHListExtendedItem | EHListCompactItem;
-    updateInfoForced?: boolean; // 是否强制更新信息，如果为false则只在数据库没有此条目时更新
+    infos?: EHGallery | EHListExtendedItem | EHListCompactItem;
     last_read_page?: number;
     updateLastAccessTime?: boolean;
     readlater?: boolean;
@@ -802,7 +796,157 @@ class StatusManager {
     my_rating?: number;
     favorite_info?: { favorited: false } | { favorited: true, favcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 };
   }) {
-
+    // 先查询是否存在
+    const sql_query = `SELECT * FROM archives WHERE gid = ?;`;
+    const rawData = dbManager.query(sql_query, [gid]) as {
+      gid: number;
+      readlater: number;
+      downloaded: number;
+      first_access_time: string;
+      last_access_time: string;
+      token: string;
+      title: string;
+      english_title: string;
+      japanese_title: string;
+      thumbnail_url: string;
+      category: string;
+      posted_time: string;
+      visible: number;
+      rating: number;
+      is_my_rating: number;
+      length: number;
+      torrent_available: number;
+      favorited: number;
+      favcat?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+      uploader: string;
+      disowned: number;
+      favorited_time: string;
+      taglist: string;
+      comment: string;
+      last_read_page: number;
+    }[];
+    if (rawData.length === 0) {
+      if (options.infos) {
+        // 情况1: 数据库内不存在该条数据，但是有options.infos，那么直接存储
+        // 该情况下，除了infos，只有readlater、downloaded、last_read_page是有效的
+        this._storeArchiveItem({
+          infos: options.infos,
+          readlater: options.readlater,
+          downloaded: options.downloaded,
+          last_read_page: options.last_read_page
+        });
+      } else {
+        // 情况2: 数据库内不存在该条数据，且没有options.infos，则报错
+        throw new Error("Archive item not found and no info provided");
+      }
+    } else {
+      const row = rawData[0];
+      const oldInfos: DBArchiveItem = {
+        gid: row.gid,
+        readlater: Boolean(row.readlater),
+        downloaded: Boolean(row.downloaded),
+        first_access_time: row.first_access_time,
+        last_access_time: row.last_access_time,
+        token: row.token,
+        title: row.title,
+        english_title: row.english_title,
+        japanese_title: row.japanese_title,
+        thumbnail_url: row.thumbnail_url,
+        category: row.category as EHCategory,
+        posted_time: row.posted_time,
+        visible: Boolean(row.visible),
+        rating: row.rating,
+        is_my_rating: Boolean(row.is_my_rating),
+        length: row.length,
+        torrent_available: Boolean(row.torrent_available),
+        favorited: Boolean(row.favorited),
+        favcat: row.favcat,
+        uploader: row.uploader,
+        disowned: Boolean(row.disowned),
+        taglist: JSON.parse(row.taglist) as EHTagListItem[],
+        comment: row.comment,
+        last_read_page: row.last_read_page
+      }
+      if (options.infos && !("type" in options.infos)) {
+        // 情况3: 数据库内存在该条数据，且有options.infos，并且infos为EHGallery，那么直接存储
+        // 该情况下，将复合oldInfos和options的信息，更新first_access_time、last_access_time、readlater、downloaded、last_read_page
+        this._storeArchiveItem({
+          infos: options.infos,
+          forceUpdate: true,
+          first_access_time: oldInfos.first_access_time,
+          last_access_time: options.updateLastAccessTime ? new Date().toISOString() : oldInfos.last_access_time,
+          readlater: options.readlater ?? oldInfos.readlater,
+          downloaded: options.downloaded ?? oldInfos.downloaded,
+          last_read_page: options.last_read_page ?? oldInfos.last_read_page
+        });
+        // 然后更新my_rating和favorited
+        const sql_update_my_rating = `UPDATE archives SET is_my_rating = ?, rating = ? WHERE gid = ?;`;
+        const sql_update_unfavorited = `UPDATE archives SET favorited = ? WHERE gid = ?;`;
+        const sql_update_favorited = `UPDATE archives SET favorited = ?, favcat = ? WHERE gid = ?;`;
+        if (options.my_rating !== undefined) {
+          dbManager.update(sql_update_my_rating, [true, options.my_rating, gid]);
+        }
+        if (options.favorite_info) {
+          if (options.favorite_info.favorited) {
+            dbManager.update(sql_update_favorited, [true, options.favorite_info.favcat, gid]);
+          } else {
+            dbManager.update(sql_update_unfavorited, [false, gid]);
+          }
+        }
+      } else {
+        if (options.infos && ("type" in options.infos)) {
+          // 情况4: 数据库内存在该条数据，且有options.infos，并且infos为EHListExtendedItem或EHListCompactItem
+          // 该情况下，将从options.infos中提取my_rating、favorited、favcat，然后更新
+          if (
+            options.my_rating === undefined && options.infos.is_my_rating &&
+            (!oldInfos.is_my_rating || (oldInfos.is_my_rating && options.infos.estimated_display_rating !== oldInfos.rating))
+          ) {
+            // 如果options中没有my_rating，并且options.infos的my_rating信息和oldInfos的my_rating不同
+            options.my_rating = options.infos.estimated_display_rating
+          }
+          if (options.favorite_info === undefined) {
+            if (!options.infos.favorited && oldInfos.favorited) {
+              options.favorite_info = { favorited: false }
+            } else if (
+              (options.infos.favorited && !oldInfos.favorited) ||
+              (options.infos.favorited && oldInfos.favorited && options.infos.favcat !== oldInfos.favcat)
+            ) {
+              options.favorite_info = { favorited: true, favcat: options.infos.favcat ?? 0 }
+            }
+          }
+        }
+        // 情况5: 数据库内存在该条数据，但是没有options.info，那么options里存在什么就更新什么
+        const sql_update_readlater = `UPDATE archives SET readlater = ? WHERE gid = ?;`;
+        const sql_update_downloaded = `UPDATE archives SET downloaded = ? WHERE gid = ?;`;
+        const sql_update_last_read_page = `UPDATE archives SET last_read_page = ? WHERE gid = ?;`;
+        const sql_update_last_access_time = `UPDATE archives SET last_access_time = ? WHERE gid = ?;`;
+        const sql_update_my_rating = `UPDATE archives SET is_my_rating = ?, rating = ? WHERE gid = ?;`;
+        const sql_update_unfavorited = `UPDATE archives SET favorited = ? WHERE gid = ?;`;
+        const sql_update_favorited = `UPDATE archives SET favorited = ?, favcat = ? WHERE gid = ?;`;
+        if (options.readlater !== undefined) {
+          dbManager.update(sql_update_readlater, [options.readlater, gid]);
+        }
+        if (options.downloaded !== undefined) {
+          dbManager.update(sql_update_downloaded, [options.downloaded, gid]);
+        }
+        if (options.last_read_page !== undefined) {
+          dbManager.update(sql_update_last_read_page, [options.last_read_page, gid]);
+        }
+        if (options.updateLastAccessTime) {
+          dbManager.update(sql_update_last_access_time, [new Date().toISOString(), gid]);
+        }
+        if (options.my_rating !== undefined) {
+          dbManager.update(sql_update_my_rating, [true, options.my_rating, gid]);
+        }
+        if (options.favorite_info) {
+          if (options.favorite_info.favorited) {
+            dbManager.update(sql_update_favorited, [true, options.favorite_info.favcat, gid]);
+          } else {
+            dbManager.update(sql_update_unfavorited, [false, gid]);
+          }
+        }
+      }
+    }
   }
 
 }

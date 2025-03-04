@@ -609,7 +609,7 @@ class StatusManager {
       length: row.length,
       torrent_available: Boolean(row.torrent_available),
       favorited: Boolean(row.favorited),
-      favcat: row.favcat,
+      favcat: row.favcat ?? undefined,
       uploader: row.uploader,
       disowned: Boolean(row.disowned),
       taglist: JSON.parse(row.taglist) as EHTagListItem[],

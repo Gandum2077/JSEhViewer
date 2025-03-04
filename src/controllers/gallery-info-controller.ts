@@ -2,7 +2,7 @@ import { Base, BaseController, Button, DynamicItemSizeMatrix, DynamicRowHeightLi
 import { TagsFlowlayout } from "../components/tags-flowlayout";
 import { assembleSearchTerms, EHGallery, EHSearchTerm } from "ehentai-parser";
 import { configManager } from "../utils/config";
-import { catColor, catTranslations, defaultButtonColor, favcatColor, invisibleCauseMap, ratingColor, tagColor } from "../utils/glv";
+import { catColor, catTranslations, defaultButtonColor, favcatColor, galleryInfoPath, invisibleCauseMap, ratingColor, tagColor } from "../utils/glv";
 import { GalleryDetailedInfoController } from "./gallery-detailed-info-controller";
 import { toSimpleUTCTimeString } from "../utils/tools";
 import { rateAlert } from "../components/rate-alert";
@@ -1157,6 +1157,9 @@ export class GalleryInfoController extends BaseController {
             this._infos.apiuid,
             newRating
           )
+          this._infos.display_rating = newRating;
+          this._infos.is_my_rating = true;
+          this._trySavingInfos();
           statusManager.updateArchiveItem(this.gid, {
             my_rating: newRating
           })
@@ -1175,6 +1178,10 @@ export class GalleryInfoController extends BaseController {
             const defaultFavcat = configManager.defaultFavcat;
             try {
               await api.addOrModifyFav(this.gid, this._infos.token, defaultFavcat)
+              this._infos.favorited = true;
+              this._infos.favcat = defaultFavcat;
+              this._infos.favcat_title = configManager.favcatTitles[defaultFavcat];
+              this._trySavingInfos();
               statusManager.updateArchiveItem(this.gid, {
                 favorite_info: {
                   favorited: true,
@@ -1189,6 +1196,10 @@ export class GalleryInfoController extends BaseController {
           case "unfavorite": {
             try {
               await api.deleteFav(this.gid, this._infos.token);
+              this._infos.favorited = false;
+              this._infos.favcat = undefined;
+              this._infos.favcat_title = undefined;
+              this._trySavingInfos();
               statusManager.updateArchiveItem(this.gid, {
                 favorite_info: {
                   favorited: false
@@ -1203,7 +1214,11 @@ export class GalleryInfoController extends BaseController {
             try {
               const result = await galleryFavoriteDialog(this._infos)
               if (result.success) {
-                await api.addOrModifyFav(this.gid, this._infos.token, result.favcat, result.favnote)
+                await api.addOrModifyFav(this.gid, this._infos.token, result.favcat, result.favnote);
+                this._infos.favorited = true;
+                this._infos.favcat = result.favcat;
+                this._infos.favcat_title = configManager.favcatTitles[result.favcat];
+                this._trySavingInfos();
                 statusManager.updateArchiveItem(this.gid, {
                   favorite_info: {
                     favorited: true,
@@ -1241,7 +1256,7 @@ export class GalleryInfoController extends BaseController {
       title: "稍后阅读",
       symbol: "bookmark.circle",
       symbolSize: $size(40, 40),
-      handler: () => { 
+      handler: () => {
         const archiveItem = statusManager.getArchiveItem(this.gid);
         if (!archiveItem) return;
         if (archiveItem.readlater) {
@@ -1267,7 +1282,7 @@ export class GalleryInfoController extends BaseController {
         })
         const d = downloaderManager.get(this.gid);
         if (!d) return;
-        if (status === "paused" ) {
+        if (status === "paused") {
           // 当前是暂停状态，转变为下载状态
           d.background = true;
           d.backgroundPaused = false;
@@ -1288,7 +1303,7 @@ export class GalleryInfoController extends BaseController {
         }
         downloaderManager.startOne(this.gid);
       }
-    }) 
+    })
 
     const torrentButton = new CommonButton({
       title: "种子",
@@ -1389,7 +1404,7 @@ export class GalleryInfoController extends BaseController {
       }
     })
     const webDAVWidget = new WebDAVWidget({
-      mainButtonHandler: (action) => { 
+      mainButtonHandler: (action) => {
         this.onWebDAVAction?.(action)
       },
       configButtonHandler: () => {
@@ -1541,7 +1556,7 @@ export class GalleryInfoController extends BaseController {
     if (!d.background) return;
     const progress = d.finishedOfImages / d.result.images.length;
     this.cviews.downloadButton.progress = progress;
-      if (progress === 1) {
+    if (progress === 1) {
       this.cviews.downloadButton.status = "finished";
     } else if (d.backgroundPaused) {
       this.cviews.downloadButton.status = "paused";
@@ -1550,14 +1565,23 @@ export class GalleryInfoController extends BaseController {
     }
   }
 
-  private _refreshWebDAVWidget() {
-
+  private _trySavingInfos() {
+    // 尝试保存this._infos到本地
+    // 前提是本地已经存在infos文件（否则的话，应该由下载器模块进行保存）
+    if (!this._infos) return;
+    const path = galleryInfoPath + `${this._infos.gid}.json`
+    if ($file.exists(path)) {
+      const text = JSON.stringify(this.infos, null, 2);
+      $file.write({
+        data: $data({ string: text }),
+        path
+      })
+    }
   }
 
   scheduledRefresh() {
     this._refreshThumbnail();
     this._refreshDownloadButton();
-    this._refreshWebDAVWidget();
   }
 
   set currentReadPage(page: number) {

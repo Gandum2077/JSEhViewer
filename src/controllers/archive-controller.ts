@@ -79,7 +79,7 @@ export class ArchiveController extends BaseController {
       layout: $layout.fill
     })
     const titleView = new EhlistTitleView({
-      defaultTitle: "阅读记录",
+      defaultTitle: "全部记录",
       tapped: async (sender) => {
         const tab = statusManager.tabsMap.get("archive") as ArchiveTab;
         const values = await popoverForTitleView({
@@ -255,7 +255,7 @@ export class ArchiveController extends BaseController {
     const tab = statusManager.tabsMap.get("archive") as ArchiveTab;
     if (!tab) return;
     const type = tab.options.type ?? 'all';
-    this.cviews.titleView.title = type === "all" ? "阅读记录" : type === "downloaded" ? "下载内容" : "稍后阅读";
+    this.cviews.titleView.title = type === "all" ? "全部记录" : type === "downloaded" ? "下载内容" : "稍后阅读";
     const items = tab.pages.map(page => page.items).flat();
     this.cviews.list.items = items;
     if ((tab.options.page + 1) * tab.options.pageSize >= tab.pages[0].all_count) {

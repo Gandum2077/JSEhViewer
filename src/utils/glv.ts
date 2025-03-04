@@ -10,6 +10,8 @@ export const imagePath = "assets/image/";
 export const thumbnailPath = "assets/thumbnail/";
 export const aiTranslationPath = "assets/ai-translations/";
 export const originalImagePath = "assets/original-image/";
+export const galleryInfoPath = "assets/info/";
+
 export const logoColorHex = "#5D1215";
 
 export const searchableCategories: EHSearchedCategory[] = [

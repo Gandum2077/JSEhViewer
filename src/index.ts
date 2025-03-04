@@ -14,7 +14,7 @@ import { configManager } from "./utils/config";
 import { api } from "./utils/api";
 import { appLog } from "./utils/tools";
 import { EHMyTags } from "ehentai-parser";
-import { aiTranslationPath, imagePath, thumbnailPath, originalImagePath } from "./utils/glv";
+import { aiTranslationPath, imagePath, thumbnailPath, originalImagePath, galleryInfoPath } from "./utils/glv";
 import { globalTimer } from "./utils/timer";
 
 async function init() {
@@ -22,6 +22,8 @@ async function init() {
   if (!$file.exists(thumbnailPath)) $file.mkdir(thumbnailPath);
   if (!$file.exists(aiTranslationPath)) $file.mkdir(aiTranslationPath);
   if (!$file.exists(originalImagePath)) $file.mkdir(originalImagePath);
+  if (!$file.exists(galleryInfoPath)) $file.mkdir(galleryInfoPath);
+  
   const homepageController = new HomepageController()
   const archiveController = new ArchiveController()
   const tagManagerController = new TagManagerController()

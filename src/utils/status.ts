@@ -251,6 +251,34 @@ function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): { sql: strin
   return { sql, args };
 }
 
+type ArchiveItemDBRawData = {
+  gid: number;
+  readlater: number;
+  downloaded: number;
+  first_access_time: string;
+  last_access_time: string;
+  token: string;
+  title: string;
+  english_title: string;
+  japanese_title: string;
+  thumbnail_url: string;
+  category: string;
+  posted_time: string;
+  visible: number;
+  rating: number;
+  is_my_rating: number;
+  length: number;
+  torrent_available: number;
+  favorited: number;
+  favcat?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+  uploader: string;
+  disowned: number;
+  favorited_time: string;
+  taglist: string;
+  comment: string;
+  last_read_page: number;
+}
+
 /**
  * 管理状态
  */
@@ -563,33 +591,7 @@ class StatusManager {
 
   queryArchiveItem(options: ArchiveSearchOptions) {
     const { sql, args } = buildArchiveSearchSQLQuery(options);
-    const rawData = dbManager.query(sql, args) as {
-      gid: number;
-      readlater: number;
-      downloaded: number;
-      first_access_time: string;
-      last_access_time: string;
-      token: string;
-      title: string;
-      english_title: string;
-      japanese_title: string;
-      thumbnail_url: string;
-      category: string;
-      posted_time: string;
-      visible: number;
-      rating: number;
-      is_my_rating: number;
-      length: number;
-      torrent_available: number;
-      favorited: number;
-      favcat?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
-      uploader: string;
-      disowned: number;
-      favorited_time: string;
-      taglist: string;
-      comment: string;
-      last_read_page: number;
-    }[];
+    const rawData = dbManager.query(sql, args) as ArchiveItemDBRawData[];
     const data: DBArchiveItem[] = rawData.map(row => ({
       gid: row.gid,
       readlater: Boolean(row.readlater),
@@ -637,6 +639,41 @@ class StatusManager {
       taglist: item.taglist
     }));
     return extendedItems;
+  }
+
+  getArchiveItem(gid: number) {
+    const sql = `SELECT * FROM archives WHERE gid = ?;`;
+    const args = [gid]
+    const rawData = dbManager.query(sql, args) as ArchiveItemDBRawData[];
+    if (!rawData || rawData.length === 0) return;
+    const row = rawData[0]
+    const data: DBArchiveItem = {
+      gid: row.gid,
+      readlater: Boolean(row.readlater),
+      downloaded: Boolean(row.downloaded),
+      first_access_time: row.first_access_time,
+      last_access_time: row.last_access_time,
+      token: row.token,
+      title: row.title,
+      english_title: row.english_title,
+      japanese_title: row.japanese_title,
+      thumbnail_url: row.thumbnail_url,
+      category: row.category as EHCategory,
+      posted_time: row.posted_time,
+      visible: Boolean(row.visible),
+      rating: row.rating,
+      is_my_rating: Boolean(row.is_my_rating),
+      length: row.length,
+      torrent_available: Boolean(row.torrent_available),
+      favorited: Boolean(row.favorited),
+      favcat: row.favcat ?? undefined,
+      uploader: row.uploader,
+      disowned: Boolean(row.disowned),
+      taglist: JSON.parse(row.taglist) as EHTagListItem[],
+      comment: row.comment,
+      last_read_page: row.last_read_page
+    }
+    return data;
   }
 
   /**
@@ -798,33 +835,7 @@ class StatusManager {
   }) {
     // 先查询是否存在
     const sql_query = `SELECT * FROM archives WHERE gid = ?;`;
-    const rawData = dbManager.query(sql_query, [gid]) as {
-      gid: number;
-      readlater: number;
-      downloaded: number;
-      first_access_time: string;
-      last_access_time: string;
-      token: string;
-      title: string;
-      english_title: string;
-      japanese_title: string;
-      thumbnail_url: string;
-      category: string;
-      posted_time: string;
-      visible: number;
-      rating: number;
-      is_my_rating: number;
-      length: number;
-      torrent_available: number;
-      favorited: number;
-      favcat?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
-      uploader: string;
-      disowned: number;
-      favorited_time: string;
-      taglist: string;
-      comment: string;
-      last_read_page: number;
-    }[];
+    const rawData = dbManager.query(sql_query, [gid]) as ArchiveItemDBRawData[];
     if (rawData.length === 0) {
       if (options.infos) {
         // 情况1: 数据库内不存在该条数据，但是有options.infos，那么直接存储

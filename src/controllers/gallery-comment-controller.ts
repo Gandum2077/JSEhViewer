@@ -3,6 +3,7 @@ import { EHGallery } from "ehentai-parser";
 import { GalleryController } from "./gallery-controller";
 import { api } from "../utils/api";
 import { getUtf8Length } from "../utils/tools";
+import { galleryInfoPath } from "../utils/glv";
 
 export class GalleryCommentController extends BaseController {
   private _infos?: EHGallery
@@ -70,6 +71,7 @@ export class GalleryCommentController extends BaseController {
             })
             this._isRequestInProgress = false
             this._refreshComments()
+            this._trySavingInfos();
           }).catch(() => {
             this._isRequestInProgress = false
             $ui.error("API错误，评论失败")
@@ -191,6 +193,7 @@ export class GalleryCommentController extends BaseController {
                 const newComment = infos.comments.find(comment => comment.comment_id === comment_id)?.comment_div || newText
                 this._infos.comments.find(comment => comment.comment_id === comment_id)!.comment_div = newComment
                 this._refreshComments()
+                this._trySavingInfos();
               } catch (e) {
                 if (e !== "cancel") $ui.error("API错误，修改评论失败");
               } finally {
@@ -229,6 +232,7 @@ export class GalleryCommentController extends BaseController {
               const comment = this._infos.comments.find(comment => comment.comment_id === comment_id);
               comment!.score = result.comment_score;
               comment!.my_vote = result.comment_vote === 0 ? undefined : result.comment_vote;
+              this._trySavingInfos();
               webview.view.notify({
                 event: "endVoteRequest",
                 message: result
@@ -279,6 +283,20 @@ export class GalleryCommentController extends BaseController {
       this.cviews.webview.view.notify({
         event: "displayComments",
         message: { comments: sortedComments }
+      })
+    }
+  }
+
+  private _trySavingInfos() {
+    // 尝试保存this._infos到本地
+    // 前提是本地已经存在infos文件（否则的话，应该由下载器模块进行保存）
+    if (!this._infos) return;
+    const path = galleryInfoPath + `${this._infos.gid}.json`
+    if ($file.exists(path)) {
+      const text = JSON.stringify(this.infos, null, 2);
+      $file.write({
+        data: $data({ string: text }),
+        path
       })
     }
   }

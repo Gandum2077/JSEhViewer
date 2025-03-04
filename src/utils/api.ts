@@ -2,6 +2,7 @@ import { EHAPIHandler, EHGallery, EHMPV, EHPage } from "ehentai-parser";
 import { appLog, cropImageData, isNameMatchGid } from "./tools";
 import {
   aiTranslationPath,
+  galleryInfoPath,
   imagePath,
   originalImagePath,
   thumbnailPath,
@@ -875,6 +876,16 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
       this.result.htmls[page].started = true;
       this.result.htmls[page].success = true;
     }
+
+    if (this.result.htmls.every(n => n.success) && !$file.exists(galleryInfoPath + `${this.gid}.json`)) {
+      // 如果此时html已经全部下载完成，并且本地文件不存在，保存到本地
+      const text = JSON.stringify(this.infos, null, 2);
+      $file.write({
+        data: $data({string: text}),
+        path: galleryInfoPath + `${this.gid}.json`
+      })
+    }
+    
     // 查找已经存在的缩略图
     const galleryThumbnailPath = thumbnailPath + `${this.gid}`;
     if (!$file.exists(galleryThumbnailPath)) $file.mkdir(galleryThumbnailPath);
@@ -1203,6 +1214,16 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
               });
           }
         }
+        
+        if (this.result.htmls.every(n => n.success)) {
+          // 在html全部下载完成后，保存到本地
+          const text = JSON.stringify(this.infos, null, 2);
+          $file.write({
+            data: $data({string: text}),
+            path: galleryInfoPath + `${this.gid}.json`
+          })
+        }
+
         if (!this._paused && this.isAllFinishedDespiteError) {
           this.finishHandler();
         }

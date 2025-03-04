@@ -1157,6 +1157,9 @@ export class GalleryInfoController extends BaseController {
             this._infos.apiuid,
             newRating
           )
+          statusManager.updateArchiveItem(this.gid, {
+            my_rating: newRating
+          })
           return newRating
         } catch (e) {
           $ui.error("评分失败")
@@ -1172,6 +1175,12 @@ export class GalleryInfoController extends BaseController {
             const defaultFavcat = configManager.defaultFavcat;
             try {
               await api.addOrModifyFav(this.gid, this._infos.token, defaultFavcat)
+              statusManager.updateArchiveItem(this.gid, {
+                favorite_info: {
+                  favorited: true,
+                  favcat: defaultFavcat
+                }
+              })
             } catch (e) {
               return { success: false }
             }
@@ -1180,6 +1189,11 @@ export class GalleryInfoController extends BaseController {
           case "unfavorite": {
             try {
               await api.deleteFav(this.gid, this._infos.token);
+              statusManager.updateArchiveItem(this.gid, {
+                favorite_info: {
+                  favorited: false
+                }
+              })
             } catch (e) {
               return { success: false };
             }
@@ -1190,6 +1204,12 @@ export class GalleryInfoController extends BaseController {
               const result = await galleryFavoriteDialog(this._infos)
               if (result.success) {
                 await api.addOrModifyFav(this.gid, this._infos.token, result.favcat, result.favnote)
+                statusManager.updateArchiveItem(this.gid, {
+                  favorite_info: {
+                    favorited: true,
+                    favcat: result.favcat
+                  }
+                })
                 return { success: true, favorited: true, favcat: result.favcat, title: configManager.favcatTitles[result.favcat] }
               } else {
                 return { success: false, dissmissed: true }
@@ -1221,13 +1241,30 @@ export class GalleryInfoController extends BaseController {
       title: "稍后阅读",
       symbol: "bookmark.circle",
       symbolSize: $size(40, 40),
-      handler: () => { }
+      handler: () => { 
+        const archiveItem = statusManager.getArchiveItem(this.gid);
+        if (!archiveItem) return;
+        if (archiveItem.readlater) {
+          statusManager.updateArchiveItem(this.gid, {
+            readlater: false
+          })
+          readLaterButton.symbolColor = defaultButtonColor
+        } else {
+          statusManager.updateArchiveItem(this.gid, {
+            readlater: true
+          })
+          readLaterButton.symbolColor = $color("orange")
+        }
+      }
     })
 
     const downloadButton = new DownloadButton({
       status: "pending",
       progress: 0,
       handler: (sender, status) => {
+        statusManager.updateArchiveItem(this.gid, {
+          downloaded: true
+        })
         const d = downloaderManager.get(this.gid);
         if (!d) return;
         if (status === "paused" ) {
@@ -1408,6 +1445,7 @@ export class GalleryInfoController extends BaseController {
   }
 
   set infos(infos: EHGallery) {
+    this.gid = infos.gid;
     this._infos = infos;
     const topThumbnailPath = downloaderManager.get(this.gid)!.result.topThumbnail.path;
     this._topThumbnailFinished = Boolean(topThumbnailPath);

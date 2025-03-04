@@ -913,7 +913,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       title: "类型",
       key: "type",
       value: ["readlater", "downloaded", "all"].indexOf(this._options.type),
-      items: ["稍后阅读", "已下载", "全部"]
+      items: ["稍后阅读", "下载内容", "全部记录"]
     }
     const enablePageFiltersPrefsRow: PrefsRowBoolean = {
       type: "boolean",

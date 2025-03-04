@@ -13,6 +13,7 @@ import { appLog } from "../utils/tools";
 import { WebDAVClient } from "../utils/webdav";
 import { setWebDAVConfig } from "./settings-webdav-controller";
 import { globalTimer } from "../utils/timer";
+import { galleryInfoPath } from "../utils/glv";
 
 export class GalleryController extends PageViewerController {
   private _infos?: EHGallery;
@@ -105,9 +106,12 @@ export class GalleryController extends PageViewerController {
             layout: $layout.center
           })
           try {
-            const infos = await api.getGalleryInfo(this._gid, this._token, true)
-            appLog(infos, "debug")
-            this._infos = infos
+            // 两种获取infos的方式：本地获取/在线获取
+            const infos = $file.exists(galleryInfoPath + `${this._gid}.json`)
+              ? JSON.parse($file.read(galleryInfoPath + `${this._gid}.json`).string || "") as EHGallery
+              : await api.getGalleryInfo(this._gid, this._token, true);
+            appLog(infos, "debug");
+            this._infos = infos;
           } catch (e: any) {
             appLog(e, "error")
             if (e instanceof EHServiceUnavailableError) {
@@ -121,8 +125,10 @@ export class GalleryController extends PageViewerController {
             }
           }
           if (!this._infos) return;
-          downloaderManager.add(this._infos.gid, this._infos)
-          downloaderManager.startOne(this._infos.gid)
+          downloaderManager.add(this._infos.gid, this._infos);
+          downloaderManager.startOne(this._infos.gid);
+          statusManager.updateArchiveItem(this._gid, { infos: this._infos, updateLastAccessTime: true, readlater: false });
+
           sender.rootView.view.super.get("loadingLabel").remove()
 
           galleryInfoController.infos = this._infos;
@@ -211,7 +217,6 @@ export class GalleryController extends PageViewerController {
 
   readGallery(index: number) {
     if (!this._infos) return;
-    statusManager.updateArchiveItem(this._gid, { infos: this._infos })
     const d = downloaderManager.get(this._infos.gid);
     if (!d) return;
     d.reading = true;
@@ -234,9 +239,6 @@ export class GalleryController extends PageViewerController {
   }
 
   async refresh(gid: number, token: string) {
-    // 首先判断gid是否和当前一致。如果一致，后续无需重启下载器
-    const isSameGallery = this._gid === gid;
-
     let infos: EHGallery | undefined;
     try {
       infos = await api.getGalleryInfo(gid, token, true);
@@ -256,20 +258,23 @@ export class GalleryController extends PageViewerController {
     if (!infos) return;
     // 关闭当前的下载器、定时器，更新信息，重新启动下载器、定时器
     globalTimer.removeTask(this._gid.toString());
-    if (!isSameGallery) {
-      downloaderManager.remove(this._gid); // 删除旧的下载器
-    }
+    downloaderManager.remove(this._gid); // 删除旧的下载器
     // 重新赋值
-    this._infos = infos;
     this._gid = gid;
     this._token = token;
-    // 重新启动下载器
-    if (!isSameGallery) {
-      downloaderManager.add(this._gid, this._infos);
-      downloaderManager.startOne(this._gid);
-      // 重新初始化webdav客户端
-      this.resetWebDAV();
+
+    // 如果不是同一个图库，重新启动下载器
+    this._infos = infos;
+    // 首先删除现有的的本地文件
+    const path = galleryInfoPath + `${this._gid}.json`
+    if ($file.exists(path)) {
+      $file.delete(path)
     }
+    downloaderManager.add(this._gid, this._infos);
+    downloaderManager.startOne(this._gid);
+    statusManager.updateArchiveItem(this._gid, { infos: this._infos, updateLastAccessTime: true, readlater: false });
+    // 重新初始化webdav客户端
+    this.resetWebDAV();
     // 更新信息
     this.subControllers.galleryInfoController.gid = this._gid;
     this.subControllers.galleryThumbnailController.gid = this._gid;

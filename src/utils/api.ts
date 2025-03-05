@@ -19,7 +19,6 @@ type CompoundThumbnail = {
     page: number; // 从0开始
     name: string;
     imgkey: string;
-    page_url: string;
     thumbnail_url: string;
     frame: {
       x: number;
@@ -572,7 +571,7 @@ class GalleryMPVDownloader extends ConcurrentDownloaderBase {
             )
             : this.createImageTask(
               imageItem.index,
-              this.mpvInfo.images[imageItem.index].key,
+              this.mpvInfo.images[imageItem.index].imgkey,
               this.mpvInfo.mpvkey
             );
         } else if (thumbnailItem.index >= this.currentReadingIndex) {
@@ -583,7 +582,7 @@ class GalleryMPVDownloader extends ConcurrentDownloaderBase {
         } else {
           return this.createImageTask(
             imageItem.index,
-            this.mpvInfo.images[imageItem.index].key,
+            this.mpvInfo.images[imageItem.index].imgkey,
             this.mpvInfo.mpvkey
           );
         }
@@ -595,7 +594,7 @@ class GalleryMPVDownloader extends ConcurrentDownloaderBase {
       } else if (imageItem) {
         return this.createImageTask(
           imageItem.index,
-          this.mpvInfo.images[imageItem.index].key,
+          this.mpvInfo.images[imageItem.index].imgkey,
           this.mpvInfo.mpvkey
         );
       }

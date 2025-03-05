@@ -460,7 +460,7 @@ export class WebDAVClient {
         })
       } else {
         throw new WebDAVError({
-          message: "未知错误",
+          message: resp.error.localizedDescription || "未知错误",
           type: 'other',
         })
       }

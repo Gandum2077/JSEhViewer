@@ -1571,7 +1571,7 @@ export class GalleryInfoController extends BaseController {
     if (!this._infos) return;
     const path = galleryInfoPath + `${this._infos.gid}.json`
     if ($file.exists(path)) {
-      const text = JSON.stringify(this.infos, null, 2);
+      const text = JSON.stringify(this._infos, null, 2);
       $file.write({
         data: $data({ string: text }),
         path

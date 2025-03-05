@@ -179,6 +179,11 @@
         /* 确保长单词或URL在边界内断行 */
       }
 
+      .comment-body img {
+        max-width: 100%;
+        height: auto;
+      }
+
       .comment-controls {
         display: flex;
         height: 30px;
@@ -273,7 +278,10 @@
         commentsList.innerHTML = "";
         comments.forEach((comment) => {
           // 将comment_div中的`https://s.exhentai.org/`替换为`https://ehgt.org/`
-          const fixedCommentDiv = comment.comment_div.replace(/https:\/\/s\.exhentai\.org\//g, "https://ehgt.org/");
+          const fixedCommentDiv = comment.comment_div.replace(
+            /https:\/\/s\.exhentai\.org\//g,
+            "https://ehgt.org/"
+          );
           const commentElement = document.createElement("div");
           commentElement.classList.add("comment");
           const voteupButton = `
@@ -283,7 +291,7 @@
         <svg class="icon" fill="none" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
           <path d="${
             comment.my_vote === 1 ? arrowUpFillSvg : arrowUpSvg
-          }" fill="${comment.my_vote === 1 ? '#4CAF50' : 'currentColor'}"/>
+          }" fill="${comment.my_vote === 1 ? "#4CAF50" : "currentColor"}"/>
         </svg>
       </button>
       `;
@@ -294,7 +302,7 @@
         <svg class="icon" fill="none" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
           <path d="${
             comment.my_vote === -1 ? arrowDownFillSvg : arrowDownSvg
-          }" fill="${comment.my_vote === -1 ? '#F44336' : 'currentColor'}"/>
+          }" fill="${comment.my_vote === -1 ? "#F44336" : "currentColor"}"/>
         </svg>
       </button>
       `;
@@ -392,7 +400,7 @@
         });
       }
 
-      function endVoteRequest({comment_id, comment_score, comment_vote}) {
+      function endVoteRequest({ comment_id, comment_score, comment_vote }) {
         const elem = document.getElementById(`${comment_id}`);
         const upButton = elem.querySelector(".upvote");
         const downButton = elem.querySelector(".downvote");
@@ -415,7 +423,9 @@
           downSvg.setAttribute("d", arrowDownSvg);
           downSvg.setAttribute("fill", "currentColor");
         }
-        document.getElementById(`score-${comment_id}`).innerText = `分数: ${comment_score}`;
+        document.getElementById(
+          `score-${comment_id}`
+        ).innerText = `分数: ${comment_score}`;
       }
 
       function edit(comment_id, button) {

@@ -1063,6 +1063,7 @@ export class GalleryInfoController extends BaseController {
     rateButton: RateButton;
     favoriteButton: FavoriteButton;
     readButton: CommonButton;
+    readLaterButton: CommonButton;
     downloadButton: DownloadButton;
     torrentButton: CommonButton;
     hathDownloadButton: CommonButton;
@@ -1445,6 +1446,7 @@ export class GalleryInfoController extends BaseController {
       rateButton,
       favoriteButton,
       readButton,
+      readLaterButton,
       downloadButton,
       torrentButton,
       hathDownloadButton,
@@ -1550,10 +1552,28 @@ export class GalleryInfoController extends BaseController {
   }
 
   private _refreshDownloadButton() {
-    if (this.cviews.downloadButton.status === "pending" || this.cviews.downloadButton.status === "finished") return;
+    if (this.cviews.downloadButton.status === "finished") return;
     const d = downloaderManager.get(this.gid);
     if (!d) return;
     if (!d.background) return;
+    const progress = d.finishedOfImages / d.result.images.length;
+    this.cviews.downloadButton.progress = progress;
+    if (progress === 1) {
+      this.cviews.downloadButton.status = "finished";
+    } else if (d.backgroundPaused) {
+      this.cviews.downloadButton.status = "paused";
+    } else {
+      this.cviews.downloadButton.status = "downloading";
+    }
+  }
+
+  resetDownloadButton() {
+    const d = downloaderManager.get(this.gid);
+    if (!d) return;
+    if (!d.background) {
+      this.cviews.downloadButton.status = "pending";
+      return;
+    }
     const progress = d.finishedOfImages / d.result.images.length;
     this.cviews.downloadButton.progress = progress;
     if (progress === 1) {

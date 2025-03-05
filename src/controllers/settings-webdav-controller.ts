@@ -82,7 +82,6 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
                       this._webDAVEnabled = sender.on;
                     } else if (actionName === "autoUpload") {
                       this._webDAVAutoUpload = sender.on;
-                      // TODO: 自动上传
                     }
                     this.refresh();
                   }

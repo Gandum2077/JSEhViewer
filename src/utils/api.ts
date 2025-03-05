@@ -1687,10 +1687,12 @@ class DownloaderManager {
 
   /**
    * 添加一个图库下载器
+   * 不能重复添加，如果gid重复，会直接报错
    * @param gid 图库id
    * @param infos 图库信息
    */
   add(gid: number, infos: EHGallery) {
+    if (this.galleryDownloaders.has(gid)) throw new Error("Unable to add duplicate image downloader");
     const downloader = new GalleryCommonDownloader(infos, () => {
       for (const [k, v] of this.galleryWebDAVUploaders) {
         if (!v.backgroundPaused && !v.isAllFinishedDespiteError) {
@@ -1735,6 +1737,7 @@ class DownloaderManager {
 
   /**
    * 启动某一个图库下载器，并暂停其他全部图库下载器
+   * TODO：如果当前下载器没有可以启动的子任务，那么尝试启动别的下载器
    */
   startOne(gid: number) {
     // 先检测该下载器是否还有未完成的任务，如果没有，则不启动
@@ -1802,8 +1805,10 @@ class DownloaderManager {
 
   /**
    * 新建一个标签缩略图下载器
+   * 不能重复添加，如果id重复，会直接报错
    */
   addTabDownloader(id: string) {
+    if (this.tabDownloaders.has(id)) throw new Error("Unable to add duplicate tab downloader");
     const tabDownloader = new TabThumbnailDownloader(() => {
       for (const v of this.galleryWebDAVUploaders.values()) {
         if (!v.backgroundPaused && !v.isAllFinishedDespiteError) {
@@ -1875,9 +1880,11 @@ class DownloaderManager {
 
   /**
    * 新建一个图库WebDAV上传器
+   * 不能重复添加，如果gid重复，会直接报错
    */
   addGalleryWebDAVUploader(infos: EHGallery, client: WebDAVClient) {
     const gid = infos.gid;
+    if (this.galleryWebDAVUploaders.has(gid)) throw new Error("Unable to add duplicate image uploader");
     const uploader = new GalleryWebDAVUploader(infos, client, () => {
       for (const [k, v] of this.galleryWebDAVUploaders) {
         if (k !== gid && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
@@ -2008,7 +2015,9 @@ function checkWebDAVAndCreateUploader(gid: number, infos: EHGallery) {
         const filesOnServer = result.data;
         if (filesOnServer.length !== infos.length) {
           // 如果WebDAV可用，并且服务器上没有完整图库，则创建WebDAV上传任务
-          downloaderManager.addGalleryWebDAVUploader(infos, client);
+          if (!downloaderManager.getGalleryWebDAVUploader(infos.gid)) {
+            downloaderManager.addGalleryWebDAVUploader(infos, client);
+          }
           downloaderManager.startGalleryWebDAVUploader(gid);
         }
       } else {

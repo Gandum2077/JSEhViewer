@@ -13,7 +13,7 @@ import { appLog } from "../utils/tools";
 import { WebDAVClient } from "../utils/webdav";
 import { setWebDAVConfig } from "./settings-webdav-controller";
 import { globalTimer } from "../utils/timer";
-import { galleryInfoPath } from "../utils/glv";
+import { defaultButtonColor, galleryInfoPath } from "../utils/glv";
 
 export class GalleryController extends PageViewerController {
   private _infos?: EHGallery;
@@ -125,15 +125,24 @@ export class GalleryController extends PageViewerController {
             }
           }
           if (!this._infos) return;
-          downloaderManager.add(this._infos.gid, this._infos);
-          downloaderManager.startOne(this._infos.gid);
+          if (!downloaderManager.get(this._gid)) {
+            downloaderManager.add(this._gid, this._infos);
+            // 检查是否应该开启后台下载
+            const downloaded = statusManager.getArchiveItem(this._gid)?.downloaded ?? false;
+            if (downloaded) {
+              downloaderManager.get(this._gid)!.background = true;
+            }
+          }
+          downloaderManager.startOne(this._gid);
           statusManager.updateArchiveItem(this._gid, { infos: this._infos, updateLastAccessTime: true, readlater: false });
 
           sender.rootView.view.super.get("loadingLabel").remove()
 
           galleryInfoController.infos = this._infos;
           galleryInfoController.currentReadPage = statusManager.getLastReadPage(this._gid);
-          galleryThumbnailController.thumbnailItems = downloaderManager.get(this._infos.gid)!.result.thumbnails;
+          galleryThumbnailController.thumbnailItems = downloaderManager.get(this._gid)!.result.thumbnails;
+          galleryInfoController.resetDownloadButton();
+
           sender.rootView.view.alpha = 1;
 
           globalTimer.addTask({
@@ -150,7 +159,9 @@ export class GalleryController extends PageViewerController {
               // 上传功能
               if (!this._webDAVClient) return;
               if (!this._infos) return;
-              downloaderManager.addGalleryWebDAVUploader(this._infos, this._webDAVClient);
+              if (!downloaderManager.getGalleryWebDAVUploader(this._gid)) {
+                downloaderManager.addGalleryWebDAVUploader(this._infos, this._webDAVClient);
+              }
               downloaderManager.startGalleryWebDAVUploader(this._gid);
             } else if (action === "retry") {
               // 重连
@@ -239,6 +250,13 @@ export class GalleryController extends PageViewerController {
   }
 
   async refresh(gid: number, token: string) {
+    // 首先判断gid是否和当前一致。如果一致，后续要继承下载器的background, backgroundPaused
+    const isSameGallery = this._gid === gid;
+    // 刷新之前获取三个信息：readlater, background, backgroundPaused
+    const readlater_old = statusManager.getArchiveItem(this._gid)?.readlater ?? false;
+    const background_old = downloaderManager.get(this._gid)?.background ?? false;
+    const backgroundPaused_old = downloaderManager.get(this._gid)?.backgroundPaused ?? false;
+
     let infos: EHGallery | undefined;
     try {
       infos = await api.getGalleryInfo(gid, token, true);
@@ -256,31 +274,58 @@ export class GalleryController extends PageViewerController {
       }
     }
     if (!infos) return;
-    // 关闭当前的下载器、定时器，更新信息，重新启动下载器、定时器
+    // 关闭当前的定时器，更新信息，重新启动下载器、定时器
     globalTimer.removeTask(this._gid.toString());
-    downloaderManager.remove(this._gid); // 删除旧的下载器
+    // downloaderManager.remove(this._gid); // 删除旧的下载器
+    // 无需删除下载器，之后会自动暂停
+
     // 重新赋值
     this._gid = gid;
     this._token = token;
-
-    // 如果不是同一个图库，重新启动下载器
     this._infos = infos;
+
+    // 重新启动下载器
     // 首先删除现有的的本地文件
     const path = galleryInfoPath + `${this._gid}.json`
     if ($file.exists(path)) {
       $file.delete(path)
     }
-    downloaderManager.add(this._gid, this._infos);
+    if (!downloaderManager.get(this._gid)) {
+      downloaderManager.add(this._gid, this._infos);
+      // 检查是否应该开启后台下载
+      const downloaded = statusManager.getArchiveItem(this._gid)?.downloaded ?? false;
+      if (downloaded) {
+        downloaderManager.get(this._gid)!.background = true;
+      }
+    }
+    if (isSameGallery) {
+      downloaderManager.get(this._gid)!.background = background_old;
+      downloaderManager.get(this._gid)!.backgroundPaused = backgroundPaused_old;
+    }
     downloaderManager.startOne(this._gid);
-    statusManager.updateArchiveItem(this._gid, { infos: this._infos, updateLastAccessTime: true, readlater: false });
+
+    statusManager.updateArchiveItem(this._gid, {
+      infos: this._infos,
+      updateLastAccessTime: true,
+      readlater: isSameGallery ? readlater_old : false
+    });
+
     // 重新初始化webdav客户端
     this.resetWebDAV();
+
     // 更新信息
     this.subControllers.galleryInfoController.gid = this._gid;
     this.subControllers.galleryThumbnailController.gid = this._gid;
     this.subControllers.galleryInfoController.infos = this._infos;
     this.subControllers.galleryInfoController.currentReadPage = statusManager.getLastReadPage(this._gid);
     this.subControllers.galleryThumbnailController.thumbnailItems = downloaderManager.get(this._gid)!.result.thumbnails;
+
+    // readlater和download按钮
+    this.subControllers.galleryInfoController
+      .cviews.readLaterButton.symbolColor = (isSameGallery && readlater_old) ? $color("orange") : defaultButtonColor;
+
+    this.subControllers.galleryInfoController.resetDownloadButton();
+
     globalTimer.addTask({
       id: this._gid.toString(),
       interval: 1,

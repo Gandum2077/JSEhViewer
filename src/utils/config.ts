@@ -868,7 +868,8 @@ LIMIT 20;
   }
 
   get currentWebDAVService() {
-    return this._webDAVServices.find(service => service.enabled)
+    if (!this.webdavEnabled) return;
+    return this._webDAVServices.find(service => service.enabled);
   }
 
   get aiTranslationServiceConfig() {

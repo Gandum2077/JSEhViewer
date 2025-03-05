@@ -276,8 +276,13 @@ export class GalleryController extends PageViewerController {
     if (!infos) return;
     // 关闭当前的定时器，更新信息，重新启动下载器、定时器
     globalTimer.removeTask(this._gid.toString());
-    // downloaderManager.remove(this._gid); // 删除旧的下载器
-    // 无需删除下载器，之后会自动暂停
+    // 如果不是同一个gid且没有后台下载，则暂停旧的下载器
+    if (!isSameGallery) {
+      const oldDownloader = downloaderManager.get(this._gid);
+      if (oldDownloader && !oldDownloader.background) {
+        downloaderManager.pause(this._gid);
+      }
+    }
 
     // 重新赋值
     this._gid = gid;

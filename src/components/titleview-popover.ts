@@ -353,8 +353,8 @@ class PopoverViewForTitleView<T extends PopoverOptions> extends Base<UIView, UiT
         type: this._options.type,
         archiveType: this._archiveType,
         archiveManagerOrderMethod: values.sort === 0
-        ? "last_access_time"
-        : values.sort === 1 ? "first_access_time" : "posted_time"
+          ? "last_access_time"
+          : values.sort === 1 ? "first_access_time" : "posted_time"
       } as PopoverOptionsToResult<T>
     }
   }

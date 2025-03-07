@@ -79,7 +79,7 @@ export class GalleryController extends PageViewerController {
                   sourceView: sender,
                   sourceRect: sender.bounds,
                   directions: $popoverDirection.up,
-                  width: 180,
+                  width: 200,
                   items: this.generatePopoverItems()
                 })
               }
@@ -253,9 +253,9 @@ export class GalleryController extends PageViewerController {
     // 首先判断gid是否和当前一致。如果一致，后续要继承下载器的background, backgroundPaused
     const isSameGallery = this._gid === gid;
     // 刷新之前获取三个信息：readlater, background, backgroundPaused
-    const readlater_old = statusManager.getArchiveItem(this._gid)?.readlater ?? false;
-    const background_old = downloaderManager.get(this._gid)?.background ?? false;
-    const backgroundPaused_old = downloaderManager.get(this._gid)?.backgroundPaused ?? false;
+    const readlater_old = statusManager.getArchiveItem(gid)?.readlater ?? false;
+    const background_old = downloaderManager.get(gid)?.background ?? false;
+    const backgroundPaused_old = downloaderManager.get(gid)?.backgroundPaused ?? false;
 
     let infos: EHGallery | undefined;
     try {
@@ -295,18 +295,16 @@ export class GalleryController extends PageViewerController {
     if ($file.exists(path)) {
       $file.delete(path)
     }
-    if (!downloaderManager.get(this._gid)) {
-      downloaderManager.add(this._gid, this._infos);
-      // 检查是否应该开启后台下载
-      const downloaded = statusManager.getArchiveItem(this._gid)?.downloaded ?? false;
-      if (downloaded) {
-        downloaderManager.get(this._gid)!.background = true;
-      }
+    if (downloaderManager.get(this._gid)) {
+      downloaderManager.remove(this._gid);
     }
-    if (isSameGallery) {
-      downloaderManager.get(this._gid)!.background = background_old;
-      downloaderManager.get(this._gid)!.backgroundPaused = backgroundPaused_old;
-    }
+
+    downloaderManager.add(this._gid, this._infos);
+    // 检查是否应该开启后台下载
+    const downloaded = statusManager.getArchiveItem(this._gid)?.downloaded ?? false;
+    downloaderManager.get(this._gid)!.background = downloaded || background_old;
+    downloaderManager.get(this._gid)!.backgroundPaused = backgroundPaused_old;
+
     downloaderManager.startOne(this._gid);
 
     statusManager.updateArchiveItem(this._gid, {

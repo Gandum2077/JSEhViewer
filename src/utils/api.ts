@@ -1536,7 +1536,7 @@ class DownloaderManager {
             return;
           }
         }
-        if (downloader.finishedOfImages) {
+        if (downloader.background && downloader.finishedOfImages) {
           checkWebDAVAndCreateUploader(gid, infos);
         }
       }

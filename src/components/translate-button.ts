@@ -1,14 +1,20 @@
 import { Base } from "jsbox-cview";
 
-const ON_COLOR = $color("#145D7E", "#2A9CD1")
-const ON_FONT_SIZE = 18
-const OFF_FONT_SIZE = 12
+const ON_COLOR = $color("#145D7E", "#2A9CD1");
+const ON_FONT_SIZE = 18;
+const OFF_FONT_SIZE = 12;
 
 export class TranslateButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
   _defineView: () => UiTypes.ButtonOptions;
   private _translated: boolean;
 
-  constructor({translated, handler}: {translated: boolean, handler: (translated: boolean) => void}){  
+  constructor({
+    translated,
+    handler,
+  }: {
+    translated: boolean;
+    handler: (translated: boolean) => void;
+  }) {
     super();
     this._translated = translated;
     this._defineView = () => {
@@ -19,17 +25,17 @@ export class TranslateButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
           bgcolor: $color("systemGray4"),
           //borderWidth: 1,
         },
-        layout: function(make, view) {
-          make.center.equalTo(view.super)
-          make.size.equalTo($size(60, 30))
+        layout: function (make, view) {
+          make.center.equalTo(view.super);
+          make.size.equalTo($size(60, 30));
         },
         events: {
-          tapped: sender => {
-            this.translated = !this.translated
-            handler(this.translated)
-          }
+          tapped: (sender) => {
+            this.translated = !this.translated;
+            handler(this.translated);
+          },
         },
-        views:[
+        views: [
           {
             type: "label",
             props: {
@@ -42,25 +48,25 @@ export class TranslateButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
                   {
                     range: $range(0, 1),
                     color: ON_COLOR,
-                    font: $font("bold", ON_FONT_SIZE)
+                    font: $font("bold", ON_FONT_SIZE),
                   },
                   {
                     range: $range(1, 1),
                     color: ON_COLOR,
-                    font: $font(OFF_FONT_SIZE)
+                    font: $font(OFF_FONT_SIZE),
                   },
                   {
                     range: $range(2, 1),
-                    font: $font(OFF_FONT_SIZE)
-                  }
-                ]
-              }
+                    font: $font(OFF_FONT_SIZE),
+                  },
+                ],
+              },
             },
             layout: (make, view) => {
-              make.centerX.equalTo(view.super)
-              make.top.inset(0)
-              make.bottom.inset(1)
-            }
+              make.centerX.equalTo(view.super);
+              make.top.inset(0);
+              make.bottom.inset(1);
+            },
           },
           {
             type: "label",
@@ -74,43 +80,42 @@ export class TranslateButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
                   {
                     range: $range(0, 1),
                     color: ON_COLOR,
-                    font: $font("bold", ON_FONT_SIZE)
+                    font: $font("bold", ON_FONT_SIZE),
                   },
                   {
                     range: $range(1, 1),
                     color: ON_COLOR,
-                    font: $font(OFF_FONT_SIZE)
+                    font: $font(OFF_FONT_SIZE),
                   },
                   {
                     range: $range(2, 1),
-                    font: $font(OFF_FONT_SIZE)
-                  }
-                ]
-              }
+                    font: $font(OFF_FONT_SIZE),
+                  },
+                ],
+              },
             },
             layout: (make, view) => {
-              make.centerX.equalTo(view.super)
-              make.top.inset(0)
-              make.bottom.inset(1)
-            }
-          }
-        ]
-      }
-    }
+              make.centerX.equalTo(view.super);
+              make.top.inset(0);
+              make.bottom.inset(1);
+            },
+          },
+        ],
+      };
+    };
   }
 
   get translated() {
-    return this._translated
+    return this._translated;
   }
 
   set translated(translated: boolean) {
-    this._translated = translated
-    this.view.get("cn").hidden = !translated
-    this.view.get("en").hidden = translated
+    this._translated = translated;
+    this.view.get("cn").hidden = !translated;
+    this.view.get("en").hidden = translated;
   }
 
   heightToWidth(width: number) {
-    return 50
+    return 50;
   }
 }
-

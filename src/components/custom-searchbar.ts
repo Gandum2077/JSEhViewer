@@ -5,7 +5,7 @@ import { EHSearchTerm } from "ehentai-parser";
 import { mapSearchTermToString } from "../utils/tools";
 import { namespaceColor } from "../utils/glv";
 
-const searchBarBgcolor = $color("#DFE1E2", "tertiarySurface")
+const searchBarBgcolor = $color("#DFE1E2", "tertiarySurface");
 
 /**
  * 自定义搜索框
@@ -29,34 +29,35 @@ export class CustomSearchBar extends Base<UIView, UiTypes.ViewOptions> {
           smoothCorners: true,
         },
         layout: (make, view) => {
-          make.left.right.inset(4)
-          make.height.equalTo(36)
-          make.top.inset(4.5)
+          make.left.right.inset(4);
+          make.height.equalTo(36);
+          make.top.inset(4.5);
         },
         events: options.events,
         views: [
-          { // placeholder
+          {
+            // placeholder
             type: "view",
             props: {
-              id: "placeholder"
+              id: "placeholder",
             },
             layout: (make, view) => {
-              make.width.equalTo(59)
-              make.height.equalTo(20)
-              make.center.equalTo(view.super)
+              make.width.equalTo(59);
+              make.height.equalTo(20);
+              make.center.equalTo(view.super);
             },
             views: [
               {
                 type: "image",
                 props: {
                   symbol: "magnifyingglass",
-                  tintColor: $color("systemPlaceholderText")
+                  tintColor: $color("systemPlaceholderText"),
                 },
                 layout: (make, view) => {
-                  make.centerY.equalTo(view.super)
-                  make.size.equalTo($size(20, 20))
-                  make.left.inset(0)
-                }
+                  make.centerY.equalTo(view.super);
+                  make.size.equalTo($size(20, 20));
+                  make.left.inset(0);
+                },
               },
               {
                 type: "label",
@@ -64,21 +65,22 @@ export class CustomSearchBar extends Base<UIView, UiTypes.ViewOptions> {
                   text: "搜索",
                   textColor: $color("systemPlaceholderText"),
                   font: $font(17),
-                  align: $align.center
+                  align: $align.center,
                 },
                 layout: (make, view) => {
-                  make.centerY.equalTo(view.super)
-                  make.left.equalTo(view.prev.right).inset(4)
-                  make.size.equalTo($size(35, 21))
-                }
-              }
-            ]
+                  make.centerY.equalTo(view.super);
+                  make.left.equalTo(view.prev.right).inset(4);
+                  make.size.equalTo($size(35, 21));
+                },
+              },
+            ],
           },
-          { // content
+          {
+            // content
             type: "view",
             props: {
               id: "content",
-              hidden: true
+              hidden: true,
             },
             layout: $layout.fill,
             views: [
@@ -86,13 +88,13 @@ export class CustomSearchBar extends Base<UIView, UiTypes.ViewOptions> {
                 type: "image",
                 props: {
                   symbol: "magnifyingglass",
-                  tintColor: $color("systemPlaceholderText")
+                  tintColor: $color("systemPlaceholderText"),
                 },
                 layout: (make, view) => {
-                  make.centerY.equalTo(view.super)
-                  make.size.equalTo($size(20, 20))
-                  make.left.inset(4)
-                }
+                  make.centerY.equalTo(view.super);
+                  make.size.equalTo($size(20, 20));
+                  make.left.inset(4);
+                },
               },
               {
                 type: "matrix",
@@ -110,7 +112,7 @@ export class CustomSearchBar extends Base<UIView, UiTypes.ViewOptions> {
                     props: {
                       bgcolor: $color("clear"),
                       cornerRadius: 4,
-                      smoothCorners: true
+                      smoothCorners: true,
                     },
                     views: [
                       {
@@ -119,57 +121,63 @@ export class CustomSearchBar extends Base<UIView, UiTypes.ViewOptions> {
                           id: "label",
                           font: $font(14),
                           align: $align.center,
-                          textColor: $color("primaryText")
+                          textColor: $color("primaryText"),
                         },
-                        layout: $layout.fill
-                      }]
-                  }
+                        layout: $layout.fill,
+                      },
+                    ],
+                  },
                 },
                 layout: (make, view) => {
-                  make.left.inset(28)
-                  make.right.inset(4)
-                  make.top.bottom.inset(0)
+                  make.left.inset(28);
+                  make.right.inset(4);
+                  make.top.bottom.inset(0);
                 },
                 events: {
                   itemSize: (sender, indexPath) => {
                     return {
                       width: this._mappedData[indexPath.item].width,
-                      height: 26
-                    }
-                  }
-                }
-              }
-            ]
-          }
-        ]
-      }
-    }
+                      height: 26,
+                    };
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      };
+    };
   }
 
   set searchTerms(terms: EHSearchTerm[]) {
     if (terms.length === 0) {
-      this.view.get("content").hidden = true
-      this.view.get("placeholder").hidden = false
+      this.view.get("content").hidden = true;
+      this.view.get("placeholder").hidden = false;
     } else {
-      this.view.get("content").hidden = false
-      this.view.get("placeholder").hidden = true
+      this.view.get("content").hidden = false;
+      this.view.get("placeholder").hidden = true;
     }
-    this._mappedData = terms.map(searchTerm => {
+    this._mappedData = terms.map((searchTerm) => {
       const text = mapSearchTermToString(searchTerm);
-      const width = $text.sizeThatFits({
-        text,
-        width: 10000,
-        font: $font(14)
-      }).width + 10
-      const color = searchTerm.namespace ? namespaceColor[searchTerm.namespace] : namespaceColor.temp
-      return { text, width, color }
+      const width =
+        $text.sizeThatFits({
+          text,
+          width: 10000,
+          font: $font(14),
+        }).width + 10;
+      const color = searchTerm.namespace
+        ? namespaceColor[searchTerm.namespace]
+        : namespaceColor.temp;
+      return { text, width, color };
     });
 
-    (this.view.get("matrix") as UIMatrixView).data = this._mappedData.map(item => ({
-      label: {
-        text: item.text,
-        bgcolor: item.color
-      }
-    }))
+    (this.view.get("matrix") as UIMatrixView).data = this._mappedData.map(
+      (item) => ({
+        label: {
+          text: item.text,
+          bgcolor: item.color,
+        },
+      })
+    );
   }
 }

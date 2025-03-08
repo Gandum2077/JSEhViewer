@@ -2,7 +2,7 @@ import { Base, DialogSheet } from "jsbox-cview";
 import { MarkedTag, TranslationData } from "../types";
 import { TagNamespace } from "ehentai-parser";
 
-const htmlPath = 'assets/detailed-info.html'
+const htmlPath = "assets/detailed-info.html";
 
 class DetailedInfoView extends Base<UIWebView, UiTypes.WebOptions> {
   _defineView: () => UiTypes.WebOptions;
@@ -16,7 +16,7 @@ class DetailedInfoView extends Base<UIWebView, UiTypes.WebOptions> {
     marked,
     watched,
     hidden,
-    weight
+    weight,
   }: {
     namespace: string;
     name: string;
@@ -28,7 +28,7 @@ class DetailedInfoView extends Base<UIWebView, UiTypes.WebOptions> {
     hidden: boolean;
     weight: number;
   }) {
-    super()
+    super();
     const themeMode = $device.isDarkMode ? "dark" : "light";
     this._defineView = () => {
       return {
@@ -41,7 +41,7 @@ class DetailedInfoView extends Base<UIWebView, UiTypes.WebOptions> {
           allowsNavigation: false,
           showsProgress: false,
           inlineMedia: false,
-          script: `document.documentElement.setAttribute('data-theme', '${themeMode}');`
+          script: `document.documentElement.setAttribute('data-theme', '${themeMode}');`,
         },
         layout: this._layout,
         events: {
@@ -50,7 +50,7 @@ class DetailedInfoView extends Base<UIWebView, UiTypes.WebOptions> {
               type: $kbType.nap,
               text: weight.toString(),
               placeholder: "范围: -99 ~ 99",
-              handler: text => {
+              handler: (text) => {
                 if (!text) return;
                 const weight = parseInt(text);
                 if (isNaN(weight) || weight < -99 || weight > 99) {
@@ -59,18 +59,18 @@ class DetailedInfoView extends Base<UIWebView, UiTypes.WebOptions> {
                 }
                 this.view.notify({
                   event: "updateWeightText",
-                  message: { weight }
-                })
-              }
-            })
+                  message: { weight },
+                });
+              },
+            });
           },
           themeChanged: (sender, isDarkMode) => {
             sender.notify({
               event: "toggleTheme",
-              message: { isDarkMode }
-            })
+              message: { isDarkMode },
+            });
           },
-          didFinish: sender => {
+          didFinish: (sender) => {
             sender.notify({
               event: "init",
               message: {
@@ -82,9 +82,9 @@ class DetailedInfoView extends Base<UIWebView, UiTypes.WebOptions> {
                 marked,
                 watched,
                 hidden,
-                weight
-              }
-            })
+                weight,
+              },
+            });
           },
           decideNavigation: (sender, action) => {
             if (action.type === -1) return true;
@@ -93,25 +93,30 @@ class DetailedInfoView extends Base<UIWebView, UiTypes.WebOptions> {
               message: action.requestURL,
               actions: [
                 {
-                  title: "取消"
+                  title: "取消",
                 },
                 {
                   title: "打开",
                   handler: () => {
                     $app.openURL(action.requestURL);
-                  }
-                }
-              ]
-            })
+                  },
+                },
+              ],
+            });
             return false;
-          }
-        }
-      }
-    }
+          },
+        },
+      };
+    };
   }
 }
 
-export function showDetailedInfoView(namespace: TagNamespace, name: string, translationData?: TranslationData[0], markedTag?: MarkedTag) {
+export function showDetailedInfoView(
+  namespace: TagNamespace,
+  name: string,
+  translationData?: TranslationData[0],
+  markedTag?: MarkedTag
+) {
   const cview = new DetailedInfoView({
     namespace: namespace,
     name: name,
@@ -121,8 +126,8 @@ export function showDetailedInfoView(namespace: TagNamespace, name: string, tran
     marked: Boolean(markedTag),
     watched: markedTag?.watched || false,
     hidden: markedTag?.hidden || false,
-    weight: markedTag?.weight || 10
-  })
+    weight: markedTag?.weight || 10,
+  });
   const sheet = new DialogSheet({
     title: "详细信息",
     bgcolor: $color("backgroundColor"),
@@ -130,8 +135,8 @@ export function showDetailedInfoView(namespace: TagNamespace, name: string, tran
     doneHandler: async () => {
       const { result, error } = await cview.view.exec("getData()");
       return result;
-    }
-  })
+    },
+  });
   return new Promise<{
     watched: boolean;
     weight: number;

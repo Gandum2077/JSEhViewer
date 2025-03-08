@@ -1,8 +1,47 @@
-import { Base, ContentView, DynamicItemSizeMatrix, DynamicPreferenceListView, DynamicRowHeightList, Flowlayout, Input, PrefsRowBoolean, PrefsRowInteger, PrefsRowList, searchBarBgcolor, SymbolButton, Tab } from "jsbox-cview";
-import { catColor, favcatColor, searchableCategories, defaultButtonColor, namespaceTranslations, namespaceColor, namespaceOrderList, catTranslations } from "../utils/glv";
+import {
+  Base,
+  ContentView,
+  DynamicItemSizeMatrix,
+  DynamicPreferenceListView,
+  DynamicRowHeightList,
+  Flowlayout,
+  Input,
+  PrefsRowBoolean,
+  PrefsRowInteger,
+  PrefsRowList,
+  searchBarBgcolor,
+  SymbolButton,
+  Tab,
+} from "jsbox-cview";
+import {
+  catColor,
+  favcatColor,
+  searchableCategories,
+  defaultButtonColor,
+  namespaceTranslations,
+  namespaceColor,
+  namespaceOrderList,
+  catTranslations,
+} from "../utils/glv";
 import { configManager } from "../utils/config";
-import { EHSearchTerm, assembleSearchTerms, EHQualifier, EHSearchedCategory, parseFsearch, TagNamespace, tagNamespaces, tagNamespaceAlternates, TagNamespaceAlternate, tagNamespaceAlternateMap } from "ehentai-parser";
-import { ArchiveTabOptions, FavoritesTabOptions, FrontPageTabOptions, WatchedTabOptions } from "../types";
+import {
+  EHSearchTerm,
+  assembleSearchTerms,
+  EHQualifier,
+  EHSearchedCategory,
+  parseFsearch,
+  TagNamespace,
+  tagNamespaces,
+  tagNamespaceAlternates,
+  TagNamespaceAlternate,
+  tagNamespaceAlternateMap,
+} from "ehentai-parser";
+import {
+  ArchiveTabOptions,
+  FavoritesTabOptions,
+  FrontPageTabOptions,
+  WatchedTabOptions,
+} from "../types";
 
 // 整体构造是上面一个自定义导航栏，下面是一个搜索选项列表
 // 下面一共有五个List叠放在一起，分别是：
@@ -12,7 +51,11 @@ import { ArchiveTabOptions, FavoritesTabOptions, FrontPageTabOptions, WatchedTab
 // 4. 显示收藏的搜索选项
 // 5. 显示存档的搜索选项
 
-type MenuDisplayMode = "onlyShowFrontPage" | "onlyShowArchive" | "showAllExceptArchive" | "showAll";
+type MenuDisplayMode =
+  | "onlyShowFrontPage"
+  | "onlyShowArchive"
+  | "showAllExceptArchive"
+  | "showAll";
 
 const TAG_FONT_SIZE = 15;
 
@@ -36,62 +79,76 @@ class SearchSuggestionView extends Base<UIListView, UiTypes.ListOptions> {
         footer: {
           type: "view",
           props: {
-            height: 265
-          }
+            height: 265,
+          },
         },
         template: {
-          views: [{
-            type: "label",
-            props: {
-              id: "content",
-              lines: 2,
-              font: $font("bold", 14)
+          views: [
+            {
+              type: "label",
+              props: {
+                id: "content",
+                lines: 2,
+                font: $font("bold", 14),
+              },
+              layout: (make, view) => {
+                make.left.inset(20);
+                make.right.inset(10);
+                make.top.bottom.inset(0);
+              },
             },
-            layout: (make, view) => {
-              make.left.inset(20)
-              make.right.inset(10)
-              make.top.bottom.inset(0)
-            }
-          }]
-        }
+          ],
+        },
       },
       layout: $layout.fill,
       events: {
         didSelect: (sender, indexPath, data) => {
           const suggestion = this.currentSuggestions[indexPath.row];
-          const fsearch = assembleSearchTerms([{
-            namespace: suggestion.namespace,
-            term: suggestion.name,
-            dollar: true,
-            subtract: false,
-            tilde: false
-          }])
-          tagSelected(suggestion.remaining ? suggestion.remaining + " " + fsearch + " " : fsearch + " ")
-        }
-      }
-    })
+          const fsearch = assembleSearchTerms([
+            {
+              namespace: suggestion.namespace,
+              term: suggestion.name,
+              dollar: true,
+              subtract: false,
+              tilde: false,
+            },
+          ]);
+          tagSelected(
+            suggestion.remaining
+              ? suggestion.remaining + " " + fsearch + " "
+              : fsearch + " "
+          );
+        },
+      },
+    });
   }
 
-  set suggestions(suggestions: {
-    namespace: TagNamespace;
-    name: string;
-    translation: string;
-    remaining: string;
-  }[]) {
+  set suggestions(
+    suggestions: {
+      namespace: TagNamespace;
+      name: string;
+      translation: string;
+      remaining: string;
+    }[]
+  ) {
     this.currentSuggestions = suggestions;
     this.view.data = this.mapData(suggestions);
   }
 
-  mapData(raw: {
-    namespace: TagNamespace;
-    name: string;
-    translation: string;
-  }[]) {
-    return raw.map(item => ({
+  mapData(
+    raw: {
+      namespace: TagNamespace;
+      name: string;
+      translation: string;
+    }[]
+  ) {
+    return raw.map((item) => ({
       content: {
-        text: `${namespaceTranslations[item.namespace]}:${item.translation}   ${item.name}`
-      }
-    }))
+        text: `${namespaceTranslations[item.namespace]}:${item.translation}   ${
+          item.name
+        }`,
+      },
+    }));
   }
 }
 
@@ -103,7 +160,7 @@ class SearchHistoryViewSectionTitle extends Base<UIView, UiTypes.ViewOptions> {
       type: "view",
       props: {
         id: this.id,
-        bgcolor: $color("insetGroupedBackground")
+        bgcolor: $color("insetGroupedBackground"),
       },
       layout: $layout.fill,
       views: [
@@ -120,47 +177,53 @@ class SearchHistoryViewSectionTitle extends Base<UIView, UiTypes.ViewOptions> {
               type: "image",
               props: {
                 symbol: symbol,
-                tintColor: $color("secondaryText")
+                tintColor: $color("secondaryText"),
               },
               layout: (make, view) => {
                 make.left.inset(0);
                 make.centerY.equalTo(view.super);
                 make.size.equalTo($size(16, 16));
-              }
+              },
             },
             {
               type: "label",
               props: {
                 text: title,
                 textColor: $color("secondaryText"),
-                font: $font("bold", 14)
+                font: $font("bold", 14),
               },
               layout: (make, view) => {
                 make.left.equalTo(view.prev.right).inset(3);
                 make.centerY.equalTo(view.super);
-              }
-            }
-          ]
-        }
-      ]
-    })
+              },
+            },
+          ],
+        },
+      ],
+    });
   }
 
   heightToWidth(width: number) {
-    return 44
+    return 44;
   }
 }
 
 class HistoryMatrixItem extends Base<UILabelView, UiTypes.LabelOptions> {
   _defineView: () => UiTypes.LabelOptions;
   private _text: string;
-  constructor(tag: { namespace?: TagNamespace, qualifier?: EHQualifier, term: string }) {
+  constructor(tag: {
+    namespace?: TagNamespace;
+    qualifier?: EHQualifier;
+    term: string;
+  }) {
     super();
-    this._text = tag.namespace ? (configManager.translate(tag.namespace, tag.term) || tag.term) : tag.term
+    this._text = tag.namespace
+      ? configManager.translate(tag.namespace, tag.term) || tag.term
+      : tag.term;
     if (tag.qualifier === "uploader") {
-      this._text = "上传者:" + tag.term
+      this._text = "上传者:" + tag.term;
     } else if (tag.qualifier) {
-      this._text = tag.qualifier + ":" + this._text
+      this._text = tag.qualifier + ":" + this._text;
     }
     this._defineView = () => ({
       type: "label",
@@ -174,16 +237,20 @@ class HistoryMatrixItem extends Base<UILabelView, UiTypes.LabelOptions> {
         cornerRadius: 10,
         smoothCorners: true,
       },
-      layout: $layout.fill
-    })
+      layout: $layout.fill,
+    });
   }
 
   itemWidth() {
-    return Math.ceil($text.sizeThatFits({
-      text: this._text,
-      width: 1000,
-      font: $font(TAG_FONT_SIZE)
-    }).width) + 16;
+    return (
+      Math.ceil(
+        $text.sizeThatFits({
+          text: this._text,
+          width: 1000,
+          font: $font(TAG_FONT_SIZE),
+        }).width
+      ) + 16
+    );
   }
 }
 
@@ -191,85 +258,95 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
   constructor(textHandler: (text: string) => void) {
     super();
-    const mostAccessedTags = configManager.getTenMostAccessedTags()
-    const lastAccessSearchTerms = configManager.getSomeLastAccessSearchTerms()
-    const sectionTitleMostSearched = new SearchHistoryViewSectionTitle("最常搜索", "list.number");
+    const mostAccessedTags = configManager.getTenMostAccessedTags();
+    const lastAccessSearchTerms = configManager.getSomeLastAccessSearchTerms();
+    const sectionTitleMostSearched = new SearchHistoryViewSectionTitle(
+      "最常搜索",
+      "list.number"
+    );
     const historyMatrixMostSearched = new Flowlayout({
       props: {
-        items: mostAccessedTags.map(tag => new HistoryMatrixItem(tag)),
+        items: mostAccessedTags.map((tag) => new HistoryMatrixItem(tag)),
         spacing: 8,
         itemHeight: 26,
-        bgcolor: $color("insetGroupedBackground")
+        bgcolor: $color("insetGroupedBackground"),
       },
       layout: $layout.fill,
       events: {
         didSelect(sender, index, item) {
           const tag = mostAccessedTags[index];
-          const fsearch = assembleSearchTerms([{
-            namespace: tag.namespace,
-            qualifier: tag.qualifier,
-            term: tag.term,
-            dollar: Boolean(tag.namespace),
-            subtract: false,
-            tilde: false
-          }])
-          textHandler(fsearch)
-        }
-      }
-    })
-    const sectionTitleLastAccessed = new SearchHistoryViewSectionTitle("最近访问", "clock.fill");
+          const fsearch = assembleSearchTerms([
+            {
+              namespace: tag.namespace,
+              qualifier: tag.qualifier,
+              term: tag.term,
+              dollar: Boolean(tag.namespace),
+              subtract: false,
+              tilde: false,
+            },
+          ]);
+          textHandler(fsearch);
+        },
+      },
+    });
+    const sectionTitleLastAccessed = new SearchHistoryViewSectionTitle(
+      "最近访问",
+      "clock.fill"
+    );
     const historyMatrixLastAccessed = new Flowlayout({
       props: {
-        items: lastAccessSearchTerms.map(tag => new HistoryMatrixItem(tag)),
+        items: lastAccessSearchTerms.map((tag) => new HistoryMatrixItem(tag)),
         spacing: 8,
         itemHeight: 26,
-        bgcolor: $color("insetGroupedBackground")
+        bgcolor: $color("insetGroupedBackground"),
       },
       layout: $layout.fill,
       events: {
         didSelect(sender, index, item) {
           const tag = lastAccessSearchTerms[index];
-          const fsearch = assembleSearchTerms([{
-            namespace: tag.namespace,
-            qualifier: tag.qualifier,
-            term: tag.term,
-            dollar: Boolean(tag.namespace),
-            subtract: false,
-            tilde: false
-          }])
-          textHandler(fsearch)
-        }
-      }
-    })
+          const fsearch = assembleSearchTerms([
+            {
+              namespace: tag.namespace,
+              qualifier: tag.qualifier,
+              term: tag.term,
+              dollar: Boolean(tag.namespace),
+              subtract: false,
+              tilde: false,
+            },
+          ]);
+          textHandler(fsearch);
+        },
+      },
+    });
     const list = new DynamicRowHeightList({
       rows: [
         sectionTitleMostSearched,
         historyMatrixMostSearched,
         sectionTitleLastAccessed,
-        historyMatrixLastAccessed
+        historyMatrixLastAccessed,
       ],
       props: {
         selectable: false,
         separatorHidden: true,
         showsVerticalIndicator: false,
         bgcolor: $color("insetGroupedBackground"),
-        keyboardDismissMode: 1
+        keyboardDismissMode: 1,
       },
       layout: (make, view) => {
         make.left.right.inset(15);
         make.top.bottom.inset(0);
       },
-      events: {}
-    })
+      events: {},
+    });
     this._defineView = () => ({
       type: "view",
       props: {
         id: this.id,
-        bgcolor: $color("insetGroupedBackground")
+        bgcolor: $color("insetGroupedBackground"),
       },
       layout: $layout.fill,
-      views: [list.definition]
-    })
+      views: [list.definition],
+    });
   }
 }
 
@@ -278,19 +355,19 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   private _excludedCategories: Set<EHSearchedCategory> = new Set();
   private _enablePageFilters: boolean = false;
   private _options: {
-    browseExpungedGalleries?: boolean,
-    requireGalleryTorrent?: boolean,
-    minimumPages?: number,
-    maximumPages?: number,
-    minimumRating?: number,
-    disableLanguageFilters?: boolean,
-    disableUploaderFilters?: boolean,
-    disableTagFilters?: boolean
+    browseExpungedGalleries?: boolean;
+    requireGalleryTorrent?: boolean;
+    minimumPages?: number;
+    maximumPages?: number;
+    minimumRating?: number;
+    disableLanguageFilters?: boolean;
+    disableUploaderFilters?: boolean;
+    disableTagFilters?: boolean;
   } = {};
   cviews: {
-    catList: DynamicItemSizeMatrix,
-    optionsList: DynamicPreferenceListView
-  }
+    catList: DynamicItemSizeMatrix;
+    optionsList: DynamicPreferenceListView;
+  };
   constructor() {
     super();
     const optionsList = new DynamicPreferenceListView({
@@ -299,28 +376,36 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         style: 2,
         scrollEnabled: false,
         rowHeight: 44,
-        bgcolor: $color("backgroundColor")
+        bgcolor: $color("backgroundColor"),
       },
       layout: $layout.fill,
       events: {
-        changed: values => {
-          const reloadFlag = this._enablePageFilters !== values.enablePageFilters;
+        changed: (values) => {
+          const reloadFlag =
+            this._enablePageFilters !== values.enablePageFilters;
           this._options = {
-            browseExpungedGalleries: values.browseExpungedGalleries || undefined,
+            browseExpungedGalleries:
+              values.browseExpungedGalleries || undefined,
             requireGalleryTorrent: values.requireGalleryTorrent || undefined,
-            minimumPages: values.enablePageFilters ? values.minimumPages : undefined,
-            maximumPages: values.enablePageFilters ? values.maximumPages : undefined,
-            minimumRating: values.minimumRating ? values.minimumRating + 1 : undefined,
+            minimumPages: values.enablePageFilters
+              ? values.minimumPages
+              : undefined,
+            maximumPages: values.enablePageFilters
+              ? values.maximumPages
+              : undefined,
+            minimumRating: values.minimumRating
+              ? values.minimumRating + 1
+              : undefined,
             disableLanguageFilters: values.disableLanguageFilters || undefined,
             disableUploaderFilters: values.disableUploaderFilters || undefined,
-            disableTagFilters: values.disableTagFilters || undefined
-          }
+            disableTagFilters: values.disableTagFilters || undefined,
+          };
           this._enablePageFilters = values.enablePageFilters;
           if (reloadFlag) {
             optionsList.sections = this.mapSections();
           }
-        }
-      }
+        },
+      },
     });
     const catList = new DynamicItemSizeMatrix({
       props: {
@@ -333,21 +418,23 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         maxColumns: 5,
         data: this.mapData(),
         template: {
-          views: [{
-            type: "label",
-            props: {
-              id: "label",
-              align: $align.center,
-              font: $font("bold", 16),
-              textColor: $color("white"),
+          views: [
+            {
+              type: "label",
+              props: {
+                id: "label",
+                align: $align.center,
+                font: $font("bold", 16),
+                textColor: $color("white"),
+              },
+              layout: $layout.fill,
             },
-            layout: $layout.fill
-          }]
+          ],
         },
         footer: {
           type: "view",
           props: {
-            height: 44 + 44 * 9 + 35 * 2
+            height: 44 + 44 * 9 + 35 * 2,
           },
           views: [
             {
@@ -365,14 +452,14 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                         font: $font(16),
                         bgcolor: defaultButtonColor,
                         cornerRadius: 5,
-                        smoothCorners: true
+                        smoothCorners: true,
                       },
                       events: {
-                        tapped: sender => {
+                        tapped: (sender) => {
                           this._excludedCategories = new Set();
                           catList.data = this.mapData();
-                        }
-                      }
+                        },
+                      },
                     },
                     {
                       type: "button",
@@ -381,14 +468,16 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                         font: $font(16),
                         bgcolor: defaultButtonColor,
                         cornerRadius: 5,
-                        smoothCorners: true
+                        smoothCorners: true,
                       },
                       events: {
-                        tapped: sender => {
-                          this._excludedCategories = new Set(searchableCategories);
+                        tapped: (sender) => {
+                          this._excludedCategories = new Set(
+                            searchableCategories
+                          );
                           catList.data = this.mapData();
-                        }
-                      }
+                        },
+                      },
                     },
                     {
                       type: "button",
@@ -397,25 +486,27 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                         font: $font(16),
                         bgcolor: defaultButtonColor,
                         cornerRadius: 5,
-                        smoothCorners: true
+                        smoothCorners: true,
                       },
                       events: {
-                        tapped: sender => {
-                          const reversed = searchableCategories.filter(cat => !this._excludedCategories.has(cat));
+                        tapped: (sender) => {
+                          const reversed = searchableCategories.filter(
+                            (cat) => !this._excludedCategories.has(cat)
+                          );
                           this._excludedCategories = new Set(reversed);
                           catList.data = this.mapData();
-                        }
-                      }
-                    }
-                  ]
-                }
+                        },
+                      },
+                    },
+                  ],
+                },
               },
               layout: (make, view) => {
                 make.top.inset(5);
                 make.right.inset(16);
                 make.height.equalTo(34);
                 make.width.equalTo(230);
-              }
+              },
             },
             {
               type: "view",
@@ -424,11 +515,11 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                 make.top.equalTo(view.prev.bottom).inset(0);
                 make.left.right.bottom.inset(0);
               },
-              views: [optionsList.definition]
-            }
-          ]
+              views: [optionsList.definition],
+            },
+          ],
         },
-        keyboardDismissMode: 1
+        keyboardDismissMode: 1,
       },
       layout: $layout.fill,
       events: {
@@ -441,31 +532,32 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
             this._excludedCategories.add(cat);
           }
           catList.data = this.mapData();
-        }
-      }
-    })
+        },
+      },
+    });
     this.cviews = {
       catList,
-      optionsList
-    }
+      optionsList,
+    };
     this._defineView = () => ({
       type: "view",
       props: {
         id: this.id,
-        hidden: true
+        hidden: true,
       },
       layout: $layout.fill,
-      views: [catList.definition]
+      views: [catList.definition],
     });
   }
 
   mapData() {
-    return searchableCategories.map(cat => ({
+    return searchableCategories.map((cat) => ({
       label: {
-        text: catTranslations[cat], bgcolor: catColor[cat],
-        alpha: this._excludedCategories.has(cat) ? 0.4 : 1
-      }
-    }))
+        text: catTranslations[cat],
+        bgcolor: catColor[cat],
+        alpha: this._excludedCategories.has(cat) ? 0.4 : 1,
+      },
+    }));
   }
 
   mapSections() {
@@ -473,45 +565,45 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       type: "boolean",
       title: "只显示已删除的图库",
       key: "browseExpungedGalleries",
-      value: this._options.browseExpungedGalleries || false
-    }
+      value: this._options.browseExpungedGalleries || false,
+    };
     const requireGalleryTorrentPrefsRow: PrefsRowBoolean = {
       type: "boolean",
       title: "只显示有种子的图库",
       key: "requireGalleryTorrent",
-      value: this._options.requireGalleryTorrent || false
-    }
+      value: this._options.requireGalleryTorrent || false,
+    };
     const disableLanguageFiltersPrefsRow: PrefsRowBoolean = {
       type: "boolean",
       title: "禁用过滤器（语言）",
       key: "disableLanguageFilters",
-      value: this._options.disableLanguageFilters || false
-    }
+      value: this._options.disableLanguageFilters || false,
+    };
     const disableUploaderFiltersPrefsRow: PrefsRowBoolean = {
       type: "boolean",
       title: "禁用过滤器（上传者）",
       key: "disableUploaderFilters",
-      value: this._options.disableUploaderFilters || false
-    }
+      value: this._options.disableUploaderFilters || false,
+    };
     const disableTagFiltersPrefsRow: PrefsRowBoolean = {
       type: "boolean",
       title: "禁用过滤器（标签）",
       key: "disableTagFilters",
-      value: this._options.disableTagFilters || false
-    }
+      value: this._options.disableTagFilters || false,
+    };
     const enablePageFiltersPrefsRow: PrefsRowBoolean = {
       type: "boolean",
       title: "页数",
       key: "enablePageFilters",
-      value: this._enablePageFilters || false
-    }
+      value: this._enablePageFilters || false,
+    };
     const minimumRatingPrefsRow: PrefsRowList = {
       type: "list",
       title: "评分",
       key: "minimumRating",
       value: this._options.minimumRating ? this._options.minimumRating - 1 : 0,
-      items: ["不使用", "至少2星", "至少3星", "至少4星", "至少5星"]
-    }
+      items: ["不使用", "至少2星", "至少3星", "至少4星", "至少5星"],
+    };
     const minimumPagesPrefsRow: PrefsRowInteger = {
       type: "integer",
       title: "页数最小值",
@@ -519,8 +611,8 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       placeholder: "0~2000",
       min: 0,
       max: 2000,
-      value: this._options.minimumPages
-    }
+      value: this._options.minimumPages,
+    };
     const maximumPagesPrefsRow: PrefsRowInteger = {
       type: "integer",
       title: "页数最大值",
@@ -528,44 +620,48 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       placeholder: "0~2000",
       min: 0,
       max: 2000,
-      value: this._options.maximumPages
-    }
+      value: this._options.maximumPages,
+    };
     if (this._enablePageFilters) {
-      return [{
-        title: "",
-        rows: [
-          browseExpungedGalleriesPrefsRow,
-          requireGalleryTorrentPrefsRow,
-          enablePageFiltersPrefsRow,
-          minimumPagesPrefsRow,
-          maximumPagesPrefsRow,
-          minimumRatingPrefsRow,
-          disableLanguageFiltersPrefsRow,
-          disableUploaderFiltersPrefsRow,
-          disableTagFiltersPrefsRow
-        ]
-      }]
+      return [
+        {
+          title: "",
+          rows: [
+            browseExpungedGalleriesPrefsRow,
+            requireGalleryTorrentPrefsRow,
+            enablePageFiltersPrefsRow,
+            minimumPagesPrefsRow,
+            maximumPagesPrefsRow,
+            minimumRatingPrefsRow,
+            disableLanguageFiltersPrefsRow,
+            disableUploaderFiltersPrefsRow,
+            disableTagFiltersPrefsRow,
+          ],
+        },
+      ];
     } else {
-      return [{
-        title: "",
-        rows: [
-          browseExpungedGalleriesPrefsRow,
-          requireGalleryTorrentPrefsRow,
-          enablePageFiltersPrefsRow,
-          minimumRatingPrefsRow,
-          disableLanguageFiltersPrefsRow,
-          disableUploaderFiltersPrefsRow,
-          disableTagFiltersPrefsRow
-        ]
-      }]
+      return [
+        {
+          title: "",
+          rows: [
+            browseExpungedGalleriesPrefsRow,
+            requireGalleryTorrentPrefsRow,
+            enablePageFiltersPrefsRow,
+            minimumRatingPrefsRow,
+            disableLanguageFiltersPrefsRow,
+            disableUploaderFiltersPrefsRow,
+            disableTagFiltersPrefsRow,
+          ],
+        },
+      ];
     }
   }
 
   get data() {
     return {
       excludedCategories: [...this._excludedCategories],
-      options: this._options
-    }
+      options: this._options,
+    };
   }
 }
 
@@ -573,44 +669,46 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
   private _selectedFavcat?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   cviews: {
-    favcatList: DynamicItemSizeMatrix,
-    optionsList: DynamicPreferenceListView
-  }
+    favcatList: DynamicItemSizeMatrix;
+    optionsList: DynamicPreferenceListView;
+  };
   constructor() {
     super();
     const optionsList = new DynamicPreferenceListView({
-      sections: [{
-        title: "",
-        rows: [
-          {
-            type: "boolean",
-            title: "禁用过滤器（语言）",
-            key: "disableLanguageFilters",
-            value: false
-          },
-          {
-            type: "boolean",
-            title: "禁用过滤器（上传者）",
-            key: "disableUploaderFilters",
-            value: false
-          },
-          {
-            type: "boolean",
-            title: "禁用过滤器（标签）",
-            key: "disableTagFilters",
-            value: false
-          }
-        ]
-      }],
+      sections: [
+        {
+          title: "",
+          rows: [
+            {
+              type: "boolean",
+              title: "禁用过滤器（语言）",
+              key: "disableLanguageFilters",
+              value: false,
+            },
+            {
+              type: "boolean",
+              title: "禁用过滤器（上传者）",
+              key: "disableUploaderFilters",
+              value: false,
+            },
+            {
+              type: "boolean",
+              title: "禁用过滤器（标签）",
+              key: "disableTagFilters",
+              value: false,
+            },
+          ],
+        },
+      ],
       props: {
         style: 2,
         scrollEnabled: false,
         height: 44 * 3 + 35 * 2,
         rowHeight: 44,
-        bgcolor: $color("backgroundColor")
+        bgcolor: $color("backgroundColor"),
       },
       layout: $layout.fill,
-      events: {}
+      events: {},
     });
     const favcatList = new DynamicItemSizeMatrix({
       props: {
@@ -625,7 +723,7 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
           props: {
             bgcolor: $color("tertiarySurface"),
             cornerRadius: 10,
-            smoothCorners: true
+            smoothCorners: true,
           },
           views: [
             {
@@ -633,13 +731,13 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
               props: {
                 id: "icon",
                 symbol: "heart.fill",
-                contentMode: 1
+                contentMode: 1,
               },
               layout: (make, view) => {
                 make.left.inset(10);
                 make.centerY.equalTo(view.super);
                 make.size.equalTo($size(20, 20));
-              }
+              },
             },
             {
               type: "label",
@@ -647,44 +745,54 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                 id: "label",
                 align: $align.left,
                 lines: 2,
-                font: $font(16)
+                font: $font(16),
               },
               layout: (make, view) => {
                 make.left.equalTo(view.prev.right).inset(10);
                 make.height.equalTo(view.super);
                 make.right.inset(10);
-              }
-            }
-          ]
+              },
+            },
+          ],
         },
         footer: optionsList.definition,
-        keyboardDismissMode: 1
+        keyboardDismissMode: 1,
       },
       layout: $layout.fill,
       events: {
         didSelect: (sender, indexPath, data) => {
-          const selectedIndex = indexPath.row as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+          const selectedIndex = indexPath.row as
+            | 0
+            | 1
+            | 2
+            | 3
+            | 4
+            | 5
+            | 6
+            | 7
+            | 8
+            | 9;
           if (this._selectedFavcat === selectedIndex) {
             this._selectedFavcat = undefined;
           } else {
             this._selectedFavcat = selectedIndex;
-          };
+          }
           favcatList.data = this.mapData();
-        }
-      }
-    })
+        },
+      },
+    });
     this.cviews = {
       favcatList,
-      optionsList
-    }
+      optionsList,
+    };
     this._defineView = () => ({
       type: "view",
       props: {
         id: this.id,
-        hidden: true
+        hidden: true,
       },
       layout: $layout.fill,
-      views: [favcatList.definition]
+      views: [favcatList.definition],
     });
   }
 
@@ -693,29 +801,32 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       const i = index as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
       return {
         icon: {
-          tintColor: favcatColor[i]
+          tintColor: favcatColor[i],
         },
         label: {
           text: title,
-          textColor: (this._selectedFavcat === i) ? $color("systemLink") : $color("primaryText")
-        }
-      }
-    })
+          textColor:
+            this._selectedFavcat === i
+              ? $color("systemLink")
+              : $color("primaryText"),
+        },
+      };
+    });
   }
 
   get options() {
     return this.cviews.optionsList.values as {
-      disableLanguageFilters: boolean,
-      disableUploaderFilters: boolean,
-      disableTagFilters: boolean
-    }
+      disableLanguageFilters: boolean;
+      disableUploaderFilters: boolean;
+      disableTagFilters: boolean;
+    };
   }
 
   get data() {
     return {
       selectedFavcat: this._selectedFavcat,
-      options: this.options
-    }
+      options: this.options,
+    };
   }
 }
 
@@ -724,15 +835,15 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   private _excludedCategories: Set<EHSearchedCategory> = new Set();
   private _enablePageFilters: boolean = false;
   private _options: {
-    type: "readlater" | "downloaded" | "all"
-    minimumPages?: number,
-    maximumPages?: number,
-    minimumRating?: number
+    type: "readlater" | "downloaded" | "all";
+    minimumPages?: number;
+    maximumPages?: number;
+    minimumRating?: number;
   } = { type: "all" };
   cviews: {
-    catList: DynamicItemSizeMatrix,
-    optionsList: DynamicPreferenceListView
-  }
+    catList: DynamicItemSizeMatrix;
+    optionsList: DynamicPreferenceListView;
+  };
   constructor() {
     super();
     const optionsList = new DynamicPreferenceListView({
@@ -741,25 +852,35 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         style: 2,
         scrollEnabled: false,
         rowHeight: 44,
-        bgcolor: $color("backgroundColor")
+        bgcolor: $color("backgroundColor"),
       },
       layout: $layout.fill,
       events: {
-        changed: values => {
-          const reloadFlag = this._enablePageFilters !== values.enablePageFilters;
+        changed: (values) => {
+          const reloadFlag =
+            this._enablePageFilters !== values.enablePageFilters;
 
           this._options = {
-            type: ["readlater", "downloaded", "all"][values.type] as "readlater" | "downloaded" | "all",
-            minimumPages: values.enablePageFilters ? values.minimumPages : undefined,
-            maximumPages: values.enablePageFilters ? values.maximumPages : undefined,
-            minimumRating: values.minimumRating ? values.minimumRating + 1 : undefined
-          }
+            type: ["readlater", "downloaded", "all"][values.type] as
+              | "readlater"
+              | "downloaded"
+              | "all",
+            minimumPages: values.enablePageFilters
+              ? values.minimumPages
+              : undefined,
+            maximumPages: values.enablePageFilters
+              ? values.maximumPages
+              : undefined,
+            minimumRating: values.minimumRating
+              ? values.minimumRating + 1
+              : undefined,
+          };
           this._enablePageFilters = values.enablePageFilters;
           if (reloadFlag) {
             optionsList.sections = this.mapSections();
           }
-        }
-      }
+        },
+      },
     });
     const catList = new DynamicItemSizeMatrix({
       props: {
@@ -772,21 +893,23 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         maxColumns: 5,
         data: this.mapData(),
         template: {
-          views: [{
-            type: "label",
-            props: {
-              id: "label",
-              align: $align.center,
-              font: $font("bold", 16),
-              textColor: $color("white"),
+          views: [
+            {
+              type: "label",
+              props: {
+                id: "label",
+                align: $align.center,
+                font: $font("bold", 16),
+                textColor: $color("white"),
+              },
+              layout: $layout.fill,
             },
-            layout: $layout.fill
-          }]
+          ],
         },
         footer: {
           type: "view",
           props: {
-            height: 44 + 44 * 4 + 35 * 2
+            height: 44 + 44 * 4 + 35 * 2,
           },
           views: [
             {
@@ -804,14 +927,14 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                         font: $font(16),
                         bgcolor: defaultButtonColor,
                         cornerRadius: 5,
-                        smoothCorners: true
+                        smoothCorners: true,
                       },
                       events: {
-                        tapped: sender => {
+                        tapped: (sender) => {
                           this._excludedCategories = new Set();
                           catList.data = this.mapData();
-                        }
-                      }
+                        },
+                      },
                     },
                     {
                       type: "button",
@@ -820,14 +943,16 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                         font: $font(16),
                         bgcolor: defaultButtonColor,
                         cornerRadius: 5,
-                        smoothCorners: true
+                        smoothCorners: true,
                       },
                       events: {
-                        tapped: sender => {
-                          this._excludedCategories = new Set(searchableCategories);
+                        tapped: (sender) => {
+                          this._excludedCategories = new Set(
+                            searchableCategories
+                          );
                           catList.data = this.mapData();
-                        }
-                      }
+                        },
+                      },
                     },
                     {
                       type: "button",
@@ -836,25 +961,27 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                         font: $font(16),
                         bgcolor: defaultButtonColor,
                         cornerRadius: 5,
-                        smoothCorners: true
+                        smoothCorners: true,
                       },
                       events: {
-                        tapped: sender => {
-                          const reversed = searchableCategories.filter(cat => !this._excludedCategories.has(cat));
+                        tapped: (sender) => {
+                          const reversed = searchableCategories.filter(
+                            (cat) => !this._excludedCategories.has(cat)
+                          );
                           this._excludedCategories = new Set(reversed);
                           catList.data = this.mapData();
-                        }
-                      }
-                    }
-                  ]
-                }
+                        },
+                      },
+                    },
+                  ],
+                },
               },
               layout: (make, view) => {
                 make.top.inset(5);
                 make.right.inset(16);
                 make.height.equalTo(34);
                 make.width.equalTo(230);
-              }
+              },
             },
             {
               type: "view",
@@ -863,11 +990,11 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                 make.top.equalTo(view.prev.bottom).inset(0);
                 make.left.right.bottom.inset(0);
               },
-              views: [optionsList.definition]
-            }
-          ]
+              views: [optionsList.definition],
+            },
+          ],
         },
-        keyboardDismissMode: 1
+        keyboardDismissMode: 1,
       },
       layout: $layout.fill,
       events: {
@@ -880,31 +1007,32 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
             this._excludedCategories.add(cat);
           }
           catList.data = this.mapData();
-        }
-      }
-    })
+        },
+      },
+    });
     this.cviews = {
       catList,
-      optionsList
-    }
+      optionsList,
+    };
     this._defineView = () => ({
       type: "view",
       props: {
         id: this.id,
-        hidden: true
+        hidden: true,
       },
       layout: $layout.fill,
-      views: [catList.definition]
+      views: [catList.definition],
     });
   }
 
   mapData() {
-    return searchableCategories.map(cat => ({
+    return searchableCategories.map((cat) => ({
       label: {
-        text: catTranslations[cat], bgcolor: catColor[cat],
-        alpha: this._excludedCategories.has(cat) ? 0.4 : 1
-      }
-    }))
+        text: catTranslations[cat],
+        bgcolor: catColor[cat],
+        alpha: this._excludedCategories.has(cat) ? 0.4 : 1,
+      },
+    }));
   }
 
   mapSections() {
@@ -913,21 +1041,21 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       title: "类型",
       key: "type",
       value: ["readlater", "downloaded", "all"].indexOf(this._options.type),
-      items: ["稍后阅读", "下载内容", "全部记录"]
-    }
+      items: ["稍后阅读", "下载内容", "全部记录"],
+    };
     const enablePageFiltersPrefsRow: PrefsRowBoolean = {
       type: "boolean",
       title: "页数",
       key: "enablePageFilters",
-      value: this._enablePageFilters || false
-    }
+      value: this._enablePageFilters || false,
+    };
     const minimumRatingPrefsRow: PrefsRowList = {
       type: "list",
       title: "评分",
       key: "minimumRating",
       value: this._options.minimumRating ? this._options.minimumRating - 1 : 0,
-      items: ["不使用", "至少2星", "至少3星", "至少4星", "至少5星"]
-    }
+      items: ["不使用", "至少2星", "至少3星", "至少4星", "至少5星"],
+    };
     const minimumPagesPrefsRow: PrefsRowInteger = {
       type: "integer",
       title: "页数最小值",
@@ -935,8 +1063,8 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       placeholder: "0~2000",
       min: 0,
       max: 2000,
-      value: this._options.minimumPages
-    }
+      value: this._options.minimumPages,
+    };
     const maximumPagesPrefsRow: PrefsRowInteger = {
       type: "integer",
       title: "页数最大值",
@@ -944,58 +1072,66 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       placeholder: "0~2000",
       min: 0,
       max: 2000,
-      value: this._options.maximumPages
-    }
+      value: this._options.maximumPages,
+    };
     if (this._enablePageFilters) {
-      return [{
-        title: "",
-        rows: [
-          typePrefsRow,
-          enablePageFiltersPrefsRow,
-          minimumPagesPrefsRow,
-          maximumPagesPrefsRow,
-          minimumRatingPrefsRow,
-        ]
-      }]
+      return [
+        {
+          title: "",
+          rows: [
+            typePrefsRow,
+            enablePageFiltersPrefsRow,
+            minimumPagesPrefsRow,
+            maximumPagesPrefsRow,
+            minimumRatingPrefsRow,
+          ],
+        },
+      ];
     } else {
-      return [{
-        title: "",
-        rows: [
-          typePrefsRow,
-          enablePageFiltersPrefsRow,
-          minimumRatingPrefsRow,
-        ]
-      }]
+      return [
+        {
+          title: "",
+          rows: [
+            typePrefsRow,
+            enablePageFiltersPrefsRow,
+            minimumRatingPrefsRow,
+          ],
+        },
+      ];
     }
   }
 
   get data() {
     return {
       excludedCategories: [...this._excludedCategories],
-      options: this._options
-    }
+      options: this._options,
+    };
   }
 }
 
-type SearchArgs = FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ArchiveTabOptions
+type SearchArgs =
+  | FrontPageTabOptions
+  | WatchedTabOptions
+  | FavoritesTabOptions
+  | ArchiveTabOptions;
 
 class NavBar extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
   cviews: {
-    tab: Tab,
-    input: Input
-  }
+    tab: Tab;
+    input: Input;
+  };
   private _menuDisplayMode: MenuDisplayMode;
   private _filterSwitch: boolean = false;
   constructor(options: {
-    type: "front_page" | "watched" | "favorites" | "archive",
-    searchTerms?: EHSearchTerm[],
-    menuDisplayMode: MenuDisplayMode,
-    filterChangedHandler: () => void,
-    tabChangedHandler: () => void,
-    inputChangedHandler: (text: string) => void,
-    popHandler: () => void,
-    searchHandler: () => void
+    type: "front_page" | "watched" | "favorites" | "archive";
+    searchTerms?: EHSearchTerm[];
+    menuDisplayMode: MenuDisplayMode;
+    filterChangedHandler: () => void;
+    tabChangedHandler: () => void;
+    inputChangedHandler: (text: string) => void;
+    popHandler: () => void;
+    searchHandler: () => void;
   }) {
     super();
     this._menuDisplayMode = options.menuDisplayMode;
@@ -1003,7 +1139,7 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
       props: {
         symbol: "chevron.left",
         tintColor: $color("primaryText"),
-        insets: $insets(2.5, 2.5, 2.5, 2.5)
+        insets: $insets(2.5, 2.5, 2.5, 2.5),
       },
       layout: (make, view) => {
         make.left.inset(0);
@@ -1011,16 +1147,16 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
         make.height.width.equalTo(30);
       },
       events: {
-        tapped: sender => {
+        tapped: (sender) => {
           options.popHandler();
-        }
-      }
-    })
+        },
+      },
+    });
     const filterButton = new SymbolButton({
       props: {
         symbol: "slider.horizontal.3",
         tintColor: $color("primaryText"),
-        insets: $insets(2.5, 2.5, 2.5, 2.5)
+        insets: $insets(2.5, 2.5, 2.5, 2.5),
       },
       layout: (make, view) => {
         make.right.inset(0);
@@ -1028,7 +1164,7 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
         make.height.width.equalTo(30);
       },
       events: {
-        tapped: sender => {
+        tapped: (sender) => {
           if (this._filterSwitch) {
             this._filterSwitch = false;
             filterButton.tintColor = $color("primaryText");
@@ -1038,16 +1174,19 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
           }
 
           options.filterChangedHandler();
-        }
-      }
-    })
+        },
+      },
+    });
     const input = new Input({
       props: {
-        text: (options.searchTerms && options.searchTerms.length) ? assembleSearchTerms(options.searchTerms) : "",
+        text:
+          options.searchTerms && options.searchTerms.length
+            ? assembleSearchTerms(options.searchTerms)
+            : "",
         type: $kbType.search,
         bgcolor: $color("clear"),
         textColor: $color("primaryText"),
-        font: $font(16)
+        font: $font(16),
       },
       layout: (make, view) => {
         make.left.equalTo(view.prev.right).inset(0);
@@ -1056,19 +1195,19 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
         make.height.equalTo(view.super);
       },
       events: {
-        changed: sender => {
+        changed: (sender) => {
           options.inputChangedHandler(sender.text);
         },
-        returned: sender => {
+        returned: (sender) => {
           options.searchHandler();
-        }
-      }
-    })
+        },
+      },
+    });
     const searchInput = new ContentView({
       props: {
         bgcolor: searchBarBgcolor,
         cornerRadius: 8,
-        smoothCorners: true
+        smoothCorners: true,
       },
       layout: (make, view) => {
         make.left.inset(30);
@@ -1081,37 +1220,44 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
           type: "image",
           props: {
             symbol: "magnifyingglass",
-            tintColor: $color("systemPlaceholderText")
+            tintColor: $color("systemPlaceholderText"),
           },
           layout: (make, view) => {
             make.left.inset(6);
             make.centerY.equalTo(view.super);
             make.size.equalTo($size(20, 20));
-          }
+          },
         },
-        input.definition
-      ]
-    })
+        input.definition,
+      ],
+    });
     const mainView = new ContentView({
       props: {
-        bgcolor: $color("clear")
+        bgcolor: $color("clear"),
       },
       layout: (make, view) => {
         make.top.equalTo(view.super.safeAreaTop).inset(0);
         make.left.right.inset(0);
         make.height.equalTo(50);
       },
-      views: [popButton.definition, searchInput.definition, filterButton.definition]
-    })
+      views: [
+        popButton.definition,
+        searchInput.definition,
+        filterButton.definition,
+      ],
+    });
     const tab = new Tab({
       props: {
         index: {
           front_page: 0,
           watched: 1,
           favorites: 2,
-          archive: 3
+          archive: 3,
         }[options.type],
-        items: options.menuDisplayMode === "showAllExceptArchive" ? ["首页", "订阅", "收藏"] : ["首页", "订阅", "收藏", "存档"]
+        items:
+          options.menuDisplayMode === "showAllExceptArchive"
+            ? ["首页", "订阅", "收藏"]
+            : ["首页", "订阅", "收藏", "存档"],
       },
       layout: (make, view) => {
         make.left.right.inset(50);
@@ -1119,40 +1265,47 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
         make.bottom.inset(10);
       },
       events: {
-        changed: sender => {
+        changed: (sender) => {
           options.tabChangedHandler();
-        }
-      }
-    })
+        },
+      },
+    });
     const seprator: UiTypes.ViewOptions = {
       type: "view",
       props: {
-        bgcolor: $color("separatorColor")
+        bgcolor: $color("separatorColor"),
       },
       layout: (make, view) => {
         make.left.right.inset(0);
         make.height.equalTo(1 / $device.info.screen.scale);
         make.bottom.inset(0);
-      }
-    }
+      },
+    };
     this.cviews = {
       tab,
-      input
-    }
+      input,
+    };
     this._defineView = () => ({
       type: "view",
       props: {
-        id: this.id
+        id: this.id,
       },
       layout: (make, view) => {
         make.left.right.top.inset(0);
-        make.bottom.equalTo(view.super.safeAreaTop).inset(
-          (options.menuDisplayMode === "showAll" || options.menuDisplayMode === "showAllExceptArchive") ? -92 : -50
-        );
+        make.bottom
+          .equalTo(view.super.safeAreaTop)
+          .inset(
+            options.menuDisplayMode === "showAll" ||
+              options.menuDisplayMode === "showAllExceptArchive"
+              ? -92
+              : -50
+          );
       },
-      views: (options.menuDisplayMode === "showAll" || options.menuDisplayMode === "showAllExceptArchive")
-        ? [mainView.definition, tab.definition, seprator]
-        : [mainView.definition, seprator]
+      views:
+        options.menuDisplayMode === "showAll" ||
+        options.menuDisplayMode === "showAllExceptArchive"
+          ? [mainView.definition, tab.definition, seprator]
+          : [mainView.definition, seprator],
     });
   }
 
@@ -1202,7 +1355,7 @@ function _disassembleFsearch(fsearch: string) {
   for (let i = 0; i < fsearch.length; i++) {
     let c = fsearch[i];
     if (c === '"') inQuote = !inQuote;
-    if (c === ' ' && !inQuote) {
+    if (c === " " && !inQuote) {
       if (current) result.push(current);
       current = "";
     } else {
@@ -1213,7 +1366,9 @@ function _disassembleFsearch(fsearch: string) {
   return result;
 }
 
-function _getSearchTermsForSuggestion(fsearch: string): { namespace?: TagNamespace, term: string, remaining: string }[] {
+function _getSearchTermsForSuggestion(
+  fsearch: string
+): { namespace?: TagNamespace; term: string; remaining: string }[] {
   // 1. 拆分fsearch
   const parts = _disassembleFsearch(fsearch);
   if (parts.length === 0) return [];
@@ -1221,28 +1376,35 @@ function _getSearchTermsForSuggestion(fsearch: string): { namespace?: TagNamespa
   const lastPart = parts[parts.length - 1];
   // 2. 如果最后一个部分是一个“完整”的部分，则不需要搜索建议。
   // 判断方法为：如果包含至少两个双引号，或者包含$符号，则认为是一个完整的部分。
-  if (_countCharacter(lastPart, '"') >= 2 || lastPart.includes('$')) return [];
+  if (_countCharacter(lastPart, '"') >= 2 || lastPart.includes("$")) return [];
 
   // 3. 如果最后一个部分包含冒号，则判断是否包含合法的命名空间，如果包含，则需要搜索建议；否则不需要。
-  if (lastPart.includes(':')) {
-    const index = lastPart.lastIndexOf(':');
+  if (lastPart.includes(":")) {
+    const index = lastPart.lastIndexOf(":");
     const namespace = lastPart.substring(0, index).toLowerCase();
     let term = lastPart.substring(index + 1).toLowerCase();
     // 如果term中包含双引号，则必须在开头，否则不合法。
     if (term.includes('"') && term.indexOf('"') !== 0) return [];
     if (term[0] === '"') term = term.substring(1);
     if (tagNamespaces.includes(namespace as TagNamespace)) {
-      return [{
-        namespace: namespace as TagNamespace,
-        term,
-        remaining: parts.slice(0, parts.length - 1).join(" ")
-      }];
-    } else if (tagNamespaceAlternates.includes(namespace as TagNamespaceAlternate)) {
-      return [{
-        namespace: tagNamespaceAlternateMap[namespace as TagNamespaceAlternate],
-        term,
-        remaining: parts.slice(0, parts.length - 1).join(" ")
-      }];
+      return [
+        {
+          namespace: namespace as TagNamespace,
+          term,
+          remaining: parts.slice(0, parts.length - 1).join(" "),
+        },
+      ];
+    } else if (
+      tagNamespaceAlternates.includes(namespace as TagNamespaceAlternate)
+    ) {
+      return [
+        {
+          namespace:
+            tagNamespaceAlternateMap[namespace as TagNamespaceAlternate],
+          term,
+          remaining: parts.slice(0, parts.length - 1).join(" "),
+        },
+      ];
     } else {
       return [];
     }
@@ -1250,10 +1412,12 @@ function _getSearchTermsForSuggestion(fsearch: string): { namespace?: TagNamespa
 
   // 4. 如果最后一个部分只包含一个双引号且在开头，则需要搜索建议；否则不需要。
   if (lastPart.includes('"') && lastPart.indexOf('"') === 0) {
-    return [{
-      term: lastPart.substring(1).toLowerCase(),
-      remaining: parts.slice(0, parts.length - 1).join(" ")
-    }];
+    return [
+      {
+        term: lastPart.substring(1).toLowerCase(),
+        remaining: parts.slice(0, parts.length - 1).join(" "),
+      },
+    ];
   } else if (lastPart.includes('"') && lastPart.indexOf('"') !== 0) {
     return [];
   }
@@ -1262,7 +1426,7 @@ function _getSearchTermsForSuggestion(fsearch: string): { namespace?: TagNamespa
   const cleanParts = [];
   for (let i = parts.length - 1; i >= 0; i--) {
     const part = parts[i];
-    if (!part.includes('"') && !part.includes(':') && !part.includes('$')) {
+    if (!part.includes('"') && !part.includes(":") && !part.includes("$")) {
       cleanParts.push(part.toLowerCase());
     } else {
       break;
@@ -1276,7 +1440,7 @@ function _getSearchTermsForSuggestion(fsearch: string): { namespace?: TagNamespa
     const term = cleanParts.slice(i).join(" ");
     result.push({
       term,
-      remaining: parts.slice(0, parts.length - cleanParts.length + i).join(" ")
+      remaining: parts.slice(0, parts.length - cleanParts.length + i).join(" "),
     });
   }
   return result;
@@ -1292,9 +1456,15 @@ function _getScoreByMatchingDegree(
 ) {
   if (text === tag.name || text === tag.translation) {
     return 0;
-  } else if (tag.name.toLowerCase().startsWith(text) || tag.translation.toLowerCase().startsWith(text)) {
+  } else if (
+    tag.name.toLowerCase().startsWith(text) ||
+    tag.translation.toLowerCase().startsWith(text)
+  ) {
     return 1;
-  } else if (tag.name.toLowerCase().includes(text) || tag.translation.toLowerCase().includes(text)) {
+  } else if (
+    tag.name.toLowerCase().includes(text) ||
+    tag.translation.toLowerCase().includes(text)
+  ) {
     return 2;
   } else {
     return 3;
@@ -1305,7 +1475,10 @@ function _getScoreByNamespace(namespace: TagNamespace) {
   return namespaceOrderList.indexOf(namespace);
 }
 
-function _getScoreByTermOrder(str: string, terms: { namespace?: TagNamespace, term: string, remaining: string }[]) {
+function _getScoreByTermOrder(
+  str: string,
+  terms: { namespace?: TagNamespace; term: string; remaining: string }[]
+) {
   // 遍历优先级列表，找到第一个匹配的优先级并返回该索引
   // 索引越小，优先级越高，因此返回该索引即可
   // 如果一个字符串同时满足多个（比如"ABC"也包含"AB"和"A"），
@@ -1320,11 +1493,13 @@ function _getScoreByTermOrder(str: string, terms: { namespace?: TagNamespace, te
   // 如果都不包含，则返回一个较大的分值
   return terms.length;
 }
-function getSuggestions(terms: {
-  namespace?: TagNamespace;
-  term: string;
-  remaining: string;
-}[]): {
+function getSuggestions(
+  terms: {
+    namespace?: TagNamespace;
+    term: string;
+    remaining: string;
+  }[]
+): {
   namespace: TagNamespace;
   name: string;
   translation: string;
@@ -1335,8 +1510,12 @@ function getSuggestions(terms: {
   } else if (terms.length === 1) {
     const term = terms[0];
     return configManager.translationList
-      .filter(n => (!term.namespace || n.namespace === term.namespace)
-        && (n.name.toLowerCase().includes(term.term) || n.translation.toLowerCase().includes(term.term)))
+      .filter(
+        (n) =>
+          (!term.namespace || n.namespace === term.namespace) &&
+          (n.name.toLowerCase().includes(term.term) ||
+            n.translation.toLowerCase().includes(term.term))
+      )
       .sort((a, b) => {
         const primaryScoreA = _getScoreByMatchingDegree(term.term, a);
         const primaryScoreB = _getScoreByMatchingDegree(term.term, b);
@@ -1348,17 +1527,21 @@ function getSuggestions(terms: {
           return secondaryScoreA - secondaryScoreB;
         }
       })
-      .map(n => ({
+      .map((n) => ({
         namespace: n.namespace,
         name: n.name,
         translation: n.translation,
-        remaining: term.remaining
+        remaining: term.remaining,
       }));
   } else {
     // 对最后一个term进行搜索，然后根据分数排序
     const term = terms[terms.length - 1];
     return configManager.translationList
-      .filter(n => n.name.toLowerCase().includes(term.term) || n.translation.toLowerCase().includes(term.term))
+      .filter(
+        (n) =>
+          n.name.toLowerCase().includes(term.term) ||
+          n.translation.toLowerCase().includes(term.term)
+      )
       .sort((a, b) => {
         const primaryScoreA = _getScoreByTermOrder(a.name, terms);
         const primaryScoreB = _getScoreByTermOrder(b.name, terms);
@@ -1376,15 +1559,20 @@ function getSuggestions(terms: {
           }
         }
       })
-      .map(n => {
+      .map((n) => {
         // 对terms从前往后遍历，找到第一个匹配的term，remaining就是该term的remaining
-        const remaining = terms.find(t => n.name.toLowerCase().includes(t.term) || n.translation.toLowerCase().includes(t.term))?.remaining || "";
+        const remaining =
+          terms.find(
+            (t) =>
+              n.name.toLowerCase().includes(t.term) ||
+              n.translation.toLowerCase().includes(t.term)
+          )?.remaining || "";
         return {
           namespace: n.namespace,
           name: n.name,
           translation: n.translation,
-          remaining
-        }
+          remaining,
+        };
       });
   }
 }
@@ -1392,14 +1580,14 @@ function getSuggestions(terms: {
 class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
   cviews: {
-    navbar: NavBar,
-    searchSuggestionView: SearchSuggestionView,
-    searchHistoryView: SearchHistoryView,
-    frontPageOptionsView: FrontPageOptionsView,
-    watchedOptionsView: FrontPageOptionsView,
-    favoritesOptionsView: FavoritesOptionsView,
-    archiveOptionsView: ArchiveOptionsView
-  }
+    navbar: NavBar;
+    searchSuggestionView: SearchSuggestionView;
+    searchHistoryView: SearchHistoryView;
+    frontPageOptionsView: FrontPageOptionsView;
+    watchedOptionsView: FrontPageOptionsView;
+    favoritesOptionsView: FavoritesOptionsView;
+    archiveOptionsView: ArchiveOptionsView;
+  };
   constructor(
     args: SearchArgs,
     menuDisplayMode: MenuDisplayMode,
@@ -1410,9 +1598,13 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
       type: args.type,
       searchTerms: args.options.searchTerms,
       menuDisplayMode,
-      filterChangedHandler: () => { this.updateHiddenStatus() },
-      tabChangedHandler: () => { this.updateHiddenStatus() },
-      inputChangedHandler: text => {
+      filterChangedHandler: () => {
+        this.updateHiddenStatus();
+      },
+      tabChangedHandler: () => {
+        this.updateHiddenStatus();
+      },
+      inputChangedHandler: (text) => {
         const searchTermsForSuggestion = _getSearchTermsForSuggestion(text);
         if (searchTermsForSuggestion.length === 0) {
           this.cviews.searchSuggestionView.view.hidden = true;
@@ -1422,7 +1614,9 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
         const suggestions = getSuggestions(searchTermsForSuggestion);
         this.cviews.searchSuggestionView.suggestions = suggestions;
       },
-      popHandler: () => { $ui.pop() },
+      popHandler: () => {
+        $ui.pop();
+      },
       searchHandler: () => {
         const fsearch = navbar.cviews.input.view.text.trim();
         let searchTerms: EHSearchTerm[] = [];
@@ -1434,22 +1628,29 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
             message: e.message,
             actions: [
               {
-                title: "查看Wiki", handler: () => {
-                  $app.openURL("https://ehwiki.org/wiki/Gallery_Searching")
-                }
+                title: "查看Wiki",
+                handler: () => {
+                  $app.openURL("https://ehwiki.org/wiki/Gallery_Searching");
+                },
               },
-              { title: "OK" }
-            ]
+              { title: "OK" },
+            ],
           });
           return;
         }
-        if (searchTerms.some(st => st.qualifier && st.tilde && (st.qualifier !== "tag" && st.qualifier !== "weak"))) {
+        if (
+          searchTerms.some(
+            (st) =>
+              st.qualifier &&
+              st.tilde &&
+              st.qualifier !== "tag" &&
+              st.qualifier !== "weak"
+          )
+        ) {
           $ui.alert({
             title: "无意义的符号",
             message: "~符号只能用于标签，其他修饰词均不支持~符号",
-            actions: [
-              { title: "OK" }
-            ]
+            actions: [{ title: "OK" }],
           });
           return;
         }
@@ -1461,9 +1662,9 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
             options: {
               searchTerms,
               excludedCategories: data.excludedCategories,
-              ...data.options
-            }
-          })
+              ...data.options,
+            },
+          });
         } else if (type === "watched") {
           const data = this.cviews.watchedOptionsView.data;
           resolveHandler({
@@ -1471,9 +1672,9 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
             options: {
               searchTerms,
               excludedCategories: data.excludedCategories,
-              ...data.options
-            }
-          })
+              ...data.options,
+            },
+          });
         } else if (type === "favorites") {
           const data = this.cviews.favoritesOptionsView.data;
           resolveHandler({
@@ -1481,17 +1682,21 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
             options: {
               searchTerms,
               favcat: data.selectedFavcat,
-              ...data.options
-            }
-          })
+              ...data.options,
+            },
+          });
         } else {
-          if (searchTerms.some(st => st.qualifier && ["weak", "favnote", "uploaduid"].includes(st.qualifier))) {
+          if (
+            searchTerms.some(
+              (st) =>
+                st.qualifier &&
+                ["weak", "favnote", "uploaduid"].includes(st.qualifier)
+            )
+          ) {
             $ui.alert({
               title: "不支持的修饰词",
               message: "存档搜索不支持修饰词weak, uploaduid, favnote",
-              actions: [
-                { title: "OK" }
-              ]
+              actions: [{ title: "OK" }],
             });
             return;
           }
@@ -1504,26 +1709,26 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
               searchTerms,
               excludedCategories: data.excludedCategories,
               sort: configManager.archiveManagerOrderMethod,
-              ...data.options
-            }
-          })
+              ...data.options,
+            },
+          });
         }
         $ui.pop();
-      }
+      },
     });
-    const searchSuggestionView = new SearchSuggestionView(text => {
+    const searchSuggestionView = new SearchSuggestionView((text) => {
       navbar.cviews.input.view.text = text;
       this.cviews.searchSuggestionView.view.hidden = true;
     });
-    const searchHistoryView = new SearchHistoryView(
-      (text) => {
-        const currentText = navbar.cviews.input.view.text;
-        const newText = currentText
-          ? `${currentText}${currentText[currentText.length - 1] === " " ? "" : " "}${text} `
-          : text + " ";
-        navbar.cviews.input.view.text = newText;
-      }
-    );
+    const searchHistoryView = new SearchHistoryView((text) => {
+      const currentText = navbar.cviews.input.view.text;
+      const newText = currentText
+        ? `${currentText}${
+            currentText[currentText.length - 1] === " " ? "" : " "
+          }${text} `
+        : text + " ";
+      navbar.cviews.input.view.text = newText;
+    });
     const frontPageOptionsView = new FrontPageOptionsView();
     const watchedOptionsView = new FrontPageOptionsView();
     const favoritesOptionsView = new FavoritesOptionsView();
@@ -1535,12 +1740,12 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
       frontPageOptionsView,
       watchedOptionsView,
       favoritesOptionsView,
-      archiveOptionsView
-    }
+      archiveOptionsView,
+    };
     this._defineView = () => ({
       type: "view",
       props: {
-        id: this.id
+        id: this.id,
       },
       layout: $layout.fill,
       views: [
@@ -1549,7 +1754,7 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
           type: "view",
           props: {
             id: this.id,
-            bgcolor: $color("backgroundColor")
+            bgcolor: $color("backgroundColor"),
           },
           layout: (make, view) => {
             make.top.equalTo(view.prev.bottom);
@@ -1561,10 +1766,10 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
             frontPageOptionsView.definition,
             watchedOptionsView.definition,
             favoritesOptionsView.definition,
-            archiveOptionsView.definition
-          ]
-        }
-      ]
+            archiveOptionsView.definition,
+          ],
+        },
+      ],
     });
   }
 
@@ -1608,30 +1813,26 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
 
 export function getSearchOptions(
   args: SearchArgs,
-  menuDisplayMode: MenuDisplayMode,
+  menuDisplayMode: MenuDisplayMode
 ): Promise<SearchArgs> {
   return new Promise((resolve, reject) => {
-    const contentView = new SearchContentView(
-      args,
-      menuDisplayMode,
-      (n) => { resolve(n) }
-    );
+    const contentView = new SearchContentView(args, menuDisplayMode, (n) => {
+      resolve(n);
+    });
     $ui.push({
       props: {
         navBarHidden: true,
-        statusBarStyle: 0
+        statusBarStyle: 0,
       },
-      views: [
-        contentView.definition
-      ],
+      views: [contentView.definition],
       events: {
         appeared: () => {
           contentView.cviews.navbar.cviews.input.view.focus();
         },
         dealloc: () => {
           reject("cancel");
-        }
-      }
+        },
+      },
     });
-  })
+  });
 }

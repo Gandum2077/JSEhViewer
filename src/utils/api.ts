@@ -156,7 +156,12 @@ class APIHandler extends EHAPIHandler {
   > {
     let pageInfo: EHPage | undefined = undefined;
     try {
-      pageInfo = await this.fetchImageInfoByShowpage(gid, imgkey, showkey, page);
+      pageInfo = await this.fetchImageInfoByShowpage(
+        gid,
+        imgkey,
+        showkey,
+        page
+      );
       const data = await this.downloadImage(pageInfo.imageUrl);
       return { success: true, info: pageInfo, data };
     } catch (error: any) {
@@ -169,7 +174,7 @@ class APIHandler extends EHAPIHandler {
     gid: number,
     imgkey: string,
     page: number,
-    showkey?: string  // 第一次获取，可以通过showkey进行，速度更快
+    showkey?: string // 第一次获取，可以通过showkey进行，速度更快
   ) {
     let result:
       | { success: true; info: EHPage; data: NSData }
@@ -182,7 +187,12 @@ class APIHandler extends EHAPIHandler {
       if (i === 0 && showkey) {
         result = await this.downloadImageByShowkey(gid, imgkey, page, showkey);
       } else {
-        result = await this.downloadImageByPageInfo(gid, imgkey, page, reloadKey);
+        result = await this.downloadImageByPageInfo(
+          gid,
+          imgkey,
+          page,
+          reloadKey
+        );
       }
       if (result.success) {
         return result;
@@ -205,7 +215,13 @@ class APIHandler extends EHAPIHandler {
   > {
     let pageInfo;
     try {
-      pageInfo = await this.fetchImageInfo(gid, imgkey, mpvkey, page, reloadKey);
+      pageInfo = await this.fetchImageInfo(
+        gid,
+        imgkey,
+        mpvkey,
+        page,
+        reloadKey
+      );
       const data = await this.downloadImage(pageInfo.imageUrl);
       return { success: true, info: pageInfo, data };
     } catch (error: any) {
@@ -228,7 +244,13 @@ class APIHandler extends EHAPIHandler {
     };
     let reloadKey: string | undefined;
     for (let i = 0; i < 3; i++) {
-      result = await this.downloadImageByMpv(gid, imgkey, mpvkey, page, reloadKey);
+      result = await this.downloadImageByMpv(
+        gid,
+        imgkey,
+        mpvkey,
+        page,
+        reloadKey
+      );
       if (result.success) {
         return result;
       } else {
@@ -327,7 +349,7 @@ abstract class ConcurrentDownloaderBase {
   protected _paused = true;
   protected abstract _maxConcurrency: number;
   protected _running = 0;
-  constructor() { }
+  constructor() {}
 
   protected abstract _getNextTask(): Task | undefined;
 
@@ -547,10 +569,14 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
       started: boolean;
     }[];
   };
-  constructor({ infos, mpvAvailable, finishHandler }: {
+  constructor({
+    infos,
+    mpvAvailable,
+    finishHandler,
+  }: {
     infos: EHGallery;
     mpvAvailable: boolean;
-    finishHandler: () => void
+    finishHandler: () => void;
   }) {
     super();
     this.infos = infos;
@@ -606,13 +632,16 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
       this.result.htmls[page].success = true;
     }
 
-    if (this.result.htmls.every(n => n.success) && !$file.exists(galleryInfoPath + `${this.gid}.json`)) {
+    if (
+      this.result.htmls.every((n) => n.success) &&
+      !$file.exists(galleryInfoPath + `${this.gid}.json`)
+    ) {
       // 如果此时html已经全部下载完成，并且本地文件不存在，保存到本地
       const text = JSON.stringify(this.infos, null, 2);
       $file.write({
         data: $data({ string: text }),
-        path: galleryInfoPath + `${this.gid}.json`
-      })
+        path: galleryInfoPath + `${this.gid}.json`,
+      });
     }
 
     // 查找已经存在的缩略图
@@ -687,7 +716,11 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     if (this.mpvAvailable) {
       if (!this.result.mpv.started) {
         return this.createMpvTask();
-      } else if (!this.result.mpv.success && this.infos.thumbnail_size === "large" && "0" in this.infos.images) {
+      } else if (
+        !this.result.mpv.success &&
+        this.infos.thumbnail_size === "large" &&
+        "0" in this.infos.images
+      ) {
         // 此时可以并行的任务：第一页缩略图的下载任务
         // 前提：mpv任务还没有成功，thumbanil_size=large, infos中有第一页的数据
         const compoundThumbnailsZero: CompoundThumbnail[] = [];
@@ -700,7 +733,8 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
         };
         for (let i = 1; i < imagesOnThisPage.length; i++) {
           if (
-            imagesOnThisPage[i].thumbnail_url === compoundThumbnail.thumbnail_url
+            imagesOnThisPage[i].thumbnail_url ===
+            compoundThumbnail.thumbnail_url
           ) {
             compoundThumbnail.endIndex = imagesOnThisPage[i].page;
             compoundThumbnail.images.push(imagesOnThisPage[i]);
@@ -715,8 +749,11 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           }
         }
 
-        const compoundThumbnailItem = compoundThumbnailsZero.find(n => this.result.thumbnails.some((i) => i.started === false));
-        if (compoundThumbnailItem) return this.createCompoundThumbnailTask(compoundThumbnailItem);
+        const compoundThumbnailItem = compoundThumbnailsZero.find((n) =>
+          this.result.thumbnails.some((i) => i.started === false)
+        );
+        if (compoundThumbnailItem)
+          return this.createCompoundThumbnailTask(compoundThumbnailItem);
       }
       // 如果没有mpvkey，则不进行下面的任务
       if (!this.mpvkey) return;
@@ -767,8 +804,8 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
       (originalImage) => {
         const page = this.infos.num_of_images_on_each_page
           ? Math.floor(
-            originalImage.index / this.infos.num_of_images_on_each_page
-          )
+              originalImage.index / this.infos.num_of_images_on_each_page
+            )
           : 0;
         return (
           this.result.htmls[page].success &&
@@ -781,8 +818,8 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     if (originalImageItem) {
       const htmlPageOfFoundImageItem = this.infos.num_of_images_on_each_page
         ? Math.floor(
-          originalImageItem.index / this.infos.num_of_images_on_each_page
-        )
+            originalImageItem.index / this.infos.num_of_images_on_each_page
+          )
         : 0;
       return this.createOriginalImageTask(
         originalImageItem.index,
@@ -900,8 +937,8 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
         } else {
           const htmlPageOfFoundImageItem = this.infos.num_of_images_on_each_page
             ? Math.floor(
-              imageItem.index / this.infos.num_of_images_on_each_page
-            )
+                imageItem.index / this.infos.num_of_images_on_each_page
+              )
             : 0;
           return this.createImageTask(
             imageItem.index,
@@ -947,19 +984,19 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           // 根据num_of_images_on_each_page和total_pages，将infos.images全部填充，并且result.htmls全部标记为完成
           const n = this.infos.num_of_images_on_each_page ?? this.infos.length;
           for (let i = 0; i < this.infos.total_pages; i++) {
-            this.infos.images[i] = result.info.images.slice(i * n, (i + 1) * n)
+            this.infos.images[i] = result.info.images.slice(i * n, (i + 1) * n);
           }
 
-          this.result.htmls.forEach(n => {
+          this.result.htmls.forEach((n) => {
             n.started = true;
             n.success = true;
-          })
+          });
           this.result.mpv.success = true;
           const text = JSON.stringify(this.infos, null, 2);
           $file.write({
             data: $data({ string: text }),
-            path: galleryInfoPath + `${this.gid}.json`
-          })
+            path: galleryInfoPath + `${this.gid}.json`,
+          });
           appLog(`MPV页面下载成功: gid=${this.gid}`, "debug");
 
           // 如果没有处于暂停状态，那么重新启动任务
@@ -971,8 +1008,8 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           this.mpvAvailable = false;
           if (!this._paused) this._run();
         }
-      }
-    }
+      },
+    };
   }
 
   private createHtmlTask(index: number) {
@@ -1026,13 +1063,13 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           }
         }
 
-        if (this.result.htmls.every(n => n.success)) {
+        if (this.result.htmls.every((n) => n.success)) {
           // 在html全部下载完成后，保存到本地
           const text = JSON.stringify(this.infos, null, 2);
           $file.write({
             data: $data({ string: text }),
-            path: galleryInfoPath + `${this.gid}.json`
-          })
+            path: galleryInfoPath + `${this.gid}.json`,
+          });
         }
 
         if (!this._paused && this.isAllFinishedDespiteError) {
@@ -1144,27 +1181,29 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           "debug"
         );
         this.result.images[index].started = true;
-        const result: { success: true; data: NSData; info?: EHPage; }
-          | { success: false; error: string; info?: EHPage; } = this.webDAVConfig.enabled
-            ? await this.webDAVConfig.client.downloadNoError(
+        const result:
+          | { success: true; data: NSData; info?: EHPage }
+          | { success: false; error: string; info?: EHPage } = this.webDAVConfig
+          .enabled
+          ? await this.webDAVConfig.client.downloadNoError(
               this.webDAVConfig.filesOnWebDAV[index]
             )
-            : this.mpvAvailable && this.mpvkey
-              ? await api.downloadImageByMpvWithThreeRetries(
-                this.gid,
-                imgkey,
-                this.mpvkey,
-                index
-              )
-              : await api.downloadImageByPageInfoWithThreeRetries(
-                this.gid,
-                imgkey,
-                index,
-                this.showkey
-              );
+          : this.mpvAvailable && this.mpvkey
+          ? await api.downloadImageByMpvWithThreeRetries(
+              this.gid,
+              imgkey,
+              this.mpvkey,
+              index
+            )
+          : await api.downloadImageByPageInfoWithThreeRetries(
+              this.gid,
+              imgkey,
+              index,
+              this.showkey
+            );
 
         if (!this.showkey && result.info?.showkey) {
-          this.showkey = result.info.showkey
+          this.showkey = result.info.showkey;
         }
 
         if (result.success) {
@@ -1297,9 +1336,9 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     return (
       this.finished ===
       this.result.htmls.length +
-      this.result.thumbnails.length +
-      this.result.images.length +
-      1
+        this.result.thumbnails.length +
+        this.result.images.length +
+        1
     );
   }
 
@@ -1455,7 +1494,9 @@ class GalleryWebDAVUploader extends ConcurrentDownloaderBase {
         }
         const data = $file.read(src);
         const contentType = data.info.mimeType;
-        const dst = `${this.result.mkdir.path}/${index + 1}.${contentType.split("/")[1]}`;
+        const dst = `${this.result.mkdir.path}/${index + 1}.${
+          contentType.split("/")[1]
+        }`;
         const result = await this._client.uploadNoError(dst, data, contentType);
         if (result.success) {
           this.result.upload[index].success = true;
@@ -1514,7 +1555,8 @@ class DownloaderManager {
    * @param infos 图库信息
    */
   add(gid: number, infos: EHGallery) {
-    if (this.galleryDownloaders.has(gid)) throw new Error("Unable to add duplicate image downloader");
+    if (this.galleryDownloaders.has(gid))
+      throw new Error("Unable to add duplicate image downloader");
     const downloader = new GalleryCommonDownloader({
       infos,
       mpvAvailable: infos.total_pages >= 2 && configManager.mpvAvailable,
@@ -1539,7 +1581,7 @@ class DownloaderManager {
         if (downloader.background && downloader.finishedOfImages) {
           checkWebDAVAndCreateUploader(gid, infos);
         }
-      }
+      },
     });
     this.galleryDownloaders.set(gid, downloader);
     return downloader;
@@ -1606,7 +1648,7 @@ class DownloaderManager {
     const downloader = this.galleryDownloaders.get(gid);
     if (downloader) {
       if (downloader.background) downloader.backgroundPaused = true;
-      downloader.pause()
+      downloader.pause();
     }
     for (const [k, v] of this.galleryWebDAVUploaders) {
       if (!v.backgroundPaused && !v.isAllFinishedDespiteError) {
@@ -1659,7 +1701,8 @@ class DownloaderManager {
    * 不能重复添加，如果id重复，会直接报错
    */
   addTabDownloader(id: string) {
-    if (this.tabDownloaders.has(id)) throw new Error("Unable to add duplicate tab downloader");
+    if (this.tabDownloaders.has(id))
+      throw new Error("Unable to add duplicate tab downloader");
     const tabDownloader = new TabThumbnailDownloader(() => {
       for (const v of this.galleryWebDAVUploaders.values()) {
         if (!v.backgroundPaused && !v.isAllFinishedDespiteError) {
@@ -1735,7 +1778,8 @@ class DownloaderManager {
    */
   addGalleryWebDAVUploader(infos: EHGallery, client: WebDAVClient) {
     const gid = infos.gid;
-    if (this.galleryWebDAVUploaders.has(gid)) throw new Error("Unable to add duplicate image uploader");
+    if (this.galleryWebDAVUploaders.has(gid))
+      throw new Error("Unable to add duplicate image uploader");
     const uploader = new GalleryWebDAVUploader(infos, client, () => {
       for (const [k, v] of this.galleryWebDAVUploaders) {
         if (k !== gid && !v.backgroundPaused && !v.isAllFinishedDespiteError) {

@@ -1,5 +1,10 @@
 import { EHArchive, EHGallery } from "ehentai-parser";
-import { CustomNavigationBar, DynamicItemSizeMatrix, Label, PresentedPageController } from "jsbox-cview";
+import {
+  CustomNavigationBar,
+  DynamicItemSizeMatrix,
+  Label,
+  PresentedPageController,
+} from "jsbox-cview";
 import { api } from "../utils/api";
 import { appLog } from "../utils/tools";
 
@@ -8,10 +13,10 @@ export class GalleryHathController extends PresentedPageController {
   private _hathInfo: EHArchive | undefined;
   private _isRequestInProgress: boolean = false;
   cviews: {
-    navbar: CustomNavigationBar,
-    list: DynamicItemSizeMatrix,
-    placeholderLabel: Label
-  }
+    navbar: CustomNavigationBar;
+    list: DynamicItemSizeMatrix;
+    placeholderLabel: Label;
+  };
   constructor(infos: EHGallery) {
     super({
       props: {
@@ -19,23 +24,25 @@ export class GalleryHathController extends PresentedPageController {
       },
       events: {
         didLoad: async () => {
-          await this.getHathInfo()
-        }
-      }
+          await this.getHathInfo();
+        },
+      },
     });
     this._infos = infos;
     const navbar = new CustomNavigationBar({
       props: {
         style: 2,
         title: "Hath下载",
-        leftBarButtonItems: [{
-          symbol: "xmark",
-          handler: () => {
-            this.dismiss()
-          }
-        }]
-      }
-    })
+        leftBarButtonItems: [
+          {
+            symbol: "xmark",
+            handler: () => {
+              this.dismiss();
+            },
+          },
+        ],
+      },
+    });
 
     const list = new DynamicItemSizeMatrix({
       props: {
@@ -49,7 +56,7 @@ export class GalleryHathController extends PresentedPageController {
           props: {
             cornerRadius: 10,
             smoothCorners: true,
-            bgcolor: $color("tertiarySurface")
+            bgcolor: $color("tertiarySurface"),
           },
           views: [
             {
@@ -57,42 +64,42 @@ export class GalleryHathController extends PresentedPageController {
               props: {
                 id: "solution",
                 font: $font(20),
-                align: $align.center
+                align: $align.center,
               },
               layout: (make, view) => {
                 make.top.inset(10);
                 make.left.right.inset(0);
                 make.height.equalTo(30);
-              }
+              },
             },
             {
               type: "label",
               props: {
                 id: "size",
                 font: $font(12),
-                align: $align.center
+                align: $align.center,
               },
               layout: (make, view) => {
                 make.left.right.inset(0);
                 make.top.equalTo(view.prev.bottom);
                 make.height.equalTo(15);
-              }
+              },
             },
             {
               type: "label",
               props: {
                 id: "price",
                 font: $font(12),
-                align: $align.center
+                align: $align.center,
               },
               layout: (make, view) => {
                 make.left.right.inset(0);
                 make.top.equalTo(view.prev.bottom);
                 make.height.equalTo(15);
-              }
-            }
-          ]
-        }
+              },
+            },
+          ],
+        },
       },
       layout: (make, view) => {
         make.top.equalTo(view.prev.bottom);
@@ -106,30 +113,36 @@ export class GalleryHathController extends PresentedPageController {
             return;
           } else {
             this._isRequestInProgress = true;
-            await this.downloadHath(this._hathInfo.download_options[indexPath.row]);
+            await this.downloadHath(
+              this._hathInfo.download_options[indexPath.row]
+            );
           }
-        }
-      }
-    })
+        },
+      },
+    });
 
     const placeholderLabel = new Label({
       props: {
         text: "加载中...",
         font: $font(16),
-        align: $align.center
+        align: $align.center,
       },
       layout: (make, view) => {
         make.center.equalTo(view.prev);
-      }
+      },
     });
-    this.cviews = {navbar, list, placeholderLabel};
+    this.cviews = { navbar, list, placeholderLabel };
     this.rootView.views = [navbar, list, placeholderLabel];
   }
 
   private async downloadHath(option: EHArchive["download_options"][0]) {
     if (!this._hathInfo) return;
     try {
-      const r = await api.startHathDownload(this._hathInfo.gid, this._hathInfo.token, option.solution);
+      const r = await api.startHathDownload(
+        this._hathInfo.gid,
+        this._hathInfo.token,
+        option.solution
+      );
       if (r === "no-hath") {
         $ui.error("您必须拥有 H@H 客户端才能使用此功能");
       } else if (r === "offline") {
@@ -139,7 +152,7 @@ export class GalleryHathController extends PresentedPageController {
       }
     } catch (e) {
       appLog(e, "error");
-      $ui.error("错误：请求失败")
+      $ui.error("错误：请求失败");
     } finally {
       this._isRequestInProgress = false;
     }
@@ -156,19 +169,20 @@ export class GalleryHathController extends PresentedPageController {
     if (hathInfo) {
       this._hathInfo = hathInfo;
       this.cviews.list.data = hathInfo.download_options.map((option) => {
-        const solutionText = option.solution === "org" ? "原图" : option.solution + "x";
+        const solutionText =
+          option.solution === "org" ? "原图" : option.solution + "x";
         return {
           solution: {
-            text: solutionText
+            text: solutionText,
           },
           size: {
-            text: option.size
+            text: option.size,
           },
           price: {
-            text: option.price
-          }
-        }
-      })
+            text: option.price,
+          },
+        };
+      });
       this.cviews.list.view.hidden = false;
       this.cviews.placeholderLabel.view.hidden = true;
     }

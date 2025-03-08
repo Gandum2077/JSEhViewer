@@ -2,15 +2,15 @@ import { Base } from "jsbox-cview";
 
 const downloadButtonSymbolColors = {
   paused: $color("#ffb242"),
-  downloading: $color('#34C759', '#30D158'),
-  finished: $color('#34C759', '#30D158')
-}
+  downloading: $color("#34C759", "#30D158"),
+  finished: $color("#34C759", "#30D158"),
+};
 
 /**
  * 显示进度的圆环
  * 其构成为两个重叠的圆环，下层为灰色、完整圆环，上层为彩色、弧线+图案
  * 其中上层的弧线由蒙版来实现
- * 
+ *
  * @param progress 0-1
  * @param paused 是否暂停(只控制颜色、symbol)
  * @param size 圆环的尺寸，其中长宽必须相等，否则报错
@@ -26,13 +26,13 @@ class ProgressArc extends Base<UIView, UiTypes.ViewOptions> {
     progress,
     paused,
     size,
-    layout
+    layout,
   }: {
-    hidden: boolean,
-    progress: number,
-    paused: boolean,
-    size: JBSize,
-    layout: (make: MASConstraintMaker, view: UIView) => void
+    hidden: boolean;
+    progress: number;
+    paused: boolean;
+    size: JBSize;
+    layout: (make: MASConstraintMaker, view: UIView) => void;
   }) {
     super();
     this._progress = progress;
@@ -50,11 +50,18 @@ class ProgressArc extends Base<UIView, UiTypes.ViewOptions> {
           const outerRadius = size.width / 2; // Radius of the full sector
           const startAngle = -Math.PI / 2;
           const endAngle = (2 * this._progress - 0.5) * Math.PI; // End angle (135 degrees)
-          ctx.fillColor = $color('#FFCC00');
+          ctx.fillColor = $color("#FFCC00");
 
           // Draw outer arc
           ctx.beginPath();
-          ctx.addArc(centerX, centerY, outerRadius, startAngle, endAngle, false);
+          ctx.addArc(
+            centerX,
+            centerY,
+            outerRadius,
+            startAngle,
+            endAngle,
+            false
+          );
 
           // Draw line to inner arc
           ctx.addLineToPoint(
@@ -70,11 +77,11 @@ class ProgressArc extends Base<UIView, UiTypes.ViewOptions> {
           ctx.fillPath();
 
           ctx.beginPath();
-          ctx.addRect($rect(centerX - 5, centerY - 5, 10, 10))
+          ctx.addRect($rect(centerX - 5, centerY - 5, 10, 10));
           ctx.closePath();
           ctx.fillPath();
-        }
-      }
+        },
+      },
     });
     this._defineView = () => {
       return {
@@ -82,7 +89,7 @@ class ProgressArc extends Base<UIView, UiTypes.ViewOptions> {
         props: {
           id: this.id,
           userInteractionEnabled: false,
-          hidden
+          hidden,
         },
         layout,
         views: [
@@ -92,34 +99,32 @@ class ProgressArc extends Base<UIView, UiTypes.ViewOptions> {
               id: this.id + "background",
               symbol: "circle",
               tintColor: $color("#cccccc"),
-              contentMode: 1
+              contentMode: 1,
             },
-            layout: $layout.fill
+            layout: $layout.fill,
           },
           {
             type: "image",
             props: {
               id: this.id + "progress",
-              symbol: this._paused
-                ? "pause.circle"
-                : "stop.circle",
+              symbol: this._paused ? "pause.circle" : "stop.circle",
               tintColor: this._paused
                 ? downloadButtonSymbolColors.paused
                 : downloadButtonSymbolColors.downloading,
-              contentMode: 1
+              contentMode: 1,
             },
             layout: $layout.fill,
             events: {
-              ready: sender => {
+              ready: (sender) => {
                 const layer = sender.ocValue().invoke("layer");
                 const maskLayer = this._mask.ocValue().invoke("layer");
                 layer.$setMask(maskLayer);
-              }
-            }
-          }
-        ]
-      }
-    }
+              },
+            },
+          },
+        ],
+      };
+    };
   }
 
   private _refresh() {
@@ -138,7 +143,7 @@ class ProgressArc extends Base<UIView, UiTypes.ViewOptions> {
   set progress(value: number) {
     this._progress = value;
     this._mask.invoke("setNeedsDisplay");
-    this._refresh()
+    this._refresh();
   }
 
   get paused() {
@@ -147,27 +152,33 @@ class ProgressArc extends Base<UIView, UiTypes.ViewOptions> {
 
   set paused(value: boolean) {
     this._paused = value;
-    this._refresh()
+    this._refresh();
   }
 }
 
 /**
- * 
+ *
  */
-export class DownloadButtonForReader extends Base<UIButtonView, UiTypes.ButtonOptions> {
+export class DownloadButtonForReader extends Base<
+  UIButtonView,
+  UiTypes.ButtonOptions
+> {
   private _status: "paused" | "downloading" | "finished";
-  private _progress: number;  // 0-1
+  private _progress: number; // 0-1
   private _progressArc: ProgressArc;
   _defineView: () => UiTypes.ButtonOptions;
   constructor({
     progress,
     status,
     handler,
-    layout
+    layout,
   }: {
     progress: number;
     status: "paused" | "downloading" | "finished";
-    handler: (sender: DownloadButtonForReader, status: "paused" | "downloading") => void
+    handler: (
+      sender: DownloadButtonForReader,
+      status: "paused" | "downloading"
+    ) => void;
     layout: (make: MASConstraintMaker, view: UIButtonView) => void;
   }) {
     super();
@@ -182,13 +193,13 @@ export class DownloadButtonForReader extends Base<UIButtonView, UiTypes.ButtonOp
       layout: (make, view) => {
         make.size.equalTo($size(25, 25));
         make.center.equalTo(view.super);
-      }
-    })
+      },
+    });
     this._defineView = () => ({
       type: "button",
       props: {
         id: this.id,
-        bgcolor: $color("clear")
+        bgcolor: $color("clear"),
       },
       layout,
       views: [
@@ -200,20 +211,20 @@ export class DownloadButtonForReader extends Base<UIButtonView, UiTypes.ButtonOp
             symbol: "checkmark.circle",
             tintColor: downloadButtonSymbolColors.finished,
             contentMode: 1,
-            hidden: this._status !== "finished"
+            hidden: this._status !== "finished",
           },
           layout: (make, view) => {
             make.size.equalTo($size(25, 25));
             make.center.equalTo(view.super);
-          }
-        }
+          },
+        },
       ],
       events: {
-        tapped: sender => {
+        tapped: (sender) => {
           if (this._status !== "finished") handler(this, this._status);
-        }
-      }
-    })
+        },
+      },
+    });
   }
 
   get status() {

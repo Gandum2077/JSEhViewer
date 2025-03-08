@@ -3,28 +3,40 @@ import { Base } from "jsbox-cview";
 /**
  * 图片浏览组件，但是不可滚动
  * 和customImagePager拥有相同的属性和事件
- * 
+ *
  */
 export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
   private _props: {
-    srcs: { path?: string; error: boolean, type: "ai-translated" | "reloaded" | "normal" }[];
+    srcs: {
+      path?: string;
+      error: boolean;
+      type: "ai-translated" | "reloaded" | "normal";
+    }[];
     page: number;
   };
   _defineView: () => UiTypes.ViewOptions;
 
   /**
-   * 
-   * @param props 
+   *
+   * @param props
    * - srcs: {path?: string, error: boolean}[] - 图片地址列表
    * - page: number - 当前页码
    * @param layout
-   * @param events 
+   * @param events
    * - changed: (page: number) => void - 页码变化时触发
    * - reloadHandler: (page: number) => void - 重新加载图片的回调
    */
-  constructor({ props, layout, events = {} }: {
+  constructor({
+    props,
+    layout,
+    events = {},
+  }: {
     props: {
-      srcs?: { path?: string; error: boolean, type: "ai-translated" | "reloaded" | "normal" }[];
+      srcs?: {
+        path?: string;
+        error: boolean;
+        type: "ai-translated" | "reloaded" | "normal";
+      }[];
       page?: number;
     };
     layout: (make: MASConstraintMaker, view: UIView) => void;
@@ -32,19 +44,18 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
       changed?: (page: number) => void;
       reloadHandler?: (page: number) => void;
     };
-
   }) {
     super();
     this._props = {
       srcs: [],
       page: 0,
-      ...props
+      ...props,
     };
     this._defineView = () => {
       return {
         type: "view",
         props: {
-          id: this.id
+          id: this.id,
         },
         layout,
         views: [
@@ -52,16 +63,21 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
             type: "spinner",
             props: {
               id: this.id + "spinner",
-              loading: !this._props.srcs[this._props.page].path && !this._props.srcs[this._props.page].error,
-              hidden: Boolean(this._props.srcs[this._props.page].path || this._props.srcs[this._props.page].error)
+              loading:
+                !this._props.srcs[this._props.page].path &&
+                !this._props.srcs[this._props.page].error,
+              hidden: Boolean(
+                this._props.srcs[this._props.page].path ||
+                  this._props.srcs[this._props.page].error
+              ),
             },
-            layout: $layout.center
+            layout: $layout.center,
           },
           {
             type: "view",
             props: {
               id: this.id + "error_view",
-              hidden: !this._props.srcs[this._props.page].error
+              hidden: !this._props.srcs[this._props.page].error,
             },
             layout: $layout.fill,
             views: [
@@ -70,11 +86,11 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
                 props: {
                   text: "网络似乎不太给力◉_◉",
                   textColor: $color("primaryText"),
-                  align: $align.center
+                  align: $align.center,
                 },
                 layout: (make, view) => {
                   make.center.equalTo(view.super);
-                }
+                },
               },
               {
                 type: "button",
@@ -89,22 +105,24 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
                 events: {
                   tapped: () => {
                     events.reloadHandler && events.reloadHandler(this.page);
-                  }
-                },
-                views: [{
-                  type: "image",
-                  props: {
-                    symbol: "arrow.clockwise",
-                    contentMode: $contentMode.scaleAspectFit,
-                    tintColor: $color("systemLink")
                   },
-                  layout: (make, view) => {
-                    make.center.equalTo(view.super);
-                    make.size.equalTo($size(30, 30));
-                  }
-                }]
-              }
-            ]
+                },
+                views: [
+                  {
+                    type: "image",
+                    props: {
+                      symbol: "arrow.clockwise",
+                      contentMode: $contentMode.scaleAspectFit,
+                      tintColor: $color("systemLink"),
+                    },
+                    layout: (make, view) => {
+                      make.center.equalTo(view.super);
+                      make.size.equalTo($size(30, 30));
+                    },
+                  },
+                ],
+              },
+            ],
           },
           {
             type: "scroll",
@@ -112,7 +130,7 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
               id: this.id + "scroll",
               zoomEnabled: true,
               maxZoomScale: 3,
-              doubleTapToZoom: false
+              doubleTapToZoom: false,
             },
             layout: $layout.fill,
             views: [
@@ -121,7 +139,7 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
                 props: {
                   id: this.id + "image",
                   src: this._props.srcs[this._props.page].path,
-                  contentMode: 1
+                  contentMode: 1,
                 },
                 layout: (make, view) => {
                   // Note: 为什么需要这样布局
@@ -131,8 +149,8 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
                   make.top.left.equalTo(0);
                   make.height.equalTo(view.super);
                   make.width.equalTo(view.super);
-                }
-              }
+                },
+              },
             ],
             events: {
               // Note: 为什么需要此ready事件（和上面的布局解释方案是为了解决同一个问题，所以注释掉）
@@ -146,12 +164,12 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
                   const img = $file.read(path).image;
                   if (img) $share.universal(img);
                 }
-              }
-            }
-          }
-        ]
+              },
+            },
+          },
+        ],
       };
-    }
+    };
   }
 
   // 刷新当前页面
@@ -179,9 +197,15 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
     return this._props.srcs;
   }
 
-  set srcs(srcs: { path?: string; error: boolean, type: "ai-translated" | "reloaded" | "normal" }[]) {
+  set srcs(
+    srcs: {
+      path?: string;
+      error: boolean;
+      type: "ai-translated" | "reloaded" | "normal";
+    }[]
+  ) {
     this._props.srcs = srcs;
-    this._refreshData(this._props.srcs[this._props.page])
+    this._refreshData(this._props.srcs[this._props.page]);
   }
 
   get page() {
@@ -192,7 +216,7 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
     if (this._props.page !== page) {
       this._props.page = page;
       ($(this.id + "scroll") as UIScrollView).zoomScale = 0;
-      this._refreshData(this._props.srcs[this._props.page])
+      this._refreshData(this._props.srcs[this._props.page]);
     }
   }
 }

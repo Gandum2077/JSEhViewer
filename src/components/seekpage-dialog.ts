@@ -1,4 +1,8 @@
-import { dateToString, DynamicPreferenceListView, PreferenceSection } from "jsbox-cview";
+import {
+  dateToString,
+  DynamicPreferenceListView,
+  PreferenceSection,
+} from "jsbox-cview";
 
 import { DialogSheet } from "jsbox-cview";
 
@@ -6,7 +10,7 @@ export function getJumpRangeDialogForHomepage({
   minimumGid,
   maximumGid,
   prev_page_available,
-  next_page_available
+  next_page_available,
 }: {
   minimumGid: number;
   maximumGid: number;
@@ -27,13 +31,15 @@ export function getJumpRangeDialogForHomepage({
   const sectionForRange: PreferenceSection[] = [
     {
       title: "",
-      rows: [{
-        type: "tab",
-        title: "跳页方式",
-        key: "method",
-        items: methodItems,
-        value: 0
-      }]
+      rows: [
+        {
+          type: "tab",
+          title: "跳页方式",
+          key: "method",
+          items: methodItems,
+          value: 0,
+        },
+      ],
     },
     {
       title: "",
@@ -45,21 +51,23 @@ export function getJumpRangeDialogForHomepage({
           value: 1,
           min: 1,
           max: 99,
-          decimal: 0
-        }
-      ]
-    }
-  ]
+          decimal: 0,
+        },
+      ],
+    },
+  ];
   const sectionForDate: PreferenceSection[] = [
     {
       title: "",
-      rows: [{
-        type: "tab",
-        title: "跳页方式",
-        key: "method",
-        items: methodItems,
-        value: 1
-      }]
+      rows: [
+        {
+          type: "tab",
+          title: "跳页方式",
+          key: "method",
+          items: methodItems,
+          value: 1,
+        },
+      ],
     },
     {
       title: "",
@@ -69,28 +77,30 @@ export function getJumpRangeDialogForHomepage({
           title: "日期",
           key: "date",
           mode: 1,
-          value: new Date()
+          value: new Date(),
         },
         {
           type: "list",
           title: "跳页方向",
           key: "direction",
           items: directionItems,
-          value: directionItems.length - 1
-        }
-      ]
-    }
-  ]
+          value: directionItems.length - 1,
+        },
+      ],
+    },
+  ];
   const sectionForDays: PreferenceSection[] = [
     {
       title: "",
-      rows: [{
-        type: "tab",
-        title: "跳页方式",
-        key: "method",
-        items: methodItems,
-        value: 2
-      }]
+      rows: [
+        {
+          type: "tab",
+          title: "跳页方式",
+          key: "method",
+          items: methodItems,
+          value: 2,
+        },
+      ],
     },
     {
       title: "",
@@ -99,32 +109,32 @@ export function getJumpRangeDialogForHomepage({
           type: "integer",
           title: "请输入数字",
           key: "num",
-          value: 1
+          value: 1,
         },
         {
           type: "list",
           title: "单位",
           items: ["天", "周", "月", "年"],
           key: "unit",
-          value: 0
+          value: 0,
         },
         {
           type: "list",
           title: "跳页方向",
           key: "direction",
           items: directionItems,
-          value: directionItems.length - 1
-        }
-      ]
-    }
-  ]
+          value: directionItems.length - 1,
+        },
+      ],
+    },
+  ];
   const view = new DynamicPreferenceListView({
     sections: sectionForRange,
     props: {
-      scrollEnabled: false
+      scrollEnabled: false,
     },
     events: {
-      changed: values => {
+      changed: (values) => {
         if (values.method === method) return;
         method = values.method;
         switch (values.method) {
@@ -140,9 +150,9 @@ export function getJumpRangeDialogForHomepage({
           default:
             break;
         }
-      }
-    }
-  })
+      },
+    },
+  });
   const sheet = new DialogSheet({
     title: "跳页",
     bgcolor: $color("backgroundColor"),
@@ -159,27 +169,27 @@ export function getJumpRangeDialogForHomepage({
       }
       if (values.method === 0) {
         return {
-          range: values.range
+          range: values.range,
         };
       } else if (values.method === 1) {
         return {
           seek: dateToString(1, values.date),
           minimumGid: direction === 0 ? minimumGid : undefined,
-          maximumGid: direction === 1 ? maximumGid : undefined
-        }
+          maximumGid: direction === 1 ? maximumGid : undefined,
+        };
       } else if (values.method === 2) {
         return {
           jump: {
             value: values.num,
-            unit: ["d", "w", "m", "y"].at(values.unit) as "d" | "w" | "m" | "y"
+            unit: ["d", "w", "m", "y"].at(values.unit) as "d" | "w" | "m" | "y",
           },
           minimumGid: direction === 0 ? minimumGid : undefined,
-          maximumGid: direction === 1 ? maximumGid : undefined
-        }
+          maximumGid: direction === 1 ? maximumGid : undefined,
+        };
       } else {
         throw new Error("Invalid method");
       }
-    }
+    },
   });
   return new Promise<{
     range?: number; // 范围是1-99的整数，它和下面的搜索参数都不兼容
@@ -202,7 +212,7 @@ export function getJumpRangeDialogForFavorites({
   maximumGid,
   maximumFavoritedTimestamp,
   prev_page_available,
-  next_page_available
+  next_page_available,
 }: {
   minimumGid: number;
   minimumFavoritedTimestamp?: number; // 本页面上第一个项目被收藏的时间戳，用于翻页的参数（向前翻页），仅用于favorited_time排序
@@ -225,13 +235,15 @@ export function getJumpRangeDialogForFavorites({
   const sectionForDate: PreferenceSection[] = [
     {
       title: "",
-      rows: [{
-        type: "tab",
-        title: "跳页方式",
-        key: "method",
-        items: methodItems,
-        value: 0
-      }]
+      rows: [
+        {
+          type: "tab",
+          title: "跳页方式",
+          key: "method",
+          items: methodItems,
+          value: 0,
+        },
+      ],
     },
     {
       title: "",
@@ -241,28 +253,30 @@ export function getJumpRangeDialogForFavorites({
           title: "日期",
           key: "date",
           mode: 1,
-          value: new Date()
+          value: new Date(),
         },
         {
           type: "list",
           title: "跳页方向",
           key: "direction",
           items: directionItems,
-          value: directionItems.length - 1
-        }
-      ]
-    }
-  ]
+          value: directionItems.length - 1,
+        },
+      ],
+    },
+  ];
   const sectionForDays: PreferenceSection[] = [
     {
       title: "",
-      rows: [{
-        type: "tab",
-        title: "跳页方式",
-        key: "method",
-        items: methodItems,
-        value: 1
-      }]
+      rows: [
+        {
+          type: "tab",
+          title: "跳页方式",
+          key: "method",
+          items: methodItems,
+          value: 1,
+        },
+      ],
     },
     {
       title: "起始GID如果留空，则从当前页面中自动获取",
@@ -271,32 +285,32 @@ export function getJumpRangeDialogForFavorites({
           type: "integer",
           title: "请输入数字",
           key: "num",
-          value: 1
+          value: 1,
         },
         {
           type: "list",
           title: "单位",
           items: ["天", "周", "月", "年"],
           key: "unit",
-          value: 0
+          value: 0,
         },
         {
           type: "list",
           title: "跳页方向",
           key: "direction",
           items: directionItems,
-          value: directionItems.length - 1
-        }
-      ]
-    }
-  ]
+          value: directionItems.length - 1,
+        },
+      ],
+    },
+  ];
   const view = new DynamicPreferenceListView({
     sections: sectionForDate,
     props: {
-      scrollEnabled: false
+      scrollEnabled: false,
     },
     events: {
-      changed: values => {
+      changed: (values) => {
         if (values.method === method) return;
         method = values.method;
         switch (values.method) {
@@ -309,9 +323,9 @@ export function getJumpRangeDialogForFavorites({
           default:
             break;
         }
-      }
-    }
-  })
+      },
+    },
+  });
   const sheet = new DialogSheet({
     title: "跳页",
     bgcolor: $color("backgroundColor"),
@@ -330,25 +344,29 @@ export function getJumpRangeDialogForFavorites({
         return {
           seek: dateToString(1, values.date),
           minimumGid: direction === 0 ? minimumGid : undefined,
-          minimumFavoritedTimestamp: direction === 0 ? minimumFavoritedTimestamp : undefined,
+          minimumFavoritedTimestamp:
+            direction === 0 ? minimumFavoritedTimestamp : undefined,
           maximumGid: direction === 1 ? maximumGid : undefined,
-          maximumFavoritedTimestamp: direction === 1 ? maximumFavoritedTimestamp : undefined
-        }
+          maximumFavoritedTimestamp:
+            direction === 1 ? maximumFavoritedTimestamp : undefined,
+        };
       } else if (values.method === 1) {
         return {
           jump: {
             value: values.num,
-            unit: ["d", "w", "m", "y"].at(values.unit) as "d" | "w" | "m" | "y"
+            unit: ["d", "w", "m", "y"].at(values.unit) as "d" | "w" | "m" | "y",
           },
           minimumGid: direction === 0 ? minimumGid : undefined,
-          minimumFavoritedTimestamp: direction === 0 ? minimumFavoritedTimestamp : undefined,
+          minimumFavoritedTimestamp:
+            direction === 0 ? minimumFavoritedTimestamp : undefined,
           maximumGid: direction === 1 ? maximumGid : undefined,
-          maximumFavoritedTimestamp: direction === 1 ? maximumFavoritedTimestamp : undefined
-        }
+          maximumFavoritedTimestamp:
+            direction === 1 ? maximumFavoritedTimestamp : undefined,
+        };
       } else {
         throw new Error("Invalid method");
       }
-    }
+    },
   });
   return new Promise<{
     minimumGid?: number; // 对应搜索参数prev，从表现来看就是往前翻页
@@ -379,15 +397,15 @@ export function getJumpPageDialog(max: number) {
             value: 1,
             min: 1,
             max,
-            decimal: 0
-          }
-        ]
-      }
+            decimal: 0,
+          },
+        ],
+      },
     ],
     props: {
-      scrollEnabled: false
-    }
-  })
+      scrollEnabled: false,
+    },
+  });
   const sheet = new DialogSheet({
     title: "跳页",
     bgcolor: $color("backgroundColor"),
@@ -395,9 +413,9 @@ export function getJumpPageDialog(max: number) {
     doneHandler: () => {
       const values = view.values;
       return {
-        page: values.page - 1  // 注意转换为从0开始的页码
+        page: values.page - 1, // 注意转换为从0开始的页码
       };
-    }
+    },
   });
   return new Promise<{ page: number }>((resolve, reject) => {
     sheet.promisify(resolve, reject);

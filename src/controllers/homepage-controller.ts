@@ -1,11 +1,26 @@
-import { BaseController, CustomNavigationBar, SymbolButton, router, SplitViewController } from "jsbox-cview";
+import {
+  BaseController,
+  CustomNavigationBar,
+  SymbolButton,
+  router,
+  SplitViewController,
+} from "jsbox-cview";
 import { GalleryController } from "./gallery-controller";
-import { getJumpRangeDialogForHomepage, getJumpPageDialog, getJumpRangeDialogForFavorites } from "../components/seekpage-dialog";
+import {
+  getJumpRangeDialogForHomepage,
+  getJumpPageDialog,
+  getJumpRangeDialogForFavorites,
+} from "../components/seekpage-dialog";
 import { configManager } from "../utils/config";
 import { statusManager } from "../utils/status";
 import { EHlistView } from "../components/ehlist-view";
 import { appLog } from "../utils/tools";
-import { buildSortedFsearch, EHListExtendedItem, EHSearchTerm, extractGidToken } from "ehentai-parser";
+import {
+  buildSortedFsearch,
+  EHListExtendedItem,
+  EHSearchTerm,
+  extractGidToken,
+} from "ehentai-parser";
 import { StatusTabOptions } from "../types";
 import { api, downloaderManager, TabThumbnailDownloader } from "../utils/api";
 import { CustomSearchBar } from "../components/custom-searchbar";
@@ -17,16 +32,16 @@ import { popoverForTitleView } from "../components/titleview-popover";
 
 export class HomepageController extends BaseController {
   cviews: {
-    navbar: CustomNavigationBar,
-    list: EHlistView,
-    searchBar: CustomSearchBar,
-    titleView: EhlistTitleView
+    navbar: CustomNavigationBar;
+    list: EHlistView;
+    searchBar: CustomSearchBar;
+    titleView: EhlistTitleView;
   };
   constructor() {
     super({
       props: {
         id: "homepageController",
-        bgcolor: $color("backgroundColor")
+        bgcolor: $color("backgroundColor"),
       },
       events: {
         didLoad: () => {
@@ -34,22 +49,25 @@ export class HomepageController extends BaseController {
             id: "homepageController",
             paused: true,
             handler: () => {
-              this.cviews.list.reload()
-            }
-          })
+              this.cviews.list.reload();
+            },
+          });
         },
         didAppear: () => {
           downloaderManager.startTabDownloader(statusManager.currentTabId);
-          globalTimer.resumeTask("homepageController")
+          globalTimer.resumeTask("homepageController");
         },
         didDisappear: () => {
-          globalTimer.pauseTask("homepageController")
-        }
-      }
-    })
+          globalTimer.pauseTask("homepageController");
+        },
+      },
+    });
     const listLayoutButton = new SymbolButton({
       props: {
-        symbol: configManager.homepageManagerLayoutMode === "normal" ? "square.grid.2x2" : "list.bullet",
+        symbol:
+          configManager.homepageManagerLayoutMode === "normal"
+            ? "square.grid.2x2"
+            : "list.bullet",
         menu: {
           title: "布局方式",
           pullDown: true,
@@ -59,30 +77,31 @@ export class HomepageController extends BaseController {
               title: "列表布局",
               symbol: "list.bullet",
               handler: () => {
-                if (configManager.homepageManagerLayoutMode === "large") return
-                configManager.homepageManagerLayoutMode = "large"
-                listLayoutButton.symbol = "list.bullet"
-                list.layoutMode = "large"
-              }
+                if (configManager.homepageManagerLayoutMode === "large") return;
+                configManager.homepageManagerLayoutMode = "large";
+                listLayoutButton.symbol = "list.bullet";
+                list.layoutMode = "large";
+              },
             },
             {
               title: "矩阵布局",
               symbol: "square.grid.2x2",
               handler: () => {
-                if (configManager.homepageManagerLayoutMode === "normal") return
-                configManager.homepageManagerLayoutMode = "normal"
-                listLayoutButton.symbol = "square.grid.2x2"
-                list.layoutMode = "normal"
-              }
-            }
-          ]
-        }
+                if (configManager.homepageManagerLayoutMode === "normal")
+                  return;
+                configManager.homepageManagerLayoutMode = "normal";
+                listLayoutButton.symbol = "square.grid.2x2";
+                list.layoutMode = "normal";
+              },
+            },
+          ],
+        },
       },
-      layout: $layout.fill
-    })
+      layout: $layout.fill,
+    });
     const openLinkButton = new SymbolButton({
       props: {
-        symbol: "link"
+        symbol: "link",
       },
       layout: $layout.fill,
       events: {
@@ -90,8 +109,8 @@ export class HomepageController extends BaseController {
           const result = await $input.text({
             type: $kbType.url,
             placeholder: "输入链接，直接打开图库",
-            text: ""
-          })
+            text: "",
+          });
           if (!result) return;
           const url = result.trim().toLowerCase();
           let gid: number | undefined;
@@ -101,17 +120,17 @@ export class HomepageController extends BaseController {
             gid = r.gid;
             token = r.token;
           } catch (e) {
-            $ui.toast("无效链接")
+            $ui.toast("无效链接");
           }
           if (!gid || !token) return;
-          const galleryController = new GalleryController(gid, token)
+          const galleryController = new GalleryController(gid, token);
           galleryController.uipush({
             navBarHidden: true,
-            statusBarStyle: 0
-          })
-        }
-      }
-    })
+            statusBarStyle: 0,
+          });
+        },
+      },
+    });
     const titleView = new EhlistTitleView({
       defaultTitle: "空白页",
       tapped: async (sender) => {
@@ -124,26 +143,38 @@ export class HomepageController extends BaseController {
               popoverOptions: {
                 type: tab.type,
                 filterOptions: {
-                  disableLanguageFilters: tab.options.disableLanguageFilters ?? false,
-                  disableUploaderFilters: tab.options.disableUploaderFilters ?? false,
+                  disableLanguageFilters:
+                    tab.options.disableLanguageFilters ?? false,
+                  disableUploaderFilters:
+                    tab.options.disableUploaderFilters ?? false,
                   disableTagFilters: tab.options.disableTagFilters ?? false,
                 },
                 count: {
-                  loaded: tab.pages.map(n=>n.items.length).reduce((prev, curr) => prev + curr),
+                  loaded: tab.pages
+                    .map((n) => n.items.length)
+                    .reduce((prev, curr) => prev + curr),
                   all: tab.pages[0].total_item_count,
-                  filtered: tab.pages.map(n=>n.filtered_count).reduce((prev, curr) => prev + curr)
-                }
-              }
-            })
+                  filtered: tab.pages
+                    .map((n) => n.filtered_count)
+                    .reduce((prev, curr) => prev + curr),
+                },
+              },
+            });
             if (
-              (tab.options.disableLanguageFilters ?? false) !== values.filterOptions.disableLanguageFilters
-              || (tab.options.disableUploaderFilters ?? false) !== values.filterOptions.disableUploaderFilters
-              || (tab.options.disableTagFilters ?? false) !== values.filterOptions.disableTagFilters
+              (tab.options.disableLanguageFilters ?? false) !==
+                values.filterOptions.disableLanguageFilters ||
+              (tab.options.disableUploaderFilters ?? false) !==
+                values.filterOptions.disableUploaderFilters ||
+              (tab.options.disableTagFilters ?? false) !==
+                values.filterOptions.disableTagFilters
             ) {
-              tab.options.disableLanguageFilters = values.filterOptions.disableLanguageFilters || undefined;
-              tab.options.disableUploaderFilters = values.filterOptions.disableUploaderFilters || undefined;
-              tab.options.disableTagFilters = values.filterOptions.disableTagFilters || undefined;
-              await this.reload()
+              tab.options.disableLanguageFilters =
+                values.filterOptions.disableLanguageFilters || undefined;
+              tab.options.disableUploaderFilters =
+                values.filterOptions.disableUploaderFilters || undefined;
+              tab.options.disableTagFilters =
+                values.filterOptions.disableTagFilters || undefined;
+              await this.reload();
             }
             break;
           }
@@ -154,25 +185,37 @@ export class HomepageController extends BaseController {
               popoverOptions: {
                 type: tab.type,
                 filterOptions: {
-                  disableLanguageFilters: tab.options.disableLanguageFilters ?? false,
-                  disableUploaderFilters: tab.options.disableUploaderFilters ?? false,
+                  disableLanguageFilters:
+                    tab.options.disableLanguageFilters ?? false,
+                  disableUploaderFilters:
+                    tab.options.disableUploaderFilters ?? false,
                   disableTagFilters: tab.options.disableTagFilters ?? false,
                 },
                 count: {
-                  loaded: tab.pages.map(n=>n.items.length).reduce((prev, curr) => prev + curr),
-                  filtered: tab.pages.map(n=>n.filtered_count).reduce((prev, curr) => prev + curr)
-                }
-              }
-            })
+                  loaded: tab.pages
+                    .map((n) => n.items.length)
+                    .reduce((prev, curr) => prev + curr),
+                  filtered: tab.pages
+                    .map((n) => n.filtered_count)
+                    .reduce((prev, curr) => prev + curr),
+                },
+              },
+            });
             if (
-              (tab.options.disableLanguageFilters ?? false) !== values.filterOptions.disableLanguageFilters
-              || (tab.options.disableUploaderFilters ?? false) !== values.filterOptions.disableUploaderFilters
-              || (tab.options.disableTagFilters ?? false) !== values.filterOptions.disableTagFilters
+              (tab.options.disableLanguageFilters ?? false) !==
+                values.filterOptions.disableLanguageFilters ||
+              (tab.options.disableUploaderFilters ?? false) !==
+                values.filterOptions.disableUploaderFilters ||
+              (tab.options.disableTagFilters ?? false) !==
+                values.filterOptions.disableTagFilters
             ) {
-              tab.options.disableLanguageFilters = values.filterOptions.disableLanguageFilters || undefined;
-              tab.options.disableUploaderFilters = values.filterOptions.disableUploaderFilters || undefined;
-              tab.options.disableTagFilters = values.filterOptions.disableTagFilters || undefined;
-              await this.reload()
+              tab.options.disableLanguageFilters =
+                values.filterOptions.disableLanguageFilters || undefined;
+              tab.options.disableUploaderFilters =
+                values.filterOptions.disableUploaderFilters || undefined;
+              tab.options.disableTagFilters =
+                values.filterOptions.disableTagFilters || undefined;
+              await this.reload();
             }
             break;
           }
@@ -183,25 +226,37 @@ export class HomepageController extends BaseController {
               popoverOptions: {
                 type: tab.type,
                 filterOptions: {
-                  disableLanguageFilters: tab.options.disableLanguageFilters ?? false,
-                  disableUploaderFilters: tab.options.disableUploaderFilters ?? false,
+                  disableLanguageFilters:
+                    tab.options.disableLanguageFilters ?? false,
+                  disableUploaderFilters:
+                    tab.options.disableUploaderFilters ?? false,
                   disableTagFilters: tab.options.disableTagFilters ?? false,
                 },
                 count: {
-                  loaded: tab.pages.map(n=>n.items.length).reduce((prev, curr) => prev + curr),
-                  filtered: tab.pages.map(n=>n.filtered_count).reduce((prev, curr) => prev + curr)
-                }
-              }
-            })
+                  loaded: tab.pages
+                    .map((n) => n.items.length)
+                    .reduce((prev, curr) => prev + curr),
+                  filtered: tab.pages
+                    .map((n) => n.filtered_count)
+                    .reduce((prev, curr) => prev + curr),
+                },
+              },
+            });
             if (
-              (tab.options.disableLanguageFilters ?? false) !== values.filterOptions.disableLanguageFilters
-              || (tab.options.disableUploaderFilters ?? false) !== values.filterOptions.disableUploaderFilters
-              || (tab.options.disableTagFilters ?? false) !== values.filterOptions.disableTagFilters
+              (tab.options.disableLanguageFilters ?? false) !==
+                values.filterOptions.disableLanguageFilters ||
+              (tab.options.disableUploaderFilters ?? false) !==
+                values.filterOptions.disableUploaderFilters ||
+              (tab.options.disableTagFilters ?? false) !==
+                values.filterOptions.disableTagFilters
             ) {
-              tab.options.disableLanguageFilters = values.filterOptions.disableLanguageFilters || undefined;
-              tab.options.disableUploaderFilters = values.filterOptions.disableUploaderFilters || undefined;
-              tab.options.disableTagFilters = values.filterOptions.disableTagFilters || undefined;
-              await this.reload()
+              tab.options.disableLanguageFilters =
+                values.filterOptions.disableLanguageFilters || undefined;
+              tab.options.disableUploaderFilters =
+                values.filterOptions.disableUploaderFilters || undefined;
+              tab.options.disableTagFilters =
+                values.filterOptions.disableTagFilters || undefined;
+              await this.reload();
             }
             break;
           }
@@ -213,14 +268,20 @@ export class HomepageController extends BaseController {
                 type: tab.type,
                 favoritesOrderMethod: configManager.favoritesOrderMethod,
                 count: {
-                  loaded: tab.pages.map(n=>n.items.length).reduce((prev, curr) => prev + curr)
-                }
-              }
-            })
-            if (values.favoritesOrderMethod !== configManager.favoritesOrderMethod) {
-              api.setFavoritesSortOrder(values.favoritesOrderMethod)
+                  loaded: tab.pages
+                    .map((n) => n.items.length)
+                    .reduce((prev, curr) => prev + curr),
+                },
+              },
+            });
+            if (
+              values.favoritesOrderMethod !== configManager.favoritesOrderMethod
+            ) {
+              api
+                .setFavoritesSortOrder(values.favoritesOrderMethod)
                 .then(() => {
-                  configManager.favoritesOrderMethod = values.favoritesOrderMethod;
+                  configManager.favoritesOrderMethod =
+                    values.favoritesOrderMethod;
                   this.reload().then();
                 })
                 .catch(() => {
@@ -236,10 +297,12 @@ export class HomepageController extends BaseController {
               popoverOptions: {
                 type: tab.type,
                 count: {
-                  loaded: tab.pages.map(n=>n.items.length).reduce((prev, curr) => prev + curr)
-                }
-              }
-            })
+                  loaded: tab.pages
+                    .map((n) => n.items.length)
+                    .reduce((prev, curr) => prev + curr),
+                },
+              },
+            });
             break;
           }
           case "upload": {
@@ -249,17 +312,18 @@ export class HomepageController extends BaseController {
               popoverOptions: {
                 type: tab.type,
                 count: {
-                  loaded: tab.pages.map(n=>n.items.length).reduce((prev, curr) => prev + curr)
-                }
-              }
-            })
+                  loaded: tab.pages
+                    .map((n) => n.items.length)
+                    .reduce((prev, curr) => prev + curr),
+                },
+              },
+            });
             break;
           }
           default:
             break;
         }
-        
-      }
+      },
     });
     const navbar = new CustomNavigationBar({
       props: {
@@ -268,42 +332,53 @@ export class HomepageController extends BaseController {
           {
             symbol: "sidebar.left",
             handler: () => {
-              (router.get("splitViewController") as SplitViewController).sideBarShown = true
-            }
+              (
+                router.get("splitViewController") as SplitViewController
+              ).sideBarShown = true;
+            },
           },
           {
-            cview: listLayoutButton
-          }
+            cview: listLayoutButton,
+          },
         ],
         rightBarButtonItems: [
           {
-            cview: openLinkButton
+            cview: openLinkButton,
           },
           {
             symbol: "arrow.left.arrow.right.circle",
             handler: async () => {
               if (!statusManager.currentTab) {
-                $ui.toast("无法翻页，请先加载内容")
+                $ui.toast("无法翻页，请先加载内容");
                 return;
               }
               const type = statusManager.currentTab.type;
               if (type === "front_page" || type === "watched") {
                 const firstPage = statusManager.currentTab.pages[0];
-                const lastPage = statusManager.currentTab.pages[statusManager.currentTab.pages.length - 1];
-                if (firstPage.items.length === 0 || lastPage.items.length === 0) {
-                  $ui.toast("没有内容，无法翻页")
+                const lastPage =
+                  statusManager.currentTab.pages[
+                    statusManager.currentTab.pages.length - 1
+                  ];
+                if (
+                  firstPage.items.length === 0 ||
+                  lastPage.items.length === 0
+                ) {
+                  $ui.toast("没有内容，无法翻页");
                   return;
                 }
-                if (firstPage.prev_page_available === false && lastPage.next_page_available === false) {
-                  $ui.toast("全部内容已加载")
+                if (
+                  firstPage.prev_page_available === false &&
+                  lastPage.next_page_available === false
+                ) {
+                  $ui.toast("全部内容已加载");
                   return;
                 }
                 const result = await getJumpRangeDialogForHomepage({
                   minimumGid: firstPage.items[0].gid,
                   maximumGid: lastPage.items[lastPage.items.length - 1].gid,
                   prev_page_available: firstPage.prev_page_available,
-                  next_page_available: lastPage.next_page_available
-                })
+                  next_page_available: lastPage.next_page_available,
+                });
                 await this.triggerLoad({
                   type,
                   options: {
@@ -312,28 +387,39 @@ export class HomepageController extends BaseController {
                     minimumGid: result.minimumGid,
                     maximumGid: result.maximumGid,
                     jump: result.jump,
-                    seek: result.seek
-                  }
-                })
+                    seek: result.seek,
+                  },
+                });
               } else if (type === "favorites") {
                 const firstPage = statusManager.currentTab.pages[0];
-                const lastPage = statusManager.currentTab.pages[statusManager.currentTab.pages.length - 1];
-                if (firstPage.items.length === 0 || lastPage.items.length === 0) {
-                  $ui.toast("没有内容，无法翻页")
+                const lastPage =
+                  statusManager.currentTab.pages[
+                    statusManager.currentTab.pages.length - 1
+                  ];
+                if (
+                  firstPage.items.length === 0 ||
+                  lastPage.items.length === 0
+                ) {
+                  $ui.toast("没有内容，无法翻页");
                   return;
                 }
-                if (firstPage.prev_page_available === false && lastPage.next_page_available === false) {
-                  $ui.toast("全部内容已加载")
+                if (
+                  firstPage.prev_page_available === false &&
+                  lastPage.next_page_available === false
+                ) {
+                  $ui.toast("全部内容已加载");
                   return;
                 }
                 const result = await getJumpRangeDialogForFavorites({
                   minimumGid: firstPage.items[0].gid,
-                  minimumFavoritedTimestamp: firstPage.first_item_favorited_timestamp,
+                  minimumFavoritedTimestamp:
+                    firstPage.first_item_favorited_timestamp,
                   maximumGid: lastPage.items[lastPage.items.length - 1].gid,
-                  maximumFavoritedTimestamp: lastPage.last_item_favorited_timestamp,
+                  maximumFavoritedTimestamp:
+                    lastPage.last_item_favorited_timestamp,
                   prev_page_available: firstPage.prev_page_available,
-                  next_page_available: lastPage.next_page_available
-                })
+                  next_page_available: lastPage.next_page_available,
+                });
                 await this.triggerLoad({
                   type,
                   options: {
@@ -343,71 +429,73 @@ export class HomepageController extends BaseController {
                     maximumGid: result.maximumGid,
                     maximumFavoritedTimestamp: result.maximumFavoritedTimestamp,
                     jump: result.jump,
-                    seek: result.seek
-                  }
-                })
+                    seek: result.seek,
+                  },
+                });
               } else if (type === "toplist") {
-                const result = await getJumpPageDialog(200)
+                const result = await getJumpPageDialog(200);
                 await this.triggerLoad({
                   type,
                   options: {
                     ...statusManager.currentTab.options,
-                    ...result
-                  }
-                })
+                    ...result,
+                  },
+                });
               } else {
-                $ui.toast("全部内容已加载")
+                $ui.toast("全部内容已加载");
               }
-            }
-          }
-        ]
-      }
-    })
-    const searchBar = new CustomSearchBar({
-      props: {
+            },
+          },
+        ],
       },
+    });
+    const searchBar = new CustomSearchBar({
+      props: {},
       events: {
-        tapped: async sender => {
+        tapped: async (sender) => {
           let type: "front_page" | "watched" | "favorites" = "front_page";
           let searchTerms: EHSearchTerm[] | undefined = undefined;
           if (
-            statusManager.currentTab
-            && (statusManager.currentTab.type === "front_page"
-              || statusManager.currentTab.type === "watched"
-              || statusManager.currentTab.type === "favorites")
+            statusManager.currentTab &&
+            (statusManager.currentTab.type === "front_page" ||
+              statusManager.currentTab.type === "watched" ||
+              statusManager.currentTab.type === "favorites")
           ) {
             searchTerms = statusManager.currentTab.options.searchTerms;
             type = statusManager.currentTab.type;
           }
-          const args = await getSearchOptions({ type, options: { searchTerms } }, "showAllExceptArchive")
+          const args = await getSearchOptions(
+            { type, options: { searchTerms } },
+            "showAllExceptArchive"
+          );
           await this.triggerLoad(args);
-        }
-      }
-    })
+        },
+      },
+    });
     const list = new EHlistView({
       layoutMode: configManager.homepageManagerLayoutMode,
       searchBar,
       pulled: async () => {
-        await this.reload()
+        await this.reload();
       },
       didSelect: async (sender, indexPath, item) => {
-        const galleryController = new GalleryController(item.gid, item.token)
+        const galleryController = new GalleryController(item.gid, item.token);
         galleryController.uipush({
           navBarHidden: true,
-          statusBarStyle: 0
-        })
+          statusBarStyle: 0,
+        });
       },
       didReachBottom: async () => {
-        await this.loadMore()
+        await this.loadMore();
       },
       layout: (make, view) => {
-        make.top.equalTo(view.prev.bottom)
-        make.left.right.inset(0)
-        make.bottom.equalTo(view.super.safeAreaBottom).offset(-50)
-      }
-    })
-    this.cviews = { navbar, list, searchBar, titleView }
-    this.rootView.views = [navbar, list]
+        make.top.equalTo(view.prev.bottom);
+        make.left.right.inset(0);
+        make.bottom.equalTo(view.super.safeAreaBottom).offset(-50);
+      },
+    });
+    this.cviews = { navbar, list, searchBar, titleView };
+    this.rootView.views = [navbar, list];
   }
 
   async triggerLoad(options: StatusTabOptions) {
@@ -415,15 +503,20 @@ export class HomepageController extends BaseController {
     const tabId = statusManager.currentTabId;
     const tab = await statusManager.loadTab(options, tabId);
     if (!tab) return;
-    const dm = downloaderManager.getTabDownloader(statusManager.currentTabId) as TabThumbnailDownloader;
+    const dm = downloaderManager.getTabDownloader(
+      statusManager.currentTabId
+    ) as TabThumbnailDownloader;
     dm.clear();
     if (tab.type !== "upload") {
       dm.add(
-        tab.pages.map(page => page.items).flat().map(item => ({
-          gid: item.gid,
-          url: item.thumbnail_url
-        }))
-      )
+        tab.pages
+          .map((page) => page.items)
+          .flat()
+          .map((item) => ({
+            gid: item.gid,
+            url: item.thumbnail_url,
+          }))
+      );
       downloaderManager.startTabDownloader(statusManager.currentTabId);
     }
     this.updateLoadedStatus();
@@ -443,12 +536,17 @@ export class HomepageController extends BaseController {
     this.cviews.list.footerText = "加载中……";
     this.cviews.list.items = [];
     if (
-      (options.type === "front_page" || options.type === "watched" || options.type === "favorites")
-      && options.options.searchTerms
-      && options.options.searchTerms.length
+      (options.type === "front_page" ||
+        options.type === "watched" ||
+        options.type === "favorites") &&
+      options.options.searchTerms &&
+      options.options.searchTerms.length
     ) {
       const fsearch = buildSortedFsearch(options.options.searchTerms);
-      configManager.addOrUpdateSearchHistory(fsearch, options.options.searchTerms);
+      configManager.addOrUpdateSearchHistory(
+        fsearch,
+        options.options.searchTerms
+      );
       configManager.updateTagAccessCount(options.options.searchTerms);
       this.cviews.searchBar.searchTerms = options.options.searchTerms;
     } else {
@@ -457,37 +555,56 @@ export class HomepageController extends BaseController {
   }
 
   async loadMore() {
-    if (statusManager.currentTab.type === "blank" || statusManager.currentTab.pages.length === 0) return;
-    // popular and upload tab can not load more
-    if (statusManager.currentTab.type === "popular" || statusManager.currentTab.type === "upload") return;
     if (
-      statusManager.currentTab.type === "front_page"
-      || statusManager.currentTab.type === "watched"
-      || statusManager.currentTab.type === "favorites"
+      statusManager.currentTab.type === "blank" ||
+      statusManager.currentTab.pages.length === 0
+    )
+      return;
+    // popular and upload tab can not load more
+    if (
+      statusManager.currentTab.type === "popular" ||
+      statusManager.currentTab.type === "upload"
+    )
+      return;
+    if (
+      statusManager.currentTab.type === "front_page" ||
+      statusManager.currentTab.type === "watched" ||
+      statusManager.currentTab.type === "favorites"
     ) {
-      const lastPage = statusManager.currentTab.pages[statusManager.currentTab.pages.length - 1];
+      const lastPage =
+        statusManager.currentTab.pages[
+          statusManager.currentTab.pages.length - 1
+        ];
       if (!lastPage.next_page_available) return;
     } else if (statusManager.currentTab.type === "toplist") {
-      const lastPage = statusManager.currentTab.pages[statusManager.currentTab.pages.length - 1];
+      const lastPage =
+        statusManager.currentTab.pages[
+          statusManager.currentTab.pages.length - 1
+        ];
       if (lastPage.current_page === lastPage.total_pages - 1) return;
     }
     this.cviews.list.footerText = "正在加载更多……";
     try {
       const tab = await statusManager.loadMoreTab(statusManager.currentTabId);
       if (!tab) return;
-      const dm = downloaderManager.getTabDownloader(statusManager.currentTabId) as TabThumbnailDownloader;
+      const dm = downloaderManager.getTabDownloader(
+        statusManager.currentTabId
+      ) as TabThumbnailDownloader;
       dm.clear();
       dm.add(
-        tab.pages.map(page => page.items).flat().map(item => ({
-          gid: item.gid,
-          url: item.thumbnail_url
-        }))
-      )
+        tab.pages
+          .map((page) => page.items)
+          .flat()
+          .map((item) => ({
+            gid: item.gid,
+            url: item.thumbnail_url,
+          }))
+      );
       downloaderManager.startTabDownloader(statusManager.currentTabId);
 
       this.updateLoadedStatus();
     } catch (e) {
-      appLog(e, "error")
+      appLog(e, "error");
     }
   }
 
@@ -495,20 +612,25 @@ export class HomepageController extends BaseController {
     this.cviews.list.footerText = "正在重新加载……";
     try {
       const tab = await statusManager.reloadTab(statusManager.currentTabId);
-      const dm = downloaderManager.getTabDownloader(statusManager.currentTabId) as TabThumbnailDownloader;
+      const dm = downloaderManager.getTabDownloader(
+        statusManager.currentTabId
+      ) as TabThumbnailDownloader;
       dm.clear();
       if (tab.type !== "upload") {
         dm.add(
-          tab.pages.map(page => page.items).flat().map(item => ({
-            gid: item.gid,
-            url: item.thumbnail_url
-          }))
-        )
+          tab.pages
+            .map((page) => page.items)
+            .flat()
+            .map((item) => ({
+              gid: item.gid,
+              url: item.thumbnail_url,
+            }))
+        );
         downloaderManager.startTabDownloader(statusManager.currentTabId);
       }
       this.updateLoadedStatus();
     } catch (e) {
-      appLog(e, "error")
+      appLog(e, "error");
     }
   }
 
@@ -522,7 +644,9 @@ export class HomepageController extends BaseController {
         break;
       }
       case "front_page": {
-        const items = tab.pages.map(page => page.items).flat() as EHListExtendedItem[];
+        const items = tab.pages
+          .map((page) => page.items)
+          .flat() as EHListExtendedItem[];
         this.cviews.list.items = items;
         const lastPage = tab.pages[tab.pages.length - 1];
         if (!lastPage.next_page_available) {
@@ -534,7 +658,9 @@ export class HomepageController extends BaseController {
         break;
       }
       case "watched": {
-        const items = tab.pages.map(page => page.items).flat() as EHListExtendedItem[];
+        const items = tab.pages
+          .map((page) => page.items)
+          .flat() as EHListExtendedItem[];
         this.cviews.list.items = items;
         const lastPage = tab.pages[tab.pages.length - 1];
         if (!lastPage.next_page_available) {
@@ -546,14 +672,18 @@ export class HomepageController extends BaseController {
         break;
       }
       case "popular": {
-        const items = tab.pages.map(page => page.items).flat() as EHListExtendedItem[];
+        const items = tab.pages
+          .map((page) => page.items)
+          .flat() as EHListExtendedItem[];
         this.cviews.list.items = items;
         this.cviews.list.footerText = "没有更多了";
         this.cviews.titleView.title = "热门";
         break;
       }
       case "favorites": {
-        const items = tab.pages.map(page => page.items).flat() as EHListExtendedItem[];
+        const items = tab.pages
+          .map((page) => page.items)
+          .flat() as EHListExtendedItem[];
         this.cviews.list.items = items;
         const lastPage = tab.pages[tab.pages.length - 1];
         if (!lastPage.next_page_available) {
@@ -565,7 +695,7 @@ export class HomepageController extends BaseController {
         break;
       }
       case "toplist": {
-        const items = tab.pages.map(page => page.items).flat();
+        const items = tab.pages.map((page) => page.items).flat();
         this.cviews.list.items = items;
         const lastPage = tab.pages[tab.pages.length - 1];
         if (lastPage.current_page === lastPage.total_pages - 1) {
@@ -575,15 +705,15 @@ export class HomepageController extends BaseController {
         }
         const timeRange = tab.options.timeRange;
         this.cviews.titleView.title = {
-          "yesterday": "日排行",
-          "past_month": "月排行",
-          "past_year": "年排行",
-          "all": "总排行"
+          yesterday: "日排行",
+          past_month: "月排行",
+          past_year: "年排行",
+          all: "总排行",
         }[timeRange];
         break;
       }
       case "upload": {
-        const items = tab.pages.map(page => page.items).flat();
+        const items = tab.pages.map((page) => page.items).flat();
         this.cviews.list.items = items;
         this.cviews.list.footerText = "没有更多了";
         this.cviews.titleView.title = "我的上传";
@@ -592,6 +722,6 @@ export class HomepageController extends BaseController {
       default:
         throw new Error("Invalid tab type");
     }
-    (router.get("sidebarTabController") as SidebarTabController).refresh()
+    (router.get("sidebarTabController") as SidebarTabController).refresh();
   }
 }

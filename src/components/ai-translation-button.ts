@@ -1,11 +1,14 @@
 import { Base } from "jsbox-cview";
 
-export class AiTranslationButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
+export class AiTranslationButton extends Base<
+  UIButtonView,
+  UiTypes.ButtonOptions
+> {
   _status: "pending" | "loading" | "success" | "error" = "pending";
   _defineView: () => UiTypes.ButtonOptions;
   constructor({
     layout,
-    events
+    events,
   }: {
     layout: (make: MASConstraintMaker, view: UIButtonView) => void;
     events: {
@@ -22,12 +25,13 @@ export class AiTranslationButton extends Base<UIButtonView, UiTypes.ButtonOption
         bgcolor: $color("clear"),
       },
       views: [
-        { // success
+        {
+          // success
           type: "view",
           props: {
             id: this.id + "success",
             hidden: this._status !== "success",
-            userInteractionEnabled: false
+            userInteractionEnabled: false,
           },
           layout: (make, view) => {
             make.edges.insets($insets(12.5, 12.5, 12.5, 12.5));
@@ -39,9 +43,9 @@ export class AiTranslationButton extends Base<UIButtonView, UiTypes.ButtonOption
               props: {
                 symbol: "arrow.triangle.2.circlepath",
                 tintColor: $color("systemLink"),
-                contentMode: 1,                
+                contentMode: 1,
               },
-              layout: $layout.fill
+              layout: $layout.fill,
             },
             {
               type: "label",
@@ -49,43 +53,46 @@ export class AiTranslationButton extends Base<UIButtonView, UiTypes.ButtonOption
                 text: "译",
                 align: $align.center,
                 textColor: $color("systemLink"),
-                font: $font('bold', 10)
+                font: $font("bold", 10),
               },
-              layout: $layout.fill
-            }
-          ]
+              layout: $layout.fill,
+            },
+          ],
         },
-        { // error
+        {
+          // error
           type: "image",
           props: {
             id: this.id + "error",
             symbol: "xmark.circle.fill",
             tintColor: $color("#F44336"),
             contentMode: 1,
-            hidden: this._status !== "error"
+            hidden: this._status !== "error",
           },
           layout: (make, view) => {
             make.edges.insets($insets(12.5, 12.5, 12.5, 12.5));
             make.center.equalTo(view.super);
-          }
+          },
         },
-        { // loading
+        {
+          // loading
           type: "spinner",
           props: {
             id: this.id + "loading",
             loading: this._status === "loading",
-            hidden: this._status !== "loading"
+            hidden: this._status !== "loading",
           },
           layout: (make, view) => {
             make.center.equalTo(view.super);
-          }
+          },
         },
-        { // pending
+        {
+          // pending
           type: "view",
           props: {
             id: this.id + "pending",
             hidden: this._status !== "pending",
-            userInteractionEnabled: false
+            userInteractionEnabled: false,
           },
           layout: (make, view) => {
             make.edges.insets($insets(12.5, 12.5, 12.5, 12.5));
@@ -97,9 +104,9 @@ export class AiTranslationButton extends Base<UIButtonView, UiTypes.ButtonOption
               props: {
                 symbol: "arrow.triangle.2.circlepath",
                 tintColor: $color("primaryText"),
-                contentMode: 1,                
+                contentMode: 1,
               },
-              layout: $layout.fill
+              layout: $layout.fill,
             },
             {
               type: "label",
@@ -107,16 +114,16 @@ export class AiTranslationButton extends Base<UIButtonView, UiTypes.ButtonOption
                 text: "AI",
                 align: $align.center,
                 textColor: $color("primaryText"),
-                font: $font('bold', 10)
+                font: $font("bold", 10),
               },
-              layout: $layout.fill
-            }
-          ]
-        }
+              layout: $layout.fill,
+            },
+          ],
+        },
       ],
       layout: this._layout,
-      events
-    })
+      events,
+    });
   }
 
   get status() {
@@ -152,5 +159,4 @@ export class AiTranslationButton extends Base<UIButtonView, UiTypes.ButtonOption
       $(this.id + "error").hidden = true;
     }
   }
-
 }

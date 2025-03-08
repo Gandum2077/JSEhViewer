@@ -1,5 +1,10 @@
-import { UIAlertActionStyle, UIAlertControllerStyle, UIAlertAction, UIAlertController, l10n } from "jsbox-cview";
-
+import {
+  UIAlertActionStyle,
+  UIAlertControllerStyle,
+  UIAlertAction,
+  UIAlertController,
+  l10n,
+} from "jsbox-cview";
 
 export function rateAlert({
   rating,
@@ -7,10 +12,10 @@ export function rateAlert({
   cancelText = l10n("CANCEL"),
   confirmText = l10n("OK"),
 }: {
-  rating: number, 
-  title?: string, 
-  cancelText?: string, 
-  confirmText?: string
+  rating: number;
+  title?: string;
+  cancelText?: string;
+  confirmText?: string;
 }): Promise<number> {
   if (rating < 0.5 || rating > 5) {
     throw new Error("Rating should be between 0.5 and 5");
@@ -18,12 +23,11 @@ export function rateAlert({
   return new Promise((resolve, reject) => {
     const view: UiTypes.ViewOptions = {
       type: "view",
-      props: {
-      },
+      props: {},
       layout: (make, view) => {
-        make.left.right.inset(20)
-        make.centerY.equalTo(view.super)
-        make.height.equalTo(40)
+        make.left.right.inset(20);
+        make.centerY.equalTo(view.super);
+        make.height.equalTo(40);
       },
       views: [
         {
@@ -34,8 +38,8 @@ export function rateAlert({
             font: $font("bold", 16),
           },
           layout: (make, view) => {
-            make.right.inset(0)
-            make.centerY.equalTo(view.super)
+            make.right.inset(0);
+            make.centerY.equalTo(view.super);
           },
         },
         {
@@ -47,21 +51,25 @@ export function rateAlert({
             continuous: true,
           },
           layout: (make, view) => {
-            make.left.inset(0)
-            make.right.equalTo(view.prev.left).inset(10)
-            make.centerY.equalTo(view.super)
+            make.left.inset(0);
+            make.right.equalTo(view.prev.left).inset(10);
+            make.centerY.equalTo(view.super);
           },
           events: {
             changed: (sender) => {
               const v = Math.floor(sender.value * 2) / 2;
               (sender.prev as UILabelView).text = v.toFixed(1);
               rating = v;
-            }
-          }
+            },
+          },
         },
-      ]
-    }
-    const alertVC = new UIAlertController(title, "\n\n\n\n", UIAlertControllerStyle.Alert);
+      ],
+    };
+    const alertVC = new UIAlertController(
+      title,
+      "\n\n\n\n",
+      UIAlertControllerStyle.Alert
+    );
     alertVC.addAction(
       new UIAlertAction(cancelText, UIAlertActionStyle.Destructive, cancelEvent)
     );
@@ -69,7 +77,7 @@ export function rateAlert({
       new UIAlertAction(confirmText, UIAlertActionStyle.Default, confirmEvent)
     );
     alertVC.present();
-    alertVC.instance.invoke("view").jsValue().add(view)
+    alertVC.instance.invoke("view").jsValue().add(view);
 
     function confirmEvent() {
       resolve(rating);
@@ -79,4 +87,3 @@ export function rateAlert({
     }
   });
 }
-

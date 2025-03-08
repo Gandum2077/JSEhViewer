@@ -32,7 +32,7 @@ interface InnerTimerTask {
 /**
  * 全局定时器
  * 每秒钟执行一次，检查所有任务是否需要执行，执行需要执行的任务
- * 
+ *
  * init() 初始化定时器，需要在index.ts中调用
  * stop() 停止定时器，在关闭app时调用
  * addTask(task: TimerTask) 添加任务
@@ -43,7 +43,7 @@ interface InnerTimerTask {
 export class GlobalTimer {
   private _timer?: TimerTypes.Timer;
   private _interval: number = 1;
-  private _tasks: Map<string, InnerTimerTask> = new Map(); 
+  private _tasks: Map<string, InnerTimerTask> = new Map();
   constructor() {}
 
   init() {
@@ -59,7 +59,7 @@ export class GlobalTimer {
           if (task.remainingInterval > 0) {
             task.remainingInterval--;
           }
-          
+
           // 如果剩余间隔时间小于等于0，那么执行任务
           if (task.remainingInterval <= 0) {
             try {
@@ -72,14 +72,14 @@ export class GlobalTimer {
             }
           }
         });
-      }
-    })
+      },
+    });
   }
 
   stop() {
     if (this._timer) {
-      this._timer.invalidate()
-      this._timer = undefined
+      this._timer.invalidate();
+      this._timer = undefined;
     }
   }
 
@@ -100,8 +100,8 @@ export class GlobalTimer {
       immediate: task.immediate ?? false,
       paused: task.paused ?? false,
       remainingInterval: remainingInterval,
-      handler: task.handler
-    }
+      handler: task.handler,
+    };
     this._tasks.set(task.id, innerTask);
   }
 

@@ -1,8 +1,25 @@
-import { Base, BaseController, Button, DynamicItemSizeMatrix, DynamicRowHeightList, layerCommonOptions, setLayer } from "jsbox-cview";
+import {
+  Base,
+  BaseController,
+  Button,
+  DynamicItemSizeMatrix,
+  DynamicRowHeightList,
+  layerCommonOptions,
+  setLayer,
+} from "jsbox-cview";
 import { TagsFlowlayout } from "../components/tags-flowlayout";
 import { assembleSearchTerms, EHGallery, EHSearchTerm } from "ehentai-parser";
 import { configManager } from "../utils/config";
-import { catColor, catTranslations, defaultButtonColor, favcatColor, galleryInfoPath, invisibleCauseMap, ratingColor, tagColor } from "../utils/glv";
+import {
+  catColor,
+  catTranslations,
+  defaultButtonColor,
+  favcatColor,
+  galleryInfoPath,
+  invisibleCauseMap,
+  ratingColor,
+  tagColor,
+} from "../utils/glv";
 import { GalleryDetailedInfoController } from "./gallery-detailed-info-controller";
 import { toSimpleUTCTimeString } from "../utils/tools";
 import { rateAlert } from "../components/rate-alert";
@@ -28,15 +45,15 @@ class BlankView extends Base<UIView, UiTypes.ViewOptions> {
         type: "view",
         props: {
           id: this.id,
-          bgcolor: $color("clear")
+          bgcolor: $color("clear"),
         },
-        layout: $layout.fill
-      }
-    }
+        layout: $layout.fill,
+      };
+    };
   }
 
   heightToWidth(width: number) {
-    return this._height
+    return this._height;
   }
 }
 
@@ -45,16 +62,19 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
   private _uploader: string | undefined = undefined;
   private _disowned: boolean = false;
   private _selected: boolean = false;
-  constructor({ layout, selectedChanged }: {
+  constructor({
+    layout,
+    selectedChanged,
+  }: {
     layout: (make: MASConstraintMaker, view: UIView) => void;
-    selectedChanged: (selected: boolean) => void
+    selectedChanged: (selected: boolean) => void;
   }) {
     super();
     this._defineView = () => {
       return {
         type: "view",
         props: {
-          id: this.id
+          id: this.id,
         },
         layout,
         views: [
@@ -71,59 +91,63 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
                     symbol: "magnifyingglass",
                     handler: async (sender) => {
                       this._search();
-                    }
+                    },
                   },
                   {
                     title: "复制",
                     symbol: "doc.on.doc",
                     handler: (sender) => {
                       if (!this._uploader) return;
-                      $clipboard.text = assembleSearchTerms([{
-                        qualifier: "uploader",
-                        term: this._uploader,
-                        dollar: false,
-                        subtract: false,
-                        tilde: false
-                      }]);
-                      $ui.toast("已复制")
-                    }
+                      $clipboard.text = assembleSearchTerms([
+                        {
+                          qualifier: "uploader",
+                          term: this._uploader,
+                          dollar: false,
+                          subtract: false,
+                          tilde: false,
+                        },
+                      ]);
+                      $ui.toast("已复制");
+                    },
                   },
                   {
                     title: "标记此上传者",
                     symbol: "bookmark",
                     handler: (sender) => {
                       this._markUploader();
-                    }
+                    },
                   },
                   {
                     title: "屏蔽此上传者",
                     symbol: "square.slash",
                     handler: (sender) => {
                       this._banUploader();
-                    }
-                  }
-                ]
-              }
+                    },
+                  },
+                ],
+              },
             },
             layout: (make, view) => {
-              make.left.top.bottom.inset(0)
-              make.width.equalTo(0)
+              make.left.top.bottom.inset(0);
+              make.width.equalTo(0);
             },
             events: {
-              tapped: sender => {
+              tapped: (sender) => {
                 this.selected = !this.selected;
                 selectedChanged(this.selected);
-              }
-            },
-            views: [{
-              type: "label",
-              props: {
-                id: this.id + "uploader_normal",
-                font: $font(14),
-                align: $align.center
               },
-              layout: $layout.center
-            }]
+            },
+            views: [
+              {
+                type: "label",
+                props: {
+                  id: this.id + "uploader_normal",
+                  font: $font(14),
+                  align: $align.center,
+                },
+                layout: $layout.center,
+              },
+            ],
           },
           {
             type: "view",
@@ -138,52 +162,56 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
                     symbol: "magnifyingglass",
                     handler: (sender) => {
                       this._search();
-                    }
+                    },
                   },
                   {
                     title: "复制",
                     symbol: "doc.on.doc",
                     handler: (sender) => {
                       if (!this._uploader) return;
-                      $clipboard.text = assembleSearchTerms([{
-                        qualifier: "uploader",
-                        term: this._uploader,
-                        dollar: false,
-                        subtract: false,
-                        tilde: false
-                      }]);
-                      $ui.toast("已复制")
-                    }
+                      $clipboard.text = assembleSearchTerms([
+                        {
+                          qualifier: "uploader",
+                          term: this._uploader,
+                          dollar: false,
+                          subtract: false,
+                          tilde: false,
+                        },
+                      ]);
+                      $ui.toast("已复制");
+                    },
                   },
                   {
                     title: "取消标记",
                     symbol: "bookmark.slash",
                     handler: (sender) => {
                       this._unmarkUploader();
-                    }
-                  }
-                ]
-              }
+                    },
+                  },
+                ],
+              },
             },
             layout: (make, view) => {
-              make.left.top.bottom.inset(0)
-              make.width.equalTo(0)
+              make.left.top.bottom.inset(0);
+              make.width.equalTo(0);
             },
             events: {
-              tapped: sender => {
+              tapped: (sender) => {
                 this.selected = !this.selected;
                 selectedChanged(this.selected);
-              }
-            },
-            views: [{
-              type: "label",
-              props: {
-                id: this.id + "uploader_marked",
-                font: $font(14),
-                align: $align.center
               },
-              layout: $layout.center
-            }]
+            },
+            views: [
+              {
+                type: "label",
+                props: {
+                  id: this.id + "uploader_marked",
+                  font: $font(14),
+                  align: $align.center,
+                },
+                layout: $layout.center,
+              },
+            ],
           },
           {
             type: "view",
@@ -198,52 +226,56 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
                     symbol: "magnifyingglass",
                     handler: (sender) => {
                       this._search();
-                    }
+                    },
                   },
                   {
                     title: "复制",
                     symbol: "doc.on.doc",
                     handler: (sender) => {
                       if (!this._uploader) return;
-                      $clipboard.text = assembleSearchTerms([{
-                        qualifier: "uploader",
-                        term: this._uploader,
-                        dollar: false,
-                        subtract: false,
-                        tilde: false
-                      }]);
-                      $ui.toast("已复制")
-                    }
+                      $clipboard.text = assembleSearchTerms([
+                        {
+                          qualifier: "uploader",
+                          term: this._uploader,
+                          dollar: false,
+                          subtract: false,
+                          tilde: false,
+                        },
+                      ]);
+                      $ui.toast("已复制");
+                    },
                   },
                   {
                     title: "取消屏蔽",
                     symbol: "square",
                     handler: (sender) => {
                       this._unbanUploader();
-                    }
-                  }
-                ]
-              }
+                    },
+                  },
+                ],
+              },
             },
             layout: (make, view) => {
-              make.left.top.bottom.inset(0)
-              make.width.equalTo(0)
+              make.left.top.bottom.inset(0);
+              make.width.equalTo(0);
             },
             events: {
-              tapped: sender => {
+              tapped: (sender) => {
                 this.selected = !this.selected;
                 selectedChanged(this.selected);
-              }
-            },
-            views: [{
-              type: "label",
-              props: {
-                id: this.id + "uploader_banned",
-                font: $font(14),
-                align: $align.center
               },
-              layout: $layout.center
-            }]
+            },
+            views: [
+              {
+                type: "label",
+                props: {
+                  id: this.id + "uploader_banned",
+                  font: $font(14),
+                  align: $align.center,
+                },
+                layout: $layout.center,
+              },
+            ],
           },
           {
             type: "label",
@@ -252,16 +284,16 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
               bgcolor: $color("clear"),
               textColor: $color("secondaryText"),
               font: $font(14),
-              text: "(已放弃)"
+              text: "(已放弃)",
             },
             layout: (make, view) => {
-              make.left.inset(8)
-              make.centerY.equalTo(view.super)
-            }
-          }
-        ]
-      }
-    }
+              make.left.inset(8);
+              make.centerY.equalTo(view.super);
+            },
+          },
+        ],
+      };
+    };
   }
 
   private async _search() {
@@ -269,22 +301,23 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
     const controller = new PushedSearchResultController();
     controller.uipush({
       navBarHidden: true,
-      statusBarStyle: 0
-    })
+      statusBarStyle: 0,
+    });
     await $wait(0.3);
     await controller.triggerLoad({
       type: "front_page",
       options: {
-        searchTerms: [{
-          qualifier: "uploader",
-          term: this._uploader,
-          dollar: false,
-          subtract: false,
-          tilde: false
-        }]
-      }
-    })
-
+        searchTerms: [
+          {
+            qualifier: "uploader",
+            term: this._uploader,
+            dollar: false,
+            subtract: false,
+            tilde: false,
+          },
+        ],
+      },
+    });
   }
 
   private _markUploader() {
@@ -306,8 +339,8 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
       config.xu = config.xu + "\n" + this._uploader;
       const success = await api.postConfig(config);
       if (success) {
-        const bannedUploaders = config.xu.split("\n")
-        configManager.updateAllBannedUploaders(bannedUploaders)
+        const bannedUploaders = config.xu.split("\n");
+        configManager.updateAllBannedUploaders(bannedUploaders);
       }
     } catch (e) {
       $ui.error("错误：屏蔽失败");
@@ -319,11 +352,14 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
     if (!this._uploader) return;
     try {
       const config = await api.getConfig();
-      config.xu = config.xu.split("\n").filter(uploader => uploader !== this._uploader).join("\n");
+      config.xu = config.xu
+        .split("\n")
+        .filter((uploader) => uploader !== this._uploader)
+        .join("\n");
       const success = await api.postConfig(config);
       if (success) {
-        const bannedUploaders = config.xu.split("\n")
-        configManager.updateAllBannedUploaders(bannedUploaders)
+        const bannedUploaders = config.xu.split("\n");
+        configManager.updateAllBannedUploaders(bannedUploaders);
       }
     } catch (e) {
       $ui.error("错误：取消屏蔽失败");
@@ -331,7 +367,13 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
     this.refresh();
   }
 
-  update({ uploader, disowned }: { uploader: string | undefined, disowned: boolean }) {
+  update({
+    uploader,
+    disowned,
+  }: {
+    uploader: string | undefined;
+    disowned: boolean;
+  }) {
     this._uploader = uploader;
     this._disowned = disowned;
     this._selected = false;
@@ -347,21 +389,22 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
       $(this.id + "uploader_disowned").hidden = false;
     } else if (this._uploader) {
       // 获取宽度
-      const width = $text.sizeThatFits({
-        text: this._uploader,
-        font: $font(14),
-        width: 1000
-      }).width + 16;
+      const width =
+        $text.sizeThatFits({
+          text: this._uploader,
+          font: $font(14),
+          width: 1000,
+        }).width + 16;
       // 设置宽度
       $(this.id + "uploader_normal_wrapper").updateLayout((make, view) => {
-        make.width.equalTo(width)
-      })
+        make.width.equalTo(width);
+      });
       $(this.id + "uploader_marked_wrapper").updateLayout((make, view) => {
-        make.width.equalTo(width)
-      })
+        make.width.equalTo(width);
+      });
       $(this.id + "uploader_banned_wrapper").updateLayout((make, view) => {
-        make.width.equalTo(width)
-      })
+        make.width.equalTo(width);
+      });
       const marked = configManager.markedUploaders.includes(this._uploader);
       const banned = configManager.bannedUploaders.includes(this._uploader);
       $(this.id + "uploader_normal_wrapper").hidden = marked || banned;
@@ -372,13 +415,19 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
 
     // 刷新颜色
     if (this._selected) {
-      ($(this.id + "uploader_normal") as UILabelView).textColor = tagColor.selected;
-      ($(this.id + "uploader_marked") as UILabelView).textColor = tagColor.selected;
-      ($(this.id + "uploader_banned") as UILabelView).textColor = tagColor.selected;
+      ($(this.id + "uploader_normal") as UILabelView).textColor =
+        tagColor.selected;
+      ($(this.id + "uploader_marked") as UILabelView).textColor =
+        tagColor.selected;
+      ($(this.id + "uploader_banned") as UILabelView).textColor =
+        tagColor.selected;
     } else {
-      ($(this.id + "uploader_normal") as UILabelView).textColor = $color("primaryText");
-      ($(this.id + "uploader_marked") as UILabelView).textColor = tagColor.marked;
-      ($(this.id + "uploader_banned") as UILabelView).textColor = tagColor.hidden;
+      ($(this.id + "uploader_normal") as UILabelView).textColor =
+        $color("primaryText");
+      ($(this.id + "uploader_marked") as UILabelView).textColor =
+        tagColor.marked;
+      ($(this.id + "uploader_banned") as UILabelView).textColor =
+        tagColor.hidden;
     }
 
     // 刷新内容
@@ -399,21 +448,27 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
   }
 }
 
-function _calFontSizeAndHeight(title: string, width: number, maxHeight: number): { fontSize: number, height: number } {
-  const maxFontSize = 16
-  const minFontSize = 10
-  const factor = 2
+function _calFontSizeAndHeight(
+  title: string,
+  width: number,
+  maxHeight: number
+): { fontSize: number; height: number } {
+  const maxFontSize = 16;
+  const minFontSize = 10;
+  const factor = 2;
   for (let i = maxFontSize * factor; i >= minFontSize * factor; i--) {
-    const height = Math.ceil($text.sizeThatFits({
-      text: title,
-      font: $font(i / factor),
-      width: width
-    }).height)
+    const height = Math.ceil(
+      $text.sizeThatFits({
+        text: title,
+        font: $font(i / factor),
+        width: width,
+      }).height
+    );
     if (height <= maxHeight) {
-      return { fontSize: i / factor, height }
+      return { fontSize: i / factor, height };
     }
   }
-  return { fontSize: minFontSize, height: maxHeight }
+  return { fontSize: minFontSize, height: maxHeight };
 }
 
 /**
@@ -424,148 +479,166 @@ class InfoHeaderView extends Base<UIView, UiTypes.ViewOptions> {
   private _titleLanguage: "english_title" | "japanese_title" = "japanese_title";
   cviews: {
     uploaderView: UploaderView;
-  }
+  };
   _defineView: () => UiTypes.ViewOptions;
   constructor(selectedChanged: (selected: boolean) => void) {
     super();
     const uploaderView = new UploaderView({
       layout: (make, view) => {
-        make.left.equalTo(view.prev)
-        make.right.inset(0)
-        make.top.equalTo(view.prev.bottom).inset(5)
-        make.height.equalTo(25)
+        make.left.equalTo(view.prev);
+        make.right.inset(0);
+        make.top.equalTo(view.prev.bottom).inset(5);
+        make.height.equalTo(25);
       },
-      selectedChanged: selected => {
-        selectedChanged(selected)
-      }
-    })
+      selectedChanged: (selected) => {
+        selectedChanged(selected);
+      },
+    });
     this.cviews = {
-      uploaderView
-    }
+      uploaderView,
+    };
     this._defineView = () => {
       return {
         type: "view",
         props: {
           id: this.id,
-          bgcolor: $color("clear")
+          bgcolor: $color("clear"),
         },
         layout: $layout.fill,
-        views: [{
-          type: "view",
-          props: {
-            cornerRadius: 8,
-            smoothCorners: true,
-            bgcolor: $color("tertiarySurface")
-          },
-          layout: $layout.fill,
-          views: [
-            { // thumbnail
-              type: "image",
-              props: {
-                id: this.id + "thumbnail",
-                contentMode: 1,
-              },
-              layout: (make, view) => {
-                make.left.top.bottom.inset(0)
-                make.width.equalTo(view.super).dividedBy(3)
-              }
+        views: [
+          {
+            type: "view",
+            props: {
+              cornerRadius: 8,
+              smoothCorners: true,
+              bgcolor: $color("tertiarySurface"),
             },
-            { // 右边部分
-              type: "view",
-              props: {
-                id: this.id + "rightWrapper",
-              },
-              layout: (make, view) => {
-                make.right.top.bottom.inset(0)
-                make.left.equalTo(view.prev.right)
-              },
-              views: [
-                { // 类别
-                  type: "label",
-                  props: {
-                    id: this.id + "category",
-                    textColor: $color("white"),
-                    font: $font("bold", 16),
-                    align: $align.center,
-                    cornerRadius: 4,
-                    smoothCorners: true,
-                  },
-                  layout: (make, view) => {
-                    make.left.inset(5)
-                    make.bottom.inset(10)
-                    make.height.equalTo(30)
-                    make.width.equalTo(100)
-                  }
+            layout: $layout.fill,
+            views: [
+              {
+                // thumbnail
+                type: "image",
+                props: {
+                  id: this.id + "thumbnail",
+                  contentMode: 1,
                 },
-                {
-                  type: "label",
-                  props: {
-                    id: this.id + "title",
-                    titleColor: $color("primaryText"),
-                    align: $align.left,
-                    lines: 0,
-                    userInteractionEnabled: true
-                  },
-                  layout: (make, view) => {
-                    make.left.inset(5)
-                    make.right.inset(8)
-                    make.top.inset(10)
-                    make.height.equalTo(77)
-                  },
-                  events: {
-                    tapped: sender => {
-                      if (!this._infos) return;
-                      if (!this._infos.japanese_title) return;
-                      this._titleLanguage = this._titleLanguage === "english_title" ? "japanese_title" : "english_title";
-                      sender.text = this._infos[this._titleLanguage];
-                      this._updateTitleLayout($(this.id + "rightWrapper").frame)
-                    }
-                  }
+                layout: (make, view) => {
+                  make.left.top.bottom.inset(0);
+                  make.width.equalTo(view.super).dividedBy(3);
                 },
-                uploaderView.definition
-              ],
-              events: {
-                layoutSubviews: sender => {
-                  if (!this._infos) return;
-                  this._updateTitleLayout(sender.frame)
-                }
-              }
-            }
-          ]
-        }]
-      }
-    }
+              },
+              {
+                // 右边部分
+                type: "view",
+                props: {
+                  id: this.id + "rightWrapper",
+                },
+                layout: (make, view) => {
+                  make.right.top.bottom.inset(0);
+                  make.left.equalTo(view.prev.right);
+                },
+                views: [
+                  {
+                    // 类别
+                    type: "label",
+                    props: {
+                      id: this.id + "category",
+                      textColor: $color("white"),
+                      font: $font("bold", 16),
+                      align: $align.center,
+                      cornerRadius: 4,
+                      smoothCorners: true,
+                    },
+                    layout: (make, view) => {
+                      make.left.inset(5);
+                      make.bottom.inset(10);
+                      make.height.equalTo(30);
+                      make.width.equalTo(100);
+                    },
+                  },
+                  {
+                    type: "label",
+                    props: {
+                      id: this.id + "title",
+                      titleColor: $color("primaryText"),
+                      align: $align.left,
+                      lines: 0,
+                      userInteractionEnabled: true,
+                    },
+                    layout: (make, view) => {
+                      make.left.inset(5);
+                      make.right.inset(8);
+                      make.top.inset(10);
+                      make.height.equalTo(77);
+                    },
+                    events: {
+                      tapped: (sender) => {
+                        if (!this._infos) return;
+                        if (!this._infos.japanese_title) return;
+                        this._titleLanguage =
+                          this._titleLanguage === "english_title"
+                            ? "japanese_title"
+                            : "english_title";
+                        sender.text = this._infos[this._titleLanguage];
+                        this._updateTitleLayout(
+                          $(this.id + "rightWrapper").frame
+                        );
+                      },
+                    },
+                  },
+                  uploaderView.definition,
+                ],
+                events: {
+                  layoutSubviews: (sender) => {
+                    if (!this._infos) return;
+                    this._updateTitleLayout(sender.frame);
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      };
+    };
   }
 
-  _updateTitleLayout({ width, height }: { width: number, height: number }) {
+  _updateTitleLayout({ width, height }: { width: number; height: number }) {
     if (!this._infos) return;
     if (width <= 0 || height <= 0) return;
     const maxHeight = height - 90;
-    const { fontSize, height: titleHeight } = _calFontSizeAndHeight(this._infos[this._titleLanguage], width - 13, maxHeight);
+    const { fontSize, height: titleHeight } = _calFontSizeAndHeight(
+      this._infos[this._titleLanguage],
+      width - 13,
+      maxHeight
+    );
     ($(this.id + "title") as UILabelView).font = $font(fontSize);
     ($(this.id + "title") as UILabelView).updateLayout((make, view) => {
-      make.height.equalTo(titleHeight)
-    })
+      make.height.equalTo(titleHeight);
+    });
   }
 
   set thumbnail_url(url: string) {
-    ($(this.id + "thumbnail") as UIImageView).src = url
+    ($(this.id + "thumbnail") as UIImageView).src = url;
   }
 
   set infos(infos: EHGallery) {
     this._infos = infos;
     if (!infos.japanese_title) {
-      this._titleLanguage = "english_title"
+      this._titleLanguage = "english_title";
     }
     ($(this.id + "title") as UILabelView).text = infos[this._titleLanguage];
-    ($(this.id + "category") as UILabelView).text = catTranslations[infos.category];
+    ($(this.id + "category") as UILabelView).text =
+      catTranslations[infos.category];
     ($(this.id + "category") as UILabelView).bgcolor = catColor[infos.category];
-    this.cviews.uploaderView.update({ uploader: infos.uploader, disowned: infos.disowned })
-    this._updateTitleLayout($(this.id + "rightWrapper").frame)
+    this.cviews.uploaderView.update({
+      uploader: infos.uploader,
+      disowned: infos.disowned,
+    });
+    this._updateTitleLayout($(this.id + "rightWrapper").frame);
   }
 
   heightToWidth(width: number) {
-    return Math.min(Math.max(170, Math.round(width / 3 * 1.414)), 300)
+    return Math.min(Math.max(170, Math.round((width / 3) * 1.414)), 300);
   }
 }
 
@@ -580,55 +653,57 @@ class InfoMatrixWrapper extends Base<UIView, UiTypes.ViewOptions> {
         type: "view",
         props: {
           id: this.id,
-          bgcolor: $color("backgroundColor")
+          bgcolor: $color("backgroundColor"),
         },
         layout: $layout.fill,
-        views: [{
-          type: "view",
-          props: {
-            smoothCorners: true,
-            cornerRadius: 8,
-            clipsToBounds: true,
-            bgcolor: $color("tertiarySurface")
+        views: [
+          {
+            type: "view",
+            props: {
+              smoothCorners: true,
+              cornerRadius: 8,
+              clipsToBounds: true,
+              bgcolor: $color("tertiarySurface"),
+            },
+            layout: $layout.fill,
+            views: [
+              {
+                type: "view",
+                props: {
+                  id: "leftColumn",
+                  bgcolor: catColor.Misc,
+                },
+                layout: (make, view) => {
+                  make.left.top.bottom.inset(0);
+                  make.width.equalTo(8);
+                },
+              },
+              {
+                type: "view",
+                props: {
+                  id: "rightColumn",
+                  bgcolor: catColor.Misc,
+                },
+                layout: (make, view) => {
+                  make.right.top.bottom.inset(0);
+                  make.width.equalTo(8);
+                },
+              },
+              matrix.definition,
+            ],
           },
-          layout: $layout.fill,
-          views: [
-            {
-              type: "view",
-              props: {
-                id: "leftColumn",
-                bgcolor: catColor.Misc
-              },
-              layout: (make, view) => {
-                make.left.top.bottom.inset(0)
-                make.width.equalTo(8)
-              }
-            },
-            {
-              type: "view",
-              props: {
-                id: "rightColumn",
-                bgcolor: catColor.Misc
-              },
-              layout: (make, view) => {
-                make.right.top.bottom.inset(0)
-                make.width.equalTo(8)
-              }
-            },
-            matrix.definition
-          ]
-        }]
-      }
-    }
+        ],
+      };
+    };
   }
 
   heightToWidth(width: number) {
-    return this._matrix.heightToWidth(width - 8 * 2 - 5 * 2)
+    return this._matrix.heightToWidth(width - 8 * 2 - 5 * 2);
   }
 
   set leftColumnColor(color: UIColor) {
-    this.view.get("leftColumn").bgcolor = color
-    this.view.get("rightColumn").bgcolor = color
+    this.view.get("leftColumn").bgcolor = color;
+    this.view.get("rightColumn").bgcolor = color;
   }
 }
 
@@ -644,29 +719,31 @@ class TagsFlowlayoutWrapper extends Base<UIView, UiTypes.ViewOptions> {
         type: "view",
         props: {
           id: this.id,
-          bgcolor: $color("clear")
+          bgcolor: $color("clear"),
         },
-        layout: $layout.fill
-      }
-    }
+        layout: $layout.fill,
+      };
+    };
   }
 
   set taglist(taglist: EHGallery["taglist"]) {
     if (this._flowlayout) {
-      this._flowlayout.view.remove()
+      this._flowlayout.view.remove();
     }
     this._flowlayout = new TagsFlowlayout(taglist, {
-      tapped: () => { this._tapped() }
-    })
-    this.view.add(this._flowlayout.definition)
+      tapped: () => {
+        this._tapped();
+      },
+    });
+    this.view.add(this._flowlayout.definition);
   }
 
   get flowlayout() {
-    return this._flowlayout
+    return this._flowlayout;
   }
 
   heightToWidth(width: number) {
-    return this._flowlayout?.heightToWidth(width) || 1
+    return this._flowlayout?.heightToWidth(width) || 1;
   }
 }
 
@@ -675,8 +752,10 @@ class RateButton extends Base<UIView, UiTypes.ViewOptions> {
   private _rating: number = 0;
   private _is_my_rating: boolean = false;
   private _isRequestInProgress: boolean = false;
-  constructor({ handler }: {
-    handler: (currentRating: number) => Promise<number>
+  constructor({
+    handler,
+  }: {
+    handler: (currentRating: number) => Promise<number>;
   }) {
     super();
     const ratingWidth = this._calRatingWidth(this._rating);
@@ -685,7 +764,7 @@ class RateButton extends Base<UIView, UiTypes.ViewOptions> {
         type: "view",
         props: {
           id: this.id,
-          userInteractionEnabled: true
+          userInteractionEnabled: true,
         },
         layout: $layout.fill,
         views: [
@@ -694,45 +773,50 @@ class RateButton extends Base<UIView, UiTypes.ViewOptions> {
             props: {
               id: "star",
               tintColor: this._is_my_rating ? ratingColor : $color("orange"),
-              symbol: "star"
+              symbol: "star",
             },
             layout: (make, view) => {
-              make.centerX.equalTo(view.super)
-              make.centerY.equalTo(view.super).offset(-10)
-              make.size.equalTo($size(50, 50))
-            }
+              make.centerX.equalTo(view.super);
+              make.centerY.equalTo(view.super).offset(-10);
+              make.size.equalTo($size(50, 50));
+            },
           },
           {
             type: "view",
-            props: {
-            },
+            props: {},
             layout: (make, view) => {
-              make.center.equalTo(view.prev)
-              make.size.equalTo(view.prev)
+              make.center.equalTo(view.prev);
+              make.size.equalTo(view.prev);
             },
-            views: [{
-              type: "view",
-              props: {
-                id: "mask",
-                clipsToBounds: true,
-              },
-              layout: (make, view) => {
-                make.left.top.bottom.inset(0)
-                make.width.equalTo(ratingWidth)
-              },
-              views: [{
-                type: "image",
+            views: [
+              {
+                type: "view",
                 props: {
-                  id: "starfill",
-                  tintColor: this._is_my_rating ? ratingColor : $color("orange"),
-                  symbol: "star.fill"
+                  id: "mask",
+                  clipsToBounds: true,
                 },
                 layout: (make, view) => {
-                  make.left.top.bottom.inset(0)
-                  make.size.equalTo($size(50, 50))
-                }
-              }]
-            }]
+                  make.left.top.bottom.inset(0);
+                  make.width.equalTo(ratingWidth);
+                },
+                views: [
+                  {
+                    type: "image",
+                    props: {
+                      id: "starfill",
+                      tintColor: this._is_my_rating
+                        ? ratingColor
+                        : $color("orange"),
+                      symbol: "star.fill",
+                    },
+                    layout: (make, view) => {
+                      make.left.top.bottom.inset(0);
+                      make.size.equalTo($size(50, 50));
+                    },
+                  },
+                ],
+              },
+            ],
           },
           {
             type: "label",
@@ -740,17 +824,17 @@ class RateButton extends Base<UIView, UiTypes.ViewOptions> {
               text: this._rating.toFixed(2),
               font: $font(12),
               textColor: $color("primaryText"),
-              align: $align.center
+              align: $align.center,
             },
             layout: (make, view) => {
-              make.left.right.inset(10)
-              make.centerX.equalTo(view.super)
-              make.top.equalTo(view.prev.bottom).offset(5)
-            }
-          }
+              make.left.right.inset(10);
+              make.centerX.equalTo(view.super);
+              make.top.equalTo(view.prev.bottom).offset(5);
+            },
+          },
         ],
         events: {
-          tapped: async sender => {
+          tapped: async (sender) => {
             if (this._isRequestInProgress) {
               $ui.warning("正在处理上一个请求，请稍后再试");
               return;
@@ -761,10 +845,10 @@ class RateButton extends Base<UIView, UiTypes.ViewOptions> {
             if (newRating) {
               this.rate(newRating);
             }
-          }
-        }
-      }
-    }
+          },
+        },
+      };
+    };
   }
 
   set rating(rating: number) {
@@ -772,8 +856,8 @@ class RateButton extends Base<UIView, UiTypes.ViewOptions> {
     (this.view.get("label") as UILabelView).text = rating.toFixed(2);
     const ratingWidth = this._calRatingWidth(rating);
     (this.view.get("mask") as UIView).updateLayout((make, view) => {
-      make.width.equalTo(ratingWidth)
-    })
+      make.width.equalTo(ratingWidth);
+    });
   }
 
   get rating() {
@@ -782,9 +866,12 @@ class RateButton extends Base<UIView, UiTypes.ViewOptions> {
 
   set is_my_rating(is_my_rating: boolean) {
     this._is_my_rating = is_my_rating;
-    (this.view.get("star") as UIImageView).tintColor = is_my_rating ? ratingColor : $color("orange");
-    (this.view.get("starfill") as UIImageView).tintColor = is_my_rating ? ratingColor : $color("orange");
-
+    (this.view.get("star") as UIImageView).tintColor = is_my_rating
+      ? ratingColor
+      : $color("orange");
+    (this.view.get("starfill") as UIImageView).tintColor = is_my_rating
+      ? ratingColor
+      : $color("orange");
   }
 
   get is_my_rating() {
@@ -798,23 +885,32 @@ class RateButton extends Base<UIView, UiTypes.ViewOptions> {
 
   private _calRatingWidth(rating: number) {
     if (rating === 0) return 0;
-    return rating < 5 ? Math.floor(30 * rating / 5) + 10 : 50;
+    return rating < 5 ? Math.floor((30 * rating) / 5) + 10 : 50;
   }
 }
 
-type FavoriteButtonActionResult = {
-  success: true,
-  favorited: true,
-  favcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9,
-  title: string
-} | { success: true, favorited: false } | { success: false, dissmissed?: boolean }
+type FavoriteButtonActionResult =
+  | {
+      success: true;
+      favorited: true;
+      favcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+      title: string;
+    }
+  | { success: true; favorited: false }
+  | { success: false; dissmissed?: boolean };
 
 class FavoriteButton extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
-  private _handler: (action: "default" | "unfavorite" | "other") => Promise<FavoriteButtonActionResult>
+  private _handler: (
+    action: "default" | "unfavorite" | "other"
+  ) => Promise<FavoriteButtonActionResult>;
   private _isRequestInProgress: boolean = false;
-  constructor({ handler }: {
-    handler: (action: "default" | "unfavorite" | "other") => Promise<FavoriteButtonActionResult>
+  constructor({
+    handler,
+  }: {
+    handler: (
+      action: "default" | "unfavorite" | "other"
+    ) => Promise<FavoriteButtonActionResult>;
   }) {
     super();
     this._handler = handler;
@@ -839,16 +935,16 @@ class FavoriteButton extends Base<UIView, UiTypes.ViewOptions> {
                     title: "取消收藏",
                     handler: async () => {
                       await this._handleEvent("unfavorite");
-                    }
+                    },
                   },
                   {
                     title: "更多选项",
                     handler: async () => {
                       await this._handleEvent("other");
-                    }
-                  }
-                ]
-              }
+                    },
+                  },
+                ],
+              },
             },
             layout: $layout.fill,
             views: [
@@ -857,13 +953,13 @@ class FavoriteButton extends Base<UIView, UiTypes.ViewOptions> {
                 props: {
                   id: "image_favorited",
                   tintColor: favcatColor[0],
-                  symbol: "heart.fill"
+                  symbol: "heart.fill",
                 },
                 layout: (make, view) => {
-                  make.centerX.equalTo(view.super)
-                  make.centerY.equalTo(view.super).offset(-10)
-                  make.size.equalTo($size(50, 50))
-                }
+                  make.centerX.equalTo(view.super);
+                  make.centerY.equalTo(view.super).offset(-10);
+                  make.size.equalTo($size(50, 50));
+                },
               },
               {
                 type: "label",
@@ -873,15 +969,15 @@ class FavoriteButton extends Base<UIView, UiTypes.ViewOptions> {
                   font: $font(12),
                   textColor: $color("primaryText"),
                   align: $align.center,
-                  lines: 2
+                  lines: 2,
                 },
                 layout: (make, view) => {
-                  make.left.right.inset(5)
-                  make.centerX.equalTo(view.super)
-                  make.top.equalTo(view.prev.bottom).offset(5)
-                }
-              }
-            ]
+                  make.left.right.inset(5);
+                  make.centerX.equalTo(view.super);
+                  make.top.equalTo(view.prev.bottom).offset(5);
+                },
+              },
+            ],
           },
           {
             type: "button",
@@ -893,19 +989,21 @@ class FavoriteButton extends Base<UIView, UiTypes.ViewOptions> {
                 pullDown: true,
                 items: [
                   {
-                    title: "收藏到" + configManager.favcatTitles[configManager.defaultFavcat],
+                    title:
+                      "收藏到" +
+                      configManager.favcatTitles[configManager.defaultFavcat],
                     handler: async () => {
                       await this._handleEvent("default");
-                    }
+                    },
                   },
                   {
                     title: "更多选项",
                     handler: async () => {
                       await this._handleEvent("other");
-                    }
-                  }
-                ]
-              }
+                    },
+                  },
+                ],
+              },
             },
             layout: $layout.fill,
             views: [
@@ -914,13 +1012,13 @@ class FavoriteButton extends Base<UIView, UiTypes.ViewOptions> {
                 props: {
                   id: "image_unfavorited",
                   tintColor: defaultButtonColor,
-                  symbol: "heart"
+                  symbol: "heart",
                 },
                 layout: (make, view) => {
-                  make.centerX.equalTo(view.super)
-                  make.centerY.equalTo(view.super).offset(-10)
-                  make.size.equalTo($size(50, 50))
-                }
+                  make.centerX.equalTo(view.super);
+                  make.centerY.equalTo(view.super).offset(-10);
+                  make.size.equalTo($size(50, 50));
+                },
               },
               {
                 type: "label",
@@ -930,23 +1028,24 @@ class FavoriteButton extends Base<UIView, UiTypes.ViewOptions> {
                   font: $font(12),
                   textColor: $color("primaryText"),
                   align: $align.center,
-                  lines: 2
+                  lines: 2,
                 },
                 layout: (make, view) => {
-                  make.left.right.inset(5)
-                  make.centerX.equalTo(view.super)
-                  make.top.equalTo(view.prev.bottom).offset(5)
-                }
-              }
-            ]
-          }
-        ]
-      }
-    }
+                  make.left.right.inset(5);
+                  make.centerX.equalTo(view.super);
+                  make.top.equalTo(view.prev.bottom).offset(5);
+                },
+              },
+            ],
+          },
+        ],
+      };
+    };
   }
 
   favorite(favcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9, title: string) {
-    (this.view.get("image_favorited") as UIImageView).tintColor = favcatColor[favcat];
+    (this.view.get("image_favorited") as UIImageView).tintColor =
+      favcatColor[favcat];
     (this.view.get("label_favorited") as UILabelView).text = title;
     (this.view.get("button_unfavorited") as UIButtonView).hidden = true;
     (this.view.get("button_favorited") as UIButtonView).hidden = false;
@@ -961,15 +1060,15 @@ class FavoriteButton extends Base<UIView, UiTypes.ViewOptions> {
     if (this._isRequestInProgress) {
       $ui.warning("正在处理上一个请求，请稍后再试");
       return;
-    };
+    }
     this._isRequestInProgress = true;
-    const result = await this._handler(action)
+    const result = await this._handler(action);
     this._isRequestInProgress = false;
     if (result.success) {
       if (result.favorited) {
-        this.favorite(result.favcat, result.title)
+        this.favorite(result.favcat, result.title);
       } else {
-        this.unfavorite()
+        this.unfavorite();
       }
     } else {
       if (!result.dissmissed) $ui.error("收藏操作失败");
@@ -979,7 +1078,15 @@ class FavoriteButton extends Base<UIView, UiTypes.ViewOptions> {
 
 class CommonButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
   _defineView: () => UiTypes.ButtonOptions;
-  constructor({ title, symbol, image, symbolColor, contentMode, symbolSize, handler }: {
+  constructor({
+    title,
+    symbol,
+    image,
+    symbolColor,
+    contentMode,
+    symbolSize,
+    handler,
+  }: {
     title: string;
     symbol?: string;
     image?: UIImage;
@@ -994,7 +1101,7 @@ class CommonButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
         type: "button",
         props: {
           id: this.id,
-          bgcolor: $color("clear")
+          bgcolor: $color("clear"),
         },
         layout: $layout.fill,
         views: [
@@ -1005,13 +1112,13 @@ class CommonButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
               tintColor: symbolColor ?? defaultButtonColor,
               image: image,
               symbol: symbol,
-              contentMode: contentMode ?? 2
+              contentMode: contentMode ?? 2,
             },
             layout: (make, view) => {
-              make.centerX.equalTo(view.super)
-              make.centerY.equalTo(view.super).offset(-10)
-              make.size.equalTo(symbolSize ?? $size(50, 50))
-            }
+              make.centerX.equalTo(view.super);
+              make.centerY.equalTo(view.super).offset(-10);
+              make.size.equalTo(symbolSize ?? $size(50, 50));
+            },
           },
           {
             type: "label",
@@ -1021,22 +1128,22 @@ class CommonButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
               font: $font(12),
               textColor: $color("primaryText"),
               align: $align.center,
-              lines: 2
+              lines: 2,
             },
             layout: (make, view) => {
-              make.left.right.inset(10)
-              make.centerX.equalTo(view.super)
-              make.top.equalTo(view.prev.bottom).offset(5)
-            }
-          }
+              make.left.right.inset(10);
+              make.centerX.equalTo(view.super);
+              make.top.equalTo(view.prev.bottom).offset(5);
+            },
+          },
         ],
         events: {
-          tapped: sender => {
+          tapped: (sender) => {
             handler();
-          }
-        }
-      }
-    }
+          },
+        },
+      };
+    };
   }
 
   set symbol(symbol: string) {
@@ -1076,15 +1183,19 @@ export class GalleryInfoController extends BaseController {
     webDAVWidget: WebDAVWidget;
   };
 
-  onWebDAVAction?: (action: 'retry' | 'upload' | 'retry-upload' | 'resume-upload') => void;
+  onWebDAVAction?: (
+    action: "retry" | "upload" | "retry-upload" | "resume-upload"
+  ) => void;
   onWebDAVConfig?: () => void;
 
   constructor(gid: number, readHandler: (index: number) => void) {
     super({
-      props: { bgcolor: $color("backgroundColor") }
+      props: { bgcolor: $color("backgroundColor") },
     });
     this.gid = gid;
-    const infoHeaderView = new InfoHeaderView(selected => { this.updateSearchButtonShowingStatus() })
+    const infoHeaderView = new InfoHeaderView((selected) => {
+      this.updateSearchButtonShowingStatus();
+    });
     const infoMatrix = new DynamicItemSizeMatrix({
       props: {
         maxColumns: 3,
@@ -1100,14 +1211,14 @@ export class GalleryInfoController extends BaseController {
             {
               type: "image",
               props: {
-                id: "icon"
+                id: "icon",
               },
               layout: (make, view) => {
-                make.left.inset(1)
-                make.centerY.equalTo(view.super)
-                make.width.equalTo(13)
-                make.height.equalTo(13)
-              }
+                make.left.inset(1);
+                make.centerY.equalTo(view.super);
+                make.width.equalTo(13);
+                make.height.equalTo(13);
+              },
             },
             {
               type: "label",
@@ -1117,35 +1228,38 @@ export class GalleryInfoController extends BaseController {
                 align: $align.left,
               },
               layout: (make, view) => {
-                make.top.bottom.right.inset(0)
-                make.left.equalTo(view.prev.right).inset(3)
-              }
+                make.top.bottom.right.inset(0);
+                make.left.equalTo(view.prev.right).inset(3);
+              },
             },
-          ]
-        }
+          ],
+        },
       },
       layout: (make, view) => {
-        make.left.right.inset(5 + 8)
-        make.top.bottom.right.inset(0)
+        make.left.right.inset(5 + 8);
+        make.top.bottom.right.inset(0);
       },
       events: {
         tapped: (sender) => {
           if (!this._infos) return;
-          const galleryDetailedInfoController = new GalleryDetailedInfoController(this._infos)
+          const galleryDetailedInfoController =
+            new GalleryDetailedInfoController(this._infos);
           galleryDetailedInfoController.uipush({
             navBarHidden: true,
-            statusBarStyle: 0
-          })
-        }
-      }
+            statusBarStyle: 0,
+          });
+        },
+      },
     });
-    const infoMatrixWarpper = new InfoMatrixWrapper(infoMatrix)
+    const infoMatrixWarpper = new InfoMatrixWrapper(infoMatrix);
     const rateButton = new RateButton({
-      handler: async currentRating => {
+      handler: async (currentRating) => {
         if (!this._infos) return 0;
         let newRating: 0.5 | 1 | 1.5 | 2 | 2.5 | 3 | 3.5 | 4 | 4.5 | 5;
         try {
-          newRating = await rateAlert({ rating: Math.max(Math.floor(currentRating * 2) / 2, 0.5) }) as 0.5 | 1 | 1.5 | 2 | 2.5 | 3 | 3.5 | 4 | 4.5 | 5;
+          newRating = (await rateAlert({
+            rating: Math.max(Math.floor(currentRating * 2) / 2, 0.5),
+          })) as 0.5 | 1 | 1.5 | 2 | 2.5 | 3 | 3.5 | 4 | 4.5 | 5;
         } catch (e) {
           return 0;
         }
@@ -1157,42 +1271,52 @@ export class GalleryInfoController extends BaseController {
             this._infos.apikey,
             this._infos.apiuid,
             newRating
-          )
+          );
           this._infos.display_rating = newRating;
           this._infos.is_my_rating = true;
           this._trySavingInfos();
           statusManager.updateArchiveItem(this.gid, {
-            my_rating: newRating
-          })
-          return newRating
+            my_rating: newRating,
+          });
+          return newRating;
         } catch (e) {
-          $ui.error("评分失败")
+          $ui.error("评分失败");
         }
         return 0;
-      }
-    })
+      },
+    });
     const favoriteButton = new FavoriteButton({
       handler: async (action) => {
-        if (!this._infos) return { success: false }
+        if (!this._infos) return { success: false };
         switch (action) {
           case "default": {
             const defaultFavcat = configManager.defaultFavcat;
             try {
-              await api.addOrModifyFav(this.gid, this._infos.token, defaultFavcat)
+              await api.addOrModifyFav(
+                this.gid,
+                this._infos.token,
+                defaultFavcat
+              );
               this._infos.favorited = true;
               this._infos.favcat = defaultFavcat;
-              this._infos.favcat_title = configManager.favcatTitles[defaultFavcat];
+              this._infos.favcat_title =
+                configManager.favcatTitles[defaultFavcat];
               this._trySavingInfos();
               statusManager.updateArchiveItem(this.gid, {
                 favorite_info: {
                   favorited: true,
-                  favcat: defaultFavcat
-                }
-              })
+                  favcat: defaultFavcat,
+                },
+              });
             } catch (e) {
-              return { success: false }
+              return { success: false };
             }
-            return { success: true, favorited: true, favcat: defaultFavcat, title: configManager.favcatTitles[defaultFavcat] };
+            return {
+              success: true,
+              favorited: true,
+              favcat: defaultFavcat,
+              title: configManager.favcatTitles[defaultFavcat],
+            };
           }
           case "unfavorite": {
             try {
@@ -1203,9 +1327,9 @@ export class GalleryInfoController extends BaseController {
               this._trySavingInfos();
               statusManager.updateArchiveItem(this.gid, {
                 favorite_info: {
-                  favorited: false
-                }
-              })
+                  favorited: false,
+                },
+              });
             } catch (e) {
               return { success: false };
             }
@@ -1213,45 +1337,55 @@ export class GalleryInfoController extends BaseController {
           }
           case "other": {
             try {
-              const result = await galleryFavoriteDialog(this._infos)
+              const result = await galleryFavoriteDialog(this._infos);
               if (result.success) {
-                await api.addOrModifyFav(this.gid, this._infos.token, result.favcat, result.favnote);
+                await api.addOrModifyFav(
+                  this.gid,
+                  this._infos.token,
+                  result.favcat,
+                  result.favnote
+                );
                 this._infos.favorited = true;
                 this._infos.favcat = result.favcat;
-                this._infos.favcat_title = configManager.favcatTitles[result.favcat];
+                this._infos.favcat_title =
+                  configManager.favcatTitles[result.favcat];
                 this._trySavingInfos();
                 statusManager.updateArchiveItem(this.gid, {
                   favorite_info: {
                     favorited: true,
-                    favcat: result.favcat
-                  }
-                })
-                return { success: true, favorited: true, favcat: result.favcat, title: configManager.favcatTitles[result.favcat] }
+                    favcat: result.favcat,
+                  },
+                });
+                return {
+                  success: true,
+                  favorited: true,
+                  favcat: result.favcat,
+                  title: configManager.favcatTitles[result.favcat],
+                };
               } else {
-                return { success: false, dissmissed: true }
+                return { success: false, dissmissed: true };
               }
             } catch (e) {
               if (e === "cancel") {
-                return { success: false, dissmissed: true }
+                return { success: false, dissmissed: true };
               } else {
-                return { success: false }
+                return { success: false };
               }
             }
           }
           default:
-            throw new Error("Invalid action")
+            throw new Error("Invalid action");
         }
-
-      }
-    })
+      },
+    });
     const readButton = new CommonButton({
       title: "阅读",
       symbol: "book",
       handler: () => {
-        const currentReadPage = statusManager.getLastReadPage(this.gid)
-        readHandler(currentReadPage)
-      }
-    })
+        const currentReadPage = statusManager.getLastReadPage(this.gid);
+        readHandler(currentReadPage);
+      },
+    });
 
     const readLaterButton = new CommonButton({
       title: "稍后阅读",
@@ -1262,25 +1396,25 @@ export class GalleryInfoController extends BaseController {
         if (!archiveItem) return;
         if (archiveItem.readlater) {
           statusManager.updateArchiveItem(this.gid, {
-            readlater: false
-          })
-          readLaterButton.symbolColor = defaultButtonColor
+            readlater: false,
+          });
+          readLaterButton.symbolColor = defaultButtonColor;
         } else {
           statusManager.updateArchiveItem(this.gid, {
-            readlater: true
-          })
-          readLaterButton.symbolColor = $color("orange")
+            readlater: true,
+          });
+          readLaterButton.symbolColor = $color("orange");
         }
-      }
-    })
+      },
+    });
 
     const downloadButton = new DownloadButton({
       status: "pending",
       progress: 0,
       handler: (sender, status) => {
         statusManager.updateArchiveItem(this.gid, {
-          downloaded: true
-        })
+          downloaded: true,
+        });
         const d = downloaderManager.get(this.gid);
         if (!d) return;
         if (status === "paused") {
@@ -1303,8 +1437,8 @@ export class GalleryInfoController extends BaseController {
           sender.status = progress === 1 ? "finished" : "downloading";
         }
         downloaderManager.startOne(this.gid);
-      }
-    })
+      },
+    });
 
     const torrentButton = new CommonButton({
       title: "种子",
@@ -1312,10 +1446,12 @@ export class GalleryInfoController extends BaseController {
       symbolSize: $size(40, 40),
       handler: () => {
         if (!this._infos) return;
-        const galleryTorrentsController = new GalleryTorrentsController(this._infos)
-        galleryTorrentsController.present()
-      }
-    })
+        const galleryTorrentsController = new GalleryTorrentsController(
+          this._infos
+        );
+        galleryTorrentsController.present();
+      },
+    });
 
     const hathDownloadButton = new CommonButton({
       title: "Hath下载",
@@ -1323,95 +1459,97 @@ export class GalleryInfoController extends BaseController {
       symbolSize: $size(40, 40),
       handler: () => {
         if (!this._infos) return;
-        const galleryHathController = new GalleryHathController(this._infos)
-        galleryHathController.present()
-      }
-    })
+        const galleryHathController = new GalleryHathController(this._infos);
+        galleryHathController.present();
+      },
+    });
 
     const primaryButtonsWrapper = new ButtonsWarpper([
       rateButton,
       favoriteButton,
-      readButton
-    ])
+      readButton,
+    ]);
 
-    const secondaryButtonsWrapper = new ButtonsWarpper([
-      readLaterButton,
-      downloadButton,
-      torrentButton,
-      hathDownloadButton
-    ], 90)
+    const secondaryButtonsWrapper = new ButtonsWarpper(
+      [readLaterButton, downloadButton, torrentButton, hathDownloadButton],
+      90
+    );
 
-    const tagsFlowlayoutWrapper = new TagsFlowlayoutWrapper(() => { this.updateSearchButtonShowingStatus() })
+    const tagsFlowlayoutWrapper = new TagsFlowlayoutWrapper(() => {
+      this.updateSearchButtonShowingStatus();
+    });
     const createNewSearchButton = new Button({
       props: {
         bgcolor: $color("systemLink"),
-        alpha: 0
+        alpha: 0,
       },
       layout: (make, view) => {
-        setLayer(view, layerCommonOptions.circleViewShadow)
-        make.size.equalTo($size(50, 50))
-        make.right.inset(25)
-        make.bottom.inset(40)
+        setLayer(view, layerCommonOptions.circleViewShadow);
+        make.size.equalTo($size(50, 50));
+        make.right.inset(25);
+        make.bottom.inset(40);
       },
-      views: [{
-        type: "image",
-        props: {
-          symbol: "magnifyingglass",
-          tintColor: $color("white")
+      views: [
+        {
+          type: "image",
+          props: {
+            symbol: "magnifyingglass",
+            tintColor: $color("white"),
+          },
+          layout: (make, view) => {
+            make.center.equalTo(view.super);
+            make.size.equalTo($size(25, 25));
+          },
         },
-        layout: (make, view) => {
-          make.center.equalTo(view.super)
-          make.size.equalTo($size(25, 25))
-        }
-      }],
+      ],
       events: {
         tapped: async () => {
-          const sts = [] as EHSearchTerm[]
+          const sts = [] as EHSearchTerm[];
           if (infoHeaderView.cviews.uploaderView.selected) {
             sts.push({
               qualifier: "uploader",
               term: this._infos?.uploader ?? "",
               dollar: false,
               subtract: false,
-              tilde: false
-            })
+              tilde: false,
+            });
           }
-          tagsFlowlayoutWrapper.flowlayout?.selectedTags.forEach(tag => {
+          tagsFlowlayoutWrapper.flowlayout?.selectedTags.forEach((tag) => {
             sts.push({
               namespace: tag.namespace,
               term: tag.name,
               dollar: true,
               subtract: false,
-              tilde: false
-            })
-          })
+              tilde: false,
+            });
+          });
           const options = await getSearchOptions(
             {
               type: "front_page",
               options: {
                 searchTerms: sts,
-              }
+              },
             },
             "showAll"
-          )
+          );
           const controller = new PushedSearchResultController();
           controller.uipush({
             navBarHidden: true,
-            statusBarStyle: 0
-          })
+            statusBarStyle: 0,
+          });
           await $wait(0.3);
-          await controller.triggerLoad(options)
-        }
-      }
-    })
+          await controller.triggerLoad(options);
+        },
+      },
+    });
     const webDAVWidget = new WebDAVWidget({
       mainButtonHandler: (action) => {
-        this.onWebDAVAction?.(action)
+        this.onWebDAVAction?.(action);
       },
       configButtonHandler: () => {
-        this.onWebDAVConfig?.()
-      }
-    })
+        this.onWebDAVConfig?.();
+      },
+    });
 
     const list = new DynamicRowHeightList({
       rows: [
@@ -1427,19 +1565,19 @@ export class GalleryInfoController extends BaseController {
         webDAVWidget,
         new BlankView(10),
         tagsFlowlayoutWrapper,
-        new BlankView(80)
+        new BlankView(80),
       ],
       props: {
         bgcolor: $color("clear"),
         separatorHidden: true,
-        showsVerticalIndicator: false
+        showsVerticalIndicator: false,
       },
       layout: (make, view) => {
-        make.left.right.inset(10)
-        make.top.bottom.inset(0)
+        make.left.right.inset(10);
+        make.top.bottom.inset(0);
       },
-      events: {}
-    })
+      events: {},
+    });
     this.cviews = {
       infoHeaderView,
       infoMatrix,
@@ -1456,15 +1594,16 @@ export class GalleryInfoController extends BaseController {
       tagsFlowlayoutWrapper,
       list,
       createNewSearchButton,
-      webDAVWidget
-    }
-    this.rootView.views = [list, createNewSearchButton]
+      webDAVWidget,
+    };
+    this.rootView.views = [list, createNewSearchButton];
   }
 
   set infos(infos: EHGallery) {
     this.gid = infos.gid;
     this._infos = infos;
-    const topThumbnailPath = downloaderManager.get(this.gid)!.result.topThumbnail.path;
+    const topThumbnailPath = downloaderManager.get(this.gid)!.result
+      .topThumbnail.path;
     this._topThumbnailFinished = Boolean(topThumbnailPath);
     this.cviews.infoHeaderView.thumbnail_url = topThumbnailPath || "";
     this.cviews.infoHeaderView.infos = infos;
@@ -1478,76 +1617,94 @@ export class GalleryInfoController extends BaseController {
         tintColor: UIColor;
       };
     }[] = [
-        {
-          label: {
-            textColor: $color("secondaryText"),
-            text: (configManager.translate("language", infos.language) || infos.language)
-              + (infos.translated ? " 翻译" : "")
-              + (infos.rewrited ? " 重写" : "")
-          },
-          icon: { symbol: "globe", tintColor: $color("systemLink") }
+      {
+        label: {
+          textColor: $color("secondaryText"),
+          text:
+            (configManager.translate("language", infos.language) ||
+              infos.language) +
+            (infos.translated ? " 翻译" : "") +
+            (infos.rewrited ? " 重写" : ""),
         },
-        {
-          label: { text: `${infos.length}页`, textColor: $color("secondaryText") },
-          icon: { symbol: "photo.fill", tintColor: $color("systemLink") }
+        icon: { symbol: "globe", tintColor: $color("systemLink") },
+      },
+      {
+        label: {
+          text: `${infos.length}页`,
+          textColor: $color("secondaryText"),
         },
-        {
-          label: { text: infos.file_size, textColor: $color("secondaryText") },
-          icon: { symbol: "doc.zipper", tintColor: $color("systemLink") }
+        icon: { symbol: "photo.fill", tintColor: $color("systemLink") },
+      },
+      {
+        label: { text: infos.file_size, textColor: $color("secondaryText") },
+        icon: { symbol: "doc.zipper", tintColor: $color("systemLink") },
+      },
+      {
+        label: {
+          text: `${infos.average_rating}(共${infos.rating_count}次评分)`,
+          textColor: $color("secondaryText"),
         },
-        {
-          label: { text: `${infos.average_rating}(共${infos.rating_count}次评分)`, textColor: $color("secondaryText") },
-          icon: { symbol: "star.fill", tintColor: $color("systemLink") }
-        },
+        icon: { symbol: "star.fill", tintColor: $color("systemLink") },
+      },
 
-        {
-          label: { text: `${infos.favorite_count}次收藏`, textColor: $color("secondaryText") },
-          icon: { symbol: "heart.fill", tintColor: $color("systemLink") }
+      {
+        label: {
+          text: `${infos.favorite_count}次收藏`,
+          textColor: $color("secondaryText"),
         },
-        {
-          label: { text: toSimpleUTCTimeString(infos.posted_time), textColor: $color("secondaryText") },
-          icon: { symbol: "clock.fill", tintColor: $color("systemLink") }
-        }
-      ]
+        icon: { symbol: "heart.fill", tintColor: $color("systemLink") },
+      },
+      {
+        label: {
+          text: toSimpleUTCTimeString(infos.posted_time),
+          textColor: $color("secondaryText"),
+        },
+        icon: { symbol: "clock.fill", tintColor: $color("systemLink") },
+      },
+    ];
     if (infos.visible === false) {
       data.push({
         label: {
-          text: "不可见: " + (infos.invisible_cause && invisibleCauseMap[infos.invisible_cause] || ""),
-          textColor: $color("red")
+          text:
+            "不可见: " +
+            ((infos.invisible_cause &&
+              invisibleCauseMap[infos.invisible_cause]) ||
+              ""),
+          textColor: $color("red"),
         },
         icon: {
           symbol: "lock.doc",
-          tintColor: $color("red")
-        }
-      })
+          tintColor: $color("red"),
+        },
+      });
     }
-    this.cviews.infoMatrix.data = data
-    this.cviews.infoMatrixWarpper.leftColumnColor = catColor[infos.category]
-    this.cviews.rateButton.rating = infos.display_rating
-    this.cviews.rateButton.is_my_rating = infos.is_my_rating
+    this.cviews.infoMatrix.data = data;
+    this.cviews.infoMatrixWarpper.leftColumnColor = catColor[infos.category];
+    this.cviews.rateButton.rating = infos.display_rating;
+    this.cviews.rateButton.is_my_rating = infos.is_my_rating;
     if (infos.favcat !== undefined && infos.favcat_title !== undefined) {
-      this.cviews.favoriteButton.favorite(infos.favcat, infos.favcat_title)
+      this.cviews.favoriteButton.favorite(infos.favcat, infos.favcat_title);
     } else {
-      this.cviews.favoriteButton.unfavorite()
+      this.cviews.favoriteButton.unfavorite();
     }
-    this.cviews.torrentButton.title = `种子(${infos.torrent_count})`
+    this.cviews.torrentButton.title = `种子(${infos.torrent_count})`;
     if (infos.torrent_count === 0) {
-      this.cviews.torrentButton.view.enabled = false
+      this.cviews.torrentButton.view.enabled = false;
     } else {
-      this.cviews.torrentButton.view.enabled = true
+      this.cviews.torrentButton.view.enabled = true;
     }
-    this.cviews.tagsFlowlayoutWrapper.taglist = infos.taglist
-    this.cviews.list.view.reload()
+    this.cviews.tagsFlowlayoutWrapper.taglist = infos.taglist;
+    this.cviews.list.view.reload();
     // 隐藏createNewSearchButton
-    this.cviews.createNewSearchButton.view.alpha = 0
+    this.cviews.createNewSearchButton.view.alpha = 0;
   }
 
   private _refreshThumbnail() {
     if (this._topThumbnailFinished) return;
-    const d = downloaderManager.get(this.gid)
+    const d = downloaderManager.get(this.gid);
     if (!d) return;
-    const topThumbnailPath = d.result.topThumbnail.path
-    this._topThumbnailFinished = Boolean(topThumbnailPath)
+    const topThumbnailPath = d.result.topThumbnail.path;
+    this._topThumbnailFinished = Boolean(topThumbnailPath);
     this.cviews.infoHeaderView.thumbnail_url = topThumbnailPath || "";
   }
 
@@ -1589,13 +1746,13 @@ export class GalleryInfoController extends BaseController {
     // 尝试保存this._infos到本地
     // 前提是本地已经存在infos文件（否则的话，应该由下载器模块进行保存）
     if (!this._infos) return;
-    const path = galleryInfoPath + `${this._infos.gid}.json`
+    const path = galleryInfoPath + `${this._infos.gid}.json`;
     if ($file.exists(path)) {
       const text = JSON.stringify(this._infos, null, 2);
       $file.write({
         data: $data({ string: text }),
-        path
-      })
+        path,
+      });
     }
   }
 
@@ -1606,27 +1763,30 @@ export class GalleryInfoController extends BaseController {
 
   set currentReadPage(page: number) {
     if (page === 0) {
-      this.cviews.readButton.title = `阅读`
+      this.cviews.readButton.title = `阅读`;
     } else {
-      this.cviews.readButton.title = `第${page + 1}页`
+      this.cviews.readButton.title = `第${page + 1}页`;
     }
   }
 
   updateSearchButtonShowingStatus() {
     // 检测uploaderView和tagsFlowLayout是否有选中的tag，如果有则显示搜索按钮
-    const uploaderViewSelected = this.cviews.infoHeaderView.cviews.uploaderView.selected;
-    const tagsFlowlayoutSelected = Boolean(this.cviews.tagsFlowlayoutWrapper.flowlayout?.selectedTags.length);
+    const uploaderViewSelected =
+      this.cviews.infoHeaderView.cviews.uploaderView.selected;
+    const tagsFlowlayoutSelected = Boolean(
+      this.cviews.tagsFlowlayoutWrapper.flowlayout?.selectedTags.length
+    );
     const shouldShow = uploaderViewSelected || tagsFlowlayoutSelected;
     if (this._isShowingSearchButton === shouldShow) return;
     this._isShowingSearchButton = shouldShow;
     if (shouldShow) {
-      this.cviews.createNewSearchButton.view.alpha = 1
+      this.cviews.createNewSearchButton.view.alpha = 1;
     } else {
-      this.cviews.createNewSearchButton.view.alpha = 0
+      this.cviews.createNewSearchButton.view.alpha = 0;
     }
   }
 
   updateWebDAVWidgetStatus(status: WebDAVStatus) {
-    this.cviews.webDAVWidget.setStatus(status)
+    this.cviews.webDAVWidget.setStatus(status);
   }
 }

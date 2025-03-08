@@ -1,4 +1,13 @@
-import { Base, BaseController, ContentView, CustomNavigationBar, Markdown, Sheet, SymbolButton, formDialog } from "jsbox-cview";
+import {
+  Base,
+  BaseController,
+  ContentView,
+  CustomNavigationBar,
+  Markdown,
+  Sheet,
+  SymbolButton,
+  formDialog,
+} from "jsbox-cview";
 import { webdavIntroductionPath } from "../utils/glv";
 import { configManager } from "../utils/config";
 import { WebDAVService } from "../types";
@@ -8,7 +17,15 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
   private _webDAVEnabled: boolean;
   private _webDAVAutoUpload: boolean;
   _defineView: () => UiTypes.ListOptions;
-  constructor({ services, enabled, webdavAutoUpload }: { services: WebDAVService[], enabled: boolean, webdavAutoUpload: boolean }) {
+  constructor({
+    services,
+    enabled,
+    webdavAutoUpload,
+  }: {
+    services: WebDAVService[];
+    enabled: boolean;
+    webdavAutoUpload: boolean;
+  }) {
     super();
     this._services = services;
     this._webDAVEnabled = enabled;
@@ -27,44 +44,50 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
               handler: (sender, indexPath) => {
                 this._services.splice(indexPath.row, 1);
                 this.refresh();
-              }
+              },
             },
             {
               title: "修改",
               color: $color("orange"),
               handler: async (sender, indexPath) => {
                 const oldService = this._services[indexPath.row];
-                const newService = await showWebdavServiceEditor("", oldService);
+                const newService = await showWebdavServiceEditor(
+                  "",
+                  oldService
+                );
                 if (newService) {
                   this._services[indexPath.row] = newService;
                   this.refresh();
                 }
-              }
-            }
+              },
+            },
           ],
           template: {
             views: [
-              { // 背景
+              {
+                // 背景
                 type: "view",
                 props: {
                   id: "bgview",
-                  bgcolor: $color("secondarySurface")
+                  bgcolor: $color("secondarySurface"),
                 },
-                layout: $layout.fill
+                layout: $layout.fill,
               },
-              { // 标题，也可用于动作
+              {
+                // 标题，也可用于动作
                 type: "label",
                 props: {
                   id: "title",
                   font: $font(16),
-                  align: $align.left
+                  align: $align.left,
                 },
                 layout: (make, view) => {
                   make.top.bottom.inset(0);
                   make.left.right.inset(15);
-                }
+                },
               },
-              { // 开关
+              {
+                // 开关
                 type: "switch",
                 props: {
                   id: "switch",
@@ -75,7 +98,7 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
                   make.right.inset(15);
                 },
                 events: {
-                  changed: sender => {
+                  changed: (sender) => {
                     // 将id存储在info中，以便在事件处理程序中使用
                     const { actionName } = sender.info;
                     if (actionName === "webdavEnabled") {
@@ -84,35 +107,35 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
                       this._webDAVAutoUpload = sender.on;
                     }
                     this.refresh();
-                  }
-                }
+                  },
+                },
               },
               {
                 type: "image",
                 props: {
                   id: "checkmark",
                   symbol: "checkmark",
-                  tintColor: $color("systemLink")
+                  tintColor: $color("systemLink"),
                 },
                 layout: (make, view) => {
                   make.centerY.equalTo(view.super);
                   make.left.inset(15);
                   make.width.height.equalTo(17.5);
-                }
+                },
               },
               {
                 type: "label",
                 props: {
                   id: "url",
-                  font: $font(16)
+                  font: $font(16),
                 },
                 layout: (make, view) => {
                   make.centerY.equalTo(view.super);
                   make.left.inset(40);
                   make.right.inset(15);
-                }
-              }
-            ]
+                },
+              },
+            ],
           },
         },
         layout: (make, view) => {
@@ -121,18 +144,18 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
         },
         events: {
           swipeEnabled: (sender, indexPath) => {
-            return this._services.length > 0 && indexPath.section === 1
+            return this._services.length > 0 && indexPath.section === 1;
           },
           didSelect: async (sender, indexPath, data) => {
             if (indexPath.section === 0 && indexPath.row === 0) {
               showWebdavIntroduction();
             } else if (
-              this._services.length === 0
-              && indexPath.section === 1
-              || this._services.length > 0
-              && indexPath.section === 2
+              (this._services.length === 0 && indexPath.section === 1) ||
+              (this._services.length > 0 && indexPath.section === 2)
             ) {
-              const service = await showWebdavServiceEditor("服务器" + (this._services.length + 1));
+              const service = await showWebdavServiceEditor(
+                "服务器" + (this._services.length + 1)
+              );
               if (service) {
                 this._services.push(service);
                 // 如果只有一个服务器，自动选择
@@ -152,10 +175,10 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
               });
               this.refresh();
             }
-          }
-        }
+          },
+        },
       };
-    }
+    };
   }
 
   _map() {
@@ -163,7 +186,7 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
       title: {
         hidden: false,
         text: "启用WebDAV",
-        textColor: $color("primaryText")
+        textColor: $color("primaryText"),
       },
       switch: {
         hidden: false,
@@ -172,26 +195,26 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
       },
       bgview: { hidden: false },
       checkmark: { hidden: true },
-      url: { hidden: true }
-    }
+      url: { hidden: true },
+    };
 
     const rowReadIntroduction = {
       title: {
         hidden: false,
         text: "阅读使用说明",
-        textColor: $color("systemLink")
+        textColor: $color("systemLink"),
       },
       bgview: { hidden: true },
       switch: { hidden: true },
       checkmark: { hidden: true },
-      url: { hidden: true }
-    }
+      url: { hidden: true },
+    };
 
     const rowAutoUpload = {
       title: {
         hidden: false,
         text: "下载完成后自动上传",
-        textColor: $color("primaryText")
+        textColor: $color("primaryText"),
       },
       switch: {
         hidden: false,
@@ -200,20 +223,20 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
       },
       bgview: { hidden: false },
       checkmark: { hidden: true },
-      url: { hidden: true }
-    }
+      url: { hidden: true },
+    };
 
     const rowAddService = {
       title: {
         hidden: false,
         text: "添加WebDAV服务器",
-        textColor: $color("systemLink")
+        textColor: $color("systemLink"),
       },
       bgview: { hidden: true },
       switch: { hidden: true },
       checkmark: { hidden: true },
-      url: { hidden: true }
-    }
+      url: { hidden: true },
+    };
 
     const createWebdavServiceRow = (service: WebDAVService) => {
       return {
@@ -223,45 +246,49 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
         url: {
           hidden: false,
           text: service.name,
-          textColor: service.enabled ? $color("systemLink") : $color("primaryText")
+          textColor: service.enabled
+            ? $color("systemLink")
+            : $color("primaryText"),
         },
         title: { hidden: true },
         bgview: { hidden: true },
         switch: { hidden: true },
-      }
-    }
+      };
+    };
 
     if (!this._webDAVEnabled) {
-      return [{
-        title: "",
-        rows: [rowReadIntroduction, rowEnableWebDAV]
-      }]
+      return [
+        {
+          title: "",
+          rows: [rowReadIntroduction, rowEnableWebDAV],
+        },
+      ];
     } else if (this._services.length === 0) {
       return [
         {
           title: "",
-          rows: [rowReadIntroduction, rowEnableWebDAV, rowAutoUpload]
+          rows: [rowReadIntroduction, rowEnableWebDAV, rowAutoUpload],
         },
         {
           title: "",
-          rows: [rowAddService]
-        }
-      ]
+          rows: [rowAddService],
+        },
+      ];
     } else {
       return [
         {
           title: "",
-          rows: [rowReadIntroduction, rowEnableWebDAV, rowAutoUpload]
+          rows: [rowReadIntroduction, rowEnableWebDAV, rowAutoUpload],
         },
         {
           title: "",
-          rows: [...this._services.map(s => createWebdavServiceRow(s))]
+          rows: [...this._services.map((s) => createWebdavServiceRow(s))],
         },
         {
           title: "",
-          rows: [rowAddService]
-        }
-      ]
+          rows: [rowAddService],
+        },
+      ];
     }
   }
 
@@ -273,8 +300,8 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
     return {
       enabled: this._webDAVEnabled,
       autoUpload: this._webDAVAutoUpload,
-      services: this._services
-    }
+      services: this._services,
+    };
   }
 }
 
@@ -283,34 +310,36 @@ function showWebdavIntroduction() {
   const navbar = new CustomNavigationBar({
     props: {
       title: "WebDAV 使用指南",
-      rightBarButtonItems: [{
-        cview: new SymbolButton({
-          props: {
-            symbol: "xmark"
-          },
-          events: {
-            tapped: () => {
-              sheet.dismiss();
-            }
-          }
-        })
-      }]
-    }
+      rightBarButtonItems: [
+        {
+          cview: new SymbolButton({
+            props: {
+              symbol: "xmark",
+            },
+            events: {
+              tapped: () => {
+                sheet.dismiss();
+              },
+            },
+          }),
+        },
+      ],
+    },
   });
   const markdown = new Markdown({
     props: {
-      content: text
+      content: text,
     },
     layout: (make, view) => {
       make.top.equalTo(view.prev.bottom);
       make.left.right.bottom.equalTo(view.super.safeArea);
-    }
+    },
   });
   const sheet = new Sheet<ContentView, UIView, UiTypes.ViewOptions>({
     cview: new ContentView({
       layout: $layout.fill,
-      views: [navbar.definition, markdown.definition]
-    })
+      views: [navbar.definition, markdown.definition],
+    }),
   });
   sheet.present();
 }
@@ -326,8 +355,11 @@ function isValidDomain(domain: string) {
   return domainRegex.test(domain);
 }
 
-async function showWebdavServiceEditor(defaultName: string, oldService?: WebDAVService): Promise<WebDAVService> {
-  const result = await formDialog({
+async function showWebdavServiceEditor(
+  defaultName: string,
+  oldService?: WebDAVService
+): Promise<WebDAVService> {
+  const result = (await formDialog({
     title: oldService ? "修改WebDAV服务器" : "添加WebDAV服务器",
     sections: [
       {
@@ -337,71 +369,74 @@ async function showWebdavServiceEditor(defaultName: string, oldService?: WebDAVS
             type: "string",
             title: "名称",
             key: "name",
-            value: oldService ? oldService.name : defaultName
+            value: oldService ? oldService.name : defaultName,
           },
           {
             type: "string",
             title: "主机",
             key: "host",
-            value: oldService ? oldService.host : "192.168.1.1"
+            value: oldService ? oldService.host : "192.168.1.1",
           },
           {
             type: "integer",
             title: "端口",
             key: "port",
-            value: oldService ? oldService.port : undefined
+            value: oldService ? oldService.port : undefined,
           },
           {
             type: "string",
             title: "路径",
             key: "path",
-            value: oldService ? oldService.path : ""
+            value: oldService ? oldService.path : "",
           },
           {
             type: "boolean",
             title: "HTTPS",
             key: "https",
-            value: oldService ? oldService.https : false
+            value: oldService ? oldService.https : false,
           },
           {
             type: "string",
             title: "用户名",
             key: "username",
-            value: oldService ? oldService.username : ""
+            value: oldService ? oldService.username : "",
           },
           {
             type: "string",
             title: "密码",
             key: "password",
-            value: oldService ? oldService.password : ""
-          }
-        ]
-      }
+            value: oldService ? oldService.password : "",
+          },
+        ],
+      },
     ],
     checkHandler: (values: any) => {
       if (!values.name.trim()) {
-        $ui.error("请填写名称")
+        $ui.error("请填写名称");
         return false;
       }
       if (!values.host) {
-        $ui.error("请填写主机")
+        $ui.error("请填写主机");
         return false;
       }
       if (values.port && (values.port > 65535 || values.port <= 0)) {
-        $ui.error("请填写合法的端口号")
+        $ui.error("请填写合法的端口号");
         return false;
       }
       if (!isValidIPAddress(values.host) && !isValidDomain(values.host)) {
-        $ui.error("请填写合法的主机")
+        $ui.error("请填写合法的主机");
         return false;
       }
-      if ((values.username && !values.password) || (!values.username && values.password)) {
-        $ui.error("用户名和密码需要同时填写或留空")
+      if (
+        (values.username && !values.password) ||
+        (!values.username && values.password)
+      ) {
+        $ui.error("用户名和密码需要同时填写或留空");
         return false;
       }
       return true;
-    }
-  }) as {
+    },
+  })) as {
     name: string;
     host: string;
     port: number;
@@ -419,16 +454,15 @@ async function showWebdavServiceEditor(defaultName: string, oldService?: WebDAVS
     https: result.https,
     username: result.username || undefined,
     password: result.password || undefined,
-    enabled: oldService ? oldService.enabled : false
+    enabled: oldService ? oldService.enabled : false,
   };
 }
-
 
 class WebDAVSettingsController extends BaseController {
   cviews: {
     navbar: CustomNavigationBar;
     list: WebDAVSettingsList;
-  }
+  };
   constructor(resolveHandler: () => void, rejectHandler: () => void) {
     super({
       events: {
@@ -438,26 +472,30 @@ class WebDAVSettingsController extends BaseController {
             configManager.webdavIntroductionFirstRead = true;
           }
         },
-        didRemove: () => { rejectHandler() }
-      }
-    })
+        didRemove: () => {
+          rejectHandler();
+        },
+      },
+    });
     const navbar = new CustomNavigationBar({
       props: {
         title: "WebDAV设置",
         popButtonEnabled: true,
-        rightBarButtonItems: [{
-          title: "保存",
-          handler: () => {
-            resolveHandler();
-            $ui.pop();
-          }
-        }]
-      }
-    })
+        rightBarButtonItems: [
+          {
+            title: "保存",
+            handler: () => {
+              resolveHandler();
+              $ui.pop();
+            },
+          },
+        ],
+      },
+    });
     const list = new WebDAVSettingsList({
       services: configManager.getCopiedWebDAVServices(),
       enabled: configManager.webdavEnabled,
-      webdavAutoUpload: configManager.webdavAutoUpload
+      webdavAutoUpload: configManager.webdavAutoUpload,
     });
     this.cviews = { navbar, list };
     this.rootView.views = [navbar, list];
@@ -475,11 +513,13 @@ export function setWebDAVConfig() {
         const values = controller.cviews.list.getValues();
         resolve(values);
       },
-      () => { reject("cancel") }
+      () => {
+        reject("cancel");
+      }
     );
     controller.uipush({
       navBarHidden: true,
-      statusBarStyle: 0
-    })
-  })
+      statusBarStyle: 0,
+    });
+  });
 }

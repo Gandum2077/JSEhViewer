@@ -166,16 +166,15 @@ function queryDB(db: SqliteTypes.SqliteInstance, sql: string, args?: any[]) {
   const result: Record<string, any>[] = [];
   const options = args ? { sql, args } : sql;
   db.query(options, (rs, err) => {
-    if(rs === null) {
-      console.log(options)
+    if (rs === null) {
+      console.log(options);
     }
     while (rs.next()) {
       const values = rs.values;
       result.push(values);
     }
     rs.close();
-  }
-  );
+  });
   return result;
 }
 
@@ -188,7 +187,11 @@ function updateDB(db: SqliteTypes.SqliteInstance, sql: string, args?: any[]) {
 }
 
 // 批量更新数据库
-function updateDBBatch(db: SqliteTypes.SqliteInstance, sql: string, manyArgs: any[][]) {
+function updateDBBatch(
+  db: SqliteTypes.SqliteInstance,
+  sql: string,
+  manyArgs: any[][]
+) {
   db.beginTransaction();
   for (const args of manyArgs) {
     db.update({ sql, args });
@@ -203,10 +206,15 @@ function updateDBBatch(db: SqliteTypes.SqliteInstance, sql: string, manyArgs: an
  * @param columns 列名, 需要按照正确的顺序来排列
  * @param manyArgs 数据, 和列名对应
  */
-function insertDBBatch(db: SqliteTypes.SqliteInstance, tableName: string, columns: string[], manyArgs: any[][]) {
+function insertDBBatch(
+  db: SqliteTypes.SqliteInstance,
+  tableName: string,
+  columns: string[],
+  manyArgs: any[][]
+) {
   const batchSize = 10000;
   const sql0 = `INSERT INTO ${tableName} (${columns.join(",")}) VALUES `;
-  const columnQuotes = '(' + columns.map(() => "?").join(",") + ')';
+  const columnQuotes = "(" + columns.map(() => "?").join(",") + ")";
   db.beginTransaction();
   // 分批插入
   for (let i = 0; i < manyArgs.length; i += batchSize) {
@@ -222,7 +230,7 @@ class DBManager {
   constructor() {
     createDB();
     this._db = openDB();
-    this.checkDBUpdate()
+    this.checkDBUpdate();
   }
 
   close() {
@@ -230,7 +238,9 @@ class DBManager {
   }
 
   checkDBUpdate() {
-    const user_version = (this.query("PRAGMA user_version;") as [{"user_version": number}])[0].user_version;
+    const user_version = (
+      this.query("PRAGMA user_version;") as [{ user_version: number }]
+    )[0].user_version;
     if (user_version === CURRENT_USER_VERSION) return;
     // 按照顺序依次提升版本
   }
@@ -243,11 +253,18 @@ class DBManager {
     return updateDB(this._db, sql, args);
   }
 
-  batchUpdate(sql: string, manyArgs: (string | number | boolean | null | undefined)[][]) {
+  batchUpdate(
+    sql: string,
+    manyArgs: (string | number | boolean | null | undefined)[][]
+  ) {
     return updateDBBatch(this._db, sql, manyArgs);
   }
 
-  batchInsert(tableName: string, columns: string[], manyArgs: (string | number | boolean | null | undefined)[][]) {
+  batchInsert(
+    tableName: string,
+    columns: string[],
+    manyArgs: (string | number | boolean | null | undefined)[][]
+  ) {
     return insertDBBatch(this._db, tableName, columns, manyArgs);
   }
 }

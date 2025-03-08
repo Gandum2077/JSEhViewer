@@ -7,7 +7,7 @@ export class GalleryThumbnailController extends BaseController {
   cviews: { matrix: DynamicItemSizeMatrix };
   constructor(gid: number, readHandler: (index: number) => void) {
     super({
-      props: { bgcolor: $color("backgroundColor") }
+      props: { bgcolor: $color("backgroundColor") },
     });
     this.gid = gid;
     const matrix = new DynamicItemSizeMatrix({
@@ -23,73 +23,78 @@ export class GalleryThumbnailController extends BaseController {
               props: {
                 id: "label",
                 align: $align.center,
-                font: $font(13)
+                font: $font(13),
               },
               layout: (make, view) => {
                 make.left.right.bottom.inset(0);
                 make.height.equalTo(20);
-              }
+              },
             },
             {
               type: "image",
               props: {
                 id: "image",
                 bgcolor: $color("secondarySurface"),
-                contentMode: $contentMode.scaleAspectFit
+                contentMode: $contentMode.scaleAspectFit,
               },
               layout: (make, view) => {
                 make.top.left.right.equalTo(0);
                 make.bottom.equalTo(view.prev.top);
-              }
-            }
-          ]
+              },
+            },
+          ],
         },
         data: [],
         footer: {
           type: "view",
           props: {
-            height: 20
-          }
-        }
+            height: 20,
+          },
+        },
       },
       layout: $layout.fill,
       events: {
-        itemHeight: width => width * 1.414 + 20,
+        itemHeight: (width) => width * 1.414 + 20,
         didSelect: (sender, indexPath, data) => {
-          readHandler(indexPath.item)
+          readHandler(indexPath.item);
         },
-        didScroll: sender => {
+        didScroll: (sender) => {
           if (this._finished) return;
-          const d = downloaderManager.get(this.gid)
+          const d = downloaderManager.get(this.gid);
           if (!d) return;
-          const currentReadingRow = Math.floor(sender.contentOffset.y / (matrix.itemSize.height + 5))
-          const currentReadingIndex = Math.min(Math.max(currentReadingRow * matrix.columns, 0), d.result.thumbnails.length - 1)
-          d.currentReadingIndex = currentReadingIndex
-        }
-      }
+          const currentReadingRow = Math.floor(
+            sender.contentOffset.y / (matrix.itemSize.height + 5)
+          );
+          const currentReadingIndex = Math.min(
+            Math.max(currentReadingRow * matrix.columns, 0),
+            d.result.thumbnails.length - 1
+          );
+          d.currentReadingIndex = currentReadingIndex;
+        },
+      },
     });
-    this.cviews = { matrix }
-    this.rootView.views = [matrix]
+    this.cviews = { matrix };
+    this.rootView.views = [matrix];
   }
 
-  private _mapData(thumbnailItems: { path?: string, error: boolean }[]) {
+  private _mapData(thumbnailItems: { path?: string; error: boolean }[]) {
     return thumbnailItems.map((item, i) => {
       return {
         image: { src: item.path || "" },
-        label: { text: (i + 1).toString() }
-      }
-    })
+        label: { text: (i + 1).toString() },
+      };
+    });
   }
 
-  set thumbnailItems(thumbnailItems: { path?: string, error: boolean }[]) {
-    this.cviews.matrix.data = this._mapData(thumbnailItems)
-    this._finished = thumbnailItems.every(item => item.path)
+  set thumbnailItems(thumbnailItems: { path?: string; error: boolean }[]) {
+    this.cviews.matrix.data = this._mapData(thumbnailItems);
+    this._finished = thumbnailItems.every((item) => item.path);
   }
 
   scheduledRefresh() {
     if (this._finished) return;
-    const d = downloaderManager.get(this.gid)
+    const d = downloaderManager.get(this.gid);
     if (!d) return;
-    this.thumbnailItems = d.result.thumbnails
+    this.thumbnailItems = d.result.thumbnails;
   }
 }

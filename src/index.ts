@@ -1,8 +1,5 @@
 import { login } from "./controllers/login";
-import {
-  SplitViewController,
-  TabBarController
-} from 'jsbox-cview'
+import { SplitViewController, TabBarController } from "jsbox-cview";
 import { HomepageController } from "./controllers/homepage-controller";
 import { ArchiveController } from "./controllers/archive-controller";
 import { TagManagerController } from "./controllers/tag-manager-controller";
@@ -14,7 +11,13 @@ import { configManager } from "./utils/config";
 import { api } from "./utils/api";
 import { appLog } from "./utils/tools";
 import { EHMyTags } from "ehentai-parser";
-import { aiTranslationPath, imagePath, thumbnailPath, originalImagePath, galleryInfoPath } from "./utils/glv";
+import {
+  aiTranslationPath,
+  imagePath,
+  thumbnailPath,
+  originalImagePath,
+  galleryInfoPath,
+} from "./utils/glv";
 import { globalTimer } from "./utils/timer";
 
 async function init() {
@@ -23,14 +26,14 @@ async function init() {
   if (!$file.exists(aiTranslationPath)) $file.mkdir(aiTranslationPath);
   if (!$file.exists(originalImagePath)) $file.mkdir(originalImagePath);
   if (!$file.exists(galleryInfoPath)) $file.mkdir(galleryInfoPath);
-  
-  const homepageController = new HomepageController()
-  const archiveController = new ArchiveController()
-  const tagManagerController = new TagManagerController()
-  const moreViewController = new MoreController()
-  const sideBarTabController = new SidebarTabController()
-  const sidebarBookmarkController = new SidebarBookmarkController()
-  const sidebarHistoryController = new SidebarHistoryController()
+
+  const homepageController = new HomepageController();
+  const archiveController = new ArchiveController();
+  const tagManagerController = new TagManagerController();
+  const moreViewController = new MoreController();
+  const sideBarTabController = new SidebarTabController();
+  const sidebarBookmarkController = new SidebarBookmarkController();
+  const sidebarHistoryController = new SidebarHistoryController();
   const primaryViewController = new TabBarController({
     props: {
       id: "primaryViewController",
@@ -39,46 +42,52 @@ async function init() {
         {
           symbol: "photo.on.rectangle",
           title: "浏览",
-          controller: homepageController
+          controller: homepageController,
         },
         {
           symbol: "archivebox",
           title: "存档",
-          controller: archiveController
+          controller: archiveController,
         },
         {
           symbol: "tag.fill",
           title: "标签",
-          controller: tagManagerController
+          controller: tagManagerController,
         },
         {
           symbol: "ellipsis",
           title: "其他",
-          controller: moreViewController
-        }
-      ]
+          controller: moreViewController,
+        },
+      ],
     },
     events: {
       doubleTapped: (controller, index) => {
         switch (index) {
           case 0:
-            homepageController.cviews.list.matrix.view.scrollToOffset($point(0, 0))
+            homepageController.cviews.list.matrix.view.scrollToOffset(
+              $point(0, 0)
+            );
             break;
           case 1:
-            archiveController.cviews.list.matrix.view.scrollToOffset($point(0, 0))
+            archiveController.cviews.list.matrix.view.scrollToOffset(
+              $point(0, 0)
+            );
             break;
           case 2:
-            tagManagerController.cviews.list.view.scrollToOffset($point(0, 0))
+            tagManagerController.cviews.list.view.scrollToOffset($point(0, 0));
             break;
           case 3:
-            moreViewController.cviews.list.matrix.view.scrollToOffset($point(0, 0))
+            moreViewController.cviews.list.matrix.view.scrollToOffset(
+              $point(0, 0)
+            );
             break;
           default:
             break;
         }
-      }
-    }
-  })
+      },
+    },
+  });
   const secondaryViewController = new TabBarController({
     props: {
       id: "secondaryViewController",
@@ -86,38 +95,38 @@ async function init() {
       items: [
         {
           symbol: "square.on.square",
-          controller: sideBarTabController
+          controller: sideBarTabController,
         },
         {
           symbol: "bookmark.fill",
-          controller: sidebarBookmarkController
+          controller: sidebarBookmarkController,
         },
         {
           symbol: "clock.arrow.circlepath",
-          controller: sidebarHistoryController
-        }
-      ]
-    }
-  })
+          controller: sidebarHistoryController,
+        },
+      ],
+    },
+  });
   const splitViewController = new SplitViewController({
     props: {
       id: "splitViewController",
       items: [
         { controller: primaryViewController, bgcolor: $color("clear") },
-        { controller: secondaryViewController, bgcolor: $color("clear") }
-      ]
-    }
-  })
-  splitViewController.uirender()
+        { controller: secondaryViewController, bgcolor: $color("clear") },
+      ],
+    },
+  });
+  splitViewController.uirender();
   if (!configManager.cookie) {
-    await login()
-    appLog("login done")
+    await login();
+    appLog("login done");
     // 重新加载tagManagerController
-    tagManagerController.refresh()
+    tagManagerController.refresh();
   } else {
-    api.cookie = configManager.cookie
-    api.exhentai = configManager.exhentai
-    api.mpvAvailable = configManager.mpvAvailable
+    api.cookie = configManager.cookie;
+    api.exhentai = configManager.exhentai;
+    api.mpvAvailable = configManager.mpvAvailable;
   }
 
   // 启动全局定时器
@@ -126,48 +135,50 @@ async function init() {
   // 为什么要延迟0.2秒：matrix从属的footer，可能会延后出现（matrix能查找的时候，footer可能还没出现）
   $delay(0.2, () => {
     homepageController.cviews.list.footerText = "请等待配置同步……";
-  })
+  });
   // 此时可以加载archiveController了
-  $delay(0.3, () => archiveController.triggerLoad({
-    type: "archive",
-    options: {
-      page: 0,
-      pageSize: 50,
-      type: "all",
-      sort: configManager.archiveManagerOrderMethod
-    }
-  }))
+  $delay(0.3, () =>
+    archiveController.triggerLoad({
+      type: "archive",
+      options: {
+        page: 0,
+        pageSize: 50,
+        type: "all",
+        sort: configManager.archiveManagerOrderMethod,
+      },
+    })
+  );
 
   // 检查配置
-  let config: {[key: string]: string } | undefined
-  let ehMyTags: EHMyTags | undefined
+  let config: { [key: string]: string } | undefined;
+  let ehMyTags: EHMyTags | undefined;
   try {
-    config = await api.getConfig()
+    config = await api.getConfig();
     if (configManager.syncMyTags) {
-      ehMyTags = await api.getMyTags()
+      ehMyTags = await api.getMyTags();
       // 如果没有启用我的标签，就启用
       if (!ehMyTags.enabled) {
-        ehMyTags = await api.enableTagset({tagset: 1})
+        ehMyTags = await api.enableTagset({ tagset: 1 });
       }
     }
   } catch (e: any) {
-    appLog(e, "error")
+    appLog(e, "error");
     $ui.alert({
       title: "更新配置失败",
-      message: e.name + ": " + e.message
-    })
+      message: e.name + ": " + e.message,
+    });
   }
   if (config) {
     if (config.dm !== "2" || config.ts !== "1") {
-      appLog("config not match", "info")
-      config.dm = "2"
-      config.ts = "1"
-      await api.postConfig(config)
+      appLog("config not match", "info");
+      config.dm = "2";
+      config.ts = "1";
+      await api.postConfig(config);
     }
     // 同步被禁止的上传者
     if (config.xu) {
-      const bannedUploaders = config.xu.split("\n")
-      configManager.updateAllBannedUploaders(bannedUploaders)
+      const bannedUploaders = config.xu.split("\n");
+      configManager.updateAllBannedUploaders(bannedUploaders);
     }
     // 同步favcat
     configManager.updateAllFavcatTitles([
@@ -180,15 +191,16 @@ async function init() {
       config.favorite_6,
       config.favorite_7,
       config.favorite_8,
-      config.favorite_9
-    ])
+      config.favorite_9,
+    ]);
     // 更新收藏页排序
-    configManager.favoritesOrderMethod = config.fs === "0" ? "published_time" : "favorited_time";
+    configManager.favoritesOrderMethod =
+      config.fs === "0" ? "published_time" : "favorited_time";
   }
   if (ehMyTags) {
-    configManager.updateAllMarkedTags(ehMyTags.tags)
-    configManager.mytagsApiuid = ehMyTags.apiuid
-    configManager.mytagsApikey = ehMyTags.apikey
+    configManager.updateAllMarkedTags(ehMyTags.tags);
+    configManager.mytagsApiuid = ehMyTags.apiuid;
+    configManager.mytagsApikey = ehMyTags.apikey;
   }
   if (homepageController.cviews.list.footerText === "请等待配置同步……") {
     homepageController.cviews.list.footerText = "";
@@ -196,7 +208,9 @@ async function init() {
 }
 
 if ($app.env === $env.app) {
-  init().then().catch(e => console.error(e));
+  init()
+    .then()
+    .catch((e) => console.error(e));
 } else {
   $ui.error("请在JSBox主程序中运行");
 }

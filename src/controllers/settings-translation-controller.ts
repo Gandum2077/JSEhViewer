@@ -1,14 +1,28 @@
-import { Base, BaseController, ContentView, CustomNavigationBar, DynamicPreferenceListView, DynamicRowHeightList, Markdown, PreferenceSection, Sheet, SymbolButton, Text } from "jsbox-cview";
+import {
+  Base,
+  BaseController,
+  ContentView,
+  CustomNavigationBar,
+  DynamicPreferenceListView,
+  DynamicRowHeightList,
+  Markdown,
+  PreferenceSection,
+  Sheet,
+  SymbolButton,
+  Text,
+} from "jsbox-cview";
 import * as MangaImageTranslator from "../ai-translations/manga-image-translator";
 import * as CotransTouhouAi from "../ai-translations/cotrans-touhou-ai";
 import * as UserCustom from "../ai-translations/user-custom";
 import { configManager } from "../utils/config";
 
-const serviceTitles = [MangaImageTranslator, CotransTouhouAi, UserCustom]
-  .map((service) => service.config.title);
+const serviceTitles = [MangaImageTranslator, CotransTouhouAi, UserCustom].map(
+  (service) => service.config.title
+);
 
-const serviceNames = [MangaImageTranslator, CotransTouhouAi, UserCustom]
-  .map((service) => service.config.name);
+const serviceNames = [MangaImageTranslator, CotransTouhouAi, UserCustom].map(
+  (service) => service.config.name
+);
 
 function getDefaultConfig(serviceName: string) {
   switch (serviceName) {
@@ -27,7 +41,12 @@ function getDefaultConfig(serviceName: string) {
  * 为DynamicPreferenceListView添加一个heightToWidth方法，前提是section没有title
  */
 class DynamicPreferenceListViewWithoutSectionTitle extends DynamicPreferenceListView {
-  constructor({ sections, props, layout, events }: {
+  constructor({
+    sections,
+    props,
+    layout,
+    events,
+  }: {
     sections: PreferenceSection[];
     props: UiTypes.ListProps;
     layout?: (make: MASConstraintMaker, view: UIListView) => void;
@@ -41,16 +60,18 @@ class DynamicPreferenceListViewWithoutSectionTitle extends DynamicPreferenceList
         ...props,
         style: 2,
         rowHeight: 44,
-        scrollEnabled: false
+        scrollEnabled: false,
       },
       layout,
-      events
+      events,
     });
-
   }
 
   heightToWidth(width: number): number {
-    const rowCounts = this.sections.reduce((prev, curr) => prev + curr.rows.length, 0);
+    const rowCounts = this.sections.reduce(
+      (prev, curr) => prev + curr.rows.length,
+      0
+    );
     return this.sections.length * 35 + 35 + 44 * rowCounts;
   }
 }
@@ -58,10 +79,14 @@ class DynamicPreferenceListViewWithoutSectionTitle extends DynamicPreferenceList
 class CustomText extends Base<UIView, UiTypes.ViewOptions> {
   private _visible: boolean;
   _defineView: () => UiTypes.ViewOptions;
-  constructor({ text, visible, didBeginEditingHandler }: {
-    text: string,
-    visible: boolean,
-    didBeginEditingHandler: (sender: UICodeView) => void
+  constructor({
+    text,
+    visible,
+    didBeginEditingHandler,
+  }: {
+    text: string;
+    visible: boolean;
+    didBeginEditingHandler: (sender: UICodeView) => void;
   }) {
     super();
     this._visible = visible;
@@ -73,27 +98,29 @@ class CustomText extends Base<UIView, UiTypes.ViewOptions> {
           bgcolor: $color("clear"),
         },
         layout: $layout.fill,
-        views: [{
-          type: "code",
-          props: {
-            id: this.id + "text",
-            smoothCorners: true,
-            cornerRadius: 12,
-            hidden: !visible,
-            text,
+        views: [
+          {
+            type: "code",
+            props: {
+              id: this.id + "text",
+              smoothCorners: true,
+              cornerRadius: 12,
+              hidden: !visible,
+              text,
+            },
+            layout: (make, view) => {
+              make.left.right.inset(16);
+              make.top.bottom.inset(0);
+            },
+            events: {
+              didBeginEditing: (sender) => {
+                didBeginEditingHandler(sender);
+              },
+            },
           },
-          layout: (make, view) => {
-            make.left.right.inset(16);
-            make.top.bottom.inset(0);
-          },
-          events: {
-            didBeginEditing: (sender) => {
-              didBeginEditingHandler(sender);
-            }
-          }
-        }]
-      }
-    }
+        ],
+      };
+    };
   }
 
   get visible() {
@@ -119,15 +146,10 @@ class CustomText extends Base<UIView, UiTypes.ViewOptions> {
   }
 }
 
-
 class CustomBlankView extends Base<UIView, UiTypes.ViewOptions> {
   private _visible: boolean;
   _defineView: () => UiTypes.ViewOptions;
-  constructor({
-    visible
-  }: {
-    visible: boolean
-  }) {
+  constructor({ visible }: { visible: boolean }) {
     super();
     this._visible = visible;
     this._defineView = () => {
@@ -138,9 +160,9 @@ class CustomBlankView extends Base<UIView, UiTypes.ViewOptions> {
           bgcolor: $color("clear"),
         },
         layout: $layout.fill,
-        views: []
-      }
-    }
+        views: [],
+      };
+    };
   }
 
   get visible() {
@@ -163,16 +185,19 @@ class AITranslationConfigController extends BaseController {
     dynamicPreferenceListView: DynamicPreferenceListViewWithoutSectionTitle;
     textView: CustomText;
     list: DynamicRowHeightList;
-  }
+  };
   constructor(resolveHandler: () => void, rejectHandler: () => void) {
     super({
       props: { bgcolor: $color("insetGroupedBackground") },
       events: {
-        didRemove: () => { rejectHandler() }
-      }
+        didRemove: () => {
+          rejectHandler();
+        },
+      },
     });
     // 获取用户选择的AI翻译服务, 默认为用户自定义
-    this._selectedService = configManager.selectedAiTranslationService || UserCustom.config.name;
+    this._selectedService =
+      configManager.selectedAiTranslationService || UserCustom.config.name;
     if (!serviceNames.includes(this._selectedService)) {
       this._selectedService = UserCustom.config.name;
     }
@@ -181,67 +206,71 @@ class AITranslationConfigController extends BaseController {
       props: {
         title: "AI翻译设置",
         popButtonEnabled: true,
-        rightBarButtonItems: [{
-          title: "保存",
-          handler: () => {
-            resolveHandler();
-            $ui.pop();
-          }
-        }]
-      }
+        rightBarButtonItems: [
+          {
+            title: "保存",
+            handler: () => {
+              resolveHandler();
+              $ui.pop();
+            },
+          },
+        ],
+      },
     });
 
-    const dynamicPreferenceListView = new DynamicPreferenceListViewWithoutSectionTitle({
-      sections: this._generateSections(),
-      props: {
-        bgcolor: $color("clear")
-      },
-      layout: $layout.fill,
-      events: {
-        changed: (values) => {
-          const selectedService = serviceNames[values.selectedAiTranslationService];
-          if (this._selectedService !== selectedService) {
-            this._selectedService = selectedService;
-            dynamicPreferenceListView.sections = this._generateSections();
-            textView.visible = this._selectedService === "user-custom";
-            blankView.visible = this._selectedService === "user-custom";
-            list.view.reload();
-          }
-        }
-      }
-    });
+    const dynamicPreferenceListView =
+      new DynamicPreferenceListViewWithoutSectionTitle({
+        sections: this._generateSections(),
+        props: {
+          bgcolor: $color("clear"),
+        },
+        layout: $layout.fill,
+        events: {
+          changed: (values) => {
+            const selectedService =
+              serviceNames[values.selectedAiTranslationService];
+            if (this._selectedService !== selectedService) {
+              this._selectedService = selectedService;
+              dynamicPreferenceListView.sections = this._generateSections();
+              textView.visible = this._selectedService === "user-custom";
+              blankView.visible = this._selectedService === "user-custom";
+              list.view.reload();
+            }
+          },
+        },
+      });
 
     const textView = new CustomText({
       text: this._generateDefaultScriptText(),
       visible: this._selectedService === "user-custom",
-      didBeginEditingHandler: s => {
+      didBeginEditingHandler: (s) => {
         list.view.scrollToOffset($point(0, 44 * 2 + 35 * 2));
-      }
+      },
     });
 
     const blankView = new CustomBlankView({
-      visible: this._selectedService === "user-custom"
+      visible: this._selectedService === "user-custom",
     });
 
     const list = new DynamicRowHeightList({
       rows: [dynamicPreferenceListView, textView, blankView],
       props: {
         separatorHidden: true,
-        bgcolor: $color("clear")
+        bgcolor: $color("clear"),
       },
       layout: (make, view) => {
         make.top.equalTo(view.prev.bottom);
         make.left.right.bottom.inset(0);
       },
-      events: {}
-    })
+      events: {},
+    });
     this.cviews = {
       navbar,
       dynamicPreferenceListView,
       textView,
-      list
-    }
-    this.rootView.views = [navbar, list]
+      list,
+    };
+    this.rootView.views = [navbar, list];
   }
 
   private _showIntroduction() {
@@ -278,10 +307,10 @@ class AITranslationConfigController extends BaseController {
     const userConfigForService = userConfig[this._selectedService];
     // 合并配置
     // 1. 拷贝默认配置
-    const newRows = defaultRows.map(row => ({ ...row }));
+    const newRows = defaultRows.map((row) => ({ ...row }));
     // 2. 替换默认配置
     for (const row of newRows) {
-      if (row.key && (row.key in userConfigForService)) {
+      if (row.key && row.key in userConfigForService) {
         row.value = userConfigForService[row.key];
       }
     }
@@ -290,23 +319,27 @@ class AITranslationConfigController extends BaseController {
 
   private _generateSections(): PreferenceSection[] {
     if (this._selectedService === "user-custom") {
-      return [{
-        title: "",
-        rows: [
-          {
-            type: "list",
-            title: "服务",
-            key: "selectedAiTranslationService",
-            items: serviceTitles,
-            value: serviceNames.indexOf(this._selectedService),
-          },
-          {
-            type: "action",
-            title: "查看指南",
-            value: () => { this._showIntroduction() }
-          }
-        ]
-      }];
+      return [
+        {
+          title: "",
+          rows: [
+            {
+              type: "list",
+              title: "服务",
+              key: "selectedAiTranslationService",
+              items: serviceTitles,
+              value: serviceNames.indexOf(this._selectedService),
+            },
+            {
+              type: "action",
+              title: "查看指南",
+              value: () => {
+                this._showIntroduction();
+              },
+            },
+          ],
+        },
+      ];
     } else {
       const section0: PreferenceSection = {
         title: "",
@@ -321,20 +354,22 @@ class AITranslationConfigController extends BaseController {
           {
             type: "link",
             title: "链接",
-            value: getDefaultConfig(this._selectedService).link
+            value: getDefaultConfig(this._selectedService).link,
           },
           {
             type: "action",
             title: "查看指南",
-            value: () => { this._showIntroduction() }
-          }
-        ]
-      }
+            value: () => {
+              this._showIntroduction();
+            },
+          },
+        ],
+      };
 
       const section1: PreferenceSection = {
         title: "",
-        rows: this._mergeConfigWithDefaults()
-      }
+        rows: this._mergeConfigWithDefaults(),
+      };
 
       return [section0, section1];
     }
@@ -357,39 +392,40 @@ class AITranslationConfigController extends BaseController {
   }
 }
 
-
 function showIntroduction(text: string, title: string) {
   const navbar = new CustomNavigationBar({
     props: {
       title,
-      rightBarButtonItems: [{
-        cview: new SymbolButton({
-          props: {
-            symbol: "xmark"
-          },
-          events: {
-            tapped: () => {
-              sheet.dismiss();
-            }
-          }
-        })
-      }]
-    }
+      rightBarButtonItems: [
+        {
+          cview: new SymbolButton({
+            props: {
+              symbol: "xmark",
+            },
+            events: {
+              tapped: () => {
+                sheet.dismiss();
+              },
+            },
+          }),
+        },
+      ],
+    },
   });
   const markdown = new Markdown({
     props: {
-      content: text
+      content: text,
     },
     layout: (make, view) => {
       make.top.equalTo(view.prev.bottom);
       make.left.right.bottom.equalTo(view.super.safeArea);
-    }
+    },
   });
   const sheet = new Sheet<ContentView, UIView, UiTypes.ViewOptions>({
     cview: new ContentView({
       layout: $layout.fill,
-      views: [navbar.definition, markdown.definition]
-    })
+      views: [navbar.definition, markdown.definition],
+    }),
   });
   sheet.present();
 }
@@ -406,11 +442,13 @@ export function setAITranslationConfig() {
         configManager.saveAiTranslationServiceConfig(config);
         resolve(true);
       },
-      () => { reject("cancel") }
+      () => {
+        reject("cancel");
+      }
     );
     controller.uipush({
       navBarHidden: true,
-      statusBarStyle: 0
+      statusBarStyle: 0,
     });
   });
 }

@@ -3,12 +3,12 @@ import { Base } from "jsbox-cview";
 export class EhlistTitleView extends Base<UIButtonView, UiTypes.ButtonOptions> {
   private _arrowSymbolHidden: boolean;
   _defineView: () => UiTypes.ButtonOptions;
-  constructor({ 
+  constructor({
     defaultTitle,
-    tapped
+    tapped,
   }: {
-    defaultTitle: string,
-    tapped: (sender: UIButtonView) => void
+    defaultTitle: string;
+    tapped: (sender: UIButtonView) => void;
   }) {
     super();
     this._arrowSymbolHidden = defaultTitle === "空白页";
@@ -18,7 +18,7 @@ export class EhlistTitleView extends Base<UIButtonView, UiTypes.ButtonOptions> {
         props: {
           id: this.id,
           bgcolor: $color("clear"),
-          enabled: !this._arrowSymbolHidden
+          enabled: !this._arrowSymbolHidden,
         },
         layout: (make, view) => {
           make.width.equalTo(110);
@@ -32,11 +32,11 @@ export class EhlistTitleView extends Base<UIButtonView, UiTypes.ButtonOptions> {
               id: this.id + "title-large",
               text: defaultTitle,
               font: $font("bold", 17),
-              hidden: !this._arrowSymbolHidden
+              hidden: !this._arrowSymbolHidden,
             },
             layout: (make, view) => {
               make.center.equalTo(view.super);
-            }
+            },
           },
           {
             type: "label",
@@ -44,12 +44,12 @@ export class EhlistTitleView extends Base<UIButtonView, UiTypes.ButtonOptions> {
               id: this.id + "title",
               text: defaultTitle,
               font: $font("bold", 17),
-              hidden: this._arrowSymbolHidden
+              hidden: this._arrowSymbolHidden,
             },
             layout: (make, view) => {
               make.centerY.equalTo(view.super);
               make.centerX.equalTo(view.super).offset(-8);
-            }
+            },
           },
           {
             type: "image",
@@ -58,23 +58,23 @@ export class EhlistTitleView extends Base<UIButtonView, UiTypes.ButtonOptions> {
               symbol: "arrowtriangle.down.fill",
               tintColor: $color("secondaryText"),
               contentMode: 1,
-              hidden: this._arrowSymbolHidden
+              hidden: this._arrowSymbolHidden,
             },
             layout: (make, view) => {
               make.height.equalTo(view.super);
               make.centerY.equalTo(view.super);
               make.width.equalTo(12);
               make.left.equalTo(view.prev.right).inset(4);
-            }
-          }
+            },
+          },
         ],
         events: {
           tapped: (sender) => {
             tapped(sender);
-          }
-        }
-      }
-    }
+          },
+        },
+      };
+    };
   }
 
   get title() {

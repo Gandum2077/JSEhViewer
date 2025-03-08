@@ -17,13 +17,16 @@ async function _translate(serviceName: string, config: any, imageData: NSData) {
   }
 }
 
-export async function aiTranslate(path: string): Promise<{
-    success: true,
-    data: NSData
-  } | {
-    success: false,
-    message: string
-  }> {
+export async function aiTranslate(path: string): Promise<
+  | {
+      success: true;
+      data: NSData;
+    }
+  | {
+      success: false;
+      message: string;
+    }
+> {
   if (!$file.exists(path)) {
     throw new Error("未找到图片");
   }
@@ -35,19 +38,19 @@ export async function aiTranslate(path: string): Promise<{
   const config = configManager.aiTranslationServiceConfig[serviceName];
   if (!config) {
     throw new Error("未找到翻译服务配置");
-  };
+  }
   // 前面三种错误，需要在调用该函数之前避免，所以这里不需要处理
   try {
     const newImageData = await _translate(serviceName, config, imageData);
     return {
       success: true,
-      data: newImageData
-    }
+      data: newImageData,
+    };
   } catch (e: any) {
     appLog(e, "error");
     return {
       success: false,
-      message: e.message
-    }
+      message: e.message,
+    };
   }
 }

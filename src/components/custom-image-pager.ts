@@ -2,13 +2,17 @@ import { Base, Matrix } from "jsbox-cview";
 
 /**
  * 图片浏览组件
- * 
+ *
  * 与内置的Gallery组件相比，ImagePager组件可以动态刷新，适用于图片数量较多的场景，以及需要动态加载图片列表的场景
- * 
+ *
  */
 export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
   private _props: {
-    srcs: { path?: string; error: boolean, type: "ai-translated" | "reloaded" | "normal" }[];
+    srcs: {
+      path?: string;
+      error: boolean;
+      type: "ai-translated" | "reloaded" | "normal";
+    }[];
     page: number;
   };
   private _matrix: Matrix;
@@ -16,18 +20,26 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
 
   /**
-   * 
-   * @param props 
+   *
+   * @param props
    * - srcs: {path?: string, error: boolean}[] - 图片地址列表
    * - page: number - 当前页码
    * @param layout
-   * @param events 
+   * @param events
    * - changed: (page: number) => void - 页码变化时触发
    * - reloadHandler: (page: number) => void - 重新加载图片的回调
    */
-  constructor({ props, layout, events = {} }: {
+  constructor({
+    props,
+    layout,
+    events = {},
+  }: {
     props: {
-      srcs?: { path?: string; error: boolean, type: "ai-translated" | "reloaded" | "normal" }[];
+      srcs?: {
+        path?: string;
+        error: boolean;
+        type: "ai-translated" | "reloaded" | "normal";
+      }[];
       page?: number;
     };
     layout: (make: MASConstraintMaker, view: UIView) => void;
@@ -35,13 +47,12 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
       changed?: (page: number) => void;
       reloadHandler?: (page: number) => void;
     };
-
   }) {
     super();
     this._props = {
       srcs: [],
       page: 0,
-      ...props
+      ...props,
     };
     this._pageLoadRecorder = {};
     this._matrix = new Matrix({
@@ -57,14 +68,14 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
               type: "spinner",
               props: {
                 id: "spinner",
-                loading: true
+                loading: true,
               },
-              layout: $layout.center
+              layout: $layout.center,
             },
             {
               type: "view",
               props: {
-                id: "error_view"
+                id: "error_view",
               },
               layout: $layout.fill,
               views: [
@@ -73,11 +84,11 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
                   props: {
                     text: "网络似乎不太给力◉_◉",
                     textColor: $color("primaryText"),
-                    align: $align.center
+                    align: $align.center,
                   },
                   layout: (make, view) => {
                     make.center.equalTo(view.super);
-                  }
+                  },
                 },
                 {
                   type: "button",
@@ -93,23 +104,25 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
                   events: {
                     tapped: () => {
                       events.reloadHandler && events.reloadHandler(this.page);
-                    }
-                  },
-                  views: [{
-                    type: "image",
-                    props: {
-                      id: "error_symbol",
-                      symbol: "arrow.clockwise",
-                      contentMode: $contentMode.scaleAspectFit,
-                      tintColor: $color("systemLink")
                     },
-                    layout: (make, view) => {
-                      make.center.equalTo(view.super);
-                      make.size.equalTo($size(30, 30));
-                    }
-                  }]
-                }
-              ]
+                  },
+                  views: [
+                    {
+                      type: "image",
+                      props: {
+                        id: "error_symbol",
+                        symbol: "arrow.clockwise",
+                        contentMode: $contentMode.scaleAspectFit,
+                        tintColor: $color("systemLink"),
+                      },
+                      layout: (make, view) => {
+                        make.center.equalTo(view.super);
+                        make.size.equalTo($size(30, 30));
+                      },
+                    },
+                  ],
+                },
+              ],
             },
             {
               type: "scroll",
@@ -117,7 +130,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
                 id: "scroll",
                 zoomEnabled: true,
                 maxZoomScale: 3,
-                doubleTapToZoom: false
+                doubleTapToZoom: false,
               },
               layout: $layout.fill,
               views: [
@@ -125,18 +138,18 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
                   type: "image",
                   props: {
                     id: "image",
-                    contentMode: $contentMode.scaleAspectFit
-                  }
-                }
-              ]
-            }
-          ]
+                    contentMode: $contentMode.scaleAspectFit,
+                  },
+                },
+              ],
+            },
+          ],
         },
-        data: this._props.srcs.map(n => this._mapData(n))
+        data: this._props.srcs.map((n) => this._mapData(n)),
       },
       layout: $layout.fill,
       events: {
-        ready: sender => {
+        ready: (sender) => {
           // 如果没有此处的relayout，则会出现莫名其妙的bug
           sender.relayout();
           if (!this._matrix.view) return;
@@ -158,7 +171,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
           if (oldPage !== this.page && events.changed)
             events.changed(this.page);
         },
-        didScroll: sender => {
+        didScroll: (sender) => {
           this.loadsrc(this.page + 1, true);
           this.loadsrc(this.page - 1, true);
         },
@@ -168,19 +181,19 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
             const img = $file.read(path).image;
             if (img) $share.universal(img);
           }
-        }
-      }
+        },
+      },
     });
     this._defineView = () => {
       return {
         type: "view",
         props: {
-          id: this.id
+          id: this.id,
         },
         layout,
         views: [this._matrix.definition],
         events: {
-          layoutSubviews: sender => {
+          layoutSubviews: (sender) => {
             this._pageLoadRecorder = {};
             sender.relayout();
             if (!this._matrix.view) return;
@@ -188,10 +201,10 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
             this.page = this.page;
             $delay(0.1, () => this.loadsrc(this.page, true));
             $delay(0.3, () => this.loadsrc(this.page, true));
-          }
-        }
+          },
+        },
       };
-    }
+    };
   }
 
   private loadsrc(page: number, forced = false) {
@@ -210,9 +223,15 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
     return this._props.srcs;
   }
 
-  set srcs(srcs: { path?: string; error: boolean, type: "ai-translated" | "reloaded" | "normal" }[]) {
+  set srcs(
+    srcs: {
+      path?: string;
+      error: boolean;
+      type: "ai-translated" | "reloaded" | "normal";
+    }[]
+  ) {
     this._props.srcs = srcs;
-    const data = srcs.map(n => this._mapData(n));
+    const data = srcs.map((n) => this._mapData(n));
     this._matrix.view.data = data;
   }
 
@@ -222,21 +241,21 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
         image: { src: "" },
         scroll: { hidden: true },
         error_view: { hidden: false },
-        spinner: { loading: false, hidden: true }
-      }
+        spinner: { loading: false, hidden: true },
+      };
     } else if (n.path) {
       return {
         image: { src: n.path },
         scroll: { hidden: false },
         error_view: { hidden: true },
-        spinner: { loading: false, hidden: true }
+        spinner: { loading: false, hidden: true },
       };
     } else {
       return {
         image: { src: "" },
         scroll: { hidden: true },
         error_view: { hidden: true },
-        spinner: { loading: true }
+        spinner: { loading: true },
       };
     }
   }
@@ -248,7 +267,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
   set page(page) {
     this._matrix.view.scrollTo({
       indexPath: $indexPath(0, page),
-      animated: false
+      animated: false,
     });
     this._props.page = page;
   }
@@ -256,7 +275,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
   scrollToPage(page: number) {
     this._matrix.view.scrollTo({
       indexPath: $indexPath(0, page),
-      animated: true
+      animated: true,
     });
     this._props.page = page;
   }

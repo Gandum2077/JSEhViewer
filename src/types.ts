@@ -16,7 +16,7 @@ import {
   EHTopListSearchOptions,
   EHUploadList,
   EHWatchedList,
-  TagNamespace
+  TagNamespace,
 } from "ehentai-parser";
 import { PrefsRow } from "jsbox-cview";
 
@@ -26,9 +26,9 @@ export type TranslationData = {
   translation: string;
   intro: string;
   links: string;
-}[]
+}[];
 
-export type TranslationDict = Map<TagNamespace, Map<string, string>>
+export type TranslationDict = Map<TagNamespace, Map<string, string>>;
 
 export type MarkedTag = {
   tagid: number;
@@ -40,7 +40,7 @@ export type MarkedTag = {
   weight: number;
 };
 
-export type MarkedTagDict = Map<TagNamespace, Map<string, MarkedTag>>
+export type MarkedTagDict = Map<TagNamespace, Map<string, MarkedTag>>;
 
 export type WebDAVService = {
   name: string;
@@ -92,13 +92,13 @@ export type DBArchiveItem = {
   taglist: EHTagListItem[];
   comment: string;
   last_read_page: number;
-}
+};
 
 export type ArchiveSearchOptions = {
-  page: number,  // 从0开始
-  pageSize: number,
-  type?: "readlater" | "downloaded" | "all",
-  sort?: "first_access_time" | "last_access_time" | "posted_time",
+  page: number; // 从0开始
+  pageSize: number;
+  type?: "readlater" | "downloaded" | "all";
+  sort?: "first_access_time" | "last_access_time" | "posted_time";
   searchTerms?: EHSearchTerm[];
   excludedCategories?: EHSearchedCategory[];
   minimumPages?: number;
@@ -106,49 +106,71 @@ export type ArchiveSearchOptions = {
   minimumRating?: number;
 };
 
-export type StatusTabType = "front_page" | "watched" | "popular" | "favorites" | "toplist" | "upload" | "archive";
+export type StatusTabType =
+  | "front_page"
+  | "watched"
+  | "popular"
+  | "favorites"
+  | "toplist"
+  | "upload"
+  | "archive";
 
-export type StatusTabOptions = FrontPageTabOptions | WatchedTabOptions | PopularTabOptions | FavoritesTabOptions | ToplistTabOptions | UploadTabOptions | ArchiveTabOptions;
+export type StatusTabOptions =
+  | FrontPageTabOptions
+  | WatchedTabOptions
+  | PopularTabOptions
+  | FavoritesTabOptions
+  | ToplistTabOptions
+  | UploadTabOptions
+  | ArchiveTabOptions;
 
 export type FrontPageTabOptions = {
   type: "front_page";
   options: EHSearchOptions;
-}
+};
 
 export type WatchedTabOptions = {
   type: "watched";
   options: EHSearchOptions;
-}
+};
 
 export type PopularTabOptions = {
   type: "popular";
   options: EHPopularSearchOptions;
-}
+};
 
 export type FavoritesTabOptions = {
   type: "favorites";
   options: EHFavoriteSearchOptions;
-}
+};
 
 export type ToplistTabOptions = {
   type: "toplist";
   options: EHTopListSearchOptions;
-}
+};
 
 export type UploadTabOptions = {
   type: "upload";
-}
+};
 
 export type ArchiveTabOptions = {
   type: "archive";
   options: ArchiveSearchOptions;
-}
+};
 
-export type StatusTab = BlankTab | FrontPageTab | WatchedTab | PopularTab | FavoritesTab | ToplistTab | UploadTab | ArchiveTab;
+export type StatusTab =
+  | BlankTab
+  | FrontPageTab
+  | WatchedTab
+  | PopularTab
+  | FavoritesTab
+  | ToplistTab
+  | UploadTab
+  | ArchiveTab;
 
 export type BlankTab = {
   type: "blank";
-}
+};
 
 export type FrontPageTab = {
   type: "front_page";
@@ -189,7 +211,7 @@ export type ArchiveList = {
   type: "archive";
   all_count: number;
   items: EHListExtendedItem[];
-}
+};
 
 export type ArchiveTab = {
   type: "archive";
@@ -203,4 +225,4 @@ export type AITranslationConfig = {
   link: string;
   description: string;
   rows: PrefsRow[];
-}
+};

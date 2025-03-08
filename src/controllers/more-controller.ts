@@ -16,44 +16,50 @@ import { globalTimer } from "../utils/timer";
 import { toLocalTimeString } from "../utils/tools";
 
 export class MoreController extends BaseController {
-  cviews: { navbar: CustomNavigationBar, list: DynamicItemSizeMatrix };
+  cviews: { navbar: CustomNavigationBar; list: DynamicItemSizeMatrix };
   constructor() {
     super({
       events: {
         didAppear: () => {
-          this.scheduledRefresh()
+          this.scheduledRefresh();
           globalTimer.addTask({
             id: "more-controller-refresh",
             handler: () => {
-              this.scheduledRefresh()
-            }
-          })
+              this.scheduledRefresh();
+            },
+          });
         },
         didDisappear: () => {
-          globalTimer.removeTask("more-controller-refresh")
-        }
-      }
-    })
+          globalTimer.removeTask("more-controller-refresh");
+        },
+      },
+    });
     const navbar = new CustomNavigationBar({
       props: {
         title: "其他",
-        leftBarButtonItems: [{
-          symbol: "sidebar.left",
-          handler: () => {
-            (router.get("splitViewController") as SplitViewController).sideBarShown = true
-          }
-        }],
-        rightBarButtonItems: [{
-          symbol: "power",
-          tintColor: $color("red"),
-          handler: () => {
-            if (configManager.autoClearCache) {
-              configManager.clearCache();
-            }
-            $app.close();
-          }
-        }]
-      }
+        leftBarButtonItems: [
+          {
+            symbol: "sidebar.left",
+            handler: () => {
+              (
+                router.get("splitViewController") as SplitViewController
+              ).sideBarShown = true;
+            },
+          },
+        ],
+        rightBarButtonItems: [
+          {
+            symbol: "power",
+            tintColor: $color("red"),
+            handler: () => {
+              if (configManager.autoClearCache) {
+                configManager.clearCache();
+              }
+              $app.close();
+            },
+          },
+        ],
+      },
     });
     const list = new DynamicItemSizeMatrix({
       props: {
@@ -67,14 +73,14 @@ export class MoreController extends BaseController {
           type: "view",
           props: {
             id: "header",
-            height: 50
-          }
+            height: 50,
+          },
         },
         footer: {
           type: "view",
           props: {
             id: "footer",
-            height: 100
+            height: 100,
           },
           views: [
             {
@@ -84,21 +90,24 @@ export class MoreController extends BaseController {
                 font: $font(11),
                 align: $align.center,
                 textColor: $color("secondaryText"),
-                text: `Version ${JSON.parse($file.read("config.json").string || "").info.version}\nMIT License`
+                text: `Version ${
+                  JSON.parse($file.read("config.json").string || "").info
+                    .version
+                }\nMIT License`,
               },
               layout: (make, view) => {
                 make.top.left.right.inset(0);
                 make.height.equalTo(50);
-              }
-            }
-          ]
+              },
+            },
+          ],
         },
         template: {
           views: [
             {
               type: "view",
               props: {
-                bgcolor: $color("primarySurface")
+                bgcolor: $color("primarySurface"),
               },
               layout: (make, view) => {
                 setLayer(view, {
@@ -106,7 +115,7 @@ export class MoreController extends BaseController {
                   shadowRadius: 10,
                   shadowOpacity: 0.4,
                   shadowOffset: $size(5, 5),
-                  shadowColor: $color("black")
+                  shadowColor: $color("black"),
                 });
                 make.left.right.top.bottom.inset(0);
               },
@@ -115,7 +124,7 @@ export class MoreController extends BaseController {
                   type: "view",
                   props: {
                     cornerRadius: 15,
-                    bgcolor: $color("primarySurface")
+                    bgcolor: $color("primarySurface"),
                   },
                   layout: $layout.fill,
                   views: [
@@ -133,33 +142,33 @@ export class MoreController extends BaseController {
                     {
                       type: "view",
                       props: {
-                        id: "bgview"
+                        id: "bgview",
                       },
-                      layout: $layout.fill
+                      layout: $layout.fill,
                     },
                     {
                       type: "image",
                       props: {
                         id: "icon",
                         contentMode: 1,
-                        tintColor: $color("white")
+                        tintColor: $color("white"),
                       },
                       layout: (make, view) => {
                         make.left.top.inset(10);
                         make.size.equalTo($size(30, 30));
-                      }
+                      },
                     },
                     {
                       type: "label",
                       props: {
                         id: "title",
                         font: $font("bold", 18),
-                        textColor: $color("white")
+                        textColor: $color("white"),
                       },
                       layout: (make, view) => {
                         make.top.height.equalTo(view.prev);
                         make.left.equalTo(view.prev.right).inset(10);
-                      }
+                      },
                     },
                     {
                       type: "text",
@@ -171,13 +180,13 @@ export class MoreController extends BaseController {
                         scrollEnabled: false,
                         font: $font(14),
                         textColor: $color("white"),
-                        bgcolor: $color("clear")
+                        bgcolor: $color("clear"),
                       },
                       layout: (make, view) => {
                         make.top.equalTo(view.prev.bottom).inset(2);
                         make.left.right.inset(10);
                         make.bottom.inset(0);
-                      }
+                      },
                     },
                     {
                       type: "blur",
@@ -185,7 +194,7 @@ export class MoreController extends BaseController {
                         id: "blur",
                         style: 16,
                         cornerRadius: 17,
-                        smoothCorners: true
+                        smoothCorners: true,
                       },
                       layout: (make, view) => {
                         make.height.equalTo(34);
@@ -201,40 +210,40 @@ export class MoreController extends BaseController {
                             align: $align.center,
                             bgcolor: $color("clear"),
                             font: $font("bold", 15),
-                            textColor: $color("white")
+                            textColor: $color("white"),
                           },
-                          layout: $layout.fill
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
+                          layout: $layout.fill,
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
         },
-        data: this._getCurrentData()
+        data: this._getCurrentData(),
       },
       layout: $layout.fillSafeArea,
       events: {
         didSelect: async (sender, indexPath) => {
           switch (indexPath.item) {
             case 0:
-              $app.openURL("https://github.com/Gandum2077/JSEhViewer")
+              $app.openURL("https://github.com/Gandum2077/JSEhViewer");
               break;
             case 1:
-              const generalSettingsController = new GeneralSettingsController()
+              const generalSettingsController = new GeneralSettingsController();
               generalSettingsController.uipush({
                 navBarHidden: true,
-                statusBarStyle: 0
-              })
+                statusBarStyle: 0,
+              });
               break;
             case 2:
-              const downloadsController = new SettingsDownloadsController()
+              const downloadsController = new SettingsDownloadsController();
               downloadsController.uipush({
                 navBarHidden: true,
-                statusBarStyle: 0
-              })
+                statusBarStyle: 0,
+              });
               break;
             case 3:
               const values = await setWebDAVConfig();
@@ -246,94 +255,102 @@ export class MoreController extends BaseController {
               await setAITranslationConfig();
               break;
             case 5:
-              $app.openURL("https://e-hentai.org/mytags")
+              $app.openURL("https://e-hentai.org/mytags");
               break;
             case 6:
-              $app.openURL("https://e-hentai.org/uconfig.php")
+              $app.openURL("https://e-hentai.org/uconfig.php");
               break;
             default:
-              break
+              break;
           }
-        }
-      }
-    })
-    this.cviews = { navbar, list }
-    this.rootView.views = [list, navbar]
+        },
+      },
+    });
+    this.cviews = { navbar, list };
+    this.rootView.views = [list, navbar];
   }
 
   private _getCurrentData() {
     // 需要获取四个数据：
     // 1. 标签翻译更新时间
-    const tagTranslationUpdateTimeText = toLocalTimeString(configManager.translationUpdateTime)
+    const tagTranslationUpdateTimeText = toLocalTimeString(
+      configManager.translationUpdateTime
+    );
     // 2. 下载与上传的数量
-    let downloadText = ""
-    let uploadText = ""
+    let downloadText = "";
+    let uploadText = "";
     // 先从下载管理器中获取正在进行的下载和上传任务, 并提取出需要展示的数据
     const downloading = [...downloaderManager.galleryDownloaders.values()]
-      .filter(n => n.background)
-      .map(n => {
+      .filter((n) => n.background)
+      .map((n) => {
         const finishedCount = n.finishedOfImages;
         const totalCount = n.infos.length;
-        const errorCount = n.result.images.filter(n => n.error).length;
+        const errorCount = n.result.images.filter((n) => n.error).length;
         return {
           finishedCount,
           totalCount,
-          errorCount
-        }
+          errorCount,
+        };
       });
     const downloadingTotal = downloading.length;
-    const downloadingFinished = downloading.filter(n => n.finishedCount === n.totalCount).length;
-    const downloadingError = downloading.filter(n => n.errorCount > 0).length;
+    const downloadingFinished = downloading.filter(
+      (n) => n.finishedCount === n.totalCount
+    ).length;
+    const downloadingError = downloading.filter((n) => n.errorCount > 0).length;
     if (downloadingTotal > 0) {
-      downloadText = `当前下载: ${downloadingFinished} / ${downloadingTotal}`
+      downloadText = `当前下载: ${downloadingFinished} / ${downloadingTotal}`;
       if (downloadingError > 0) {
-        downloadText += `, 错误: ${downloadingError}`
+        downloadText += `, 错误: ${downloadingError}`;
       }
     } else {
-      downloadText = "没有正在进行的下载"
+      downloadText = "没有正在进行的下载";
     }
-    const uploading = [...downloaderManager.galleryWebDAVUploaders.values()]
-      .map(n => {
-        const finishedCount = n.finished;
-        const totalCount = n.infos.length;
-        const errorCount = n.result.upload.filter(n => n.error).length;
-        return {
-          finishedCount,
-          totalCount,
-          errorCount
-        }
-      })
+    const uploading = [
+      ...downloaderManager.galleryWebDAVUploaders.values(),
+    ].map((n) => {
+      const finishedCount = n.finished;
+      const totalCount = n.infos.length;
+      const errorCount = n.result.upload.filter((n) => n.error).length;
+      return {
+        finishedCount,
+        totalCount,
+        errorCount,
+      };
+    });
     const uploadingTotal = uploading.length;
-    const uploadingFinished = uploading.filter(n => n.finishedCount === n.totalCount).length;
-    const uploadingError = uploading.filter(n => n.errorCount > 0).length;
+    const uploadingFinished = uploading.filter(
+      (n) => n.finishedCount === n.totalCount
+    ).length;
+    const uploadingError = uploading.filter((n) => n.errorCount > 0).length;
     if (uploadingTotal > 0) {
-      uploadText = `当前上传: ${uploadingFinished} / ${uploadingTotal}`
+      uploadText = `当前上传: ${uploadingFinished} / ${uploadingTotal}`;
       if (uploadingError > 0) {
-        uploadText += `, 错误: ${uploadingError}`
+        uploadText += `, 错误: ${uploadingError}`;
       }
     } else {
-      uploadText = "没有正在进行的上传"
+      uploadText = "没有正在进行的上传";
     }
     // 3. WebDAV的地址
-    let webdavEnabledText = ""
+    let webdavEnabledText = "";
     if (configManager.webdavEnabled) {
-      webdavEnabledText = "已启用WebDAV\n当前服务器: "
+      webdavEnabledText = "已启用WebDAV\n当前服务器: ";
       if (configManager.currentWebDAVService) {
-        webdavEnabledText += configManager.currentWebDAVService.name
+        webdavEnabledText += configManager.currentWebDAVService.name;
       } else {
-        webdavEnabledText += "未设置"
+        webdavEnabledText += "未设置";
       }
     } else {
-      webdavEnabledText = "未启用WebDAV"
+      webdavEnabledText = "未启用WebDAV";
     }
     // 4. AI翻译的选项
-    let aiTranslationServiceText = ""
+    let aiTranslationServiceText = "";
     if (configManager.selectedAiTranslationService === "") {
-      aiTranslationServiceText = "尚未设置AI翻译服务"
+      aiTranslationServiceText = "尚未设置AI翻译服务";
     } else if (configManager.selectedAiTranslationService === "user-custom") {
-      aiTranslationServiceText = "当前服务: 用户自定义"
+      aiTranslationServiceText = "当前服务: 用户自定义";
     } else {
-      aiTranslationServiceText = "当前服务: " + configManager.selectedAiTranslationService
+      aiTranslationServiceText =
+        "当前服务: " + configManager.selectedAiTranslationService;
     }
     const data = [
       {
@@ -341,17 +358,23 @@ export class MoreController extends BaseController {
         bgview: { bgcolor: $color("#CC5C5C") },
         icon: { icon: $icon("177", $color("white")) },
         title: { text: "项目地址" },
-        content: { text: "欢迎关注JSEhViewer！\n在GitHub上查看说明文档，或者在issues页面留下你的建议" },
+        content: {
+          text: "欢迎关注JSEhViewer！\n在GitHub上查看说明文档，或者在issues页面留下你的建议",
+        },
         blur: { hidden: false },
-        button: { text: "前往GitHub" }
+        button: { text: "前往GitHub" },
       },
       {
         // gradient: { colors: [$color("#E18B7A"), $color("#C7472D")] },
         bgview: { bgcolor: $color("#D46954") },
         icon: { symbol: "gear" },
         title: { text: "通用" },
-        content: { text: "常用的设置：UI偏好、标签翻译更新、排序方式、清理缓存、重新登录等\n标签翻译更新时间: " + tagTranslationUpdateTimeText },
-        blur: { hidden: true }
+        content: {
+          text:
+            "常用的设置：UI偏好、标签翻译更新、排序方式、清理缓存、重新登录等\n标签翻译更新时间: " +
+            tagTranslationUpdateTimeText,
+        },
+        blur: { hidden: true },
       },
       {
         // gradient: { colors: [$color("#D7AD6B"), $color("#AD7E2F")] },
@@ -359,7 +382,7 @@ export class MoreController extends BaseController {
         icon: { symbol: "arrow.up.arrow.down.circle" },
         title: { text: "下载与上传" },
         content: { text: downloadText + "\n" + uploadText },
-        blur: { hidden: true }
+        blur: { hidden: true },
       },
       {
         // gradient: { colors: [$color("#B8CC1C"), $color("#919B00")] },
@@ -367,7 +390,7 @@ export class MoreController extends BaseController {
         icon: { symbol: "externaldrive.connected.to.line.below" },
         title: { text: "WebDAV" },
         content: { text: webdavEnabledText },
-        blur: { hidden: true }
+        blur: { hidden: true },
       },
       {
         // gradient: { colors: [$color("#8AB46A"), $color("#587A3D")] },
@@ -375,7 +398,7 @@ export class MoreController extends BaseController {
         icon: { symbol: "globe" },
         title: { text: "AI翻译" },
         content: { text: "图片AI翻译设置\n" + aiTranslationServiceText },
-        blur: { hidden: true }
+        blur: { hidden: true },
       },
       {
         // gradient: { colors: [$color("#8CB1C0"), $color("#518294")] },
@@ -384,22 +407,24 @@ export class MoreController extends BaseController {
         title: { text: "EHentai标签" },
         content: { text: "在网页端查看和修改EHentai标签(修改后请重启本应用)" },
         blur: { hidden: false },
-        button: { text: "在Safari查看" }
+        button: { text: "在Safari查看" },
       },
       {
         // gradient: { colors: [$color("#8E96CD"), $color("#4B58A9")] },
         bgview: { bgcolor: $color("#6D77BB") },
         icon: { symbol: "square.text.square" },
         title: { text: "EHentai设置" },
-        content: { text: "在网页端调整本应用未涉及的设置，比如清晰度、过滤条件、收藏分类(修改后请重启本应用)" },
+        content: {
+          text: "在网页端调整本应用未涉及的设置，比如清晰度、过滤条件、收藏分类(修改后请重启本应用)",
+        },
         blur: { hidden: false },
-        button: { text: "在Safari查看" }
-      } //b8cc1c A6BC00
-    ]
-    return data
+        button: { text: "在Safari查看" },
+      }, //b8cc1c A6BC00
+    ];
+    return data;
   }
 
   scheduledRefresh() {
-    this.cviews.list.data = this._getCurrentData()
+    this.cviews.list.data = this._getCurrentData();
   }
 }

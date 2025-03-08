@@ -3,7 +3,7 @@ import { namespaceColor, tagColor, namespaceTranslations } from "../utils/glv";
 import {
   EHGallery,
   EHNetworkError,
-  EHServiceUnavailableError,
+  EHServerError,
   EHTimeoutError,
   TagNamespace,
   tagNamespaceMostUsedAlternateMap,
@@ -312,7 +312,7 @@ class TagView extends Base<UIView, UiTypes.ViewOptions> {
       } catch (e: any) {
         appLog(e, "error");
         this._isHandlingMytags = false;
-        if (e instanceof EHServiceUnavailableError) {
+        if (e instanceof EHServerError) {
           $ui.error("操作失败：服务不可用");
         } else if (e instanceof EHTimeoutError) {
           $ui.error(`操作失败：请求超时`);

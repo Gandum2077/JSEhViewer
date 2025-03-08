@@ -15,7 +15,7 @@ import { MarkedTag } from "../types";
 import {
   EHNetworkError,
   EHSearchTerm,
-  EHServiceUnavailableError,
+  EHServerError,
   EHTimeoutError,
   TagNamespace,
   tagNamespaces,
@@ -745,7 +745,7 @@ export class TagManagerController extends BaseController {
       } catch (e: any) {
         appLog(e, "error");
         this._isHandlingMytags = false;
-        if (e instanceof EHServiceUnavailableError) {
+        if (e instanceof EHServerError) {
           $ui.error("操作失败：服务不可用");
         } else if (e instanceof EHTimeoutError) {
           $ui.error(`操作失败：请求超时`);

@@ -5,7 +5,8 @@ import { GalleryCommentController } from "./gallery-comment-controller";
 import {
   EHGallery,
   EHNetworkError,
-  EHServiceUnavailableError,
+  EHServerError,
+  EHCopyrightError,
   EHTimeoutError,
 } from "ehentai-parser";
 import { popoverWithSymbol } from "../components/popover-with-symbol";
@@ -120,7 +121,11 @@ export class GalleryController extends PageViewerController {
             this._infos = infos;
           } catch (e: any) {
             appLog(e, "error");
-            if (e instanceof EHServiceUnavailableError) {
+            if (e instanceof EHCopyrightError) {
+              (
+                sender.rootView.view.super.get("loadingLabel") as UILabelView
+              ).text = `加载失败：版权问题`;
+            } else if (e instanceof EHServerError) {
               (
                 sender.rootView.view.super.get("loadingLabel") as UILabelView
               ).text = `加载失败：服务不可用(${e.statusCode})`;
@@ -296,8 +301,9 @@ export class GalleryController extends PageViewerController {
       infos = await api.getGalleryInfo(gid, token, true);
       appLog(infos, "debug");
     } catch (e: any) {
-      appLog(e, "error");
-      if (e instanceof EHServiceUnavailableError) {
+      appLog(e, "error");if (e instanceof EHCopyrightError) {
+        $ui.error(`加载失败：版权问题`);
+      } else  if (e instanceof EHServerError) {
         $ui.error(`刷新失败：服务不可用(${e.statusCode})`);
       } else if (e instanceof EHNetworkError && e.statusCode === 404) {
         $ui.error(`刷新失败：图库不存在(${e.statusCode})`);

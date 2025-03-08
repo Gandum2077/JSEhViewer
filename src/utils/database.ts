@@ -1,5 +1,10 @@
 import { databasePath } from "./glv";
 
+// 当前数据库版本，写在数据库文件中
+// 当出现不兼容更新时，更新数据库版本，并且提供对应的升级方案
+// 如果是兼容更新，不升级数据库版本
+const CURRENT_USER_VERSION = 0;
+
 // 创建数据库
 export function createDB() {
   const db = $sqlite.open(databasePath);
@@ -217,10 +222,17 @@ class DBManager {
   constructor() {
     createDB();
     this._db = openDB();
+    this.checkDBUpdate()
   }
 
   close() {
     closeDB(this._db);
+  }
+
+  checkDBUpdate() {
+    const user_version = (this.query("PRAGMA user_version;") as [{"user_version": number}])[0].user_version;
+    if (user_version === CURRENT_USER_VERSION) return;
+    // 按照顺序依次提升版本
   }
 
   query(sql: string, args?: any[]) {

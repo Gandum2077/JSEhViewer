@@ -558,6 +558,17 @@ export class ReaderController extends BaseController {
                   }
                 }
               }
+
+              if (
+                !this._superGalleryController.fatalErrorAlerted &&
+                this._superGalleryController._checkFatalError()
+              ) {
+                this._superGalleryController.fatalErrorAlerted = true;
+                $ui.alert({
+                  title: "致命错误",
+                  message: "请返回图库页面，点击右上角手动刷新",
+                });
+              }
             },
           });
         },

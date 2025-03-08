@@ -721,10 +721,10 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
         this.infos.thumbnail_size === "large" &&
         "0" in this.infos.images
       ) {
-        // 此时可以并行的任务：第一页缩略图的下载任务
+        // 此时可以并行的任务：第一页缩略图的下载任务(最多20个)
         // 前提：mpv任务还没有成功，thumbanil_size=large, infos中有第一页的数据
         const compoundThumbnailsZero: CompoundThumbnail[] = [];
-        const imagesOnThisPage = this.infos.images[0];
+        const imagesOnThisPage = this.infos.images[0].slice(0, 20);
         let compoundThumbnail: CompoundThumbnail = {
           thumbnail_url: imagesOnThisPage[0].thumbnail_url,
           startIndex: imagesOnThisPage[0].page,
@@ -748,12 +748,15 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
             };
           }
         }
-
+        compoundThumbnailsZero.push(compoundThumbnail);
         const compoundThumbnailItem = compoundThumbnailsZero.find((n) =>
-          this.result.thumbnails.some((i) => i.started === false)
+          this.result.thumbnails
+            .filter((i) => i.index >= n.startIndex && i.index <= n.endIndex)
+            .some((i) => i.started === false)
         );
-        if (compoundThumbnailItem)
+        if (compoundThumbnailItem) {
           return this.createCompoundThumbnailTask(compoundThumbnailItem);
+        }
       }
       // 如果没有mpvkey，则不进行下面的任务
       if (!this.mpvkey) return;
@@ -1004,9 +1007,6 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
         } else {
           appLog("获取MPV信息失败", "error");
           this.result.mpv.error = true;
-          // 如果获取失败，将关闭当前下载器的mpvAvailable，并重启任务
-          this.mpvAvailable = false;
-          if (!this._paused) this._run();
         }
       },
     };
@@ -1132,7 +1132,8 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
             "debug"
           );
           const data = result.data;
-          const image = data.image; // 此处的读取image必须放在循环外面，以减少调用次数，否则会出现莫名其妙为空的情况
+          const image = data.image;
+          // 此处的读取image必须放在循环外面，以减少调用次数，否则会出现莫名其妙为空的情况
           const filtered = this.result.thumbnails.filter(
             (thumbnail) =>
               thumbnail.index >= startIndex && thumbnail.index <= endIndex
@@ -1559,7 +1560,7 @@ class DownloaderManager {
       throw new Error("Unable to add duplicate image downloader");
     const downloader = new GalleryCommonDownloader({
       infos,
-      mpvAvailable: infos.total_pages >= 2 && configManager.mpvAvailable,
+      mpvAvailable: configManager.mpvAvailable,
       finishHandler: () => {
         for (const [k, v] of this.galleryWebDAVUploaders) {
           if (!v.backgroundPaused && !v.isAllFinishedDespiteError) {

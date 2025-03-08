@@ -27,6 +27,7 @@ export class GalleryController extends PageViewerController {
   private _token: string;
   private refreshButton: RefreshButton;
   autoCacheWhenReading: boolean;
+  fatalErrorAlerted: boolean = false;
   private _webDAVClient?: WebDAVClient;
   private _webDAVInfo: {
     status: "loading" | "connected" | "error";
@@ -182,6 +183,13 @@ export class GalleryController extends PageViewerController {
               galleryInfoController.scheduledRefresh();
               galleryThumbnailController.scheduledRefresh();
               this.updateWebDAVWidget();
+              if (!this.fatalErrorAlerted && this._checkFatalError()) {
+                this.fatalErrorAlerted = true;
+                $ui.alert({
+                  title: "致命错误",
+                  message: "\n请点击右上角手动刷新",
+                });
+              }
             },
           });
           galleryInfoController.onWebDAVAction = (action) => {
@@ -301,9 +309,10 @@ export class GalleryController extends PageViewerController {
       infos = await api.getGalleryInfo(gid, token, true);
       appLog(infos, "debug");
     } catch (e: any) {
-      appLog(e, "error");if (e instanceof EHCopyrightError) {
+      appLog(e, "error");
+      if (e instanceof EHCopyrightError) {
         $ui.error(`加载失败：版权问题`);
-      } else  if (e instanceof EHServerError) {
+      } else if (e instanceof EHServerError) {
         $ui.error(`刷新失败：服务不可用(${e.statusCode})`);
       } else if (e instanceof EHNetworkError && e.statusCode === 404) {
         $ui.error(`刷新失败：图库不存在(${e.statusCode})`);
@@ -316,6 +325,10 @@ export class GalleryController extends PageViewerController {
       }
     }
     if (!infos) return;
+
+    // 关闭致命错误警告
+    this.fatalErrorAlerted = false;
+
     // 关闭当前的定时器，更新信息，重新启动下载器、定时器
     globalTimer.removeTask(this._gid.toString());
     // 如果不是同一个gid且没有后台下载，则暂停旧的下载器
@@ -378,9 +391,16 @@ export class GalleryController extends PageViewerController {
       id: this._gid.toString(),
       interval: 1,
       handler: () => {
-        this.updateWebDAVWidget();
         this.subControllers.galleryInfoController.scheduledRefresh();
         this.subControllers.galleryThumbnailController.scheduledRefresh();
+        this.updateWebDAVWidget();
+        if (!this.fatalErrorAlerted && this._checkFatalError()) {
+          this.fatalErrorAlerted = true;
+          $ui.alert({
+            title: "致命错误",
+            message: "请点击右上角手动刷新",
+          });
+        }
       },
     });
     $ui.success("刷新成功");
@@ -419,6 +439,12 @@ export class GalleryController extends PageViewerController {
         }
       });
     }
+  }
+
+  _checkFatalError() {
+    const d = downloaderManager.get(this._gid);
+    if (!d) return false;
+    return d.result.mpv.error || d.result.htmls.some((n) => n.error);
   }
 
   async updateWebDAVInfo() {

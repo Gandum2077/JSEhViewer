@@ -10,7 +10,11 @@ import { SidebarHistoryController } from "./controllers/sidebar-history-controll
 import { configManager } from "./utils/config";
 import { api } from "./utils/api";
 import { appLog } from "./utils/tools";
-import { EHMyTags } from "ehentai-parser";
+import {
+  EHIgneousExpiredError,
+  EHIPBannedError,
+  EHMyTags,
+} from "ehentai-parser";
 import {
   aiTranslationPath,
   imagePath,
@@ -163,10 +167,101 @@ async function init() {
     }
   } catch (e: any) {
     appLog(e, "error");
-    $ui.alert({
-      title: "更新配置失败",
-      message: e.name + ": " + e.message,
-    });
+    if (e instanceof EHIPBannedError) {
+      $ui.alert({
+        title: "错误",
+        message: "您正在使用的IP被E站封禁，请解决此问题后再启动本应用",
+        actions: [
+          {
+            title: "退出应用",
+            style: $alertActionType.destructive,
+            handler: () => {
+              $app.close();
+            },
+          },
+        ],
+      });
+    } else if (e instanceof EHIgneousExpiredError) {
+      $ui.alert({
+        title: "错误",
+        message:
+          "您的Cookie已过期。如果您是捐赠用户，" +
+          "或者您正在使用低风控的IP（比如欧美家庭IP），" +
+          "可以尝试自动刷新Cookie，否则请重新登录",
+        actions: [
+          {
+            title: "自动刷新Cookie",
+            handler: async () => {
+              let newCookie: string | undefined;
+              const actionOnError = () => {
+                $ui.alert({
+                  title: "错误",
+                  message: "刷新失败Cookie",
+                  actions: [
+                    {
+                      title: "重新登录",
+                      handler: () => {
+                        configManager.cookie = "";
+                        $addin.restart();
+                      },
+                    },
+                    {
+                      title: "退出应用",
+                      style: $alertActionType.destructive,
+                      handler: () => {
+                        $app.close();
+                      },
+                    },
+                  ],
+                });
+              };
+              $ui.toast("正在刷新Cookie，请稍后");
+              try {
+                newCookie = await api.getCookieWithNewIgneous();
+              } catch (e) {
+                actionOnError();
+              }
+              if (newCookie) {
+                configManager.cookie = newCookie;
+                $ui.alert({
+                  title: "成功",
+                  message: "刷新Cookie成功，请重启应用",
+                  actions: [
+                    {
+                      title: "重启应用",
+                      handler: () => {
+                        $addin.restart();
+                      },
+                    },
+                  ],
+                });
+              } else {
+                actionOnError();
+              }
+            },
+          },
+          {
+            title: "重新登录",
+            handler: () => {
+              configManager.cookie = "";
+              $addin.restart();
+            },
+          },
+          {
+            title: "退出应用",
+            style: $alertActionType.destructive,
+            handler: () => {
+              $app.close();
+            },
+          },
+        ],
+      });
+    } else {
+      $ui.alert({
+        title: "更新配置失败",
+        message: e.message,
+      });
+    }
   }
   if (config) {
     if (config.dm !== "2" || config.ts !== "1") {

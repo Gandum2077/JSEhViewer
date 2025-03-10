@@ -187,7 +187,7 @@ export class GalleryController extends PageViewerController {
                 this.fatalErrorAlerted = true;
                 $ui.alert({
                   title: "致命错误",
-                  message: "\n请点击右上角手动刷新",
+                  message: "请点击右上角手动刷新",
                 });
               }
             },
@@ -565,9 +565,8 @@ export class GalleryController extends PageViewerController {
         handler: () => {
           if (!this._infos) return;
           $app.openURL(
-            `https://e${configManager.exhentai ? "x" : "-"}hentai.org/g/${
-              this._infos.gid
-            }/${this._infos.token}/`
+            `https://e${configManager.exhentai ? "x" : "-"}hentai.org/g/` +
+              `${this._infos.gid}/${this._infos.token}/`
           );
         },
       },
@@ -578,17 +577,9 @@ export class GalleryController extends PageViewerController {
         handler: () => {
           if (!this._infos) return;
           $share.sheet(
-            `https://e${configManager.exhentai ? "x" : "-"}hentai.org/g/${
-              this._infos.gid
-            }/${this._infos.token}/`
+            `https://e${configManager.exhentai ? "x" : "-"}hentai.org/g/` +
+              `${this._infos.gid}/${this._infos.token}/`
           );
-        },
-      },
-      {
-        symbol: "square.and.arrow.down",
-        title: "下载管理",
-        handler: () => {
-          $ui.alert("下载管理");
         },
       },
     ];

@@ -1184,7 +1184,7 @@ export class GalleryInfoController extends BaseController {
   };
 
   onWebDAVAction?: (
-    action: "retry" | "upload" | "retry-upload" | "resume-upload"
+    action: "retry" | "upload" | "retry-upload" | "resume-upload" | "pause"
   ) => void;
   onWebDAVConfig?: () => void;
 

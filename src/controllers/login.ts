@@ -6,7 +6,6 @@ import {
   Image,
   PresentedPageController,
   PreferenceListView,
-  Gallery,
   textDialog,
   PageViewer,
   ContentView,
@@ -190,25 +189,22 @@ class WelcomeController extends PresentedPageController {
                       sender.title = "获取账号信息...";
                       sender.enabled = false;
                       const cookie = await getCookie(exhentai);
-                      api.cookie = cookie;
+                      api.updateCookie(cookie);
                       api.exhentai = exhentai;
                       sender.title = "获取标签翻译...";
                       await configManager.updateTranslationData();
-                      configManager.cookie = cookie;
+                      configManager.cookie = JSON.stringify(cookie);
                       configManager.exhentai = exhentai;
                       configManager.syncMyTags = syncMyTags;
                       // 检测是否有mpv
                       const hath_perks =
-                        cookie
-                          .split("; ")
-                          .find((e) => e.startsWith("hath_perks"))
-                          ?.split("=")[1] || "";
+                        cookie.find((n) => n.name === "hath_perks")?.value ||
+                        "";
                       const hathPerkList = hath_perks
                         .slice(0, hath_perks.indexOf("-"))
                         .split(".");
                       if (hathPerkList.includes("q")) {
                         configManager.mpvAvailable = true;
-                        api.mpvAvailable = true;
                       }
                       this.dismiss();
                       finishHandler();
@@ -226,7 +222,7 @@ class WelcomeController extends PresentedPageController {
               {
                 type: "label",
                 props: {
-                  text: "登录需要人机交互验证，将在网页中进行登录。\n如果没有账号，请先自行注册账号。",
+                  text: "登录需要人机交互验证，将在网页中进行。\n如果没有账号，请先自行注册。",
                   textColor: $color("secondaryText"),
                   font: $font(12),
                   align: $align.center,

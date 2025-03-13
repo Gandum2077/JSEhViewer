@@ -6,7 +6,7 @@ import {
   router,
 } from "jsbox-cview";
 import { configManager } from "../utils/config";
-import { toLocalTimeString } from "../utils/tools";
+import { appLog, toLocalTimeString } from "../utils/tools";
 import { ArchiveController } from "./archive-controller";
 import { statusManager } from "../utils/status";
 import { api } from "../utils/api";
@@ -14,11 +14,36 @@ import { HomepageController } from "./homepage-controller";
 
 export class GeneralSettingsController extends BaseController {
   private _isUpdatingTranslationData = false;
+  private _funds?: { credits: number; gp: number };
+  private _imageLimit?:
+    | {
+        unlocked: true;
+        used: number;
+        total: number;
+        restCost: number;
+      }
+    | {
+        unlocked: false;
+      };
+  private _fetchImageLimitAndFundsFailed: boolean = false;
   cviews: {
     list: DynamicPreferenceListView;
   };
   constructor() {
-    super();
+    super({
+      events: {
+        didLoad: () => {
+          this.updateImageLimitAndFunds()
+            .then(() => {
+              this.cviews.list.sections = this.getCurrentSections();
+            })
+            .catch((e: any) => {
+              this._fetchImageLimitAndFundsFailed = true;
+              this.cviews.list.sections = this.getCurrentSections();
+            });
+        },
+      },
+    });
     const navbar = new CustomNavigationBar({
       props: {
         title: "通用",
@@ -173,6 +198,42 @@ export class GeneralSettingsController extends BaseController {
         ],
       },
       {
+        title: "图片配额",
+        rows: [
+          {
+            type: "info",
+            title: "已用配额",
+            value: this._fetchImageLimitAndFundsFailed
+              ? "获取失败"
+              : this._imageLimit
+              ? `${
+                  this._imageLimit.unlocked
+                    ? this._imageLimit.used + " / " + this._imageLimit.total
+                    : "未解锁"
+                }`
+              : "正在获取…",
+          },
+          {
+            type: "info",
+            title: "Credits",
+            value: this._fetchImageLimitAndFundsFailed
+              ? "获取失败"
+              : this._funds
+              ? this._funds.credits.toLocaleString("en-US")
+              : "正在获取…",
+          },
+          {
+            type: "info",
+            title: "GP",
+            value: this._fetchImageLimitAndFundsFailed
+              ? "获取失败"
+              : this._funds
+              ? this._funds.gp.toLocaleString("en-US")
+              : "正在获取…",
+          },
+        ],
+      },
+      {
         title: "标签翻译(来源: EhTagTranslation)",
         rows: [
           {
@@ -187,8 +248,7 @@ export class GeneralSettingsController extends BaseController {
               }
               $ui.alert({
                 title: "更新标签翻译",
-                message:
-                  "此操作需要数十秒时间，并且更新数据库时会造成短暂的卡顿，是否继续？",
+                message: "是否继续？",
                 actions: [
                   {
                     title: "取消",
@@ -378,8 +438,87 @@ export class GeneralSettingsController extends BaseController {
         ],
       },
     ];
+    if (
+      this._fetchImageLimitAndFundsFailed ||
+      this._funds ||
+      this._imageLimit
+    ) {
+      sections[1].rows.push({
+        type: "action",
+        title: "刷新",
+        value: async () => {
+          this._fetchImageLimitAndFundsFailed = false;
+          this._imageLimit = undefined;
+          this._funds = undefined;
+          this.cviews.list.sections = this.getCurrentSections();
+          this.updateImageLimitAndFunds()
+            .then(() => {
+              this.cviews.list.sections = this.getCurrentSections();
+            })
+            .catch((e: any) => {
+              this._fetchImageLimitAndFundsFailed = true;
+              this.cviews.list.sections = this.getCurrentSections();
+            });
+        },
+      });
+    }
+    if (
+      !this._fetchImageLimitAndFundsFailed &&
+      this._imageLimit &&
+      !this._imageLimit.unlocked
+    ) {
+      sections[1].rows.push({
+        type: "action",
+        title: "解锁配额(花费 20,000 GP)",
+        value: () => {
+          this._fetchImageLimitAndFundsFailed = false;
+          this._imageLimit = undefined;
+          this._funds = undefined;
+          this.cviews.list.sections = this.getCurrentSections();
+          this.unlockQuota()
+            .then(() => {
+              this.cviews.list.sections = this.getCurrentSections();
+            })
+            .catch((e: any) => {
+              appLog(e, "error");
+              this._fetchImageLimitAndFundsFailed = true;
+              this.cviews.list.sections = this.getCurrentSections();
+              if (e.message) $ui.error(e.message);
+            });
+        },
+      });
+    } else if (
+      !this._fetchImageLimitAndFundsFailed &&
+      this._imageLimit &&
+      this._imageLimit.unlocked &&
+      this._imageLimit.used > 0
+    ) {
+      sections[1].rows.push({
+        type: "action",
+        title: `重置配额(花费 ${this._imageLimit.restCost.toLocaleString(
+          "en-US"
+        )} GP)`,
+        value: () => {
+          this._fetchImageLimitAndFundsFailed = false;
+          this._imageLimit = undefined;
+          this._funds = undefined;
+          this.cviews.list.sections = this.getCurrentSections();
+          this.resetQuota()
+            .then(() => {
+              this.cviews.list.sections = this.getCurrentSections();
+            })
+            .catch((e: any) => {
+              appLog(e, "error");
+              this._fetchImageLimitAndFundsFailed = true;
+              this.cviews.list.sections = this.getCurrentSections();
+              if (e.message) $ui.error(e.message);
+            });
+        },
+      });
+    }
+
     if (configManager.startPageType === "specific_page") {
-      sections[2].rows.push({
+      sections[3].rows.push({
         type: "action",
         title: "将浏览中的页面记录为起始页面",
         value: () => {
@@ -401,7 +540,7 @@ export class GeneralSettingsController extends BaseController {
       });
       if (configManager.specificStartPageJson) {
         const json = JSON.parse(configManager.specificStartPageJson);
-        sections[2].rows.push({
+        sections[3].rows.push({
           type: "interactive-info",
           title: "特定页面URL",
           value: api.buildUrl(json),
@@ -409,5 +548,26 @@ export class GeneralSettingsController extends BaseController {
       }
     }
     return sections;
+  }
+
+  async updateImageLimitAndFunds() {
+    const imageLimit = await api.getImageLimits();
+    const funds = await api.getCreditsAndGpCount();
+    this._imageLimit = imageLimit;
+    this._funds = funds;
+  }
+
+  async unlockQuota() {
+    const imageLimit = await api.UnlockQuota();
+    const funds = await api.getCreditsAndGpCount();
+    this._imageLimit = imageLimit;
+    this._funds = funds;
+  }
+
+  async resetQuota() {
+    const imageLimit = await api.ResetQuota();
+    const funds = await api.getCreditsAndGpCount();
+    this._imageLimit = imageLimit;
+    this._funds = funds;
   }
 }

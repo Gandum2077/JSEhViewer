@@ -65,6 +65,7 @@ export class WebDAVWidget extends Base<UIView, UiTypes.ViewOptions> {
     | "retry"
     | "retry-upload"
     | "resume-upload"
+    | "pause"
     | undefined = undefined;
   _defineView: () => UiTypes.ViewOptions;
   constructor({
@@ -72,7 +73,7 @@ export class WebDAVWidget extends Base<UIView, UiTypes.ViewOptions> {
     configButtonHandler,
   }: {
     mainButtonHandler: (
-      action: "upload" | "retry" | "retry-upload" | "resume-upload"
+      action: "upload" | "retry" | "retry-upload" | "resume-upload" | "pause"
     ) => void;
     configButtonHandler: () => void;
   }) {
@@ -317,9 +318,10 @@ export class WebDAVWidget extends Base<UIView, UiTypes.ViewOptions> {
               serverName: status.serverName,
               serverStatus: "connected",
               content: "正在上传...",
-              mainButtonHidden: true,
+              mainButtonTitle: "暂停",
+              mainButtonHidden: false,
             });
-            this._mainButtonActionType = undefined;
+            this._mainButtonActionType = "pause";
           } else if (status.uploadStatus === "failed") {
             this._setProps({
               serverName: status.serverName,
@@ -371,7 +373,7 @@ export class WebDAVWidget extends Base<UIView, UiTypes.ViewOptions> {
     serverName?: string;
     serverStatus: "connected" | "loading" | "error" | "warning";
     content: string;
-    mainButtonTitle?: "上传" | "重试" | "继续";
+    mainButtonTitle?: "上传" | "重试" | "继续" | "暂停";
     mainButtonHidden?: boolean;
   }) {
     ($(this.id + "serverName") as UILabelView).text =

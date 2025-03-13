@@ -114,7 +114,7 @@ export class GalleryHathController extends PresentedPageController {
           } else {
             this._isRequestInProgress = true;
             await this.downloadHath(
-              this._hathInfo.download_options[indexPath.row]
+              this._hathInfo.hath_download_options[indexPath.row]
             );
           }
         },
@@ -135,13 +135,13 @@ export class GalleryHathController extends PresentedPageController {
     this.rootView.views = [navbar, list, placeholderLabel];
   }
 
-  private async downloadHath(option: EHArchive["download_options"][0]) {
+  private async downloadHath(option: EHArchive["hath_download_options"][0]) {
     if (!this._hathInfo) return;
     try {
       const r = await api.startHathDownload(
         this._hathInfo.gid,
         this._hathInfo.token,
-        option.solution
+        option.original ? "org" : option.solution
       );
       if (r === "no-hath") {
         $ui.error("您必须拥有 H@H 客户端才能使用此功能");
@@ -168,9 +168,8 @@ export class GalleryHathController extends PresentedPageController {
     }
     if (hathInfo) {
       this._hathInfo = hathInfo;
-      this.cviews.list.data = hathInfo.download_options.map((option) => {
-        const solutionText =
-          option.solution === "org" ? "原图" : option.solution + "x";
+      this.cviews.list.data = hathInfo.hath_download_options.map((option) => {
+        const solutionText = option.original ? "原图" : option.solution + "x";
         return {
           solution: {
             text: solutionText,
@@ -179,7 +178,12 @@ export class GalleryHathController extends PresentedPageController {
             text: option.size,
           },
           price: {
-            text: option.price,
+            text:
+              option.cost === 0
+                ? "免费"
+                : option.cost === -1
+                ? "未知"
+                : option.cost + " GP",
           },
         };
       });

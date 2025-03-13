@@ -38,18 +38,11 @@ class RetryTooManyError extends Error {
 
 // APIHandler中补充的方法均不抛出错误，所有错误都在内部处理。
 class APIHandler extends EHAPIHandler {
-  private _mpvAvailable: boolean;
-  constructor(exhentai: boolean, mpvAvailable: boolean) {
-    super(exhentai);
-    this._mpvAvailable = mpvAvailable;
-  }
-
-  get mpvAvailable() {
-    return this._mpvAvailable;
-  }
-
-  set mpvAvailable(value: boolean) {
-    this._mpvAvailable = value;
+  constructor() {
+    super((parsedCookies) => {
+      console.log("here");
+      configManager.cookie = JSON.stringify(parsedCookies);
+    });
   }
 
   async getMPVInfoWithNoError(
@@ -338,7 +331,7 @@ class APIHandler extends EHAPIHandler {
   }
 }
 
-export const api = new APIHandler(false, false);
+export const api = new APIHandler();
 
 interface Task {
   index: number;
@@ -1898,7 +1891,7 @@ export const downloaderManager = new DownloaderManager();
 /**
  * 检测WebDAV是否可用，如果可用，创建WebDAV上传任务
  */
-function checkWebDAVAndCreateUploader(gid: number, infos: EHGallery) {
+export function checkWebDAVAndCreateUploader(gid: number, infos: EHGallery) {
   if (!configManager.webdavAutoUpload) return;
   const service = configManager.currentWebDAVService;
   if (!service) return;

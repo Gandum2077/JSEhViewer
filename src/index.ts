@@ -14,6 +14,7 @@ import {
   EHIgneousExpiredError,
   EHIPBannedError,
   EHMyTags,
+  ParsedCookie,
 } from "ehentai-parser";
 import {
   aiTranslationPath,
@@ -128,9 +129,8 @@ async function init() {
     // 重新加载tagManagerController
     tagManagerController.refresh();
   } else {
-    api.cookie = configManager.cookie;
+    api.updateCookie((JSON.parse(configManager.cookie) as ParsedCookie[]));
     api.exhentai = configManager.exhentai;
-    api.mpvAvailable = configManager.mpvAvailable;
   }
 
   // 启动全局定时器
@@ -192,7 +192,6 @@ async function init() {
           {
             title: "自动刷新Cookie",
             handler: async () => {
-              let newCookie: string | undefined;
               const actionOnError = () => {
                 $ui.alert({
                   title: "错误",
@@ -217,12 +216,7 @@ async function init() {
               };
               $ui.toast("正在刷新Cookie，请稍后");
               try {
-                newCookie = await api.getCookieWithNewIgneous();
-              } catch (e) {
-                actionOnError();
-              }
-              if (newCookie) {
-                configManager.cookie = newCookie;
+                await api.updateCookieIgneous();
                 $ui.alert({
                   title: "成功",
                   message: "刷新Cookie成功，请重启应用",
@@ -235,7 +229,7 @@ async function init() {
                     },
                   ],
                 });
-              } else {
+              } catch (e) {
                 actionOnError();
               }
             },

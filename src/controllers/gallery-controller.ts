@@ -226,6 +226,14 @@ export class GalleryController extends PageViewerController {
                 downloaderManager.startGalleryWebDAVUploader(this._gid);
                 this.updateWebDAVWidget();
               }
+            } else if (action === "pause") {
+              const u = downloaderManager.getGalleryWebDAVUploader(this._gid);
+              if (u) {
+                downloaderManager.backgroundPauseGalleryWebDAVUploader(
+                  this._gid
+                );
+                this.updateWebDAVWidget();
+              }
             }
           };
 

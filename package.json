@@ -12,14 +12,14 @@
   "license": "MIT",
   "dependencies": {
     "cheerio": "^1.0.0",
-    "ehentai-parser": "^1.12.2",
-    "jsbox-cview": "^1.5.22"
+    "ehentai-parser": "^1.12.3",
+    "jsbox-cview": "^1.5.24"
   },
   "devDependencies": {
     "@types/cheerio": "^0.22.35",
     "@types/node": "^20.11.25",
     "@types/url-parse": "^1.4.11",
-    "jsbox-types": "^1.0.40",
+    "jsbox-types": "^1.0.42",
     "webpack": "^5.98.0",
     "webpack-cli": "^5.1.4"
   }

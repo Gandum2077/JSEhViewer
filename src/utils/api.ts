@@ -521,6 +521,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
   autoCacheWhenReading = true; // 阅读的时候是否自动下载，可以从外部设置
   background = false; // 是否后台下载，可以从外部设置
   backgroundPaused = false; // 是否后台暂停，可以从外部设置
+  completeStopped = false; // 彻底停止，打开后将不能写入存储
   webDAVConfig:
     | { enabled: true; client: WebDAVClient; filesOnWebDAV: string[] }
     | { enabled: false } = { enabled: false };
@@ -1142,10 +1143,12 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
               continue;
             }
             const path = thumbnailPath + `${this.gid}/${index + 1}.jpg`;
-            $file.write({
-              data: dataCropped,
-              path,
-            });
+            if (!this.completeStopped) {
+              $file.write({
+                data: dataCropped,
+                path,
+              });
+            }
             this.result.thumbnails[index].path = path;
             await $wait(0.2);
           }

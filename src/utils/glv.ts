@@ -12,6 +12,8 @@ export const thumbnailPath = "assets/thumbnail/";
 export const aiTranslationPath = "assets/ai-translations/";
 export const originalImagePath = "assets/original-image/";
 export const galleryInfoPath = "assets/info/";
+export const tempPath = "assets/temp/";
+export const tempZipPath = "assets/temp.zip";
 
 export const logoColorHex = "#5D1215";
 

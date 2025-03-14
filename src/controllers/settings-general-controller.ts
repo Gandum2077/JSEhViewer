@@ -11,6 +11,11 @@ import { ArchiveController } from "./archive-controller";
 import { statusManager } from "../utils/status";
 import { api } from "../utils/api";
 import { HomepageController } from "./homepage-controller";
+import {
+  assembleSearchTerms,
+  EHSearchTerm,
+  parseFsearch,
+} from "ehentai-parser";
 
 export class GeneralSettingsController extends BaseController {
   private _isUpdatingTranslationData = false;
@@ -61,7 +66,9 @@ export class GeneralSettingsController extends BaseController {
       },
       events: {
         changed: (values: {
-          startPageType: 0 | 1 | 2;
+          startPageType: 0 | 1 | 2 | 3;
+          specificPageTypeOnStart?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+          specificSearchtermsOnStart?: "";
           favoritesOrderMethod: 0 | 1;
           archiveManagerOrderMethod: 0 | 1 | 2;
           defaultFavcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
@@ -75,7 +82,38 @@ export class GeneralSettingsController extends BaseController {
               ? "blank_page"
               : values.startPageType === 1
               ? "last_access"
-              : "specific_page";
+              : values.startPageType === 2
+              ? "specific_page"
+              : "specific_searchterms";
+
+          const pageTypes: (
+            | "front_page"
+            | "watched"
+            | "popular"
+            | "favorites"
+            | "toplist-yesterday"
+            | "toplist-past_month"
+            | "toplist-past_year"
+            | "toplist-all"
+            | "upload"
+          )[] = [
+            "front_page",
+            "watched",
+            "popular",
+            "favorites",
+            "toplist-yesterday",
+            "toplist-past_month",
+            "toplist-past_year",
+            "toplist-all",
+            "upload",
+          ];
+          const specificPageTypeOnStart =
+            values.specificPageTypeOnStart === undefined
+              ? configManager.specificPageTypeOnStart
+              : pageTypes[values.specificPageTypeOnStart];
+          const specificSearchtermsOnStart =
+            values.specificSearchtermsOnStart ??
+            configManager.specificSearchtermsOnStart;
           const favoritesOrderMethod =
             values.favoritesOrderMethod === 0
               ? "published_time"
@@ -99,11 +137,36 @@ export class GeneralSettingsController extends BaseController {
           // 再比较configManager中的值和values中的值是否相同，如果不同，则更新configManager中的值
           if (startPageType !== configManager.startPageType) {
             configManager.startPageType = startPageType;
-            if (startPageType !== "specific_page") {
-              configManager.specificStartPageJson = "";
-            }
+            // 立即刷新
             this.cviews.list.sections = this.getCurrentSections();
           }
+
+          if (
+            specificPageTypeOnStart !== configManager.specificPageTypeOnStart
+          ) {
+            configManager.specificPageTypeOnStart = specificPageTypeOnStart;
+          }
+
+          if (
+            specificSearchtermsOnStart !==
+            configManager.specificSearchtermsOnStart
+          ) {
+            let sts: EHSearchTerm[] | undefined;
+            try {
+              sts = this.parse(specificSearchtermsOnStart);
+            } catch (e: any) {
+              $ui.alert({
+                title: "搜索词错误",
+                message: e.message
+              })
+            }
+            if (sts) {
+              configManager.specificSearchtermsOnStart = JSON.stringify(sts);
+            }
+            // 立即刷新
+            this.cviews.list.sections = this.getCurrentSections();
+          }
+
           if (favoritesOrderMethod !== configManager.favoritesOrderMethod) {
             $ui.toast("正在更新收藏页排序");
             api
@@ -286,14 +349,16 @@ export class GeneralSettingsController extends BaseController {
           {
             type: "list",
             title: "起始页面",
-            items: ["新标签页", "恢复上次的浏览", "特定页面"],
+            items: ["新标签页", "恢复上次的浏览", "指定页面", "指定搜索词"],
             key: "startPageType",
             value:
               configManager.startPageType === "blank_page"
                 ? 0
                 : configManager.startPageType === "last_access"
                 ? 1
-                : 2,
+                : configManager.startPageType === "specific_page"
+                ? 2
+                : 3,
           },
         ],
       },
@@ -335,7 +400,7 @@ export class GeneralSettingsController extends BaseController {
           },
           {
             type: "boolean",
-            title: "阅读时自动缓存整个图库",
+            title: "阅读时自动缓存",
             key: "autoCacheWhenReading",
             value: configManager.autoCacheWhenReading,
           },
@@ -518,34 +583,38 @@ export class GeneralSettingsController extends BaseController {
     }
 
     if (configManager.startPageType === "specific_page") {
+      const pageTypes = [
+        ["front_page", "首页"],
+        ["watched", "订阅"],
+        ["popular", "热门"],
+        ["favorites", "收藏"],
+        ["toplist-yesterday", "日排行"],
+        ["toplist-past_month", "月排行"],
+        ["toplist-past_year", "年排行"],
+        ["toplist-all", "总排行"],
+        ["upload", "我的上传"],
+      ];
+
       sections[3].rows.push({
-        type: "action",
-        title: "将浏览中的页面记录为起始页面",
-        value: () => {
-          const tab = statusManager.currentTab;
-          if (tab.type === "blank") {
-            $ui.warning("当前页面为空白页，无法记录");
-            return;
-          }
-          if (tab.type === "archive") {
-            throw new Error("archive tab is not supported");
-          }
-          configManager.specificStartPageJson = JSON.stringify({
-            type: tab.type,
-            options: "options" in tab ? tab.options : undefined,
-          });
-          $ui.success("已记录当前页面为起始页面");
-          this.cviews.list.sections = this.getCurrentSections();
-        },
+        type: "list",
+        title: "指定页面",
+        key: "specificPageTypeOnStart",
+        items: pageTypes.map(([, title]) => title),
+        value: pageTypes.findIndex(
+          ([key]) => key === configManager.specificPageTypeOnStart
+        ),
       });
-      if (configManager.specificStartPageJson) {
-        const json = JSON.parse(configManager.specificStartPageJson);
-        sections[3].rows.push({
-          type: "interactive-info",
-          title: "特定页面URL",
-          value: api.buildUrl(json),
-        });
-      }
+    } else if (configManager.startPageType === "specific_searchterms") {
+      sections[3].rows.push({
+        type: "string",
+        title: "搜索词",
+        key: "specificSearchtermsOnStart",
+        value:
+          configManager.specificSearchtermsOnStart &&
+          assembleSearchTerms(
+            JSON.parse(configManager.specificSearchtermsOnStart)
+          ),
+      });
     }
     return sections;
   }
@@ -569,5 +638,21 @@ export class GeneralSettingsController extends BaseController {
     const funds = await api.getCreditsAndGpCount();
     this._imageLimit = imageLimit;
     this._funds = funds;
+  }
+
+  parse(fsearch: string) {
+    const searchTerms = fsearch ? parseFsearch(fsearch) : [];
+    if (
+      searchTerms.some(
+        (st) =>
+          st.qualifier &&
+          st.tilde &&
+          st.qualifier !== "tag" &&
+          st.qualifier !== "weak"
+      )
+    ) {
+      throw new Error("~符号只能用于标签，其他修饰词均不支持~符号");
+    }
+    return searchTerms;
   }
 }

@@ -30,6 +30,7 @@ interface Config {
   archiveManagerLayoutMode: "large" | "normal"; // 存档管理器布局模式
   tagManagerOnlyShowBookmarked: boolean; // 标签管理器仅显示已收藏的标签
   webdavIntroductionFirstRead: boolean; // 是否首次阅读WebDAV介绍
+  importingArchiverIntroductionRead: boolean; // 是否阅读过导入压缩包的介绍
   archiveManagerOrderMethod:
     | "first_access_time"
     | "last_access_time"
@@ -46,9 +47,23 @@ interface Config {
   autoClearCache: boolean; // 是否在关闭时自动清除缓存
   autoCacheWhenReading: boolean; // 阅读时是否自动缓存整个图库
   pageTurnMethod: "click_and_swipe" | "click" | "swipe"; // 翻页方式
-  startPageType: "blank_page" | "last_access" | "specific_page"; // 起始页面类型
-  specificStartPageJson: string; // 特定起始页面, 以json格式存储的StatusTabOptions
+  startPageType:
+    | "blank_page"
+    | "last_access"
+    | "specific_page"
+    | "specific_searchterms"; // 起始页面类型
   lastAccessPageJson: string; // 上次访问页面, 以json格式存储的StatusTabOptions
+  specificPageTypeOnStart:
+    | "front_page"
+    | "watched"
+    | "popular"
+    | "favorites"
+    | "toplist-yesterday"
+    | "toplist-past_month"
+    | "toplist-past_year"
+    | "toplist-all"
+    | "upload"; // 指定页面
+  specificSearchtermsOnStart: string; // 指定搜索词
 }
 
 const defaultConfig: Config = {
@@ -60,6 +75,7 @@ const defaultConfig: Config = {
   archiveManagerLayoutMode: "large",
   tagManagerOnlyShowBookmarked: false,
   webdavIntroductionFirstRead: false,
+  importingArchiverIntroductionRead: false,
   archiveManagerOrderMethod: "last_access_time",
   favoritesOrderMethod: "published_time",
   webdavEnabled: false,
@@ -74,8 +90,9 @@ const defaultConfig: Config = {
   autoCacheWhenReading: true,
   pageTurnMethod: "click_and_swipe",
   startPageType: "blank_page",
-  specificStartPageJson: "",
   lastAccessPageJson: "",
+  specificPageTypeOnStart: "front_page",
+  specificSearchtermsOnStart: "",
 };
 
 async function getEhTagTranslationText() {
@@ -243,6 +260,14 @@ class ConfigManager {
     this._setConfig("webdavIntroductionFirstRead", value);
   }
 
+  get importingArchiverIntroductionRead() {
+    return this._config.importingArchiverIntroductionRead;
+  }
+
+  set importingArchiverIntroductionRead(value: boolean) {
+    this._setConfig("importingArchiverIntroductionRead", value);
+  }
+
   get archiveManagerOrderMethod() {
     return this._config.archiveManagerOrderMethod;
   }
@@ -353,16 +378,14 @@ class ConfigManager {
     return this._config.startPageType;
   }
 
-  set startPageType(value: "blank_page" | "last_access" | "specific_page") {
+  set startPageType(
+    value:
+      | "blank_page"
+      | "last_access"
+      | "specific_page"
+      | "specific_searchterms"
+  ) {
     this._setConfig("startPageType", value);
-  }
-
-  get specificStartPageJson() {
-    return this._config.specificStartPageJson;
-  }
-
-  set specificStartPageJson(value: string) {
-    this._setConfig("specificStartPageJson", value);
   }
 
   get lastAccessPageJson() {
@@ -371,6 +394,33 @@ class ConfigManager {
 
   set lastAccessPageJson(value: string) {
     this._setConfig("lastAccessPageJson", value);
+  }
+
+  get specificPageTypeOnStart() {
+    return this._config.specificPageTypeOnStart;
+  }
+
+  set specificPageTypeOnStart(
+    value:
+      | "front_page"
+      | "watched"
+      | "popular"
+      | "favorites"
+      | "toplist-yesterday"
+      | "toplist-past_month"
+      | "toplist-past_year"
+      | "toplist-all"
+      | "upload"
+  ) {
+    this._setConfig("specificPageTypeOnStart", value);
+  }
+
+  get specificSearchtermsOnStart() {
+    return this._config.specificSearchtermsOnStart;
+  }
+
+  set specificSearchtermsOnStart(value: string) {
+    this._setConfig("specificSearchtermsOnStart", value);
   }
 
   /***CONFIG END***/

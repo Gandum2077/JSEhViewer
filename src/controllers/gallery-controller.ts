@@ -19,7 +19,14 @@ import { appLog } from "../utils/tools";
 import { WebDAVClient } from "../utils/webdav";
 import { setWebDAVConfig } from "./settings-webdav-controller";
 import { globalTimer } from "../utils/timer";
-import { defaultButtonColor, galleryInfoPath } from "../utils/glv";
+import {
+  defaultButtonColor,
+  galleryInfoPath,
+  imagePath,
+  tempPath,
+  tempZipPath,
+} from "../utils/glv";
+import { title } from "process";
 
 export class GalleryController extends PageViewerController {
   private _infos?: EHGallery;
@@ -555,6 +562,114 @@ export class GalleryController extends PageViewerController {
   generatePopoverItems() {
     if (!this._infos) return [];
     const fixed = [
+      {
+        symbol: "square.and.arrow.down",
+        title: "导入压缩包",
+        handler: async () => {
+          if (!this._infos) return;
+          if (this.refreshButton.loading) return;
+
+          if (!configManager.importingArchiverIntroductionRead) {
+            const r1 = await $ui.alert({
+              title: "注意事项",
+              message:
+                "1. 压缩包内的图片需要使用正确的字典排序" +
+                "（E站归档下载会自动整理，其他来源请先整理好，否则图片顺序会错乱）\n" +
+                "2. 如果导入的压缩包超过了设备内存的限制，" +
+                "可能会消耗数十秒时间并在此期间造成严重卡顿甚至闪退，请耐心等待。",
+              actions: [{ title: "不再提示" }, { title: "好的" }],
+            });
+            if (r1.index === 0) {
+              configManager.importingArchiverIntroductionRead = true;
+            }
+          }
+
+          await $wait(1); // 必须等待至少0.7秒，否则文件选择器会弹不出来
+
+          const data = await $drive.open({ types: ["public.zip-archive"] });
+          const r2 = await $ui.alert({
+            title: "导入确认",
+            message: data.fileName,
+            actions: [{ title: "取消" }, { title: "确认" }],
+          });
+          if (r2.index === 0) return;
+
+          if ($file.exists(tempPath)) $file.delete(tempPath);
+          $file.mkdir(tempPath);
+          $file.write({ data, path: tempZipPath }); // 此举是为了节约内存
+
+          const success = await $archiver.unzip({
+            path: tempZipPath,
+            dest: tempPath,
+          });
+
+          if (!success) {
+            $file.delete(tempPath);
+            $file.delete(tempZipPath);
+            $ui.error("解压缩失败");
+            return;
+          }
+          // 首先在第一层文件夹中寻找合格图片
+          let imageFiles = $file
+            .list(tempPath)
+            .filter(
+              (name) =>
+                /\.(png|jpe?g|gif|webp)$/i.test(name) && !name.startsWith(".")
+            )
+            .sort((a, b) => a.localeCompare(b))
+            .map((n) => ({ path: tempPath + n, name: n }));
+          // 如果第一层文件夹中没有足够数量的合格图片，并且只存在一个文件夹
+          // 那么去第二层文件夹中寻找
+          if (imageFiles.length !== this._infos.length) {
+            const secondaryDirs = $file
+              .list(tempPath)
+              .map((n) => tempPath + n)
+              .filter((n) => $file.isDirectory(n));
+            if (secondaryDirs.length !== 1) {
+              $file.delete(tempZipPath);
+              $file.delete(tempPath);
+              $ui.error("失败：压缩包内图片数量不符");
+              return;
+            }
+            const secondaryDir = secondaryDirs[0];
+            imageFiles = $file
+              .list(secondaryDir)
+              .filter(
+                (name) =>
+                  /\.(png|jpe?g|gif|webp)$/i.test(name) && !name.startsWith(".")
+              )
+              .sort((a, b) => a.localeCompare(b))
+              .map((n) => ({
+                path: secondaryDir + "/" + n,
+                name: n,
+              }));
+            if (imageFiles.length !== this._infos.length) {
+              $file.delete(tempZipPath);
+              $file.delete(tempPath);
+              $ui.error("失败：压缩包内图片数量不符");
+              return;
+            }
+          }
+          const d = downloaderManager.get(this._gid);
+          d!.completeStopped = true;
+          downloaderManager.remove(this._gid);
+          $file.delete(imagePath + `${this._gid}`);
+          $file.mkdir(imagePath + `${this._gid}`);
+          // 遍历并搬运
+          imageFiles.forEach((n, i) => {
+            const extname = n.name.split(".").at(-1)?.toLowerCase() || "jpg";
+            $file.move({
+              src: n.path,
+              dst: imagePath + `${this._gid}/${i + 1}.${extname}`,
+            });
+          });
+          downloaderManager.add(this._gid, this._infos);
+          downloaderManager.startOne(this._gid);
+          $ui.success("导入成功");
+          $file.delete(tempPath);
+          $file.delete(tempZipPath);
+        },
+      },
       {
         symbol: "info.circle",
         title: "详细信息",

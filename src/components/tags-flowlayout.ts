@@ -556,6 +556,6 @@ export class TagsFlowlayout extends Base<UIView, UiTypes.ViewOptions> {
       y += itemHeight + sectionSpacing;
       x = namespaceWidth + sectionSpacing;
     });
-    return y - sectionSpacing;
+    return Math.max(0.1, y - sectionSpacing);
   }
 }

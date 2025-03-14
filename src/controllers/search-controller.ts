@@ -1633,7 +1633,7 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
                   $app.openURL("https://ehwiki.org/wiki/Gallery_Searching");
                 },
               },
-              { title: "OK" },
+              { title: "好的" },
             ],
           });
           return;
@@ -1650,7 +1650,7 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
           $ui.alert({
             title: "无意义的符号",
             message: "~符号只能用于标签，其他修饰词均不支持~符号",
-            actions: [{ title: "OK" }],
+            actions: [{ title: "好的" }],
           });
           return;
         }

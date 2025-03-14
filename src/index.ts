@@ -129,7 +129,7 @@ async function init() {
     // 重新加载tagManagerController
     tagManagerController.refresh();
   } else {
-    api.updateCookie((JSON.parse(configManager.cookie) as ParsedCookie[]));
+    api.updateCookie(JSON.parse(configManager.cookie) as ParsedCookie[]);
     api.exhentai = configManager.exhentai;
   }
 
@@ -270,18 +270,31 @@ async function init() {
       configManager.updateAllBannedUploaders(bannedUploaders);
     }
     // 同步favcat
-    configManager.updateAllFavcatTitles([
-      config.favorite_0,
-      config.favorite_1,
-      config.favorite_2,
-      config.favorite_3,
-      config.favorite_4,
-      config.favorite_5,
-      config.favorite_6,
-      config.favorite_7,
-      config.favorite_8,
-      config.favorite_9,
-    ]);
+    if (
+      config.favorite_0 &&
+      config.favorite_1 &&
+      config.favorite_2 &&
+      config.favorite_3 &&
+      config.favorite_4 &&
+      config.favorite_5 &&
+      config.favorite_6 &&
+      config.favorite_7 &&
+      config.favorite_8 &&
+      config.favorite_9
+    ) {
+      configManager.updateAllFavcatTitles([
+        config.favorite_0,
+        config.favorite_1,
+        config.favorite_2,
+        config.favorite_3,
+        config.favorite_4,
+        config.favorite_5,
+        config.favorite_6,
+        config.favorite_7,
+        config.favorite_8,
+        config.favorite_9,
+      ]);
+    }
     // 更新收藏页排序
     configManager.favoritesOrderMethod =
       config.fs === "0" ? "published_time" : "favorited_time";

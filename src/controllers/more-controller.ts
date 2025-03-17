@@ -360,12 +360,12 @@ export class MoreController extends BaseController {
         // gradient: { colors: [$color("#0F9ED5"), $color("#40C3EA")] },
         bgview: { bgcolor: $color("#0F9ED5") },
         icon: { icon: $icon("177", $color("white")) },
-        title: { text: "项目地址" },
+        title: { text: "GitHub" },
         content: {
           text: "欢迎关注JSEhViewer！\n在GitHub上查看说明文档，或者在issues页面留下你的建议",
         },
         blur: { hidden: false },
-        button: { text: "前往GitHub" },
+        button: { text: "在浏览器查看" },
       },
       {
         // gradient: { colors: [$color("#E18B7A"), $color("#C7472D")] },
@@ -420,7 +420,7 @@ export class MoreController extends BaseController {
         title: { text: "EHentai标签" },
         content: { text: "在网页端查看和修改EHentai标签(修改后请重启本应用)" },
         blur: { hidden: false },
-        button: { text: "在Safari查看" },
+        button: { text: "在浏览器查看" },
       },
       {
         // gradient: { colors: [$color("#8E96CD"), $color("#4B58A9")] },
@@ -433,7 +433,7 @@ export class MoreController extends BaseController {
           text: "在网页端调整本应用未涉及的设置，比如清晰度、过滤条件、收藏分类(修改后请重启本应用)",
         },
         blur: { hidden: false },
-        button: { text: "在Safari查看" },
+        button: { text: "在浏览器查看" },
       }, //b8cc1c A6BC00
     ];
     return data;

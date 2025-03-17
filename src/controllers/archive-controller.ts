@@ -4,7 +4,6 @@ import {
   SymbolButton,
   router,
   SplitViewController,
-  Base,
 } from "jsbox-cview";
 import { GalleryController } from "./gallery-controller";
 import { getJumpPageDialog } from "../components/seekpage-dialog";

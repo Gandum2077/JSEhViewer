@@ -16,6 +16,7 @@ import {
   EHSearchTerm,
   parseFsearch,
 } from "ehentai-parser";
+import { ArchiveTab } from "../types";
 
 export class GeneralSettingsController extends BaseController {
   private _isUpdatingTranslationData = false;
@@ -157,8 +158,8 @@ export class GeneralSettingsController extends BaseController {
             } catch (e: any) {
               $ui.alert({
                 title: "搜索词错误",
-                message: e.message
-              })
+                message: e.message,
+              });
             }
             if (sts) {
               configManager.specificSearchtermsOnStart = JSON.stringify(sts);
@@ -192,6 +193,12 @@ export class GeneralSettingsController extends BaseController {
             configManager.archiveManagerOrderMethod
           ) {
             configManager.archiveManagerOrderMethod = archiveManagerOrderMethod;
+            // 刷新存档页
+            const tab = statusManager.tabsMap.get("archive") as ArchiveTab;
+            tab.options.sort = archiveManagerOrderMethod;
+            (router.get("archiveController") as ArchiveController)
+              .reload()
+              .then();
           }
           if (defaultFavcat !== configManager.defaultFavcat) {
             configManager.defaultFavcat = defaultFavcat;

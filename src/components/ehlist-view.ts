@@ -298,7 +298,7 @@ function _mapDataForMinimalFolderLayout(folder: {
     normal: { hidden: true },
     large: { hidden: true },
     minimalFolder_label: {
-      text: folder.name + " · " + folder.count,
+      text: `（${folder.count}）` + folder.name,
     },
     minimalFolder_icon: {
       symbol: folder.collapsed ? "chevron.down" : "chevron.up",
@@ -1106,7 +1106,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                   type: "label",
                   props: {
                     id: "minimalFolder_label",
-                    font: $font(14),
+                    font: $font("bold", 14),
                   },
                   layout: (make, view) => {
                     make.left.inset(24);

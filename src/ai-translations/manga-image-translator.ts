@@ -3,7 +3,7 @@ import { AITranslationConfig } from "../types";
 const description = `# Image/Manga Translator
 [manga-image-translator](https://github.com/zyddnys/manga-image-translator)是一个自动翻译并嵌字的项目。
 
-请参考 Github 项目的说明进行本地部署，推荐用 Docker 进行部署。
+请参考 GitHub 项目的说明进行本地部署，推荐用 Docker 进行部署。
 
 请注意：
 - Papago 无需额外配置即可使用。

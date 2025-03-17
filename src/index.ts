@@ -9,7 +9,7 @@ import { SidebarBookmarkController } from "./controllers/sidebar-bookemark-contr
 import { SidebarHistoryController } from "./controllers/sidebar-history-controller";
 import { configManager } from "./utils/config";
 import { api } from "./utils/api";
-import { appLog } from "./utils/tools";
+import { appLog, getLatestVersion } from "./utils/tools";
 import {
   EHIgneousExpiredError,
   EHIPBannedError,
@@ -123,6 +123,10 @@ async function init() {
     },
   });
   splitViewController.uirender();
+
+  // 检测Github更新
+  getLatestVersion();
+
   if (!configManager.cookie) {
     await login();
     appLog("login done");

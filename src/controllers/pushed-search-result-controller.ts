@@ -667,7 +667,7 @@ export class PushedSearchResultController extends BaseController {
         break;
       }
       case "upload": {
-        const items = tab.pages.map((page) => page.items).flat();
+        const items = tab.pages[0].folders.map((n) => n.items).flat();
         this.cviews.list.items = items;
         this.cviews.list.footerText = "没有更多了";
         this.cviews.titleView.title = "我的上传";

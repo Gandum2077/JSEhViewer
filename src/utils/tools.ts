@@ -3,7 +3,7 @@ import {
   TagNamespace,
   tagNamespaceMostUsedAlternateMap,
 } from "ehentai-parser";
-import { globalLogLevel, namespaceColor } from "./glv";
+import { appConfigPath, globalLogLevel, namespaceColor } from "./glv";
 import { configManager } from "./config";
 
 const levelMap = {
@@ -213,4 +213,56 @@ export function isNameMatchGid(name: string, gid: number): boolean {
   const match = name.slice(index + 1, -1);
   if (regex.test(match)) return true;
   return false;
+}
+
+/**
+ * 检测GitHub更新
+ */
+export function getLatestVersion() {
+  const current_version = JSON.parse($file.read(appConfigPath).string || "")
+    .info.version as string;
+  $http.get({
+    url: "https://api.github.com/repos/Gandum2077/JSEhViewer/releases/latest",
+    timeout: 10,
+    handler: (resp) => {
+      if (resp.data && resp.response && resp.response.statusCode === 200) {
+        const info = resp.data;
+        const latest_version = info?.tag_name;
+        const browser_download_url = info?.assets?.at(0)?.browser_download_url;
+        if (
+          browser_download_url &&
+          latest_version &&
+          current_version !== latest_version
+        ) {
+          $ui.alert({
+            title: "发现新版本",
+            actions: [
+              {
+                title: "一键更新",
+                handler: () => {
+                  $app.close(1);
+                  $app.openURL(
+                    "http://xteko.com/redir?name=JSEhViewer&url=" +
+                      $text.URLEncode(browser_download_url)
+                  );
+                },
+              },
+              {
+                title: "GitHub",
+                handler: () => {
+                  $app.openURL(
+                    JSON.parse($file.read(appConfigPath).string || "").info.url
+                  );
+                },
+              },
+              {
+                title: "取消",
+                style: $alertActionType.cancel,
+              },
+            ],
+          });
+        }
+      }
+    },
+  });
 }

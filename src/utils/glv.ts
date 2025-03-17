@@ -14,6 +14,7 @@ export const originalImagePath = "assets/original-image/";
 export const galleryInfoPath = "assets/info/";
 export const tempPath = "assets/temp/";
 export const tempZipPath = "assets/temp.zip";
+export const appConfigPath = "config.json";
 
 export const logoColorHex = "#5D1215";
 

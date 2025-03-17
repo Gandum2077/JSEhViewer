@@ -285,13 +285,13 @@ export async function getCookie(exhentai = true): Promise<ParsedCookie[]> {
     const parsedCookies: ParsedCookie[] = [
       { name: "ipb_member_id", value: cookie_ipb_member_id.value },
       { name: "ipb_pass_hash", value: cookie_ipb_pass_hash.value },
-      { name: "yay", value: "louder" },
       {
         name: "igneous",
         value: cookie_igneous.value,
         expires: cookie_igneous.expires,
       },
       { name: "nw", value: "1" },
+      { name: "msort", value: "d-d" },
     ];
     if (cookie_sk) {
       parsedCookies.push({ name: "sk", value: cookie_sk.value });
@@ -326,6 +326,7 @@ export async function getCookie(exhentai = true): Promise<ParsedCookie[]> {
       { name: "ipb_member_id", value: cookie_ipb_member_id.value },
       { name: "ipb_pass_hash", value: cookie_ipb_pass_hash.value },
       { name: "nw", value: "1" },
+      { name: "msort", value: "d-d" },
     ];
     if (cookie_sk) {
       parsedCookies.push({ name: "sk", value: cookie_sk.value });
@@ -336,7 +337,7 @@ export async function getCookie(exhentai = true): Promise<ParsedCookie[]> {
         value: cookie_hath_perks.value,
       });
     }
-    return parsedCookies
+    return parsedCookies;
   }
 }
 

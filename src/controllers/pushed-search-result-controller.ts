@@ -625,15 +625,6 @@ export class PushedSearchResultController extends BaseController {
         this.cviews.titleView.title = "订阅";
         break;
       }
-      case "popular": {
-        const items = tab.pages
-          .map((page) => page.items)
-          .flat() as EHListExtendedItem[];
-        this.cviews.list.items = items;
-        this.cviews.list.footerText = "没有更多了";
-        this.cviews.titleView.title = "热门";
-        break;
-      }
       case "favorites": {
         const items = tab.pages
           .map((page) => page.items)
@@ -646,31 +637,6 @@ export class PushedSearchResultController extends BaseController {
           this.cviews.list.footerText = "上拉加载更多";
         }
         this.cviews.titleView.title = "收藏";
-        break;
-      }
-      case "toplist": {
-        const items = tab.pages.map((page) => page.items).flat();
-        this.cviews.list.items = items;
-        const lastPage = tab.pages[tab.pages.length - 1];
-        if (lastPage.current_page === lastPage.total_pages - 1) {
-          this.cviews.list.footerText = "没有更多了";
-        } else {
-          this.cviews.list.footerText = "上拉加载更多";
-        }
-        const timeRange = tab.options.timeRange;
-        this.cviews.titleView.title = {
-          yesterday: "日排行",
-          past_month: "月排行",
-          past_year: "年排行",
-          all: "总排行",
-        }[timeRange];
-        break;
-      }
-      case "upload": {
-        const items = tab.pages[0].folders.map((n) => n.items).flat();
-        this.cviews.list.items = items;
-        this.cviews.list.footerText = "没有更多了";
-        this.cviews.titleView.title = "我的上传";
         break;
       }
       case "archive": {

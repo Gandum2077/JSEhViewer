@@ -713,8 +713,8 @@ export class HomepageController extends BaseController {
         break;
       }
       case "upload": {
-        const items = tab.pages[0].folders.map((n) => n.items).flat();
-        this.cviews.list.items = items;
+        const folders = tab.pages[0].folders;
+        this.cviews.list.uploadFolders = folders;
         this.cviews.list.footerText = "没有更多了";
         this.cviews.titleView.title = "我的上传";
         break;

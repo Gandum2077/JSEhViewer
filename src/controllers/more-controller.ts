@@ -128,17 +128,18 @@ export class MoreController extends BaseController {
                   },
                   layout: $layout.fill,
                   views: [
-                    /* { // 由于使用渐变色，导致列表快速下拉的时候，新出现的item会闪烁一下，因此弃用
+                    /*{
+                      // 由于使用渐变色，导致列表快速下拉的时候，新出现的item会闪烁一下，因此弃用
                       type: "gradient",
                       props: {
                         id: "gradient",
                         locations: [0.0, 1.0],
                         startPoint: $point(0, 0),
                         endPoint: $point(1, 1),
-                        colors: [$color("#DA8080"), $color("#BE3737")]
+                        //colors: [$color("clear"), $color("clear")],
                       },
-                      layout: $layout.fill
-                    }, */
+                      layout: $layout.fill,
+                    },*/
                     {
                       type: "view",
                       props: {
@@ -355,7 +356,9 @@ export class MoreController extends BaseController {
     const data = [
       {
         // gradient: { colors: [$color("#DA8080"), $color("#BE3737")] },
-        bgview: { bgcolor: $color("#CC5C5C") },
+        // bgview: { bgcolor: $color("#CC5C5C") },
+        // gradient: { colors: [$color("#0F9ED5"), $color("#40C3EA")] },
+        bgview: { bgcolor: $color("#0F9ED5") },
         icon: { icon: $icon("177", $color("white")) },
         title: { text: "项目地址" },
         content: {
@@ -366,7 +369,9 @@ export class MoreController extends BaseController {
       },
       {
         // gradient: { colors: [$color("#E18B7A"), $color("#C7472D")] },
-        bgview: { bgcolor: $color("#D46954") },
+        // bgview: { bgcolor: $color("#D46954") },
+        // gradient: { colors: [$color("#7B61FF"), $color("#9B8AFB")] },
+        bgview: { bgcolor: $color("#7B61FF") },
         icon: { symbol: "gear" },
         title: { text: "通用" },
         content: {
@@ -378,7 +383,9 @@ export class MoreController extends BaseController {
       },
       {
         // gradient: { colors: [$color("#D7AD6B"), $color("#AD7E2F")] },
-        bgview: { bgcolor: $color("#C2964D") },
+        // bgview: { bgcolor: $color("#C2964D") },
+        // gradient: { colors: [$color("#F97316"), $color("#FB923C")] },
+        bgview: { bgcolor: $color("#F97316") },
         icon: { symbol: "arrow.up.arrow.down.circle" },
         title: { text: "下载与上传" },
         content: { text: downloadText + "\n" + uploadText },
@@ -386,7 +393,9 @@ export class MoreController extends BaseController {
       },
       {
         // gradient: { colors: [$color("#B8CC1C"), $color("#919B00")] },
-        bgview: { bgcolor: $color("#A5B40E") },
+        // bgview: { bgcolor: $color("#A5B40E") },
+        // gradient: { colors: [$color("#22C55E"), $color("#4ADE80")] },
+        bgview: { bgcolor: $color("#22C55E") },
         icon: { symbol: "externaldrive.connected.to.line.below" },
         title: { text: "WebDAV" },
         content: { text: webdavEnabledText },
@@ -394,7 +403,9 @@ export class MoreController extends BaseController {
       },
       {
         // gradient: { colors: [$color("#8AB46A"), $color("#587A3D")] },
-        bgview: { bgcolor: $color("#719754") },
+        // bgview: { bgcolor: $color("#719754") },
+        // gradient: { colors: [$color("#EC4899"), $color("#F472B6")] },
+        bgview: { bgcolor: $color("#EC4899") },
         icon: { symbol: "globe" },
         title: { text: "AI翻译" },
         content: { text: "图片AI翻译设置\n" + aiTranslationServiceText },
@@ -402,7 +413,9 @@ export class MoreController extends BaseController {
       },
       {
         // gradient: { colors: [$color("#8CB1C0"), $color("#518294")] },
-        bgview: { bgcolor: $color("#6F9AAA") },
+        // bgview: { bgcolor: $color("#6F9AAA") },
+        // gradient: { colors: [$color("#FACC15"), $color("#FDE047")] },
+        bgview: { bgcolor: $color("#fcba03") },
         icon: { symbol: "flag.and.flag.filled.crossed" },
         title: { text: "EHentai标签" },
         content: { text: "在网页端查看和修改EHentai标签(修改后请重启本应用)" },
@@ -411,7 +424,9 @@ export class MoreController extends BaseController {
       },
       {
         // gradient: { colors: [$color("#8E96CD"), $color("#4B58A9")] },
-        bgview: { bgcolor: $color("#6D77BB") },
+        // bgview: { bgcolor: $color("#6D77BB") },
+        /// gradient: { colors: [$color("#06B6D4"), $color("#67E8F9")] },
+        bgview: { bgcolor: $color("#06B6D4") },
         icon: { symbol: "square.text.square" },
         title: { text: "EHentai设置" },
         content: {

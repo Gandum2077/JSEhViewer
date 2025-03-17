@@ -13,6 +13,9 @@ import {
   catColor,
   catTranslations,
   favcatColor,
+  languageAbbreviates,
+  languageCustomSort,
+  languageTagColor,
   namespaceTranslations,
   ratingColor,
   tagBgcolor,
@@ -188,6 +191,34 @@ function _mapDataForNormalLayout(
     | EHListMinimalItem
 ) {
   const ratingArray = ratingToArray(item.estimated_display_rating);
+
+  let languageAbbr: string | undefined;
+  let languageBgcolor: UIColor | undefined;
+  const t = item.taglist
+    .find((n) => n.namespace === "language")
+    ?.tags.filter((n) => n in languageAbbreviates)
+    .sort((a, b) => {
+      const indexA = languageCustomSort.indexOf(a);
+      const indexB = languageCustomSort.indexOf(b);
+      if (indexA !== -1 && indexB === -1) return -1;
+      if (indexA === -1 && indexB !== -1) return 1;
+      return indexA - indexB;
+    });
+  if (t && t.length > 0) {
+    const language = t[0];
+    languageAbbr = languageAbbreviates[language].toUpperCase();
+    if (
+      language === "chinese" ||
+      language === "english" ||
+      language === "korean" ||
+      language === "japanese"
+    ) {
+      languageBgcolor = languageTagColor[language];
+    } else {
+      languageBgcolor = languageTagColor.other;
+    }
+  }
+
   return {
     minimal: { hidden: true },
     minimalFolder: { hidden: true },
@@ -210,6 +241,9 @@ function _mapDataForNormalLayout(
     posted_time_normal: {
       text: toSimpleUTCTimeString(item.posted_time),
     },
+    language_normal: { hidden: !Boolean(languageAbbr) },
+    language_bgview_normal: { bgcolor: languageBgcolor },
+    language_label_normal: { text: languageAbbr },
     star1_normal: {
       tintColor: item.is_my_rating ? ratingColor : $color("orange"),
       symbol:
@@ -783,7 +817,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                   props: {},
                   layout: (make, view) => {
                     make.left.bottom.inset(0);
-                    make.width.equalTo(view.super).dividedBy(2);
+                    make.width.equalTo(view.super).dividedBy(2).offset(-15);
                     make.height.equalTo(20);
                   },
                   views: [
@@ -800,7 +834,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                       layout: (make, view) => {
                         make.center.equalTo(view.super);
                         make.height.equalTo(18);
-                        make.width.equalTo(80);
+                        make.width.equalTo(70);
                       },
                     },
                   ],
@@ -810,8 +844,9 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                   type: "view",
                   props: {},
                   layout: (make, view) => {
-                    make.right.bottom.inset(0);
-                    make.width.equalTo(view.super).dividedBy(2);
+                    make.bottom.inset(0);
+                    make.right.inset(25);
+                    make.width.equalTo(view.super).dividedBy(2).offset(-10);
                     make.height.equalTo(20);
                   },
                   views: [
@@ -864,6 +899,42 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                         make.size.equalTo($size(75, 15));
                         make.center.equalTo(view.super);
                       },
+                    },
+                  ],
+                },
+                {
+                  type: "view",
+                  props: {
+                    id: "language_normal",
+                  },
+                  layout: (make, view) => {
+                    make.bottom.inset(0);
+                    make.width.equalTo(16);
+                    make.right.inset(5);
+                    make.height.equalTo(20);
+                  },
+                  views: [
+                    {
+                      type: "view",
+                      props: {
+                        id: "language_bgview_normal",
+                        cornerRadius: 8,
+                        smoothCorners: true,
+                      },
+                      layout: (make, view) => {
+                        make.center.equalTo(view.super);
+                        make.width.height.equalTo(16);
+                      },
+                    },
+                    {
+                      type: "label",
+                      props: {
+                        id: "language_label_normal",
+                        align: $align.center,
+                        textColor: $color("white"),
+                        font: $font("bold", 9),
+                      },
+                      layout: $layout.center,
                     },
                   ],
                 },
@@ -1094,12 +1165,12 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                   props: {
                     id: "minimalFolder_icon",
                     tintColor: $color("systemLink"),
-                    contentMode: 2,
+                    contentMode: 1,
                   },
                   layout: (make, view) => {
-                    make.left.inset(4);
+                    make.left.inset(3);
                     make.centerY.equalTo(view.super);
-                    make.width.height.equalTo(16);
+                    make.width.height.equalTo(18);
                   },
                 },
                 {

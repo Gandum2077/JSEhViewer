@@ -134,14 +134,8 @@ class WelcomeController extends PresentedPageController {
                 },
                 layout: (make, view) => {
                   make.centerX.equalTo(view.super);
-                  make.top
-                    .greaterThanOrEqualTo(view.prev.bottom)
-                    .offset(50)
-                    .priority(1000);
-                  make.centerY
-                    .equalTo(view.super)
-                    .multipliedBy(1.7)
-                    .priority(999);
+                  make.top.greaterThanOrEqualTo(view.prev.bottom).offset(50).priority(1000);
+                  make.centerY.equalTo(view.super).multipliedBy(1.7).priority(999);
                   make.height.equalTo(50);
                   make.width.equalTo(view.prev);
                 },
@@ -168,14 +162,8 @@ class WelcomeController extends PresentedPageController {
                 },
                 layout: (make, view) => {
                   make.centerX.equalTo(view.super);
-                  make.top
-                    .greaterThanOrEqualTo(view.prev.bottom)
-                    .offset(50)
-                    .priority(1000);
-                  make.centerY
-                    .equalTo(view.super)
-                    .multipliedBy(1.7)
-                    .priority(999);
+                  make.top.greaterThanOrEqualTo(view.prev.bottom).offset(50).priority(1000);
+                  make.centerY.equalTo(view.super).multipliedBy(1.7).priority(999);
                   make.height.equalTo(50);
                   make.width.equalTo(view.prev);
                 },
@@ -197,12 +185,8 @@ class WelcomeController extends PresentedPageController {
                       configManager.exhentai = exhentai;
                       configManager.syncMyTags = syncMyTags;
                       // 检测是否有mpv
-                      const hath_perks =
-                        cookie.find((n) => n.name === "hath_perks")?.value ||
-                        "";
-                      const hathPerkList = hath_perks
-                        .slice(0, hath_perks.indexOf("-"))
-                        .split(".");
+                      const hath_perks = cookie.find((n) => n.name === "hath_perks")?.value || "";
+                      const hathPerkList = hath_perks.slice(0, hath_perks.indexOf("-")).split(".");
                       if (hathPerkList.includes("q")) {
                         configManager.mpvAvailable = true;
                       }

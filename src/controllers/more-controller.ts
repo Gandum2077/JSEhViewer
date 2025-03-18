@@ -41,9 +41,7 @@ export class MoreController extends BaseController {
           {
             symbol: "sidebar.left",
             handler: () => {
-              (
-                router.get("splitViewController") as SplitViewController
-              ).sideBarShown = true;
+              (router.get("splitViewController") as SplitViewController).sideBarShown = true;
             },
           },
         ],
@@ -90,10 +88,7 @@ export class MoreController extends BaseController {
                 font: $font(11),
                 align: $align.center,
                 textColor: $color("secondaryText"),
-                text: `Version ${
-                  JSON.parse($file.read("config.json").string || "").info
-                    .version
-                }\nMIT License`,
+                text: `Version ${JSON.parse($file.read("config.json").string || "").info.version}\nMIT License`,
               },
               layout: (make, view) => {
                 make.top.left.right.inset(0);
@@ -274,9 +269,7 @@ export class MoreController extends BaseController {
   private _getCurrentData() {
     // 需要获取四个数据：
     // 1. 标签翻译更新时间
-    const tagTranslationUpdateTimeText = toLocalTimeString(
-      configManager.translationUpdateTime
-    );
+    const tagTranslationUpdateTimeText = toLocalTimeString(configManager.translationUpdateTime);
     // 2. 下载与上传的数量
     let downloadText = "";
     let uploadText = "";
@@ -294,9 +287,7 @@ export class MoreController extends BaseController {
         };
       });
     const downloadingTotal = downloading.length;
-    const downloadingFinished = downloading.filter(
-      (n) => n.finishedCount === n.totalCount
-    ).length;
+    const downloadingFinished = downloading.filter((n) => n.finishedCount === n.totalCount).length;
     const downloadingError = downloading.filter((n) => n.errorCount > 0).length;
     if (downloadingTotal > 0) {
       downloadText = `当前下载: ${downloadingFinished} / ${downloadingTotal}`;
@@ -306,9 +297,7 @@ export class MoreController extends BaseController {
     } else {
       downloadText = "没有正在进行的下载";
     }
-    const uploading = [
-      ...downloaderManager.galleryWebDAVUploaders.values(),
-    ].map((n) => {
+    const uploading = [...downloaderManager.galleryWebDAVUploaders.values()].map((n) => {
       const finishedCount = n.finished;
       const totalCount = n.infos.length;
       const errorCount = n.result.upload.filter((n) => n.error).length;
@@ -319,9 +308,7 @@ export class MoreController extends BaseController {
       };
     });
     const uploadingTotal = uploading.length;
-    const uploadingFinished = uploading.filter(
-      (n) => n.finishedCount === n.totalCount
-    ).length;
+    const uploadingFinished = uploading.filter((n) => n.finishedCount === n.totalCount).length;
     const uploadingError = uploading.filter((n) => n.errorCount > 0).length;
     if (uploadingTotal > 0) {
       uploadText = `当前上传: ${uploadingFinished} / ${uploadingTotal}`;
@@ -350,8 +337,7 @@ export class MoreController extends BaseController {
     } else if (configManager.selectedAiTranslationService === "user-custom") {
       aiTranslationServiceText = "当前服务: 用户自定义";
     } else {
-      aiTranslationServiceText =
-        "当前服务: " + configManager.selectedAiTranslationService;
+      aiTranslationServiceText = "当前服务: " + configManager.selectedAiTranslationService;
     }
     const data = [
       {

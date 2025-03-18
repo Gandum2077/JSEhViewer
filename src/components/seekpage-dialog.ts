@@ -1,8 +1,4 @@
-import {
-  dateToString,
-  DynamicPreferenceListView,
-  PreferenceSection,
-} from "jsbox-cview";
+import { dateToString, DynamicPreferenceListView, PreferenceSection } from "jsbox-cview";
 
 import { DialogSheet } from "jsbox-cview";
 
@@ -344,11 +340,9 @@ export function getJumpRangeDialogForFavorites({
         return {
           seek: dateToString(1, values.date),
           minimumGid: direction === 0 ? minimumGid : undefined,
-          minimumFavoritedTimestamp:
-            direction === 0 ? minimumFavoritedTimestamp : undefined,
+          minimumFavoritedTimestamp: direction === 0 ? minimumFavoritedTimestamp : undefined,
           maximumGid: direction === 1 ? maximumGid : undefined,
-          maximumFavoritedTimestamp:
-            direction === 1 ? maximumFavoritedTimestamp : undefined,
+          maximumFavoritedTimestamp: direction === 1 ? maximumFavoritedTimestamp : undefined,
         };
       } else if (values.method === 1) {
         return {
@@ -357,11 +351,9 @@ export function getJumpRangeDialogForFavorites({
             unit: ["d", "w", "m", "y"].at(values.unit) as "d" | "w" | "m" | "y",
           },
           minimumGid: direction === 0 ? minimumGid : undefined,
-          minimumFavoritedTimestamp:
-            direction === 0 ? minimumFavoritedTimestamp : undefined,
+          minimumFavoritedTimestamp: direction === 0 ? minimumFavoritedTimestamp : undefined,
           maximumGid: direction === 1 ? maximumGid : undefined,
-          maximumFavoritedTimestamp:
-            direction === 1 ? maximumFavoritedTimestamp : undefined,
+          maximumFavoritedTimestamp: direction === 1 ? maximumFavoritedTimestamp : undefined,
         };
       } else {
         throw new Error("Invalid method");

@@ -1,8 +1,4 @@
-import {
-  EHSearchTerm,
-  TagNamespace,
-  tagNamespaceMostUsedAlternateMap,
-} from "ehentai-parser";
+import { EHSearchTerm, TagNamespace, tagNamespaceMostUsedAlternateMap } from "ehentai-parser";
 import { appConfigPath, globalLogLevel, namespaceColor } from "./glv";
 import { configManager } from "./config";
 
@@ -14,10 +10,7 @@ const levelMap = {
   fatal: 3,
 };
 
-export function appLog(
-  message: any,
-  level: "debug" | "info" | "warn" | "error" | "fatal" = "info"
-) {
+export function appLog(message: any, level: "debug" | "info" | "warn" | "error" | "fatal" = "info") {
   if (levelMap[level] >= levelMap[globalLogLevel]) {
     if (level === "info") {
       console.info(message);
@@ -27,10 +20,7 @@ export function appLog(
       console.error(message);
     } else if (level === "fatal") {
       console.error(message);
-      const text =
-        message instanceof Error
-          ? message.name + ": " + message.message
-          : message.toString();
+      const text = message instanceof Error ? message.name + ": " + message.message : message.toString();
       $ui.alert({
         title: "致命错误",
         message: text,
@@ -57,19 +47,12 @@ export function clearCookie() {
   const websiteDataTypes = NSSet.$setWithObject("WKWebsiteDataTypeCookies");
   const dateFrom = $objc("NSDate").$distantPast();
   const handler = $block("void", () => {});
-  dataStore.$removeDataOfTypes_modifiedSince_completionHandler(
-    websiteDataTypes,
-    dateFrom,
-    handler
-  );
+  dataStore.$removeDataOfTypes_modifiedSince_completionHandler(websiteDataTypes, dateFrom, handler);
 }
 
 // 转化为简易的UTC时间字符串, 返回格式为"yyyy-MM-dd HH:mm"
 export function toSimpleUTCTimeString(time: string | Date | number): string {
-  if (
-    typeof time === "string" &&
-    time.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)
-  ) {
+  if (typeof time === "string" && time.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)) {
     return time.replace("T", " ").slice(0, 16);
   }
   if (typeof time === "string") {
@@ -129,8 +112,7 @@ export function mapSearchTermToString(searchTerm: EHSearchTerm) {
   let text = "";
   if (namespace) {
     const translation = configManager.translate(namespace, term);
-    text =
-      translation || `${tagNamespaceMostUsedAlternateMap[namespace]}:${term}`;
+    text = translation || `${tagNamespaceMostUsedAlternateMap[namespace]}:${term}`;
   } else {
     text = term;
   }
@@ -166,11 +148,7 @@ export function getUtf8Length(str: string) {
 /**
  * 裁剪图片
  */
-export function cropImageData(
-  imageData: NSData,
-  image: UIImage | undefined,
-  rect: JBRect
-): NSData {
+export function cropImageData(imageData: NSData, image: UIImage | undefined, rect: JBRect): NSData {
   if (!image) {
     console.error("cropImageData: image is nil");
     return imageData;
@@ -183,11 +161,7 @@ export function cropImageData(
     const s1 = $imagekit.cropTo(image, $size(rect.width, rect.height), 0);
     return s1.jpg(1);
   } else {
-    const s1 = $imagekit.cropTo(
-      image,
-      $size(rect.width + rect.x, rect.height + rect.y),
-      0
-    );
+    const s1 = $imagekit.cropTo(image, $size(rect.width + rect.x, rect.height + rect.y), 0);
     const s2 = $imagekit.cropTo(s1, $size(rect.width, rect.height), 5);
     return s2.jpg(1);
   }
@@ -219,8 +193,7 @@ export function isNameMatchGid(name: string, gid: number): boolean {
  * 检测GitHub更新
  */
 export function getLatestVersion() {
-  const current_version = JSON.parse($file.read(appConfigPath).string || "")
-    .info.version as string;
+  const current_version = JSON.parse($file.read(appConfigPath).string || "").info.version as string;
   $http.get({
     url: "https://api.github.com/repos/Gandum2077/JSEhViewer/releases/latest",
     timeout: 10,
@@ -229,11 +202,7 @@ export function getLatestVersion() {
         const info = resp.data;
         const latest_version = info?.tag_name;
         const browser_download_url = info?.assets?.at(0)?.browser_download_url;
-        if (
-          browser_download_url &&
-          latest_version &&
-          current_version !== latest_version
-        ) {
+        if (browser_download_url && latest_version && current_version !== latest_version) {
           $ui.alert({
             title: "发现新版本",
             actions: [
@@ -241,18 +210,13 @@ export function getLatestVersion() {
                 title: "一键更新",
                 handler: () => {
                   $app.close(1);
-                  $app.openURL(
-                    "http://xteko.com/redir?name=JSEhViewer&url=" +
-                      $text.URLEncode(browser_download_url)
-                  );
+                  $app.openURL("http://xteko.com/redir?name=JSEhViewer&url=" + $text.URLEncode(browser_download_url));
                 },
               },
               {
                 title: "GitHub",
                 handler: () => {
-                  $app.openURL(
-                    JSON.parse($file.read(appConfigPath).string || "").info.url
-                  );
+                  $app.openURL(JSON.parse($file.read(appConfigPath).string || "").info.url);
                 },
               },
               {

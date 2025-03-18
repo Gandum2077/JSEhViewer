@@ -8,13 +8,8 @@ export const config: AITranslationConfig = {
   rows: [],
 };
 
-export async function translate(
-  config: { scriptText: string },
-  imageData: NSData
-) {
-  let getTranslatedImageData:
-    | ((imageData: NSData) => Promise<NSData>)
-    | undefined;
+export async function translate(config: { scriptText: string }, imageData: NSData) {
+  let getTranslatedImageData: ((imageData: NSData) => Promise<NSData>) | undefined;
   // 将scriptText作为代码执行
   eval("getTranslatedImageData = " + config.scriptText);
   // 此时scriptText应该定义了一个名为`getTranslatedImageData`的异步函数，检测是否定义

@@ -1,9 +1,4 @@
-import {
-  Base,
-  CustomNavigationBar,
-  Label,
-  PresentedPageController,
-} from "jsbox-cview";
+import { Base, CustomNavigationBar, Label, PresentedPageController } from "jsbox-cview";
 import { EHGallery, EHGalleryTorrent } from "ehentai-parser";
 import { appLog, toSimpleUTCTimeString } from "../utils/tools";
 import { api } from "../utils/api";
@@ -394,10 +389,7 @@ export class GalleryTorrentsController extends PresentedPageController {
   async getTorrents() {
     let torrents: EHGalleryTorrent[] | undefined;
     try {
-      torrents = await api.getGalleryTorrentsInfo(
-        this._info.gid,
-        this._info.token
-      );
+      torrents = await api.getGalleryTorrentsInfo(this._info.gid, this._info.token);
     } catch (e) {
       appLog(e, "error");
       this.cviews.placeholderLabel.view.text = "加载失败!";

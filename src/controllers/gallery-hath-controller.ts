@@ -1,10 +1,5 @@
 import { EHArchive, EHGallery } from "ehentai-parser";
-import {
-  CustomNavigationBar,
-  DynamicItemSizeMatrix,
-  Label,
-  PresentedPageController,
-} from "jsbox-cview";
+import { CustomNavigationBar, DynamicItemSizeMatrix, Label, PresentedPageController } from "jsbox-cview";
 import { api } from "../utils/api";
 import { appLog } from "../utils/tools";
 
@@ -113,9 +108,7 @@ export class GalleryHathController extends PresentedPageController {
             return;
           } else {
             this._isRequestInProgress = true;
-            await this.downloadHath(
-              this._hathInfo.hath_download_options[indexPath.row]
-            );
+            await this.downloadHath(this._hathInfo.hath_download_options[indexPath.row]);
           }
         },
       },
@@ -178,12 +171,7 @@ export class GalleryHathController extends PresentedPageController {
             text: option.size,
           },
           price: {
-            text:
-              option.cost === 0
-                ? "免费"
-                : option.cost === -1
-                ? "未知"
-                : option.cost + " GP",
+            text: option.cost === 0 ? "免费" : option.cost === -1 ? "未知" : option.cost + " GP",
           },
         };
       });

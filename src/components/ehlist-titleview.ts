@@ -3,13 +3,7 @@ import { Base } from "jsbox-cview";
 export class EhlistTitleView extends Base<UIButtonView, UiTypes.ButtonOptions> {
   private _arrowSymbolHidden: boolean;
   _defineView: () => UiTypes.ButtonOptions;
-  constructor({
-    defaultTitle,
-    tapped,
-  }: {
-    defaultTitle: string;
-    tapped: (sender: UIButtonView) => void;
-  }) {
+  constructor({ defaultTitle, tapped }: { defaultTitle: string; tapped: (sender: UIButtonView) => void }) {
     super();
     this._arrowSymbolHidden = defaultTitle === "空白页";
     this._defineView = () => {

@@ -2,13 +2,7 @@ import { PageViewerController, RefreshButton } from "jsbox-cview";
 import { GalleryInfoController } from "./gallery-info-controller";
 import { GalleryThumbnailController } from "./gallery-thumbnail-controller";
 import { GalleryCommentController } from "./gallery-comment-controller";
-import {
-  EHGallery,
-  EHNetworkError,
-  EHServerError,
-  EHCopyrightError,
-  EHTimeoutError,
-} from "ehentai-parser";
+import { EHGallery, EHNetworkError, EHServerError, EHCopyrightError, EHTimeoutError } from "ehentai-parser";
 import { popoverWithSymbol } from "../components/popover-with-symbol";
 import { GalleryDetailedInfoController } from "./gallery-detailed-info-controller";
 import { configManager } from "../utils/config";
@@ -19,13 +13,7 @@ import { appLog } from "../utils/tools";
 import { WebDAVClient } from "../utils/webdav";
 import { setWebDAVConfig } from "./settings-webdav-controller";
 import { globalTimer } from "../utils/timer";
-import {
-  defaultButtonColor,
-  galleryInfoPath,
-  imagePath,
-  tempPath,
-  tempZipPath,
-} from "../utils/glv";
+import { defaultButtonColor, galleryInfoPath, imagePath, tempPath, tempZipPath } from "../utils/glv";
 import { title } from "process";
 
 export class GalleryController extends PageViewerController {
@@ -54,13 +42,8 @@ export class GalleryController extends PageViewerController {
   timer?: TimerTypes.Timer;
 
   constructor(gid: number, token: string) {
-    const galleryInfoController = new GalleryInfoController(gid, (index) =>
-      this.readGallery(index)
-    );
-    const galleryThumbnailController = new GalleryThumbnailController(
-      gid,
-      (index) => this.readGallery(index)
-    );
+    const galleryInfoController = new GalleryInfoController(gid, (index) => this.readGallery(index));
+    const galleryThumbnailController = new GalleryThumbnailController(gid, (index) => this.readGallery(index));
     const galleryCommentController = new GalleryCommentController();
     const refreshButton = new RefreshButton({
       layout: $layout.fill,
@@ -121,18 +104,14 @@ export class GalleryController extends PageViewerController {
           try {
             // 两种获取infos的方式：本地获取/在线获取
             const infos = $file.exists(galleryInfoPath + `${this._gid}.json`)
-              ? (JSON.parse(
-                  $file.read(galleryInfoPath + `${this._gid}.json`).string || ""
-                ) as EHGallery)
+              ? (JSON.parse($file.read(galleryInfoPath + `${this._gid}.json`).string || "") as EHGallery)
               : await api.getGalleryInfo(this._gid, this._token, true);
             appLog(infos, "debug");
             this._infos = infos;
           } catch (e: any) {
             appLog(e, "error");
             if (e instanceof EHCopyrightError) {
-              (
-                sender.rootView.view.super.get("loadingLabel") as UILabelView
-              ).text = `加载失败：版权问题`;
+              (sender.rootView.view.super.get("loadingLabel") as UILabelView).text = `加载失败：版权问题`;
             } else if (e instanceof EHServerError) {
               (
                 sender.rootView.view.super.get("loadingLabel") as UILabelView
@@ -142,23 +121,17 @@ export class GalleryController extends PageViewerController {
                 sender.rootView.view.super.get("loadingLabel") as UILabelView
               ).text = `加载失败：图库不存在(${e.statusCode})`;
             } else if (e instanceof EHTimeoutError) {
-              (
-                sender.rootView.view.super.get("loadingLabel") as UILabelView
-              ).text = "加载失败: 超时";
+              (sender.rootView.view.super.get("loadingLabel") as UILabelView).text = "加载失败: 超时";
             } else {
-              (
-                sender.rootView.view.super.get("loadingLabel") as UILabelView
-              ).text =
-                "加载失败: 未知原因" +
-                (e.statusCode ? `(${e.statusCode})` : "");
+              (sender.rootView.view.super.get("loadingLabel") as UILabelView).text =
+                "加载失败: 未知原因" + (e.statusCode ? `(${e.statusCode})` : "");
             }
           }
           if (!this._infos) return;
           if (!downloaderManager.get(this._gid)) {
             downloaderManager.add(this._gid, this._infos);
             // 检查是否应该开启后台下载
-            const downloaded =
-              statusManager.getArchiveItem(this._gid)?.downloaded ?? false;
+            const downloaded = statusManager.getArchiveItem(this._gid)?.downloaded ?? false;
             if (downloaded) {
               downloaderManager.get(this._gid)!.background = true;
             }
@@ -173,12 +146,8 @@ export class GalleryController extends PageViewerController {
           sender.rootView.view.super.get("loadingLabel").remove();
 
           galleryInfoController.infos = this._infos;
-          galleryInfoController.currentReadPage = statusManager.getLastReadPage(
-            this._gid
-          );
-          galleryThumbnailController.thumbnailItems = downloaderManager.get(
-            this._gid
-          )!.result.thumbnails;
+          galleryInfoController.currentReadPage = statusManager.getLastReadPage(this._gid);
+          galleryThumbnailController.thumbnailItems = downloaderManager.get(this._gid)!.result.thumbnails;
           galleryInfoController.resetDownloadButton();
 
           sender.rootView.view.alpha = 1;
@@ -205,10 +174,7 @@ export class GalleryController extends PageViewerController {
               if (!this._webDAVClient) return;
               if (!this._infos) return;
               if (!downloaderManager.getGalleryWebDAVUploader(this._gid)) {
-                downloaderManager.addGalleryWebDAVUploader(
-                  this._infos,
-                  this._webDAVClient
-                );
+                downloaderManager.addGalleryWebDAVUploader(this._infos, this._webDAVClient);
               }
               downloaderManager.startGalleryWebDAVUploader(this._gid);
             } else if (action === "retry") {
@@ -236,9 +202,7 @@ export class GalleryController extends PageViewerController {
             } else if (action === "pause") {
               const u = downloaderManager.getGalleryWebDAVUploader(this._gid);
               if (u) {
-                downloaderManager.backgroundPauseGalleryWebDAVUploader(
-                  this._gid
-                );
+                downloaderManager.backgroundPauseGalleryWebDAVUploader(this._gid);
                 this.updateWebDAVWidget();
               }
             }
@@ -261,9 +225,7 @@ export class GalleryController extends PageViewerController {
           });
         },
         didAppear: () => {
-          galleryInfoController.currentReadPage = statusManager.getLastReadPage(
-            this._gid
-          );
+          galleryInfoController.currentReadPage = statusManager.getLastReadPage(this._gid);
           globalTimer.resumeTask(this._gid.toString());
         },
         didDisappear: () => {
@@ -293,8 +255,7 @@ export class GalleryController extends PageViewerController {
     d.reading = true;
     d.currentReadingIndex = Math.max(index - 1, 0); // 提前一页加载
     // 在阅读前检查autoCacheWhenReading：如果后台下载被开启，那么自动开启缓存，否则保持不变
-    this.autoCacheWhenReading =
-      (d.background && !d.backgroundPaused) || this.autoCacheWhenReading;
+    this.autoCacheWhenReading = (d.background && !d.backgroundPaused) || this.autoCacheWhenReading;
     d.autoCacheWhenReading = this.autoCacheWhenReading;
     downloaderManager.startOne(this._infos.gid);
     const readerController = new ReaderController({
@@ -316,8 +277,7 @@ export class GalleryController extends PageViewerController {
     // 刷新之前获取三个信息：readlater, background, backgroundPaused
     const readlater_old = statusManager.getArchiveItem(gid)?.readlater ?? false;
     const background_old = downloaderManager.get(gid)?.background ?? false;
-    const backgroundPaused_old =
-      downloaderManager.get(gid)?.backgroundPaused ?? false;
+    const backgroundPaused_old = downloaderManager.get(gid)?.backgroundPaused ?? false;
 
     let infos: EHGallery | undefined;
     try {
@@ -334,9 +294,7 @@ export class GalleryController extends PageViewerController {
       } else if (e instanceof EHTimeoutError) {
         $ui.error("刷新失败: 超时");
       } else {
-        $ui.error(
-          "刷新失败: 未知原因" + (e.statusCode ? `(${e.statusCode})` : "")
-        );
+        $ui.error("刷新失败: 未知原因" + (e.statusCode ? `(${e.statusCode})` : ""));
       }
     }
     if (!infos) return;
@@ -371,8 +329,7 @@ export class GalleryController extends PageViewerController {
 
     downloaderManager.add(this._gid, this._infos);
     // 检查是否应该开启后台下载
-    const downloaded =
-      statusManager.getArchiveItem(this._gid)?.downloaded ?? false;
+    const downloaded = statusManager.getArchiveItem(this._gid)?.downloaded ?? false;
     downloaderManager.get(this._gid)!.background = downloaded || background_old;
     downloaderManager.get(this._gid)!.backgroundPaused = backgroundPaused_old;
 
@@ -391,10 +348,8 @@ export class GalleryController extends PageViewerController {
     this.subControllers.galleryInfoController.gid = this._gid;
     this.subControllers.galleryThumbnailController.gid = this._gid;
     this.subControllers.galleryInfoController.infos = this._infos;
-    this.subControllers.galleryInfoController.currentReadPage =
-      statusManager.getLastReadPage(this._gid);
-    this.subControllers.galleryThumbnailController.thumbnailItems =
-      downloaderManager.get(this._gid)!.result.thumbnails;
+    this.subControllers.galleryInfoController.currentReadPage = statusManager.getLastReadPage(this._gid);
+    this.subControllers.galleryThumbnailController.thumbnailItems = downloaderManager.get(this._gid)!.result.thumbnails;
 
     // readlater和download按钮
     this.subControllers.galleryInfoController.cviews.readLaterButton.symbolColor =
@@ -440,10 +395,7 @@ export class GalleryController extends PageViewerController {
         if (!this._infos) return;
         if (!this._webDAVClient) return;
         this.updateWebDAVWidget();
-        if (
-          this._webDAVInfo.status === "connected" &&
-          this._webDAVInfo.filesOnServer.length === this._infos.length
-        ) {
+        if (this._webDAVInfo.status === "connected" && this._webDAVInfo.filesOnServer.length === this._infos.length) {
           downloaderManager.get(this._infos.gid)!.webDAVConfig = {
             enabled: true,
             client: this._webDAVClient,
@@ -469,9 +421,7 @@ export class GalleryController extends PageViewerController {
     // 如果获取失败，则更新_webDAVInfo为error状态
     // 如果获取成功，则更新_webDAVInfo为connected状态
     if (!this._webDAVClient) return;
-    const result = await this._webDAVClient.listImageFilesByGidNoError(
-      this._gid
-    );
+    const result = await this._webDAVClient.listImageFilesByGidNoError(this._gid);
     if (result.success) {
       this._webDAVInfo.filesOnServer = result.data;
       this._webDAVInfo.status = "connected";
@@ -501,29 +451,14 @@ export class GalleryController extends PageViewerController {
           serverName: service.name,
         });
       } else {
-        const isFileOnServerComplete =
-          this._webDAVInfo.filesOnServer.length === this._infos.length;
+        const isFileOnServerComplete = this._webDAVInfo.filesOnServer.length === this._infos.length;
         const isFileOnLocalComplete =
-          downloaderManager
-            .get(this._gid)!
-            .result.images.filter((image) => image.path).length ===
-          this._infos.length;
-        const webDAVUploader = downloaderManager.getGalleryWebDAVUploader(
-          this._gid
-        );
-        let uploadStatus:
-          | "uploading"
-          | "success"
-          | "failed"
-          | "paused"
-          | undefined = undefined;
+          downloaderManager.get(this._gid)!.result.images.filter((image) => image.path).length === this._infos.length;
+        const webDAVUploader = downloaderManager.getGalleryWebDAVUploader(this._gid);
+        let uploadStatus: "uploading" | "success" | "failed" | "paused" | undefined = undefined;
         if (webDAVUploader) {
-          const finishedCount = webDAVUploader.result.upload.filter(
-            (item) => item.success
-          ).length;
-          const failedCount = webDAVUploader.result.upload.filter(
-            (item) => item.error
-          ).length;
+          const finishedCount = webDAVUploader.result.upload.filter((item) => item.success).length;
+          const failedCount = webDAVUploader.result.upload.filter((item) => item.error).length;
           if (finishedCount + failedCount === this._infos.length) {
             if (failedCount === 0) {
               uploadStatus = "success";
@@ -545,9 +480,7 @@ export class GalleryController extends PageViewerController {
             : this._webDAVInfo.filesOnServer.length === 0
             ? "none"
             : "incomplete",
-          galleryStatusOnLocal: isFileOnLocalComplete
-            ? "complete"
-            : "incomplete",
+          galleryStatusOnLocal: isFileOnLocalComplete ? "complete" : "incomplete",
           uploadStatus: uploadStatus,
         });
       }
@@ -613,10 +546,7 @@ export class GalleryController extends PageViewerController {
           // 首先在第一层文件夹中寻找合格图片
           let imageFiles = $file
             .list(tempPath)
-            .filter(
-              (name) =>
-                /\.(png|jpe?g|gif|webp)$/i.test(name) && !name.startsWith(".")
-            )
+            .filter((name) => /\.(png|jpe?g|gif|webp)$/i.test(name) && !name.startsWith("."))
             .sort((a, b) => a.localeCompare(b))
             .map((n) => ({ path: tempPath + n, name: n }));
           // 如果第一层文件夹中没有足够数量的合格图片，并且只存在一个文件夹
@@ -635,10 +565,7 @@ export class GalleryController extends PageViewerController {
             const secondaryDir = secondaryDirs[0];
             imageFiles = $file
               .list(secondaryDir)
-              .filter(
-                (name) =>
-                  /\.(png|jpe?g|gif|webp)$/i.test(name) && !name.startsWith(".")
-              )
+              .filter((name) => /\.(png|jpe?g|gif|webp)$/i.test(name) && !name.startsWith("."))
               .sort((a, b) => a.localeCompare(b))
               .map((n) => ({
                 path: secondaryDir + "/" + n,
@@ -689,8 +616,7 @@ export class GalleryController extends PageViewerController {
         handler: () => {
           if (!this._infos) return;
           $app.openURL(
-            `https://e${configManager.exhentai ? "x" : "-"}hentai.org/g/` +
-              `${this._infos.gid}/${this._infos.token}/`
+            `https://e${configManager.exhentai ? "x" : "-"}hentai.org/g/` + `${this._infos.gid}/${this._infos.token}/`
           );
         },
       },
@@ -701,8 +627,7 @@ export class GalleryController extends PageViewerController {
         handler: () => {
           if (!this._infos) return;
           $share.sheet(
-            `https://e${configManager.exhentai ? "x" : "-"}hentai.org/g/` +
-              `${this._infos.gid}/${this._infos.token}/`
+            `https://e${configManager.exhentai ? "x" : "-"}hentai.org/g/` + `${this._infos.gid}/${this._infos.token}/`
           );
         },
       },
@@ -726,8 +651,7 @@ export class GalleryController extends PageViewerController {
         if (!this._infos) return;
         if (!this._infos.newer_versions.length) return;
         if (this.refreshButton.loading) return;
-        const newerVersion =
-          this._infos.newer_versions[this._infos.newer_versions.length - 1];
+        const newerVersion = this._infos.newer_versions[this._infos.newer_versions.length - 1];
         this.refreshButton.loading = true;
         await this.refresh(newerVersion.gid, newerVersion.token);
         this.refreshButton.loading = false;

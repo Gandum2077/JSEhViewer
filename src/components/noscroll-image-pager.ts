@@ -63,13 +63,8 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
             type: "spinner",
             props: {
               id: this.id + "spinner",
-              loading:
-                !this._props.srcs[this._props.page].path &&
-                !this._props.srcs[this._props.page].error,
-              hidden: Boolean(
-                this._props.srcs[this._props.page].path ||
-                  this._props.srcs[this._props.page].error
-              ),
+              loading: !this._props.srcs[this._props.page].path && !this._props.srcs[this._props.page].error,
+              hidden: Boolean(this._props.srcs[this._props.page].path || this._props.srcs[this._props.page].error),
             },
             layout: $layout.center,
           },

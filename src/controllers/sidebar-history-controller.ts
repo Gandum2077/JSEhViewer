@@ -1,9 +1,4 @@
-import {
-  BaseController,
-  ContentView,
-  CustomNavigationBar,
-  SymbolButton,
-} from "jsbox-cview";
+import { BaseController, ContentView, CustomNavigationBar, SymbolButton } from "jsbox-cview";
 import { SearchTermHistoryList } from "../components/searchterm-history-list";
 import { configManager } from "../utils/config";
 
@@ -114,8 +109,7 @@ export class SidebarHistoryController extends BaseController {
       if (history.length === 0) {
         (emptyView.view.get("emptyLabel") as UILabelView).text = "暂无记录";
       } else {
-        (emptyView.view.get("emptyLabel") as UILabelView).text =
-          "没有匹配的记录";
+        (emptyView.view.get("emptyLabel") as UILabelView).text = "没有匹配的记录";
       }
       emptyView.view.hidden = notEmpty;
     };

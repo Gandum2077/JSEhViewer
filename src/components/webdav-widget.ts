@@ -53,32 +53,21 @@ type WebDAVStatusConnected = {
   uploadStatus?: "uploading" | "paused" | "failed" | "success";
 };
 
-export type WebDAVStatus =
-  | WebDAVStatusOff
-  | WebDAVStatusError
-  | WebDAVStatusLoading
-  | WebDAVStatusConnected;
+export type WebDAVStatus = WebDAVStatusOff | WebDAVStatusError | WebDAVStatusLoading | WebDAVStatusConnected;
 
 export class WebDAVWidget extends Base<UIView, UiTypes.ViewOptions> {
   private _hidden: boolean;
-  private _mainButtonActionType:
-    | "upload"
-    | "retry"
-    | "retry-upload"
-    | "resume-upload"
-    | "pause"
-    | undefined = undefined;
+  private _mainButtonActionType: "upload" | "retry" | "retry-upload" | "resume-upload" | "pause" | undefined =
+    undefined;
   _defineView: () => UiTypes.ViewOptions;
   constructor({
     mainButtonHandler,
     configButtonHandler,
-    hidden
+    hidden,
   }: {
-    mainButtonHandler: (
-      action: "upload" | "retry" | "retry-upload" | "resume-upload" | "pause"
-    ) => void;
+    mainButtonHandler: (action: "upload" | "retry" | "retry-upload" | "resume-upload" | "pause") => void;
     configButtonHandler: () => void;
-    hidden: boolean
+    hidden: boolean;
   }) {
     super();
     this._hidden = hidden;
@@ -293,19 +282,13 @@ export class WebDAVWidget extends Base<UIView, UiTypes.ViewOptions> {
         this._setProps({
           serverName: status.serverName,
           serverStatus: "connected",
-          content:
-            status.galleryStatusOnLocal === "complete"
-              ? "已与服务器同步"
-              : "服务器上已找到此图库",
+          content: status.galleryStatusOnLocal === "complete" ? "已与服务器同步" : "服务器上已找到此图库",
           mainButtonHidden: true,
         });
         this._mainButtonActionType = undefined;
       } else {
         // 服务器上没有完整的图库
-        let content =
-          status.galleryStatusOnServer === "none"
-            ? "服务器上未找到此图库"
-            : "服务器上此图库不完整";
+        let content = status.galleryStatusOnServer === "none" ? "服务器上未找到此图库" : "服务器上此图库不完整";
         if (status.galleryStatusOnLocal === "incomplete") {
           // 本地图库不完整
           this._setProps({
@@ -381,19 +364,15 @@ export class WebDAVWidget extends Base<UIView, UiTypes.ViewOptions> {
     mainButtonTitle?: "上传" | "重试" | "继续" | "暂停";
     mainButtonHidden?: boolean;
   }) {
-    ($(this.id + "serverName") as UILabelView).text =
-      serverName || "点此设置服务器";
-    ($(this.id + "serverStatusSymbol") as UIImageView).symbol =
-      statusSymbol[serverStatus];
-    ($(this.id + "serverStatusSymbol") as UIImageView).tintColor =
-      statusColor[serverStatus];
+    ($(this.id + "serverName") as UILabelView).text = serverName || "点此设置服务器";
+    ($(this.id + "serverStatusSymbol") as UIImageView).symbol = statusSymbol[serverStatus];
+    ($(this.id + "serverStatusSymbol") as UIImageView).tintColor = statusColor[serverStatus];
     ($(this.id + "content") as UILabelView).text = content;
     ($(this.id + "mainButton") as UIButtonView).title = mainButtonTitle || "";
-    ($(this.id + "mainButton") as UIButtonView).hidden =
-      mainButtonHidden ?? false;
+    ($(this.id + "mainButton") as UIButtonView).hidden = mainButtonHidden ?? false;
   }
 
   heightToWidth(width: number) {
-    return this._hidden? 0.1 : 90;
+    return this._hidden ? 0.1 : 90;
   }
 }

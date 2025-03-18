@@ -1,9 +1,4 @@
-import {
-  Base,
-  BaseController,
-  ContentView,
-  CustomNavigationBar,
-} from "jsbox-cview";
+import { Base, BaseController, ContentView, CustomNavigationBar } from "jsbox-cview";
 import { globalTimer } from "../utils/timer";
 import { checkWebDAVAndCreateUploader, downloaderManager } from "../utils/api";
 import { defaultButtonColor, thumbnailPath } from "../utils/glv";
@@ -117,9 +112,7 @@ class DownloadList extends Base<UIListView, UiTypes.ListOptions> {
                           section: number;
                         };
                         const data = this.view.object($indexPath(section, row));
-                        const info = data.info as
-                          | DownloadingItemData
-                          | UploadingItemData;
+                        const info = data.info as DownloadingItemData | UploadingItemData;
                         if (info.status === "finished") return;
                         if (info.type === "download") {
                           if (info.status === "paused") {
@@ -131,34 +124,22 @@ class DownloadList extends Base<UIListView, UiTypes.ListOptions> {
                           } else if (info.status === "running") {
                             downloaderManager.backgroundPause(info.gid);
                           } else if (info.status === "error") {
-                            const oldInfos = downloaderManager.get(
-                              info.gid
-                            )!.infos;
+                            const oldInfos = downloaderManager.get(info.gid)!.infos;
                             downloaderManager.remove(info.gid);
                             downloaderManager.add(info.gid, oldInfos);
                             downloaderManager.startOne(info.gid);
                           }
                         } else {
                           if (info.status === "paused") {
-                            const u =
-                              downloaderManager.getGalleryWebDAVUploader(
-                                info.gid
-                              );
+                            const u = downloaderManager.getGalleryWebDAVUploader(info.gid);
                             if (u) {
                               u.backgroundPaused = false;
-                              downloaderManager.startGalleryWebDAVUploader(
-                                info.gid
-                              );
+                              downloaderManager.startGalleryWebDAVUploader(info.gid);
                             }
                           } else if (info.status === "running") {
-                            downloaderManager.backgroundPauseGalleryWebDAVUploader(
-                              info.gid
-                            );
+                            downloaderManager.backgroundPauseGalleryWebDAVUploader(info.gid);
                           } else if (info.status === "error") {
-                            const u =
-                              downloaderManager.getGalleryWebDAVUploader(
-                                info.gid
-                              );
+                            const u = downloaderManager.getGalleryWebDAVUploader(info.gid);
                             if (u) {
                               u.result.upload
                                 .filter((item) => item.error)
@@ -166,9 +147,7 @@ class DownloadList extends Base<UIListView, UiTypes.ListOptions> {
                                   item.error = false;
                                   item.started = false;
                                 });
-                              downloaderManager.startGalleryWebDAVUploader(
-                                info.gid
-                              );
+                              downloaderManager.startGalleryWebDAVUploader(info.gid);
                             }
                           }
                         }
@@ -254,13 +233,7 @@ class DownloadList extends Base<UIListView, UiTypes.ListOptions> {
     };
   }
 
-  updateData({
-    downloading,
-    uploading,
-  }: {
-    downloading: DownloadingItemData[];
-    uploading: UploadingItemData[];
-  }) {
+  updateData({ downloading, uploading }: { downloading: DownloadingItemData[]; uploading: UploadingItemData[] }) {
     // 下载
     const downloadingRows = downloading.map((n, i) => {
       let progressText = "";
@@ -288,8 +261,7 @@ class DownloadList extends Base<UIListView, UiTypes.ListOptions> {
           : n.status === "paused"
           ? symbols.resume
           : symbols.pause;
-      const buttonColor =
-        n.status === "finished" ? colors.green : defaultButtonColor;
+      const buttonColor = n.status === "finished" ? colors.green : defaultButtonColor;
 
       return {
         info: n,
@@ -335,8 +307,7 @@ class DownloadList extends Base<UIListView, UiTypes.ListOptions> {
           : n.status === "paused"
           ? symbols.resume
           : symbols.pause;
-      const buttonColor =
-        n.status === "finished" ? colors.green : defaultButtonColor;
+      const buttonColor = n.status === "finished" ? colors.green : defaultButtonColor;
 
       return {
         info: n,
@@ -467,15 +438,11 @@ export class SettingsDownloadsController extends BaseController {
         const token = n.infos.token;
         const thumbnail = n.result.topThumbnail.path;
         const paused = n.backgroundPaused;
-        const fatalError =
-          n.result.mpv.error || n.result.htmls.some((i) => i.error);
+        const fatalError = n.result.mpv.error || n.result.htmls.some((i) => i.error);
         let status: "finished" | "running" | "paused" | "error";
         if (finishedCount === totalCount) {
           status = "finished";
-        } else if (
-          (errorCount > 0 && finishedCount + errorCount === totalCount) ||
-          fatalError
-        ) {
+        } else if ((errorCount > 0 && finishedCount + errorCount === totalCount) || fatalError) {
           status = "error";
         } else if (paused) {
           status = "paused";
@@ -497,9 +464,7 @@ export class SettingsDownloadsController extends BaseController {
           status,
         };
       });
-    const uploading = [
-      ...downloaderManager.galleryWebDAVUploaders.values(),
-    ].map((n) => {
+    const uploading = [...downloaderManager.galleryWebDAVUploaders.values()].map((n) => {
       const title = n.infos.japanese_title || n.infos.english_title;
       const finishedCount = n.finished;
       const totalCount = n.infos.length;
@@ -512,10 +477,7 @@ export class SettingsDownloadsController extends BaseController {
       let status: "finished" | "running" | "paused" | "error";
       if (finishedCount === totalCount) {
         status = "finished";
-      } else if (
-        (errorCount > 0 && finishedCount + errorCount === totalCount) ||
-        fatalError
-      ) {
+      } else if ((errorCount > 0 && finishedCount + errorCount === totalCount) || fatalError) {
         status = "error";
       } else if (paused) {
         status = "paused";

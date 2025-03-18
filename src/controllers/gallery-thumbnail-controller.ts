@@ -62,9 +62,7 @@ export class GalleryThumbnailController extends BaseController {
           if (this._finished) return;
           const d = downloaderManager.get(this.gid);
           if (!d) return;
-          const currentReadingRow = Math.floor(
-            sender.contentOffset.y / (matrix.itemSize.height + 5)
-          );
+          const currentReadingRow = Math.floor(sender.contentOffset.y / (matrix.itemSize.height + 5));
           const currentReadingIndex = Math.min(
             Math.max(currentReadingRow * matrix.columns, 0),
             d.result.thumbnails.length - 1

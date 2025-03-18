@@ -68,9 +68,7 @@ export class ButtonsWarpper extends Base<UIView, UiTypes.ViewOptions> {
               cornerRadius: 8,
               stack: {
                 views: buttons.map(
-                  (button, index) =>
-                    new ButtonWarpper(button, index === buttons.length - 1)
-                      .definition
+                  (button, index) => new ButtonWarpper(button, index === buttons.length - 1).definition
                 ),
               },
             },

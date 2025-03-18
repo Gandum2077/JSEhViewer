@@ -17,9 +17,7 @@ import { _mapSearchTermsToRow } from "../components/searchterm-history-list";
 
 class HeaderStackBlur extends Base<UIButtonView, UiTypes.ButtonOptions> {
   _defineView: () => UiTypes.ButtonOptions;
-  constructor(
-    type: "front_page" | "watched" | "popular" | "favorites" | "upload"
-  ) {
+  constructor(type: "front_page" | "watched" | "popular" | "favorites" | "upload") {
     super();
     this._defineView = () => {
       return {
@@ -35,9 +33,7 @@ class HeaderStackBlur extends Base<UIButtonView, UiTypes.ButtonOptions> {
         },
         events: {
           tapped: () => {
-            (
-              router.get("splitViewController") as SplitViewController
-            ).sideBarShown = false;
+            (router.get("splitViewController") as SplitViewController).sideBarShown = false;
             (router.get("primaryViewController") as TabBarController).index = 0;
             let options: StatusTabOptions;
             switch (type) {
@@ -73,9 +69,7 @@ class HeaderStackBlur extends Base<UIButtonView, UiTypes.ButtonOptions> {
               default:
                 throw new Error("未知的选项");
             }
-            (
-              router.get("homepageController") as HomepageController
-            ).triggerLoad(options);
+            (router.get("homepageController") as HomepageController).triggerLoad(options);
           },
         },
         views: [
@@ -198,21 +192,9 @@ export class SidebarTabController extends BaseController {
                         {
                           title: "昨天",
                           handler: () => {
-                            (
-                              router.get(
-                                "splitViewController"
-                              ) as SplitViewController
-                            ).sideBarShown = false;
-                            (
-                              router.get(
-                                "primaryViewController"
-                              ) as TabBarController
-                            ).index = 0;
-                            (
-                              router.get(
-                                "homepageController"
-                              ) as HomepageController
-                            ).triggerLoad({
+                            (router.get("splitViewController") as SplitViewController).sideBarShown = false;
+                            (router.get("primaryViewController") as TabBarController).index = 0;
+                            (router.get("homepageController") as HomepageController).triggerLoad({
                               type: "toplist",
                               options: {
                                 timeRange: "yesterday",
@@ -224,21 +206,9 @@ export class SidebarTabController extends BaseController {
                         {
                           title: "最近一月",
                           handler: () => {
-                            (
-                              router.get(
-                                "splitViewController"
-                              ) as SplitViewController
-                            ).sideBarShown = false;
-                            (
-                              router.get(
-                                "primaryViewController"
-                              ) as TabBarController
-                            ).index = 0;
-                            (
-                              router.get(
-                                "homepageController"
-                              ) as HomepageController
-                            ).triggerLoad({
+                            (router.get("splitViewController") as SplitViewController).sideBarShown = false;
+                            (router.get("primaryViewController") as TabBarController).index = 0;
+                            (router.get("homepageController") as HomepageController).triggerLoad({
                               type: "toplist",
                               options: {
                                 timeRange: "past_month",
@@ -250,21 +220,9 @@ export class SidebarTabController extends BaseController {
                         {
                           title: "最近一年",
                           handler: () => {
-                            (
-                              router.get(
-                                "splitViewController"
-                              ) as SplitViewController
-                            ).sideBarShown = false;
-                            (
-                              router.get(
-                                "primaryViewController"
-                              ) as TabBarController
-                            ).index = 0;
-                            (
-                              router.get(
-                                "homepageController"
-                              ) as HomepageController
-                            ).triggerLoad({
+                            (router.get("splitViewController") as SplitViewController).sideBarShown = false;
+                            (router.get("primaryViewController") as TabBarController).index = 0;
+                            (router.get("homepageController") as HomepageController).triggerLoad({
                               type: "toplist",
                               options: {
                                 timeRange: "past_year",
@@ -276,21 +234,9 @@ export class SidebarTabController extends BaseController {
                         {
                           title: "总排行",
                           handler: () => {
-                            (
-                              router.get(
-                                "splitViewController"
-                              ) as SplitViewController
-                            ).sideBarShown = false;
-                            (
-                              router.get(
-                                "primaryViewController"
-                              ) as TabBarController
-                            ).index = 0;
-                            (
-                              router.get(
-                                "homepageController"
-                              ) as HomepageController
-                            ).triggerLoad({
+                            (router.get("splitViewController") as SplitViewController).sideBarShown = false;
+                            (router.get("primaryViewController") as TabBarController).index = 0;
+                            (router.get("homepageController") as HomepageController).triggerLoad({
                               type: "toplist",
                               options: {
                                 timeRange: "all",
@@ -429,18 +375,15 @@ export class SidebarTabController extends BaseController {
               if (statusManager.tabIdsShownInManager.length <= 1) {
                 $ui.error("无法关闭最后一个标签页");
               } else {
-                const idToDelete =
-                  statusManager.tabIdsShownInManager[indexPath.row];
+                const idToDelete = statusManager.tabIdsShownInManager[indexPath.row];
                 let flag = false;
                 // 如果要关闭的是当前标签页，那么先转移到其他标签页，优先转移到下一个，如果没有则转移到上一个
                 if (statusManager.currentTabId === idToDelete) {
                   const nextIndex =
-                    statusManager.tabIdsShownInManager.length >
-                    indexPath.row + 1
+                    statusManager.tabIdsShownInManager.length > indexPath.row + 1
                       ? indexPath.row + 1
                       : indexPath.row - 1;
-                  statusManager.currentTabId =
-                    statusManager.tabIdsShownInManager[nextIndex];
+                  statusManager.currentTabId = statusManager.tabIdsShownInManager[nextIndex];
                   flag = true;
                 }
                 statusManager.tabIdsShownInManager.splice(indexPath.row, 1);
@@ -448,16 +391,10 @@ export class SidebarTabController extends BaseController {
                 if (flag) {
                   const tab = statusManager.currentTab;
                   if (tab.type === "blank") {
-                    (
-                      router.get("homepageController") as HomepageController
-                    ).updateBlankStatus();
+                    (router.get("homepageController") as HomepageController).updateBlankStatus();
                   } else {
-                    (
-                      router.get("homepageController") as HomepageController
-                    ).updateLoadingStatus(tab);
-                    (
-                      router.get("homepageController") as HomepageController
-                    ).updateLoadedStatus();
+                    (router.get("homepageController") as HomepageController).updateLoadingStatus(tab);
+                    (router.get("homepageController") as HomepageController).updateLoadedStatus();
                   }
                 }
               }
@@ -570,33 +507,22 @@ export class SidebarTabController extends BaseController {
           } else {
             sender.get("header").hidden = false;
             headerView.cviews.bgview.view.alpha = sender.contentOffset.y / 50;
-            headerView.cviews.separator.view.alpha =
-              sender.contentOffset.y / 50;
-            headerView.cviews.titleViewWrapper.view.alpha =
-              (Math.max(0, sender.contentOffset.y - 25) / 50) * 2;
+            headerView.cviews.separator.view.alpha = sender.contentOffset.y / 50;
+            headerView.cviews.titleViewWrapper.view.alpha = (Math.max(0, sender.contentOffset.y - 25) / 50) * 2;
             bgview.view.hidden = false;
           }
         },
         didSelect: (sender, indexPath, data) => {
-          statusManager.currentTabId =
-            statusManager.tabIdsShownInManager[indexPath.row];
+          statusManager.currentTabId = statusManager.tabIdsShownInManager[indexPath.row];
           this.refresh();
-          (
-            router.get("splitViewController") as SplitViewController
-          ).sideBarShown = false;
+          (router.get("splitViewController") as SplitViewController).sideBarShown = false;
           (router.get("primaryViewController") as TabBarController).index = 0;
           const tab = statusManager.currentTab;
           if (tab.type === "blank") {
-            (
-              router.get("homepageController") as HomepageController
-            ).updateBlankStatus();
+            (router.get("homepageController") as HomepageController).updateBlankStatus();
           } else {
-            (
-              router.get("homepageController") as HomepageController
-            ).updateLoadingStatus(tab);
-            (
-              router.get("homepageController") as HomepageController
-            ).updateLoadedStatus();
+            (router.get("homepageController") as HomepageController).updateLoadingStatus(tab);
+            (router.get("homepageController") as HomepageController).updateLoadedStatus();
           }
         },
       },
@@ -645,9 +571,7 @@ export class SidebarTabController extends BaseController {
         tab.type === "toplist" ||
         tab.type === "popular" ||
         tab.type === "upload" ||
-        ((tab.type === "front_page" ||
-          tab.type === "watched" ||
-          tab.type === "favorites") &&
+        ((tab.type === "front_page" || tab.type === "watched" || tab.type === "favorites") &&
           (!tab.options.searchTerms || tab.options.searchTerms.length === 0))
       ) {
         let title = fixedTabSymbolTitle[tab.type].title;
@@ -686,9 +610,7 @@ export class SidebarTabController extends BaseController {
           },
         };
       } else if (
-        (tab.type === "front_page" ||
-          tab.type === "watched" ||
-          tab.type === "favorites") &&
+        (tab.type === "front_page" || tab.type === "watched" || tab.type === "favorites") &&
         tab.options.searchTerms &&
         tab.options.searchTerms.length
       ) {
@@ -698,8 +620,7 @@ export class SidebarTabController extends BaseController {
             tintColor: fixedTabSymbolTitle[tab.type].color,
           },
           label: {
-            styledText: _mapSearchTermsToRow(tab.options.searchTerms, 0).label
-              .styledText,
+            styledText: _mapSearchTermsToRow(tab.options.searchTerms, 0).label.styledText,
           },
           leftColumn: {
             hidden: id !== statusManager.currentTabId,

@@ -10,20 +10,8 @@ import { SidebarHistoryController } from "./controllers/sidebar-history-controll
 import { configManager } from "./utils/config";
 import { api } from "./utils/api";
 import { appLog, getLatestVersion } from "./utils/tools";
-import {
-  EHIgneousExpiredError,
-  EHIPBannedError,
-  EHMyTags,
-  EHSearchTerm,
-  ParsedCookie,
-} from "ehentai-parser";
-import {
-  aiTranslationPath,
-  imagePath,
-  thumbnailPath,
-  originalImagePath,
-  galleryInfoPath,
-} from "./utils/glv";
+import { EHIgneousExpiredError, EHIPBannedError, EHMyTags, EHSearchTerm, ParsedCookie } from "ehentai-parser";
+import { aiTranslationPath, imagePath, thumbnailPath, originalImagePath, galleryInfoPath } from "./utils/glv";
 import { globalTimer } from "./utils/timer";
 import { StatusTabOptions } from "./types";
 
@@ -72,22 +60,16 @@ async function init() {
       doubleTapped: (controller, index) => {
         switch (index) {
           case 0:
-            homepageController.cviews.list.matrix.view.scrollToOffset(
-              $point(0, 0)
-            );
+            homepageController.cviews.list.matrix.view.scrollToOffset($point(0, 0));
             break;
           case 1:
-            archiveController.cviews.list.matrix.view.scrollToOffset(
-              $point(0, 0)
-            );
+            archiveController.cviews.list.matrix.view.scrollToOffset($point(0, 0));
             break;
           case 2:
             tagManagerController.cviews.list.view.scrollToOffset($point(0, 0));
             break;
           case 3:
-            moreViewController.cviews.list.matrix.view.scrollToOffset(
-              $point(0, 0)
-            );
+            moreViewController.cviews.list.matrix.view.scrollToOffset($point(0, 0));
             break;
           default:
             break;
@@ -164,10 +146,7 @@ async function init() {
   let ehMyTags: EHMyTags | undefined;
   try {
     if (configManager.syncMyTags) {
-      [config, ehMyTags] = await Promise.all([
-        api.getConfig(),
-        api.getMyTags(),
-      ]);
+      [config, ehMyTags] = await Promise.all([api.getConfig(), api.getMyTags()]);
       // 如果没有启用我的标签，就启用
       if (!ehMyTags.enabled) {
         ehMyTags = await api.enableTagset({ tagset: 1 });
@@ -306,8 +285,7 @@ async function init() {
       ]);
     }
     // 更新收藏页排序
-    configManager.favoritesOrderMethod =
-      config.fs === "0" ? "published_time" : "favorited_time";
+    configManager.favoritesOrderMethod = config.fs === "0" ? "published_time" : "favorited_time";
   }
   if (ehMyTags) {
     configManager.updateAllMarkedTags(ehMyTags.tags);
@@ -317,24 +295,14 @@ async function init() {
   if (homepageController.cviews.list.footerText === "请等待配置同步……") {
     homepageController.cviews.list.footerText = "";
     // 自动加载
-    if (
-      configManager.startPageType === "last_access" &&
-      configManager.lastAccessPageJson
-    ) {
-      const options = JSON.parse(
-        configManager.lastAccessPageJson
-      ) as StatusTabOptions;
+    if (configManager.startPageType === "last_access" && configManager.lastAccessPageJson) {
+      const options = JSON.parse(configManager.lastAccessPageJson) as StatusTabOptions;
       await homepageController.triggerLoad(options);
-    } else if (
-      configManager.startPageType === "specific_searchterms" &&
-      configManager.specificSearchtermsOnStart
-    ) {
+    } else if (configManager.startPageType === "specific_searchterms" && configManager.specificSearchtermsOnStart) {
       await homepageController.triggerLoad({
         type: "front_page",
         options: {
-          searchTerms: JSON.parse(
-            configManager.specificSearchtermsOnStart
-          ) as EHSearchTerm[],
+          searchTerms: JSON.parse(configManager.specificSearchtermsOnStart) as EHSearchTerm[],
         },
       });
     } else if (configManager.startPageType === "specific_page") {

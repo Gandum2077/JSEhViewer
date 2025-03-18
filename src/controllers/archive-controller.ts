@@ -1,10 +1,4 @@
-import {
-  BaseController,
-  CustomNavigationBar,
-  SymbolButton,
-  router,
-  SplitViewController,
-} from "jsbox-cview";
+import { BaseController, CustomNavigationBar, SymbolButton, router, SplitViewController } from "jsbox-cview";
 import { GalleryController } from "./gallery-controller";
 import { getJumpPageDialog } from "../components/seekpage-dialog";
 import { configManager } from "../utils/config";
@@ -53,10 +47,7 @@ export class ArchiveController extends BaseController {
     });
     const listLayoutButton = new SymbolButton({
       props: {
-        symbol:
-          configManager.archiveManagerLayoutMode === "normal"
-            ? "square.grid.2x2"
-            : "list.bullet",
+        symbol: configManager.archiveManagerLayoutMode === "normal" ? "square.grid.2x2" : "list.bullet",
         menu: {
           title: "布局方式",
           pullDown: true,
@@ -99,9 +90,7 @@ export class ArchiveController extends BaseController {
             archiveType: tab.options.type ?? "all",
             archiveManagerOrderMethod: configManager.archiveManagerOrderMethod,
             count: {
-              loaded: tab.pages
-                .map((n) => n.items.length)
-                .reduce((prev, curr) => prev + curr),
+              loaded: tab.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
               all: tab.pages[tab.pages.length - 1].all_count,
             },
           },
@@ -111,13 +100,9 @@ export class ArchiveController extends BaseController {
           reloadFlag = true;
           tab.options.type = values.archiveType;
         }
-        if (
-          values.archiveManagerOrderMethod !==
-          configManager.archiveManagerOrderMethod
-        ) {
+        if (values.archiveManagerOrderMethod !== configManager.archiveManagerOrderMethod) {
           reloadFlag = true;
-          configManager.archiveManagerOrderMethod =
-            values.archiveManagerOrderMethod;
+          configManager.archiveManagerOrderMethod = values.archiveManagerOrderMethod;
           tab.options.sort = values.archiveManagerOrderMethod;
         }
         if (reloadFlag) this.reload();
@@ -130,9 +115,7 @@ export class ArchiveController extends BaseController {
           {
             symbol: "sidebar.left",
             handler: () => {
-              (
-                router.get("splitViewController") as SplitViewController
-              ).sideBarShown = true;
+              (router.get("splitViewController") as SplitViewController).sideBarShown = true;
             },
           },
           {
@@ -177,9 +160,7 @@ export class ArchiveController extends BaseController {
             {
               type: "archive",
               options: {
-                searchTerms: (
-                  statusManager.tabsMap.get("archive") as ArchiveTab
-                ).options.searchTerms,
+                searchTerms: (statusManager.tabsMap.get("archive") as ArchiveTab).options.searchTerms,
                 page: 0,
                 pageSize: 50,
                 sort: configManager.archiveManagerOrderMethod,
@@ -206,9 +187,7 @@ export class ArchiveController extends BaseController {
         });
       },
       didReachBottom: async () => {
-        const tab = (await statusManager.loadMoreTab("archive")) as
-          | ArchiveTab
-          | undefined;
+        const tab = (await statusManager.loadMoreTab("archive")) as ArchiveTab | undefined;
         if (!tab) return;
         downloaderManager.getTabDownloader("archive")!.clear();
         downloaderManager.getTabDownloader("archive")!.add(
@@ -274,10 +253,7 @@ export class ArchiveController extends BaseController {
     this.cviews.list.items = [];
     if (options.options.searchTerms && options.options.searchTerms.length) {
       const fsearch = buildSortedFsearch(options.options.searchTerms);
-      configManager.addOrUpdateSearchHistory(
-        fsearch,
-        options.options.searchTerms
-      );
+      configManager.addOrUpdateSearchHistory(fsearch, options.options.searchTerms);
       configManager.updateTagAccessCount(options.options.searchTerms);
       this.cviews.searchBar.searchTerms = options.options.searchTerms;
     } else {
@@ -289,18 +265,10 @@ export class ArchiveController extends BaseController {
     const tab = statusManager.tabsMap.get("archive") as ArchiveTab;
     if (!tab) return;
     const type = tab.options.type ?? "all";
-    this.cviews.titleView.title =
-      type === "all"
-        ? "全部记录"
-        : type === "downloaded"
-        ? "下载内容"
-        : "稍后阅读";
+    this.cviews.titleView.title = type === "all" ? "全部记录" : type === "downloaded" ? "下载内容" : "稍后阅读";
     const items = tab.pages.map((page) => page.items).flat();
     this.cviews.list.items = items;
-    if (
-      (tab.options.page + 1) * tab.options.pageSize >=
-      tab.pages[0].all_count
-    ) {
+    if ((tab.options.page + 1) * tab.options.pageSize >= tab.pages[0].all_count) {
       this.cviews.list.footerText = "没有更多了";
     } else {
       this.cviews.list.footerText = "上拉加载更多";

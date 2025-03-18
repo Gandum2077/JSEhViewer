@@ -38,10 +38,7 @@ import { appLog, isNameMatchGid } from "./tools";
 // 定义一个有timeout的下载函数，通过Promise.race实现
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
   const timeoutPromise = new Promise<T>((_, reject) =>
-    setTimeout(
-      () => reject(new WebDAVError({ message: "请求超时", type: "timeout" })),
-      timeoutMs
-    )
+    setTimeout(() => reject(new WebDAVError({ message: "请求超时", type: "timeout" })), timeoutMs)
   );
   return Promise.race([promise, timeoutPromise]);
 }
@@ -51,11 +48,7 @@ async function _download(url: string, header: Record<string, any>) {
   return resp;
 }
 
-async function downloadWithTimeout(
-  url: string,
-  header: Record<string, any>,
-  timeout: number
-) {
+async function downloadWithTimeout(url: string, header: Record<string, any>, timeout: number) {
   const resp = await withTimeout(_download(url, header), timeout * 1000);
   return resp;
 }
@@ -104,17 +97,7 @@ function __URLEncode(path: string, isdir: boolean) {
   return isdir ? r + "/" : r;
 }
 
-function __concatURL({
-  host,
-  port,
-  https,
-  path,
-}: {
-  host: string;
-  port?: number;
-  https: boolean;
-  path?: string;
-}) {
+function __concatURL({ host, port, https, path }: { host: string; port?: number; https: boolean; path?: string }) {
   let url = `${https ? "https" : "http"}://${host}`;
   if (port) url += ":" + port;
   if (path) {
@@ -130,9 +113,7 @@ export class WebDAVClient {
   private _baseURL: string;
   constructor(service: Omit<WebDAVService, "id" | "name">) {
     if (service.username && service.password) {
-      this._auth =
-        "Basic " +
-        $text.base64Encode(service.username + ":" + service.password);
+      this._auth = "Basic " + $text.base64Encode(service.username + ":" + service.password);
     }
     this._baseURL = __concatURL(service);
   }
@@ -217,9 +198,7 @@ export class WebDAVClient {
         const isdir = el.find("D\\:collection").length > 0;
         const isfile = !isdir;
         const size = parseInt(el.find("D\\:getcontentlength").text() || "0");
-        const lastModifiedDate = new Date(
-          el.find("D\\:getlastmodified").text()
-        );
+        const lastModifiedDate = new Date(el.find("D\\:getlastmodified").text());
         const createdDate = new Date(el.find("D\\:creationdate").text());
         const contentType = el.find("D\\:getcontenttype").text() || undefined;
         files.push({
@@ -257,11 +236,7 @@ export class WebDAVClient {
         const index = name.split(".")[0].split("_")[0];
         if (!index.match(/^[0-9]+$/)) return false;
         const ext = name.split(".").at(-1);
-        if (
-          !ext ||
-          !["png", "jpg", "gif", "jpeg", "webp"].includes(ext.toLowerCase())
-        )
-          return false;
+        if (!ext || !["png", "jpg", "gif", "jpeg", "webp"].includes(ext.toLowerCase())) return false;
         return true;
       })
       .sort((a, b) => {
@@ -304,11 +279,7 @@ export class WebDAVClient {
    * @param contentType 文件类型
    * @returns {boolean} 是否成功上传
    */
-  async upload(
-    path: string,
-    data: NSData,
-    contentType: string
-  ): Promise<boolean> {
+  async upload(path: string, data: NSData, contentType: string): Promise<boolean> {
     const resp = await this._request({
       method: "PUT",
       path: path,
@@ -547,21 +518,14 @@ export class WebDAVClient {
         type: "http",
         statusCode: 423,
       });
-    } else if (
-      resp.response.statusCode >= 400 &&
-      resp.response.statusCode < 500 &&
-      resp.response.statusCode !== 404
-    ) {
+    } else if (resp.response.statusCode >= 400 && resp.response.statusCode < 500 && resp.response.statusCode !== 404) {
       // 排除404，因为404在某些情况下是正常的错误，不需要抛出异常
       throw new WebDAVError({
         statusCode: resp.response.statusCode,
         message: `${resp.response.statusCode}`,
         type: "http",
       });
-    } else if (
-      resp.response.statusCode >= 500 &&
-      resp.response.statusCode < 600
-    ) {
+    } else if (resp.response.statusCode >= 500 && resp.response.statusCode < 600) {
       throw new WebDAVError({
         message: `服务器错误`,
         type: "http",

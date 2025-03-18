@@ -104,9 +104,7 @@ class ProgressArc extends Base<UIView, UiTypes.ViewOptions> {
             props: {
               id: this.id + "progress",
               symbol: "circle",
-              tintColor: this._paused
-                ? downloadButtonSymbolColors.paused
-                : downloadButtonSymbolColors.downloading,
+              tintColor: this._paused ? downloadButtonSymbolColors.paused : downloadButtonSymbolColors.downloading,
               contentMode: 2,
             },
             layout: $layout.fill,
@@ -168,10 +166,7 @@ export class DownloadButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
   }: {
     status: "pending" | "paused" | "downloading" | "finished";
     progress: number;
-    handler: (
-      sender: DownloadButton,
-      status: "pending" | "paused" | "downloading"
-    ) => void;
+    handler: (sender: DownloadButton, status: "pending" | "paused" | "downloading") => void;
   }) {
     super();
     this._status = status;
@@ -210,8 +205,7 @@ export class DownloadButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
                   tintColor: downloadButtonSymbolColors[this._status],
                   symbol: downloadButtonSymbols[this._status],
                   contentMode: 2,
-                  hidden:
-                    this._status !== "finished" && this._status !== "pending",
+                  hidden: this._status !== "finished" && this._status !== "pending",
                 },
                 layout: $layout.fill,
               },
@@ -225,8 +219,7 @@ export class DownloadButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
               font: $font(10),
               textColor: $color("primaryText"),
               align: $align.center,
-              hidden:
-                this._status !== "downloading" && this._status !== "paused",
+              hidden: this._status !== "downloading" && this._status !== "paused",
               text: _calDisplayProgress(this._progress),
             },
             layout: (make, view) => {
@@ -273,14 +266,10 @@ export class DownloadButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
       $(this.id + "icon").hidden = false;
     }
     ($(this.id + "icon") as UIImageView).symbol = downloadButtonSymbols[value];
-    ($(this.id + "icon") as UIImageView).tintColor =
-      downloadButtonSymbolColors[value];
+    ($(this.id + "icon") as UIImageView).tintColor = downloadButtonSymbolColors[value];
     ($(this.id + "title") as UILabelView).text = downloadButtonTitles[value];
-    ($(this.id + "progress") as UILabelView).hidden =
-      value !== "downloading" && this._status !== "paused";
-    ($(this.id + "progress") as UILabelView).text = _calDisplayProgress(
-      this._progress
-    );
+    ($(this.id + "progress") as UILabelView).hidden = value !== "downloading" && this._status !== "paused";
+    ($(this.id + "progress") as UILabelView).text = _calDisplayProgress(this._progress);
   }
 
   get progress() {
@@ -289,9 +278,7 @@ export class DownloadButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
 
   set progress(value: number) {
     this._progress = value;
-    ($(this.id + "progress") as UILabelView).text = _calDisplayProgress(
-      this._progress
-    );
+    ($(this.id + "progress") as UILabelView).text = _calDisplayProgress(this._progress);
     this._progressArc.progress = value;
     if (value === 1) {
       this.status = "finished";

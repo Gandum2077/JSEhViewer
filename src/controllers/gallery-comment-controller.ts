@@ -1,11 +1,4 @@
-import {
-  BaseController,
-  Web,
-  Button,
-  setLayer,
-  layerCommonOptions,
-  textDialog,
-} from "jsbox-cview";
+import { BaseController, Web, Button, setLayer, layerCommonOptions, textDialog } from "jsbox-cview";
 import { EHGallery } from "ehentai-parser";
 import { GalleryController } from "./gallery-controller";
 import { api } from "../utils/api";
@@ -95,9 +88,7 @@ export class GalleryCommentController extends BaseController {
         showsProgress: false,
         inlineMedia: false,
         transparent: true,
-        script: `document.documentElement.setAttribute('data-theme', '${
-          $device.isDarkMode ? "dark" : "light"
-        }');`,
+        script: `document.documentElement.setAttribute('data-theme', '${$device.isDarkMode ? "dark" : "light"}');`,
       },
       layout: $layout.fill,
       events: {
@@ -130,10 +121,7 @@ export class GalleryCommentController extends BaseController {
               });
               return false;
             } else {
-              const galleryController = new GalleryController(
-                parseInt(r[1]),
-                r[2]
-              );
+              const galleryController = new GalleryController(parseInt(r[1]), r[2]);
               galleryController.uipush({
                 navBarHidden: true,
                 statusBarStyle: 0,
@@ -144,12 +132,7 @@ export class GalleryCommentController extends BaseController {
           return true;
         },
         handleApi: async (message: {
-          action:
-            | "showVoteDetails"
-            | "editComment"
-            | "voteComment"
-            | "sortByScore"
-            | "sortByTime";
+          action: "showVoteDetails" | "editComment" | "voteComment" | "sortByScore" | "sortByTime";
           info: any;
         }) => {
           if (!this._infos) return;
@@ -160,18 +143,14 @@ export class GalleryCommentController extends BaseController {
           switch (message.action) {
             case "showVoteDetails": {
               const { comment_id } = message.info as { comment_id: string };
-              const comment = this._infos.comments.find(
-                (comment) => comment.comment_id === parseInt(comment_id)
-              );
+              const comment = this._infos.comments.find((comment) => comment.comment_id === parseInt(comment_id));
               if (comment && comment.votes) {
                 const base = comment.votes.base;
-                const baseStr =
-                  base === 0 ? "0" : base > 0 ? `+${base}` : `${base}`;
+                const baseStr = base === 0 ? "0" : base > 0 ? `+${base}` : `${base}`;
                 const votersStr = comment.votes.voters
                   .map((voter) => {
                     const score = voter.score;
-                    const scoreStr =
-                      score === 0 ? "0" : score > 0 ? `+${score}` : `${score}`;
+                    const scoreStr = score === 0 ? "0" : score > 0 ? `+${score}` : `${score}`;
                     return `${voter.voter} ${scoreStr}`;
                   })
                   .join("\n");
@@ -180,12 +159,7 @@ export class GalleryCommentController extends BaseController {
                   : "";
                 $ui.alert({
                   title: "分数详情",
-                  message:
-                    "Base " +
-                    baseStr +
-                    (votersStr && "\n") +
-                    votersStr +
-                    otherVoters,
+                  message: "Base " + baseStr + (votersStr && "\n") + votersStr + otherVoters,
                 });
               }
               break;
@@ -215,19 +189,10 @@ export class GalleryCommentController extends BaseController {
                   });
                   return;
                 }
-                const infos = await api.postEditComment(
-                  this._infos.gid,
-                  this._infos.token,
-                  comment_id,
-                  newText
-                );
+                const infos = await api.postEditComment(this._infos.gid, this._infos.token, comment_id, newText);
                 const newComment =
-                  infos.comments.find(
-                    (comment) => comment.comment_id === comment_id
-                  )?.comment_div || newText;
-                this._infos.comments.find(
-                  (comment) => comment.comment_id === comment_id
-                )!.comment_div = newComment;
+                  infos.comments.find((comment) => comment.comment_id === comment_id)?.comment_div || newText;
+                this._infos.comments.find((comment) => comment.comment_id === comment_id)!.comment_div = newComment;
                 this._refreshComments();
                 this._trySavingInfos();
               } catch (e) {
@@ -271,12 +236,9 @@ export class GalleryCommentController extends BaseController {
                 return;
               }
               this._isRequestInProgress = false;
-              const comment = this._infos.comments.find(
-                (comment) => comment.comment_id === comment_id
-              );
+              const comment = this._infos.comments.find((comment) => comment.comment_id === comment_id);
               comment!.score = result.comment_score;
-              comment!.my_vote =
-                result.comment_vote === 0 ? undefined : result.comment_vote;
+              comment!.my_vote = result.comment_vote === 0 ? undefined : result.comment_vote;
               this._trySavingInfos();
               webview.view.notify({
                 event: "endVoteRequest",

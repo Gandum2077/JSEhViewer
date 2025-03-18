@@ -106,14 +106,7 @@ export type ArchiveSearchOptions = {
   minimumRating?: number;
 };
 
-export type StatusTabType =
-  | "front_page"
-  | "watched"
-  | "popular"
-  | "favorites"
-  | "toplist"
-  | "upload"
-  | "archive";
+export type StatusTabType = "front_page" | "watched" | "popular" | "favorites" | "toplist" | "upload" | "archive";
 
 export type StatusTabOptions =
   | FrontPageTabOptions

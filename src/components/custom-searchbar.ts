@@ -14,10 +14,7 @@ const searchBarBgcolor = $color("#DFE1E2", "tertiarySurface");
 export class CustomSearchBar extends Base<UIView, UiTypes.ViewOptions> {
   private _mappedData: { text: string; width: number; color: UIColor }[] = [];
   _defineView: () => UiTypes.ViewOptions;
-  constructor(options: {
-    props?: UiTypes.BaseViewProps;
-    events?: UiTypes.BaseViewEvents;
-  }) {
+  constructor(options: { props?: UiTypes.BaseViewProps; events?: UiTypes.BaseViewEvents }) {
     super();
     this._defineView = () => {
       return {
@@ -165,19 +162,15 @@ export class CustomSearchBar extends Base<UIView, UiTypes.ViewOptions> {
           width: 10000,
           font: $font(14),
         }).width + 10;
-      const color = searchTerm.namespace
-        ? namespaceColor[searchTerm.namespace]
-        : namespaceColor.temp;
+      const color = searchTerm.namespace ? namespaceColor[searchTerm.namespace] : namespaceColor.temp;
       return { text, width, color };
     });
 
-    (this.view.get("matrix") as UIMatrixView).data = this._mappedData.map(
-      (item) => ({
-        label: {
-          text: item.text,
-          bgcolor: item.color,
-        },
-      })
-    );
+    (this.view.get("matrix") as UIMatrixView).data = this._mappedData.map((item) => ({
+      label: {
+        text: item.text,
+        bgcolor: item.color,
+      },
+    }));
   }
 }

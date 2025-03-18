@@ -1,21 +1,11 @@
-import {
-  BaseController,
-  CustomNavigationBar,
-  DynamicPreferenceListView,
-  PreferenceSection,
-  router,
-} from "jsbox-cview";
+import { BaseController, CustomNavigationBar, DynamicPreferenceListView, PreferenceSection, router } from "jsbox-cview";
 import { configManager } from "../utils/config";
 import { appLog, toLocalTimeString } from "../utils/tools";
 import { ArchiveController } from "./archive-controller";
 import { statusManager } from "../utils/status";
 import { api } from "../utils/api";
 import { HomepageController } from "./homepage-controller";
-import {
-  assembleSearchTerms,
-  EHSearchTerm,
-  parseFsearch,
-} from "ehentai-parser";
+import { assembleSearchTerms, EHSearchTerm, parseFsearch } from "ehentai-parser";
 import { ArchiveTab } from "../types";
 
 export class GeneralSettingsController extends BaseController {
@@ -114,12 +104,8 @@ export class GeneralSettingsController extends BaseController {
               ? configManager.specificPageTypeOnStart
               : pageTypes[values.specificPageTypeOnStart];
           const specificSearchtermsOnStart =
-            values.specificSearchtermsOnStart ??
-            configManager.specificSearchtermsOnStart;
-          const favoritesOrderMethod =
-            values.favoritesOrderMethod === 0
-              ? "published_time"
-              : "favorited_time";
+            values.specificSearchtermsOnStart ?? configManager.specificSearchtermsOnStart;
+          const favoritesOrderMethod = values.favoritesOrderMethod === 0 ? "published_time" : "favorited_time";
           const archiveManagerOrderMethod =
             values.archiveManagerOrderMethod === 0
               ? "last_access_time"
@@ -130,11 +116,7 @@ export class GeneralSettingsController extends BaseController {
           const defaultFavcat = values.defaultFavcat;
           const autoCacheWhenReading = values.autoCacheWhenReading;
           const pageTurnMethod =
-            values.pageTurnMethod === 0
-              ? "click_and_swipe"
-              : values.pageTurnMethod === 1
-              ? "click"
-              : "swipe";
+            values.pageTurnMethod === 0 ? "click_and_swipe" : values.pageTurnMethod === 1 ? "click" : "swipe";
           const autoClearCache = values.autoClearCache;
 
           // 再比较configManager中的值和values中的值是否相同，如果不同，则更新configManager中的值
@@ -144,16 +126,11 @@ export class GeneralSettingsController extends BaseController {
             this.cviews.list.sections = this.getCurrentSections();
           }
 
-          if (
-            specificPageTypeOnStart !== configManager.specificPageTypeOnStart
-          ) {
+          if (specificPageTypeOnStart !== configManager.specificPageTypeOnStart) {
             configManager.specificPageTypeOnStart = specificPageTypeOnStart;
           }
 
-          if (
-            specificSearchtermsOnStart !==
-            configManager.specificSearchtermsOnStart
-          ) {
+          if (specificSearchtermsOnStart !== configManager.specificSearchtermsOnStart) {
             let sts: EHSearchTerm[] | undefined;
             try {
               sts = this.parse(specificSearchtermsOnStart);
@@ -180,9 +157,7 @@ export class GeneralSettingsController extends BaseController {
                 // 如果当前页面是收藏页，则需要刷新当前页面
                 const tab = statusManager.currentTab;
                 if (tab.type === "favorites") {
-                  (router.get("homepageController") as HomepageController)
-                    .reload()
-                    .then();
+                  (router.get("homepageController") as HomepageController).reload().then();
                 }
               })
               .catch(() => {
@@ -190,17 +165,12 @@ export class GeneralSettingsController extends BaseController {
                 this.cviews.list.sections = this.getCurrentSections();
               });
           }
-          if (
-            archiveManagerOrderMethod !==
-            configManager.archiveManagerOrderMethod
-          ) {
+          if (archiveManagerOrderMethod !== configManager.archiveManagerOrderMethod) {
             configManager.archiveManagerOrderMethod = archiveManagerOrderMethod;
             // 刷新存档页
             const tab = statusManager.tabsMap.get("archive") as ArchiveTab;
             tab.options.sort = archiveManagerOrderMethod;
-            (router.get("archiveController") as ArchiveController)
-              .reload()
-              .then();
+            (router.get("archiveController") as ArchiveController).reload().then();
           }
           if (alwaysShowWebDAVWidget !== configManager.alwaysShowWebDAVWidget) {
             configManager.alwaysShowWebDAVWidget = alwaysShowWebDAVWidget;
@@ -229,8 +199,7 @@ export class GeneralSettingsController extends BaseController {
   getCurrentSections(): PreferenceSection[] {
     const sections: PreferenceSection[] = [
       {
-        title:
-          "账号(本应用不记录您的账号密码，只存储Cookie，如需修改账号设置，请重新登录)",
+        title: "账号(本应用不记录您的账号密码，只存储Cookie，如需修改账号设置，请重新登录)",
         rows: [
           {
             type: "info",
@@ -281,11 +250,7 @@ export class GeneralSettingsController extends BaseController {
             value: this._fetchImageLimitAndFundsFailed
               ? "获取失败"
               : this._imageLimit
-              ? `${
-                  this._imageLimit.unlocked
-                    ? this._imageLimit.used + " / " + this._imageLimit.total
-                    : "未解锁"
-                }`
+              ? `${this._imageLimit.unlocked ? this._imageLimit.used + " / " + this._imageLimit.total : "未解锁"}`
               : "正在获取…",
           },
           {
@@ -313,9 +278,7 @@ export class GeneralSettingsController extends BaseController {
         rows: [
           {
             type: "action",
-            title: this._isUpdatingTranslationData
-              ? "正在更新中..."
-              : "更新标签翻译",
+            title: this._isUpdatingTranslationData ? "正在更新中..." : "更新标签翻译",
             value: () => {
               if (this._isUpdatingTranslationData) {
                 $ui.warning("正在更新中，请稍后再试");
@@ -382,8 +345,7 @@ export class GeneralSettingsController extends BaseController {
             title: "收藏页排序",
             items: ["发布时间", "收藏时间"],
             key: "favoritesOrderMethod",
-            value:
-              configManager.favoritesOrderMethod === "published_time" ? 0 : 1,
+            value: configManager.favoritesOrderMethod === "published_time" ? 0 : 1,
           },
           {
             type: "list",
@@ -393,8 +355,7 @@ export class GeneralSettingsController extends BaseController {
             value:
               configManager.archiveManagerOrderMethod === "last_access_time"
                 ? 0
-                : configManager.archiveManagerOrderMethod ===
-                  "first_access_time"
+                : configManager.archiveManagerOrderMethod === "first_access_time"
                 ? 1
                 : 2,
           },
@@ -407,7 +368,7 @@ export class GeneralSettingsController extends BaseController {
             type: "boolean",
             title: "始终显示WebDAV组件",
             key: "alwaysShowWebDAVWidget",
-            value: configManager.alwaysShowWebDAVWidget
+            value: configManager.alwaysShowWebDAVWidget,
           },
           {
             type: "list",
@@ -428,11 +389,7 @@ export class GeneralSettingsController extends BaseController {
             items: ["点击和滑动", "仅点击", "仅滑动"],
             key: "pageTurnMethod",
             value:
-              configManager.pageTurnMethod === "click_and_swipe"
-                ? 0
-                : configManager.pageTurnMethod === "click"
-                ? 1
-                : 2,
+              configManager.pageTurnMethod === "click_and_swipe" ? 0 : configManager.pageTurnMethod === "click" ? 1 : 2,
           },
         ],
       },
@@ -465,9 +422,7 @@ export class GeneralSettingsController extends BaseController {
                 items: ["一个月前", "三个月前", "六个月前", "一年前"],
                 handler: (title, index) => {
                   configManager.clearOldReadRecords(index);
-                  (
-                    router.get("archiveController") as ArchiveController
-                  ).reload();
+                  (router.get("archiveController") as ArchiveController).reload();
                 },
               });
             },
@@ -501,8 +456,7 @@ export class GeneralSettingsController extends BaseController {
             value: () => {
               $ui.alert({
                 title: "全部删除",
-                message:
-                  "此操作会删除所有的缓存和下载内容，然后重启本应用，是否继续？",
+                message: "此操作会删除所有的缓存和下载内容，然后重启本应用，是否继续？",
                 actions: [
                   {
                     title: "取消",
@@ -521,11 +475,7 @@ export class GeneralSettingsController extends BaseController {
         ],
       },
     ];
-    if (
-      this._fetchImageLimitAndFundsFailed ||
-      this._funds ||
-      this._imageLimit
-    ) {
+    if (this._fetchImageLimitAndFundsFailed || this._funds || this._imageLimit) {
       sections[1].rows.push({
         type: "action",
         title: "刷新",
@@ -545,11 +495,7 @@ export class GeneralSettingsController extends BaseController {
         },
       });
     }
-    if (
-      !this._fetchImageLimitAndFundsFailed &&
-      this._imageLimit &&
-      !this._imageLimit.unlocked
-    ) {
+    if (!this._fetchImageLimitAndFundsFailed && this._imageLimit && !this._imageLimit.unlocked) {
       sections[1].rows.push({
         type: "action",
         title: "解锁配额(花费 20,000 GP)",
@@ -578,9 +524,7 @@ export class GeneralSettingsController extends BaseController {
     ) {
       sections[1].rows.push({
         type: "action",
-        title: `重置配额(花费 ${this._imageLimit.restCost.toLocaleString(
-          "en-US"
-        )} GP)`,
+        title: `重置配额(花费 ${this._imageLimit.restCost.toLocaleString("en-US")} GP)`,
         value: () => {
           this._fetchImageLimitAndFundsFailed = false;
           this._imageLimit = undefined;
@@ -618,9 +562,7 @@ export class GeneralSettingsController extends BaseController {
         title: "指定页面",
         key: "specificPageTypeOnStart",
         items: pageTypes.map(([, title]) => title),
-        value: pageTypes.findIndex(
-          ([key]) => key === configManager.specificPageTypeOnStart
-        ),
+        value: pageTypes.findIndex(([key]) => key === configManager.specificPageTypeOnStart),
       });
     } else if (configManager.startPageType === "specific_searchterms") {
       sections[3].rows.push({
@@ -629,19 +571,14 @@ export class GeneralSettingsController extends BaseController {
         key: "specificSearchtermsOnStart",
         value:
           configManager.specificSearchtermsOnStart &&
-          assembleSearchTerms(
-            JSON.parse(configManager.specificSearchtermsOnStart)
-          ),
+          assembleSearchTerms(JSON.parse(configManager.specificSearchtermsOnStart)),
       });
     }
     return sections;
   }
 
   async updateImageLimitAndFunds() {
-    const [imageLimit, funds] = await Promise.all([
-      api.getImageLimits(),
-      api.getCreditsAndGpCount()
-    ])
+    const [imageLimit, funds] = await Promise.all([api.getImageLimits(), api.getCreditsAndGpCount()]);
     this._imageLimit = imageLimit;
     this._funds = funds;
   }
@@ -662,15 +599,7 @@ export class GeneralSettingsController extends BaseController {
 
   parse(fsearch: string) {
     const searchTerms = fsearch ? parseFsearch(fsearch) : [];
-    if (
-      searchTerms.some(
-        (st) =>
-          st.qualifier &&
-          st.tilde &&
-          st.qualifier !== "tag" &&
-          st.qualifier !== "weak"
-      )
-    ) {
+    if (searchTerms.some((st) => st.qualifier && st.tilde && st.qualifier !== "tag" && st.qualifier !== "weak")) {
       throw new Error("~符号只能用于标签，其他修饰词均不支持~符号");
     }
     return searchTerms;

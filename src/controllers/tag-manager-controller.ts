@@ -79,13 +79,8 @@ function mapData(searchPhrase: string, onlyShowMarkred: boolean) {
   }
   // 然后按照顺序添加默认分组
   for (const namespace of tagNamespaces) {
-    const tags = new Map(
-      translationList
-        .filter((i) => i.namespace === namespace)
-        .map((i) => [i.name, i.translation])
-    );
-    const markedTags =
-      markedTagDict.get(namespace) || (new Map() as Map<string, MarkedTag>);
+    const tags = new Map(translationList.filter((i) => i.namespace === namespace).map((i) => [i.name, i.translation]));
+    const markedTags = markedTagDict.get(namespace) || (new Map() as Map<string, MarkedTag>);
     // 合并tags和markedTags, 以tags为基准，如果markedTags中有tags中没有的标签，要显示出来
     for (const [name, marked] of markedTags) {
       if (!tags.has(name)) {
@@ -106,13 +101,7 @@ function mapData(searchPhrase: string, onlyShowMarkred: boolean) {
         const marked = markedTags.get(name);
         const watched = marked?.watched;
         const hidden = marked?.hidden;
-        const style = watched
-          ? TagType.watched
-          : hidden
-          ? TagType.hidden
-          : marked
-          ? TagType.marked
-          : TagType.unmarked;
+        const style = watched ? TagType.watched : hidden ? TagType.hidden : marked ? TagType.marked : TagType.unmarked;
         return {
           infoButton: { info: { namespace, name }, hidden: false },
           symbol: {
@@ -168,21 +157,14 @@ export class TagManagerController extends BaseController {
 
     const markedButton = new SymbolButton({
       props: {
-        symbol: configManager.tagManagerOnlyShowBookmarked
-          ? "bookmark.fill"
-          : "bookmark",
-        tintColor: configManager.tagManagerOnlyShowBookmarked
-          ? $color("orange")
-          : $color("primaryText"),
+        symbol: configManager.tagManagerOnlyShowBookmarked ? "bookmark.fill" : "bookmark",
+        tintColor: configManager.tagManagerOnlyShowBookmarked ? $color("orange") : $color("primaryText"),
       },
       layout: $layout.fill,
       events: {
         tapped: (sender) => {
-          configManager.tagManagerOnlyShowBookmarked =
-            !configManager.tagManagerOnlyShowBookmarked;
-          markedButton.symbol = configManager.tagManagerOnlyShowBookmarked
-            ? "bookmark.fill"
-            : "bookmark";
+          configManager.tagManagerOnlyShowBookmarked = !configManager.tagManagerOnlyShowBookmarked;
+          markedButton.symbol = configManager.tagManagerOnlyShowBookmarked ? "bookmark.fill" : "bookmark";
           markedButton.tintColor = configManager.tagManagerOnlyShowBookmarked
             ? $color("orange")
             : $color("primaryText");
@@ -207,19 +189,11 @@ export class TagManagerController extends BaseController {
               "showAll"
             );
             if (options.type === "archive") {
-              (
-                router.get("archiveController") as ArchiveController
-              ).triggerLoad(options);
-              (
-                router.get("primaryViewController") as TabBarController
-              ).index = 1;
+              (router.get("archiveController") as ArchiveController).triggerLoad(options);
+              (router.get("primaryViewController") as TabBarController).index = 1;
             } else {
-              (
-                router.get("homepageController") as HomepageController
-              ).triggerLoad(options);
-              (
-                router.get("primaryViewController") as TabBarController
-              ).index = 0;
+              (router.get("homepageController") as HomepageController).triggerLoad(options);
+              (router.get("primaryViewController") as TabBarController).index = 0;
             }
             this.cviews.createNewSearchButton.tintColor = $color("primaryText");
             this._selectedSearchTerms = [];
@@ -264,9 +238,7 @@ export class TagManagerController extends BaseController {
           {
             symbol: "sidebar.left",
             handler: () => {
-              (
-                router.get("splitViewController") as SplitViewController
-              ).sideBarShown = true;
+              (router.get("splitViewController") as SplitViewController).sideBarShown = true;
             },
           },
           {
@@ -316,9 +288,7 @@ export class TagManagerController extends BaseController {
               title: "立即搜索",
               symbol: "magnifyingglass",
               handler: (sender, indexPath) => {
-                const info = this.cviews.list.view.data[indexPath.section].rows[
-                  indexPath.row
-                ].infoButton.info as
+                const info = this.cviews.list.view.data[indexPath.section].rows[indexPath.row].infoButton.info as
                   | { namespace: TagNamespace; name: string }
                   | { uploader: string };
                 const searchTerm: EHSearchTerm =
@@ -337,23 +307,17 @@ export class TagManagerController extends BaseController {
                         tilde: false,
                         subtract: false,
                       };
-                (
-                  router.get("homepageController") as HomepageController
-                ).triggerLoad({
+                (router.get("homepageController") as HomepageController).triggerLoad({
                   type: "front_page",
                   options: { searchTerms: [searchTerm] },
                 });
-                (
-                  router.get("primaryViewController") as TabBarController
-                ).index = 0;
+                (router.get("primaryViewController") as TabBarController).index = 0;
               },
             },
             {
               title: "新建搜索",
               handler: async (sender, indexPath) => {
-                const info = this.cviews.list.view.data[indexPath.section].rows[
-                  indexPath.row
-                ].infoButton.info as
+                const info = this.cviews.list.view.data[indexPath.section].rows[indexPath.row].infoButton.info as
                   | { namespace: TagNamespace; name: string }
                   | { uploader: string };
                 const searchTerm: EHSearchTerm =
@@ -380,19 +344,11 @@ export class TagManagerController extends BaseController {
                   "showAll"
                 );
                 if (options.type === "archive") {
-                  (
-                    router.get("archiveController") as ArchiveController
-                  ).triggerLoad(options);
-                  (
-                    router.get("primaryViewController") as TabBarController
-                  ).index = 1;
+                  (router.get("archiveController") as ArchiveController).triggerLoad(options);
+                  (router.get("primaryViewController") as TabBarController).index = 1;
                 } else {
-                  (
-                    router.get("homepageController") as HomepageController
-                  ).triggerLoad(options);
-                  (
-                    router.get("primaryViewController") as TabBarController
-                  ).index = 0;
+                  (router.get("homepageController") as HomepageController).triggerLoad(options);
+                  (router.get("primaryViewController") as TabBarController).index = 0;
                 }
               },
             },
@@ -400,28 +356,16 @@ export class TagManagerController extends BaseController {
               title: "添加到“新建搜索”",
               symbol: "plus.magnifyingglass",
               handler: async (sender, indexPath) => {
-                const info = this.cviews.list.view.data[indexPath.section].rows[
-                  indexPath.row
-                ].infoButton.info as
+                const info = this.cviews.list.view.data[indexPath.section].rows[indexPath.row].infoButton.info as
                   | { namespace: TagNamespace; name: string }
                   | { uploader: string };
                 if ("namespace" in info) {
-                  if (
-                    this._selectedSearchTerms.some(
-                      (i) =>
-                        i.namespace === info.namespace && i.term === info.name
-                    )
-                  ) {
+                  if (this._selectedSearchTerms.some((i) => i.namespace === info.namespace && i.term === info.name)) {
                     $ui.toast("已经添加过了");
                     return;
                   }
                 } else {
-                  if (
-                    this._selectedSearchTerms.some(
-                      (i) =>
-                        i.qualifier === "uploader" && i.term === info.uploader
-                    )
-                  ) {
+                  if (this._selectedSearchTerms.some((i) => i.qualifier === "uploader" && i.term === info.uploader)) {
                     $ui.toast("已经添加过了");
                     return;
                   }
@@ -443,8 +387,7 @@ export class TagManagerController extends BaseController {
                         subtract: false,
                       };
                 this._selectedSearchTerms.push(searchTerm);
-                this.cviews.createNewSearchButton.tintColor =
-                  $color("systemLink");
+                this.cviews.createNewSearchButton.tintColor = $color("systemLink");
               },
             },
           ],
@@ -455,8 +398,7 @@ export class TagManagerController extends BaseController {
             color: $color("red"),
             handler: (sender, indexPath) => {
               configManager.deleteMarkedUploader(
-                sender.data[indexPath.section].rows[indexPath.row].infoButton
-                  .info.uploader
+                sender.data[indexPath.section].rows[indexPath.row].infoButton.info.uploader
               );
               this.refresh();
             },
@@ -563,9 +505,7 @@ export class TagManagerController extends BaseController {
           menu.view.index = Math.max(index, 0);
         },
         didSelect: (sender, indexPath) => {
-          const info = this.cviews.list.view.data[indexPath.section].rows[
-            indexPath.row
-          ].infoButton.info as
+          const info = this.cviews.list.view.data[indexPath.section].rows[indexPath.row].infoButton.info as
             | { namespace: TagNamespace; name: string }
             | { uploader: string };
           const searchTerm: EHSearchTerm =
@@ -642,10 +582,7 @@ export class TagManagerController extends BaseController {
   }
 
   refresh() {
-    const { data, menuItems } = mapData(
-      this._searchPhrase,
-      configManager.tagManagerOnlyShowBookmarked
-    );
+    const { data, menuItems } = mapData(this._searchPhrase, configManager.tagManagerOnlyShowBookmarked);
     this._uploadersShown = data.length > 0 && data[0].title === "上传者";
     this.cviews.list.view.data = data;
     this.cviews.menu.view.index = 0;
@@ -655,13 +592,9 @@ export class TagManagerController extends BaseController {
     } else {
       this.cviews.emptyView.view.hidden = true;
     }
-    const ys = this.cviews.list.view.data.map(
-      (i) => i.rows.length * 44 + 57.375
-    );
+    const ys = this.cviews.list.view.data.map((i) => i.rows.length * 44 + 57.375);
     // 重新计算 sectionCumYs: ys 的累加和
-    this._sectionCumYs = ys.map((_, i) =>
-      ys.slice(0, i + 1).reduce((a, b) => a + b)
-    );
+    this._sectionCumYs = ys.map((_, i) => ys.slice(0, i + 1).reduce((a, b) => a + b));
   }
 
   /**
@@ -679,17 +612,9 @@ export class TagManagerController extends BaseController {
       $ui.warning("正在处理上一个请求，请稍后再试");
       return;
     }
-    const translationData = configManager.getTranslationDetailedInfo(
-      namespace,
-      name
-    );
+    const translationData = configManager.getTranslationDetailedInfo(namespace, name);
     const markedTag = configManager.getMarkedTag(namespace, name);
-    const params = await showDetailedInfoView(
-      namespace,
-      name,
-      translationData,
-      markedTag
-    );
+    const params = await showDetailedInfoView(namespace, name, translationData, markedTag);
     // 对比原来的数据, 查看是否有变化
     const { marked, watched, hidden, weight } = params;
     if (
@@ -764,17 +689,9 @@ export class TagManagerController extends BaseController {
    * @param name
    */
   async updateTagDetailsOnLocal(namespace: TagNamespace, name: string) {
-    const translationData = configManager.getTranslationDetailedInfo(
-      namespace,
-      name
-    );
+    const translationData = configManager.getTranslationDetailedInfo(namespace, name);
     const markedTag = configManager.getMarkedTag(namespace, name);
-    const params = await showDetailedInfoView(
-      namespace,
-      name,
-      translationData,
-      markedTag
-    );
+    const params = await showDetailedInfoView(namespace, name, translationData, markedTag);
     // 对比原来的数据, 查看是否有变化
     const { marked, watched, hidden, weight } = params;
     if (

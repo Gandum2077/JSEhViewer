@@ -23,11 +23,7 @@ import {
 } from "../utils/glv";
 import { toSimpleUTCTimeString } from "../utils/tools";
 
-type Items =
-  | EHListExtendedItem[]
-  | EHListCompactItem[]
-  | EHListThumbnailItem[]
-  | EHListMinimalItem[];
+type Items = EHListExtendedItem[] | EHListCompactItem[] | EHListThumbnailItem[] | EHListMinimalItem[];
 
 function ratingToArray(rating: number): number[] {
   const result: number[] = [];
@@ -46,9 +42,7 @@ function ratingToArray(rating: number): number[] {
   return result;
 }
 
-function taglistToStyledText(
-  taglist: EHTagListItem[]
-): UiTypes.StyledTextOptions {
+function taglistToStyledText(taglist: EHTagListItem[]): UiTypes.StyledTextOptions {
   let text = "";
   let rangeLocation = 0;
   const styles: UiTypes.StyledTextOptions["styles"] = [];
@@ -62,11 +56,7 @@ function taglistToStyledText(
       if (markedTag) {
         styles.push({
           range: $range(rangeLocation, translation.length),
-          bgcolor: markedTag.watched
-            ? tagBgcolor.watched
-            : markedTag.hidden
-            ? tagBgcolor.hidden
-            : tagBgcolor.marked,
+          bgcolor: markedTag.watched ? tagBgcolor.watched : markedTag.hidden ? tagBgcolor.hidden : tagBgcolor.marked,
         });
       }
       if (i === tags.length - 1) {
@@ -92,11 +82,7 @@ function taglistToStyledText(
 }
 
 function _mapDataForLargeLayout(
-  item:
-    | EHListExtendedItem
-    | EHListCompactItem
-    | EHListThumbnailItem
-    | EHListMinimalItem
+  item: EHListExtendedItem | EHListCompactItem | EHListThumbnailItem | EHListMinimalItem
 ) {
   const uploaderText = item.type !== "thumbnail" ? item.uploader : "";
   const disowned = item.type !== "thumbnail" ? item.disowned : false;
@@ -114,8 +100,7 @@ function _mapDataForLargeLayout(
       bgcolor: catColor[item.category],
     },
     favorite_large: {
-      bgcolor:
-        item.favcat !== undefined ? favcatColor[item.favcat] : $color("clear"),
+      bgcolor: item.favcat !== undefined ? favcatColor[item.favcat] : $color("clear"),
     },
     delete_line_large: {
       hidden: item.visible,
@@ -125,48 +110,23 @@ function _mapDataForLargeLayout(
     },
     star1_large: {
       tintColor: item.is_my_rating ? ratingColor : $color("orange"),
-      symbol:
-        ratingArray[0] > 0
-          ? ratingArray[0] === 1
-            ? "star.fill"
-            : "star.leadinghalf.filled"
-          : "star",
+      symbol: ratingArray[0] > 0 ? (ratingArray[0] === 1 ? "star.fill" : "star.leadinghalf.filled") : "star",
     },
     star2_large: {
       tintColor: item.is_my_rating ? ratingColor : $color("orange"),
-      symbol:
-        ratingArray[1] > 0
-          ? ratingArray[1] === 1
-            ? "star.fill"
-            : "star.leadinghalf.filled"
-          : "star",
+      symbol: ratingArray[1] > 0 ? (ratingArray[1] === 1 ? "star.fill" : "star.leadinghalf.filled") : "star",
     },
     star3_large: {
       tintColor: item.is_my_rating ? ratingColor : $color("orange"),
-      symbol:
-        ratingArray[2] > 0
-          ? ratingArray[2] === 1
-            ? "star.fill"
-            : "star.leadinghalf.filled"
-          : "star",
+      symbol: ratingArray[2] > 0 ? (ratingArray[2] === 1 ? "star.fill" : "star.leadinghalf.filled") : "star",
     },
     star4_large: {
       tintColor: item.is_my_rating ? ratingColor : $color("orange"),
-      symbol:
-        ratingArray[3] > 0
-          ? ratingArray[3] === 1
-            ? "star.fill"
-            : "star.leadinghalf.filled"
-          : "star",
+      symbol: ratingArray[3] > 0 ? (ratingArray[3] === 1 ? "star.fill" : "star.leadinghalf.filled") : "star",
     },
     star5_large: {
       tintColor: item.is_my_rating ? ratingColor : $color("orange"),
-      symbol:
-        ratingArray[4] > 0
-          ? ratingArray[4] === 1
-            ? "star.fill"
-            : "star.leadinghalf.filled"
-          : "star",
+      symbol: ratingArray[4] > 0 ? (ratingArray[4] === 1 ? "star.fill" : "star.leadinghalf.filled") : "star",
     },
     length_large: {
       text: item.length,
@@ -184,11 +144,7 @@ function _mapDataForLargeLayout(
 }
 
 function _mapDataForNormalLayout(
-  item:
-    | EHListExtendedItem
-    | EHListCompactItem
-    | EHListThumbnailItem
-    | EHListMinimalItem
+  item: EHListExtendedItem | EHListCompactItem | EHListThumbnailItem | EHListMinimalItem
 ) {
   const ratingArray = ratingToArray(item.estimated_display_rating);
 
@@ -207,12 +163,7 @@ function _mapDataForNormalLayout(
   if (t && t.length > 0) {
     const language = t[0];
     languageAbbr = languageAbbreviates[language].toUpperCase();
-    if (
-      language === "chinese" ||
-      language === "english" ||
-      language === "korean" ||
-      language === "japanese"
-    ) {
+    if (language === "chinese" || language === "english" || language === "korean" || language === "japanese") {
       languageBgcolor = languageTagColor[language];
     } else {
       languageBgcolor = languageTagColor.other;
@@ -232,8 +183,7 @@ function _mapDataForNormalLayout(
       bgcolor: catColor[item.category],
     },
     favorite_normal: {
-      bgcolor:
-        item.favcat !== undefined ? favcatColor[item.favcat] : $color("clear"),
+      bgcolor: item.favcat !== undefined ? favcatColor[item.favcat] : $color("clear"),
     },
     delete_line_normal: {
       hidden: item.visible,
@@ -246,48 +196,23 @@ function _mapDataForNormalLayout(
     language_label_normal: { text: languageAbbr },
     star1_normal: {
       tintColor: item.is_my_rating ? ratingColor : $color("orange"),
-      symbol:
-        ratingArray[0] > 0
-          ? ratingArray[0] === 1
-            ? "star.fill"
-            : "star.leadinghalf.filled"
-          : "star",
+      symbol: ratingArray[0] > 0 ? (ratingArray[0] === 1 ? "star.fill" : "star.leadinghalf.filled") : "star",
     },
     star2_normal: {
       tintColor: item.is_my_rating ? ratingColor : $color("orange"),
-      symbol:
-        ratingArray[1] > 0
-          ? ratingArray[1] === 1
-            ? "star.fill"
-            : "star.leadinghalf.filled"
-          : "star",
+      symbol: ratingArray[1] > 0 ? (ratingArray[1] === 1 ? "star.fill" : "star.leadinghalf.filled") : "star",
     },
     star3_normal: {
       tintColor: item.is_my_rating ? ratingColor : $color("orange"),
-      symbol:
-        ratingArray[2] > 0
-          ? ratingArray[2] === 1
-            ? "star.fill"
-            : "star.leadinghalf.filled"
-          : "star",
+      symbol: ratingArray[2] > 0 ? (ratingArray[2] === 1 ? "star.fill" : "star.leadinghalf.filled") : "star",
     },
     star4_normal: {
       tintColor: item.is_my_rating ? ratingColor : $color("orange"),
-      symbol:
-        ratingArray[3] > 0
-          ? ratingArray[3] === 1
-            ? "star.fill"
-            : "star.leadinghalf.filled"
-          : "star",
+      symbol: ratingArray[3] > 0 ? (ratingArray[3] === 1 ? "star.fill" : "star.leadinghalf.filled") : "star",
     },
     star5_normal: {
       tintColor: item.is_my_rating ? ratingColor : $color("orange"),
-      symbol:
-        ratingArray[4] > 0
-          ? ratingArray[4] === 1
-            ? "star.fill"
-            : "star.leadinghalf.filled"
-          : "star",
+      symbol: ratingArray[4] > 0 ? (ratingArray[4] === 1 ? "star.fill" : "star.leadinghalf.filled") : "star",
     },
     length_normal: {
       text: item.length,
@@ -320,12 +245,7 @@ function _mapDataForMinimalLayout(item: EHListUploadItem) {
   };
 }
 
-function _mapDataForMinimalFolderLayout(folder: {
-  name: string;
-  fid: number;
-  count: number;
-  collapsed: boolean;
-}) {
+function _mapDataForMinimalFolderLayout(folder: { name: string; fid: number; count: number; collapsed: boolean }) {
   return {
     minimal: { hidden: true },
     minimalFolder: { hidden: false },
@@ -345,20 +265,12 @@ function _mapData(items: Items, layout: "normal" | "large") {
     return [];
   } else if (layout === "normal") {
     return items.map((item) => {
-      item = item as
-        | EHListExtendedItem
-        | EHListCompactItem
-        | EHListThumbnailItem
-        | EHListMinimalItem;
+      item = item as EHListExtendedItem | EHListCompactItem | EHListThumbnailItem | EHListMinimalItem;
       return _mapDataForNormalLayout(item);
     });
   } else if (layout === "large") {
     return items.map((item) => {
-      item = item as
-        | EHListExtendedItem
-        | EHListCompactItem
-        | EHListThumbnailItem
-        | EHListMinimalItem;
+      item = item as EHListExtendedItem | EHListCompactItem | EHListThumbnailItem | EHListMinimalItem;
       return _mapDataForLargeLayout(item);
     });
   } else {
@@ -394,10 +306,7 @@ function _getColumnsAndItemSizeWidth(
     };
   }
   const columns = Math.max(
-    Math.min(
-      Math.floor((containerWidth - spacing) / (minItemWidth + spacing)),
-      maxColumns
-    ),
+    Math.min(Math.floor((containerWidth - spacing) / (minItemWidth + spacing)), maxColumns),
     1 // 最少一列
   );
   const itemSizeWidth = Math.max(
@@ -486,11 +395,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
     layoutMode: "normal" | "large";
     searchBar: Base<any, any>;
     pulled: () => Promise<void> | void;
-    didSelect: (
-      sender: EHlistView,
-      indexPath: NSIndexPath,
-      item: Items[0] | EHListUploadItem
-    ) => Promise<void> | void;
+    didSelect: (sender: EHlistView, indexPath: NSIndexPath, item: Items[0] | EHListUploadItem) => Promise<void> | void;
     didReachBottom: () => Promise<void> | void;
     contentOffsetChanged?: (info: {
       layout: "large" | "normal" | "minimal";
@@ -547,10 +452,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                   layout: (make, view) => {
                     make.top.right.bottom.inset(0);
                     make.width.greaterThanOrEqualTo(223).priority(1000);
-                    make.width
-                      .equalTo(view.super.width)
-                      .offset(-142)
-                      .priority(999);
+                    make.width.equalTo(view.super.width).offset(-142).priority(999);
                   },
                   views: [
                     {
@@ -597,10 +499,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                                 textColor: $color("primaryText"),
                                 align: $align.center,
                                 font: $font(12),
-                                bgcolor: $color(
-                                  "primarySurface",
-                                  "tertiarySurface"
-                                ),
+                                bgcolor: $color("primarySurface", "tertiarySurface"),
                               },
                               layout: (make, view) => {
                                 make.edges.insets($insets(1, 1, 1, 1));
@@ -695,8 +594,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                               type: "stack",
                               props: {
                                 axis: $stackViewAxis.horizontal,
-                                distribution:
-                                  $stackViewDistribution.fillEqually,
+                                distribution: $stackViewDistribution.fillEqually,
                                 stack: {
                                   views: [
                                     {
@@ -1220,9 +1118,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
           } else {
             // 根据 spacing, _itemSizeWidth, _itemSizeHeight, _totalWidth
             // 计算目前最左上方的是第几个item
-            const columns = Math.floor(
-              (this._totalWidth + spacing) / (this._itemSizeWidth + spacing)
-            );
+            const columns = Math.floor((this._totalWidth + spacing) / (this._itemSizeWidth + spacing));
             const row = Math.floor(offsetY / (this._itemSizeHeight + spacing));
 
             const index = row * columns;
@@ -1240,17 +1136,11 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
             // 两种情况
             if (r.type === "folder") {
               // 1. folder标题行，内部处理
-              return $size(
-                this._itemSizeWidth,
-                minimalFolderLayoutProps.fixedItemHeight
-              );
+              return $size(this._itemSizeWidth, minimalFolderLayoutProps.fixedItemHeight);
             } else {
               // 2. item行
               const title = r.item.title;
-              const itemSizeHeight = minimalLayoutItemHeight(
-                this._itemSizeWidth,
-                title
-              );
+              const itemSizeHeight = minimalLayoutItemHeight(this._itemSizeWidth, title);
               return $size(this._itemSizeWidth, itemSizeHeight);
             }
           } else {
@@ -1356,9 +1246,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
 
     const offsetY = this.matrix.view.contentOffset.y;
     const spacing = 4;
-    const columns = Math.floor(
-      (this._totalWidth + spacing) / (this._itemSizeWidth + spacing)
-    );
+    const columns = Math.floor((this._totalWidth + spacing) / (this._itemSizeWidth + spacing));
     const row = Math.floor(offsetY / (this._itemSizeHeight + spacing));
 
     const index = row * columns;
@@ -1398,9 +1286,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
 
   private _findUploadFolders(
     index: number
-  ):
-    | { type: "folder"; fid: number }
-    | { type: "item"; item: EHListUploadItem } {
+  ): { type: "folder"; fid: number } | { type: "item"; item: EHListUploadItem } {
     let i = 0;
     for (const folder of this._uploadFolders) {
       if (i === index)

@@ -67,10 +67,7 @@ type UploadPopoverOptions = {
 type ArchivePopoverOptions = {
   type: "archive";
   archiveType: "readlater" | "downloaded" | "all";
-  archiveManagerOrderMethod:
-    | "first_access_time"
-    | "last_access_time"
-    | "posted_time";
+  archiveManagerOrderMethod: "first_access_time" | "last_access_time" | "posted_time";
   count: {
     loaded: number;
     all: number;
@@ -87,27 +84,23 @@ export type PopoverOptions =
   | ArchivePopoverOptions;
 
 // 定义类型映射
-type PopoverOptionsToResult<T extends PopoverOptions> =
-  T extends FrontPagePopoverOptions
-    ? Omit<FrontPagePopoverOptions, "count">
-    : T extends WatchedPopoverOptions
-    ? Omit<WatchedPopoverOptions, "count">
-    : T extends PopularPopoverOptions
-    ? Omit<PopularPopoverOptions, "count">
-    : T extends FavoritesPopoverOptions
-    ? Omit<FavoritesPopoverOptions, "count">
-    : T extends ToplistPopoverOptions
-    ? Omit<ToplistPopoverOptions, "count">
-    : T extends UploadPopoverOptions
-    ? Omit<UploadPopoverOptions, "count">
-    : T extends ArchivePopoverOptions
-    ? Omit<ArchivePopoverOptions, "count">
-    : never;
+type PopoverOptionsToResult<T extends PopoverOptions> = T extends FrontPagePopoverOptions
+  ? Omit<FrontPagePopoverOptions, "count">
+  : T extends WatchedPopoverOptions
+  ? Omit<WatchedPopoverOptions, "count">
+  : T extends PopularPopoverOptions
+  ? Omit<PopularPopoverOptions, "count">
+  : T extends FavoritesPopoverOptions
+  ? Omit<FavoritesPopoverOptions, "count">
+  : T extends ToplistPopoverOptions
+  ? Omit<ToplistPopoverOptions, "count">
+  : T extends UploadPopoverOptions
+  ? Omit<UploadPopoverOptions, "count">
+  : T extends ArchivePopoverOptions
+  ? Omit<ArchivePopoverOptions, "count">
+  : never;
 
-class PopoverViewForTitleView<T extends PopoverOptions> extends Base<
-  UIView,
-  UiTypes.ViewOptions
-> {
+class PopoverViewForTitleView<T extends PopoverOptions> extends Base<UIView, UiTypes.ViewOptions> {
   private readonly _options: T;
   private _archiveType?: "readlater" | "downloaded" | "all";
   _defineView: () => UiTypes.ViewOptions;
@@ -143,11 +136,7 @@ class PopoverViewForTitleView<T extends PopoverOptions> extends Base<
       },
     });
     const views: UiTypes.AllViewOptions[] = [];
-    if (
-      options.type === "front_page" ||
-      options.type === "watched" ||
-      options.type === "popular"
-    ) {
+    if (options.type === "front_page" || options.type === "watched" || options.type === "popular") {
       views.push({
         type: "label",
         props: {
@@ -211,8 +200,7 @@ class PopoverViewForTitleView<T extends PopoverOptions> extends Base<
                 title: "排序方式",
                 items: ["发布时间", "收藏时间"],
                 key: "sort",
-                value:
-                  options.favoritesOrderMethod === "published_time" ? 0 : 1,
+                value: options.favoritesOrderMethod === "published_time" ? 0 : 1,
               },
             ],
           },
@@ -266,52 +254,45 @@ class PopoverViewForTitleView<T extends PopoverOptions> extends Base<
         },
         events: {
           didSelect: (sender, indexPath, data) => {
-            this._archiveType = (
-              ["readlater", "downloaded", "all"] as (
-                | "readlater"
-                | "downloaded"
-                | "all"
-              )[]
-            )[indexPath.row];
+            this._archiveType = (["readlater", "downloaded", "all"] as ("readlater" | "downloaded" | "all")[])[
+              indexPath.row
+            ];
             sender.data = this._mapArchiveMatrixData(this._archiveType);
           },
         },
       });
-      this.cviews.archiveManagerOrderMethodList = new DynamicPreferenceListView(
-        {
-          sections: [
-            {
-              title: "",
-              rows: [
-                {
-                  type: "list",
-                  title: "排序方式",
-                  items: ["最近阅读时间", "首次阅读时间", "发布时间"],
-                  key: "sort",
-                  value:
-                    options.archiveManagerOrderMethod === "last_access_time"
-                      ? 0
-                      : options.archiveManagerOrderMethod ===
-                        "first_access_time"
-                      ? 1
-                      : 2,
-                },
-              ],
-            },
-          ],
-          props: {
-            style: 1,
-            scrollEnabled: false,
-            stringLeftInset: 100,
-            bgcolor: $color("clear"),
+      this.cviews.archiveManagerOrderMethodList = new DynamicPreferenceListView({
+        sections: [
+          {
+            title: "",
+            rows: [
+              {
+                type: "list",
+                title: "排序方式",
+                items: ["最近阅读时间", "首次阅读时间", "发布时间"],
+                key: "sort",
+                value:
+                  options.archiveManagerOrderMethod === "last_access_time"
+                    ? 0
+                    : options.archiveManagerOrderMethod === "first_access_time"
+                    ? 1
+                    : 2,
+              },
+            ],
           },
-          layout: (make, view) => {
-            make.top.equalTo(view.prev.bottom).inset(3);
-            make.left.right.inset(0);
-            make.height.equalTo(44);
-          },
-        }
-      );
+        ],
+        props: {
+          style: 1,
+          scrollEnabled: false,
+          stringLeftInset: 100,
+          bgcolor: $color("clear"),
+        },
+        layout: (make, view) => {
+          make.top.equalTo(view.prev.bottom).inset(3);
+          make.left.right.inset(0);
+          make.height.equalTo(44);
+        },
+      });
       views.push(this.cviews.archiveMatrix.definition);
       views.push(this.cviews.archiveManagerOrderMethodList.definition);
       views.push(countLabel.definition);
@@ -333,40 +314,24 @@ class PopoverViewForTitleView<T extends PopoverOptions> extends Base<
     };
   }
 
-  private _mapArchiveMatrixData(
-    archiveType: "readlater" | "downloaded" | "all"
-  ) {
+  private _mapArchiveMatrixData(archiveType: "readlater" | "downloaded" | "all") {
     if (!archiveType) throw new Error("invalid archiveType");
     const translations = {
       readlater: "稍后阅读",
       downloaded: "下载内容",
       all: "全部记录",
     };
-    return (
-      ["readlater", "downloaded", "all"] as (
-        | "readlater"
-        | "downloaded"
-        | "all"
-      )[]
-    ).map((n) => ({
+    return (["readlater", "downloaded", "all"] as ("readlater" | "downloaded" | "all")[]).map((n) => ({
       title: {
         text: translations[n],
-        textColor:
-          n === archiveType ? $color("white") : $color("secondaryText"),
-        bgcolor:
-          n === archiveType
-            ? $color("systemLink")
-            : $color("systemSecondaryBackground"),
+        textColor: n === archiveType ? $color("white") : $color("secondaryText"),
+        bgcolor: n === archiveType ? $color("systemLink") : $color("systemSecondaryBackground"),
       },
     }));
   }
 
   get values(): PopoverOptionsToResult<T> {
-    if (
-      this._options.type === "front_page" ||
-      this._options.type === "watched" ||
-      this._options.type === "popular"
-    ) {
+    if (this._options.type === "front_page" || this._options.type === "watched" || this._options.type === "popular") {
       const values = this.cviews.filtersList!.values as {
         enableLanguageFilters: boolean;
         enableUploaderFilters: boolean;
@@ -386,13 +351,9 @@ class PopoverViewForTitleView<T extends PopoverOptions> extends Base<
       };
       return {
         type: this._options.type,
-        favoritesOrderMethod:
-          values.sort === 0 ? "published_time" : "favorited_time",
+        favoritesOrderMethod: values.sort === 0 ? "published_time" : "favorited_time",
       } as PopoverOptionsToResult<T>;
-    } else if (
-      this._options.type === "toplist" ||
-      this._options.type === "upload"
-    ) {
+    } else if (this._options.type === "toplist" || this._options.type === "upload") {
       return {
         type: this._options.type,
       } as PopoverOptionsToResult<T>;
@@ -405,11 +366,7 @@ class PopoverViewForTitleView<T extends PopoverOptions> extends Base<
         type: this._options.type,
         archiveType: this._archiveType,
         archiveManagerOrderMethod:
-          values.sort === 0
-            ? "last_access_time"
-            : values.sort === 1
-            ? "first_access_time"
-            : "posted_time",
+          values.sort === 0 ? "last_access_time" : values.sort === 1 ? "first_access_time" : "posted_time",
       } as PopoverOptionsToResult<T>;
     }
   }

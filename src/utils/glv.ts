@@ -2,8 +2,7 @@
 import { EHCategory, EHSearchedCategory, TagNamespace } from "ehentai-parser";
 
 const debugText = $file.read("assets/debug")?.string;
-export const globalLogLevel: "debug" | "info" | "warn" | "error" | "fatal" =
-  debugText === "1" ? "debug" : "info";
+export const globalLogLevel: "debug" | "info" | "warn" | "error" | "fatal" = debugText === "1" ? "debug" : "info";
 
 export const webdavIntroductionPath = "assets/webdav-introduction.md";
 export const databasePath = "assets/database.db";
@@ -255,12 +254,7 @@ export const languageAbbreviates: Record<string, string> = {
   zulu: "zu",
 };
 
-export const languageCustomSort = [
-  "chinese",
-  "english",
-  "korean",
-  "japanese"
-]
+export const languageCustomSort = ["chinese", "english", "korean", "japanese"];
 
 export const languageTagColor = {
   chinese: $color("#DE2910"),

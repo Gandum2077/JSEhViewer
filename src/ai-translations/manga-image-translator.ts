@@ -145,9 +145,7 @@ export async function translate(
   };
 
   const r = await $http.post({
-    url: `${config.https ? "https" : "http"}://${config.host}:${
-      config.port
-    }/translate/with-form/image/stream`,
+    url: `${config.https ? "https" : "http"}://${config.host}:${config.port}/translate/with-form/image/stream`,
     form: payload,
     files: [
       {
@@ -161,12 +159,7 @@ export async function translate(
   const startIndex = ba.findIndex((n) => n === 137); //0x89
 
   const pngFileMagicBytes = [137, 80, 78, 71, 13, 10, 26, 10];
-  if (
-    startIndex !== -1 &&
-    !ba
-      .slice(startIndex, startIndex + 8)
-      .find((n, x) => n !== pngFileMagicBytes[x])
-  ) {
+  if (startIndex !== -1 && !ba.slice(startIndex, startIndex + 8).find((n, x) => n !== pngFileMagicBytes[x])) {
     return $data({
       byteArray: ba.slice(startIndex),
     });

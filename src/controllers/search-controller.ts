@@ -36,12 +36,7 @@ import {
   TagNamespaceAlternate,
   tagNamespaceAlternateMap,
 } from "ehentai-parser";
-import {
-  ArchiveTabOptions,
-  FavoritesTabOptions,
-  FrontPageTabOptions,
-  WatchedTabOptions,
-} from "../types";
+import { ArchiveTabOptions, FavoritesTabOptions, FrontPageTabOptions, WatchedTabOptions } from "../types";
 
 // 整体构造是上面一个自定义导航栏，下面是一个搜索选项列表
 // 下面一共有五个List叠放在一起，分别是：
@@ -51,11 +46,7 @@ import {
 // 4. 显示收藏的搜索选项
 // 5. 显示存档的搜索选项
 
-type MenuDisplayMode =
-  | "onlyShowFrontPage"
-  | "onlyShowArchive"
-  | "showAllExceptArchive"
-  | "showAll";
+type MenuDisplayMode = "onlyShowFrontPage" | "onlyShowArchive" | "showAllExceptArchive" | "showAll";
 
 const TAG_FONT_SIZE = 15;
 
@@ -113,11 +104,7 @@ class SearchSuggestionView extends Base<UIListView, UiTypes.ListOptions> {
               tilde: false,
             },
           ]);
-          tagSelected(
-            suggestion.remaining
-              ? suggestion.remaining + " " + fsearch + " "
-              : fsearch + " "
-          );
+          tagSelected(suggestion.remaining ? suggestion.remaining + " " + fsearch + " " : fsearch + " ");
         },
       },
     });
@@ -144,9 +131,7 @@ class SearchSuggestionView extends Base<UIListView, UiTypes.ListOptions> {
   ) {
     return raw.map((item) => ({
       content: {
-        text: `${namespaceTranslations[item.namespace]}:${item.translation}   ${
-          item.name
-        }`,
+        text: `${namespaceTranslations[item.namespace]}:${item.translation}   ${item.name}`,
       },
     }));
   }
@@ -211,15 +196,9 @@ class SearchHistoryViewSectionTitle extends Base<UIView, UiTypes.ViewOptions> {
 class HistoryMatrixItem extends Base<UILabelView, UiTypes.LabelOptions> {
   _defineView: () => UiTypes.LabelOptions;
   private _text: string;
-  constructor(tag: {
-    namespace?: TagNamespace;
-    qualifier?: EHQualifier;
-    term: string;
-  }) {
+  constructor(tag: { namespace?: TagNamespace; qualifier?: EHQualifier; term: string }) {
     super();
-    this._text = tag.namespace
-      ? configManager.translate(tag.namespace, tag.term) || tag.term
-      : tag.term;
+    this._text = tag.namespace ? configManager.translate(tag.namespace, tag.term) || tag.term : tag.term;
     if (tag.qualifier === "uploader") {
       this._text = "上传者:" + tag.term;
     } else if (tag.qualifier) {
@@ -260,10 +239,7 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
     super();
     const mostAccessedTags = configManager.getTenMostAccessedTags();
     const lastAccessSearchTerms = configManager.getSomeLastAccessSearchTerms();
-    const sectionTitleMostSearched = new SearchHistoryViewSectionTitle(
-      "最常搜索",
-      "list.number"
-    );
+    const sectionTitleMostSearched = new SearchHistoryViewSectionTitle("最常搜索", "list.number");
     const historyMatrixMostSearched = new Flowlayout({
       props: {
         items: mostAccessedTags.map((tag) => new HistoryMatrixItem(tag)),
@@ -289,10 +265,7 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
         },
       },
     });
-    const sectionTitleLastAccessed = new SearchHistoryViewSectionTitle(
-      "最近访问",
-      "clock.fill"
-    );
+    const sectionTitleLastAccessed = new SearchHistoryViewSectionTitle("最近访问", "clock.fill");
     const historyMatrixLastAccessed = new Flowlayout({
       props: {
         items: lastAccessSearchTerms.map((tag) => new HistoryMatrixItem(tag)),
@@ -319,12 +292,7 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
       },
     });
     const list = new DynamicRowHeightList({
-      rows: [
-        sectionTitleMostSearched,
-        historyMatrixMostSearched,
-        sectionTitleLastAccessed,
-        historyMatrixLastAccessed,
-      ],
+      rows: [sectionTitleMostSearched, historyMatrixMostSearched, sectionTitleLastAccessed, historyMatrixLastAccessed],
       props: {
         selectable: false,
         separatorHidden: true,
@@ -381,21 +349,13 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       layout: $layout.fill,
       events: {
         changed: (values) => {
-          const reloadFlag =
-            this._enablePageFilters !== values.enablePageFilters;
+          const reloadFlag = this._enablePageFilters !== values.enablePageFilters;
           this._options = {
-            browseExpungedGalleries:
-              values.browseExpungedGalleries || undefined,
+            browseExpungedGalleries: values.browseExpungedGalleries || undefined,
             requireGalleryTorrent: values.requireGalleryTorrent || undefined,
-            minimumPages: values.enablePageFilters
-              ? values.minimumPages
-              : undefined,
-            maximumPages: values.enablePageFilters
-              ? values.maximumPages
-              : undefined,
-            minimumRating: values.minimumRating
-              ? values.minimumRating + 1
-              : undefined,
+            minimumPages: values.enablePageFilters ? values.minimumPages : undefined,
+            maximumPages: values.enablePageFilters ? values.maximumPages : undefined,
+            minimumRating: values.minimumRating ? values.minimumRating + 1 : undefined,
             disableLanguageFilters: values.disableLanguageFilters || undefined,
             disableUploaderFilters: values.disableUploaderFilters || undefined,
             disableTagFilters: values.disableTagFilters || undefined,
@@ -472,9 +432,7 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                       },
                       events: {
                         tapped: (sender) => {
-                          this._excludedCategories = new Set(
-                            searchableCategories
-                          );
+                          this._excludedCategories = new Set(searchableCategories);
                           catList.data = this.mapData();
                         },
                       },
@@ -490,9 +448,7 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                       },
                       events: {
                         tapped: (sender) => {
-                          const reversed = searchableCategories.filter(
-                            (cat) => !this._excludedCategories.has(cat)
-                          );
+                          const reversed = searchableCategories.filter((cat) => !this._excludedCategories.has(cat));
                           this._excludedCategories = new Set(reversed);
                           catList.data = this.mapData();
                         },
@@ -761,17 +717,7 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       layout: $layout.fill,
       events: {
         didSelect: (sender, indexPath, data) => {
-          const selectedIndex = indexPath.row as
-            | 0
-            | 1
-            | 2
-            | 3
-            | 4
-            | 5
-            | 6
-            | 7
-            | 8
-            | 9;
+          const selectedIndex = indexPath.row as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
           if (this._selectedFavcat === selectedIndex) {
             this._selectedFavcat = undefined;
           } else {
@@ -805,10 +751,7 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         },
         label: {
           text: title,
-          textColor:
-            this._selectedFavcat === i
-              ? $color("systemLink")
-              : $color("primaryText"),
+          textColor: this._selectedFavcat === i ? $color("systemLink") : $color("primaryText"),
         },
       };
     });
@@ -857,23 +800,13 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       layout: $layout.fill,
       events: {
         changed: (values) => {
-          const reloadFlag =
-            this._enablePageFilters !== values.enablePageFilters;
+          const reloadFlag = this._enablePageFilters !== values.enablePageFilters;
 
           this._options = {
-            type: ["readlater", "downloaded", "all"][values.type] as
-              | "readlater"
-              | "downloaded"
-              | "all",
-            minimumPages: values.enablePageFilters
-              ? values.minimumPages
-              : undefined,
-            maximumPages: values.enablePageFilters
-              ? values.maximumPages
-              : undefined,
-            minimumRating: values.minimumRating
-              ? values.minimumRating + 1
-              : undefined,
+            type: ["readlater", "downloaded", "all"][values.type] as "readlater" | "downloaded" | "all",
+            minimumPages: values.enablePageFilters ? values.minimumPages : undefined,
+            maximumPages: values.enablePageFilters ? values.maximumPages : undefined,
+            minimumRating: values.minimumRating ? values.minimumRating + 1 : undefined,
           };
           this._enablePageFilters = values.enablePageFilters;
           if (reloadFlag) {
@@ -947,9 +880,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                       },
                       events: {
                         tapped: (sender) => {
-                          this._excludedCategories = new Set(
-                            searchableCategories
-                          );
+                          this._excludedCategories = new Set(searchableCategories);
                           catList.data = this.mapData();
                         },
                       },
@@ -965,9 +896,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                       },
                       events: {
                         tapped: (sender) => {
-                          const reversed = searchableCategories.filter(
-                            (cat) => !this._excludedCategories.has(cat)
-                          );
+                          const reversed = searchableCategories.filter((cat) => !this._excludedCategories.has(cat));
                           this._excludedCategories = new Set(reversed);
                           catList.data = this.mapData();
                         },
@@ -1091,11 +1020,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       return [
         {
           title: "",
-          rows: [
-            typePrefsRow,
-            enablePageFiltersPrefsRow,
-            minimumRatingPrefsRow,
-          ],
+          rows: [typePrefsRow, enablePageFiltersPrefsRow, minimumRatingPrefsRow],
         },
       ];
     }
@@ -1109,11 +1034,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   }
 }
 
-type SearchArgs =
-  | FrontPageTabOptions
-  | WatchedTabOptions
-  | FavoritesTabOptions
-  | ArchiveTabOptions;
+type SearchArgs = FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ArchiveTabOptions;
 
 class NavBar extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
@@ -1179,10 +1100,7 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
     });
     const input = new Input({
       props: {
-        text:
-          options.searchTerms && options.searchTerms.length
-            ? assembleSearchTerms(options.searchTerms)
-            : "",
+        text: options.searchTerms && options.searchTerms.length ? assembleSearchTerms(options.searchTerms) : "",
         type: $kbType.search,
         bgcolor: $color("clear"),
         textColor: $color("primaryText"),
@@ -1240,11 +1158,7 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
         make.left.right.inset(0);
         make.height.equalTo(50);
       },
-      views: [
-        popButton.definition,
-        searchInput.definition,
-        filterButton.definition,
-      ],
+      views: [popButton.definition, searchInput.definition, filterButton.definition],
     });
     const tab = new Tab({
       props: {
@@ -1295,15 +1209,11 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
         make.bottom
           .equalTo(view.super.safeAreaTop)
           .inset(
-            options.menuDisplayMode === "showAll" ||
-              options.menuDisplayMode === "showAllExceptArchive"
-              ? -92
-              : -50
+            options.menuDisplayMode === "showAll" || options.menuDisplayMode === "showAllExceptArchive" ? -92 : -50
           );
       },
       views:
-        options.menuDisplayMode === "showAll" ||
-        options.menuDisplayMode === "showAllExceptArchive"
+        options.menuDisplayMode === "showAll" || options.menuDisplayMode === "showAllExceptArchive"
           ? [mainView.definition, tab.definition, seprator]
           : [mainView.definition, seprator],
     });
@@ -1394,13 +1304,10 @@ function _getSearchTermsForSuggestion(
           remaining: parts.slice(0, parts.length - 1).join(" "),
         },
       ];
-    } else if (
-      tagNamespaceAlternates.includes(namespace as TagNamespaceAlternate)
-    ) {
+    } else if (tagNamespaceAlternates.includes(namespace as TagNamespaceAlternate)) {
       return [
         {
-          namespace:
-            tagNamespaceAlternateMap[namespace as TagNamespaceAlternate],
+          namespace: tagNamespaceAlternateMap[namespace as TagNamespaceAlternate],
           term,
           remaining: parts.slice(0, parts.length - 1).join(" "),
         },
@@ -1456,15 +1363,9 @@ function _getScoreByMatchingDegree(
 ) {
   if (text === tag.name || text === tag.translation) {
     return 0;
-  } else if (
-    tag.name.toLowerCase().startsWith(text) ||
-    tag.translation.toLowerCase().startsWith(text)
-  ) {
+  } else if (tag.name.toLowerCase().startsWith(text) || tag.translation.toLowerCase().startsWith(text)) {
     return 1;
-  } else if (
-    tag.name.toLowerCase().includes(text) ||
-    tag.translation.toLowerCase().includes(text)
-  ) {
+  } else if (tag.name.toLowerCase().includes(text) || tag.translation.toLowerCase().includes(text)) {
     return 2;
   } else {
     return 3;
@@ -1475,10 +1376,7 @@ function _getScoreByNamespace(namespace: TagNamespace) {
   return namespaceOrderList.indexOf(namespace);
 }
 
-function _getScoreByTermOrder(
-  str: string,
-  terms: { namespace?: TagNamespace; term: string; remaining: string }[]
-) {
+function _getScoreByTermOrder(str: string, terms: { namespace?: TagNamespace; term: string; remaining: string }[]) {
   // 遍历优先级列表，找到第一个匹配的优先级并返回该索引
   // 索引越小，优先级越高，因此返回该索引即可
   // 如果一个字符串同时满足多个（比如"ABC"也包含"AB"和"A"），
@@ -1513,8 +1411,7 @@ function getSuggestions(
       .filter(
         (n) =>
           (!term.namespace || n.namespace === term.namespace) &&
-          (n.name.toLowerCase().includes(term.term) ||
-            n.translation.toLowerCase().includes(term.term))
+          (n.name.toLowerCase().includes(term.term) || n.translation.toLowerCase().includes(term.term))
       )
       .sort((a, b) => {
         const primaryScoreA = _getScoreByMatchingDegree(term.term, a);
@@ -1537,11 +1434,7 @@ function getSuggestions(
     // 对最后一个term进行搜索，然后根据分数排序
     const term = terms[terms.length - 1];
     return configManager.translationList
-      .filter(
-        (n) =>
-          n.name.toLowerCase().includes(term.term) ||
-          n.translation.toLowerCase().includes(term.term)
-      )
+      .filter((n) => n.name.toLowerCase().includes(term.term) || n.translation.toLowerCase().includes(term.term))
       .sort((a, b) => {
         const primaryScoreA = _getScoreByTermOrder(a.name, terms);
         const primaryScoreB = _getScoreByTermOrder(b.name, terms);
@@ -1562,11 +1455,8 @@ function getSuggestions(
       .map((n) => {
         // 对terms从前往后遍历，找到第一个匹配的term，remaining就是该term的remaining
         const remaining =
-          terms.find(
-            (t) =>
-              n.name.toLowerCase().includes(t.term) ||
-              n.translation.toLowerCase().includes(t.term)
-          )?.remaining || "";
+          terms.find((t) => n.name.toLowerCase().includes(t.term) || n.translation.toLowerCase().includes(t.term))
+            ?.remaining || "";
         return {
           namespace: n.namespace,
           name: n.name,
@@ -1588,11 +1478,7 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
     favoritesOptionsView: FavoritesOptionsView;
     archiveOptionsView: ArchiveOptionsView;
   };
-  constructor(
-    args: SearchArgs,
-    menuDisplayMode: MenuDisplayMode,
-    resolveHandler: (args: SearchArgs) => void
-  ) {
+  constructor(args: SearchArgs, menuDisplayMode: MenuDisplayMode, resolveHandler: (args: SearchArgs) => void) {
     super();
     const navbar = new NavBar({
       type: args.type,
@@ -1638,15 +1524,7 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
           });
           return;
         }
-        if (
-          searchTerms.some(
-            (st) =>
-              st.qualifier &&
-              st.tilde &&
-              st.qualifier !== "tag" &&
-              st.qualifier !== "weak"
-          )
-        ) {
+        if (searchTerms.some((st) => st.qualifier && st.tilde && st.qualifier !== "tag" && st.qualifier !== "weak")) {
           $ui.alert({
             title: "无意义的符号",
             message: "~符号只能用于标签，其他修饰词均不支持~符号",
@@ -1686,13 +1564,7 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
             },
           });
         } else {
-          if (
-            searchTerms.some(
-              (st) =>
-                st.qualifier &&
-                ["weak", "favnote", "uploaduid"].includes(st.qualifier)
-            )
-          ) {
+          if (searchTerms.some((st) => st.qualifier && ["weak", "favnote", "uploaduid"].includes(st.qualifier))) {
             $ui.alert({
               title: "不支持的修饰词",
               message: "存档搜索不支持修饰词weak, uploaduid, favnote",
@@ -1723,9 +1595,7 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
     const searchHistoryView = new SearchHistoryView((text) => {
       const currentText = navbar.cviews.input.view.text;
       const newText = currentText
-        ? `${currentText}${
-            currentText[currentText.length - 1] === " " ? "" : " "
-          }${text} `
+        ? `${currentText}${currentText[currentText.length - 1] === " " ? "" : " "}${text} `
         : text + " ";
       navbar.cviews.input.view.text = newText;
     });
@@ -1811,10 +1681,7 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
   }
 }
 
-export function getSearchOptions(
-  args: SearchArgs,
-  menuDisplayMode: MenuDisplayMode
-): Promise<SearchArgs> {
+export function getSearchOptions(args: SearchArgs, menuDisplayMode: MenuDisplayMode): Promise<SearchArgs> {
   return new Promise((resolve, reject) => {
     const contentView = new SearchContentView(args, menuDisplayMode, (n) => {
       resolve(n);

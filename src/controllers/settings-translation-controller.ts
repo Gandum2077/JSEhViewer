@@ -16,13 +16,9 @@ import * as CotransTouhouAi from "../ai-translations/cotrans-touhou-ai";
 import * as UserCustom from "../ai-translations/user-custom";
 import { configManager } from "../utils/config";
 
-const serviceTitles = [MangaImageTranslator, CotransTouhouAi, UserCustom].map(
-  (service) => service.config.title
-);
+const serviceTitles = [MangaImageTranslator, CotransTouhouAi, UserCustom].map((service) => service.config.title);
 
-const serviceNames = [MangaImageTranslator, CotransTouhouAi, UserCustom].map(
-  (service) => service.config.name
-);
+const serviceNames = [MangaImageTranslator, CotransTouhouAi, UserCustom].map((service) => service.config.name);
 
 function getDefaultConfig(serviceName: string) {
   switch (serviceName) {
@@ -68,10 +64,7 @@ class DynamicPreferenceListViewWithoutSectionTitle extends DynamicPreferenceList
   }
 
   heightToWidth(width: number): number {
-    const rowCounts = this.sections.reduce(
-      (prev, curr) => prev + curr.rows.length,
-      0
-    );
+    const rowCounts = this.sections.reduce((prev, curr) => prev + curr.rows.length, 0);
     return this.sections.length * 35 + 35 + 44 * rowCounts;
   }
 }
@@ -196,8 +189,7 @@ class AITranslationConfigController extends BaseController {
       },
     });
     // 获取用户选择的AI翻译服务, 默认为用户自定义
-    this._selectedService =
-      configManager.selectedAiTranslationService || UserCustom.config.name;
+    this._selectedService = configManager.selectedAiTranslationService || UserCustom.config.name;
     if (!serviceNames.includes(this._selectedService)) {
       this._selectedService = UserCustom.config.name;
     }
@@ -218,27 +210,25 @@ class AITranslationConfigController extends BaseController {
       },
     });
 
-    const dynamicPreferenceListView =
-      new DynamicPreferenceListViewWithoutSectionTitle({
-        sections: this._generateSections(),
-        props: {
-          bgcolor: $color("clear"),
+    const dynamicPreferenceListView = new DynamicPreferenceListViewWithoutSectionTitle({
+      sections: this._generateSections(),
+      props: {
+        bgcolor: $color("clear"),
+      },
+      layout: $layout.fill,
+      events: {
+        changed: (values) => {
+          const selectedService = serviceNames[values.selectedAiTranslationService];
+          if (this._selectedService !== selectedService) {
+            this._selectedService = selectedService;
+            dynamicPreferenceListView.sections = this._generateSections();
+            textView.visible = this._selectedService === "user-custom";
+            blankView.visible = this._selectedService === "user-custom";
+            list.view.reload();
+          }
         },
-        layout: $layout.fill,
-        events: {
-          changed: (values) => {
-            const selectedService =
-              serviceNames[values.selectedAiTranslationService];
-            if (this._selectedService !== selectedService) {
-              this._selectedService = selectedService;
-              dynamicPreferenceListView.sections = this._generateSections();
-              textView.visible = this._selectedService === "user-custom";
-              blankView.visible = this._selectedService === "user-custom";
-              list.view.reload();
-            }
-          },
-        },
-      });
+      },
+    });
 
     const textView = new CustomText({
       text: this._generateDefaultScriptText(),

@@ -1,20 +1,11 @@
-import {
-  BaseController,
-  ContentView,
-  CustomNavigationBar,
-  DialogSheet,
-  List,
-  SymbolButton,
-} from "jsbox-cview";
+import { BaseController, ContentView, CustomNavigationBar, DialogSheet, List, SymbolButton } from "jsbox-cview";
 import { SearchTermBookmarksList } from "../components/searchterm-bookmarks-list";
 import { configManager } from "../utils/config";
 import { _mapSearchTermsToRow } from "../components/searchterm-history-list";
 
 function getReorderIds() {
   const bookmarks = configManager.searchBookmarks;
-  const data = bookmarks.map((bookmark) =>
-    _mapSearchTermsToRow(bookmark.searchTerms, bookmark.id)
-  );
+  const data = bookmarks.map((bookmark) => _mapSearchTermsToRow(bookmark.searchTerms, bookmark.id));
   const list = new List({
     props: {
       style: 2,
@@ -171,15 +162,11 @@ export class SidebarBookmarkController extends BaseController {
     });
     const refresh = () => {
       const bookmarks = configManager.searchBookmarks;
-      const notEmpty = list.refreshSearchBookmarks(
-        bookmarks,
-        this._searchPhrase
-      );
+      const notEmpty = list.refreshSearchBookmarks(bookmarks, this._searchPhrase);
       if (bookmarks.length === 0) {
         (emptyView.view.get("emptyLabel") as UILabelView).text = "暂无记录";
       } else {
-        (emptyView.view.get("emptyLabel") as UILabelView).text =
-          "没有匹配的记录";
+        (emptyView.view.get("emptyLabel") as UILabelView).text = "没有匹配的记录";
       }
       emptyView.view.hidden = notEmpty;
     };

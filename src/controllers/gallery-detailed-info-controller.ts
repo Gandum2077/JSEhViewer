@@ -1,10 +1,5 @@
 import { EHGallery } from "ehentai-parser";
-import {
-  BaseController,
-  CustomNavigationBar,
-  List,
-  textDialog,
-} from "jsbox-cview";
+import { BaseController, CustomNavigationBar, List, textDialog } from "jsbox-cview";
 import { invisibleCauseMap } from "../utils/glv";
 import { toSimpleUTCTimeString } from "../utils/tools";
 
@@ -72,9 +67,7 @@ export class GalleryDetailedInfoController extends BaseController {
       },
       events: {
         swipeEnabled: (sender, indexPath) => {
-          return ["标题（英）", "标题（日）"].includes(
-            sender.object(indexPath).title.text
-          );
+          return ["标题（英）", "标题（日）"].includes(sender.object(indexPath).title.text);
         },
         didSelect: (sender, indexPath) => {
           $clipboard.text = sender.object(indexPath).content.text;
@@ -100,9 +93,7 @@ function _mapData(
   data.push({
     title: { text: "URL" },
     content: {
-      text: `https://e${exhentai ? "x" : "-"}hentai.org/g/${infos.gid}/${
-        infos.token
-      }/`,
+      text: `https://e${exhentai ? "x" : "-"}hentai.org/g/${infos.gid}/${infos.token}/`,
     },
   });
   data.push({
@@ -132,9 +123,7 @@ function _mapData(
     data.push({
       title: { text: "上一版本" },
       content: {
-        text: `https://e${exhentai ? "x" : "-"}hentai.org/g/${
-          infos.parent_gid
-        }/${infos.parent_token}/`,
+        text: `https://e${exhentai ? "x" : "-"}hentai.org/g/${infos.parent_gid}/${infos.parent_token}/`,
       },
     });
   }
@@ -142,9 +131,7 @@ function _mapData(
   if (!infos.visible && infos.invisible_cause) {
     visibleCauseText = invisibleCauseMap[infos.invisible_cause];
   }
-  const visibleText = infos.visible
-    ? "是"
-    : "否" + (visibleCauseText ? `(${visibleCauseText})` : "");
+  const visibleText = infos.visible ? "是" : "否" + (visibleCauseText ? `(${visibleCauseText})` : "");
   data.push({ title: { text: "是否可见" }, content: { text: visibleText } });
   let languageText = infos.language;
   if (infos.translated) {

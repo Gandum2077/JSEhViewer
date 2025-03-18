@@ -9,30 +9,15 @@ import {
 } from "ehentai-parser";
 import { api, downloaderManager } from "./api";
 import { dbManager } from "./database";
-import {
-  ArchiveSearchOptions,
-  DBArchiveItem,
-  FrontPageTabOptions,
-  StatusTab,
-  StatusTabOptions,
-} from "../types";
+import { ArchiveSearchOptions, DBArchiveItem, FrontPageTabOptions, StatusTab, StatusTabOptions } from "../types";
 import { cvid } from "jsbox-cview";
 
 function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): {
   sql: string;
   args: any[];
 } {
-  const {
-    page,
-    pageSize,
-    type,
-    sort,
-    searchTerms,
-    excludedCategories,
-    minimumPages,
-    maximumPages,
-    minimumRating,
-  } = options;
+  const { page, pageSize, type, sort, searchTerms, excludedCategories, minimumPages, maximumPages, minimumRating } =
+    options;
 
   let sql = `
     SELECT 
@@ -55,9 +40,7 @@ function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): {
 
   // Handle excludedCategories
   if (excludedCategories && excludedCategories.length > 0) {
-    conditions.push(
-      `category NOT IN (${excludedCategories.map(() => "?").join(", ")})`
-    );
+    conditions.push(`category NOT IN (${excludedCategories.map(() => "?").join(", ")})`);
     args.push(...excludedCategories);
   }
 
@@ -85,12 +68,7 @@ function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): {
   // 4. 或搜索需要单独提取出来处理
 
   if (searchTerms && searchTerms.length > 0) {
-    const specialQualifiers: EHQualifier[] = [
-      "uploader",
-      "title",
-      "gid",
-      "comment",
-    ];
+    const specialQualifiers: EHQualifier[] = ["uploader", "title", "gid", "comment"];
     const searchTermsWithSpecialConditions = searchTerms.filter(
       (term) => term.qualifier && specialQualifiers.includes(term.qualifier)
     );
@@ -163,10 +141,9 @@ function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): {
     }
 
     // 查找没有修饰词也没有命名空间的term(不能有~符号)
-    const searchTermsNoQualifierAndNamespace =
-      searchTermsWithOutSpecialConditions.filter(
-        (term) => !term.qualifier && !term.namespace && !term.tilde
-      );
+    const searchTermsNoQualifierAndNamespace = searchTermsWithOutSpecialConditions.filter(
+      (term) => !term.qualifier && !term.namespace && !term.tilde
+    );
     for (const st of searchTermsNoQualifierAndNamespace) {
       const condition = `(title LIKE ? OR english_title LIKE ? OR japanese_title LIKE ? OR taglist LIKE ?)`;
       const arg = `%${st.term}%`;
@@ -220,9 +197,7 @@ function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): {
     }
 
     // 查找或搜索(~符号的搜索词只被看作标签)
-    const searchTermsTilde = searchTermsWithOutSpecialConditions.filter(
-      (term) => term.tilde
-    );
+    const searchTermsTilde = searchTermsWithOutSpecialConditions.filter((term) => term.tilde);
     if (searchTermsTilde.length > 0) {
       for (const st of searchTermsTilde) {
         if (st.namespace && st.dollar) {
@@ -306,7 +281,7 @@ export function clearExtraPropsForReload<T extends StatusTabOptions>(tab: T): T 
       tab.options.maximumGid = undefined;
       return {
         type: "front_page",
-        options: tab.options
+        options: tab.options,
       } as T;
     }
     case "watched": {
@@ -317,14 +292,14 @@ export function clearExtraPropsForReload<T extends StatusTabOptions>(tab: T): T 
       tab.options.maximumGid = undefined;
       return {
         type: "watched",
-        options: tab.options
+        options: tab.options,
       } as T;
     }
     case "popular": {
       return {
         type: "popular",
-        options: tab.options
-      } as T
+        options: tab.options,
+      } as T;
     }
     case "favorites": {
       tab.options.jump = undefined;
@@ -335,14 +310,14 @@ export function clearExtraPropsForReload<T extends StatusTabOptions>(tab: T): T 
       tab.options.maximumFavoritedTimestamp = undefined;
       return {
         type: "favorites",
-        options: tab.options
+        options: tab.options,
       } as T;
     }
     case "toplist": {
       tab.options.page = 0;
       return {
         type: "toplist",
-        options: tab.options
+        options: tab.options,
       } as T;
     }
     case "upload": {
@@ -354,7 +329,7 @@ export function clearExtraPropsForReload<T extends StatusTabOptions>(tab: T): T 
       tab.options.page = 0;
       return {
         type: "archive",
-        options: tab.options
+        options: tab.options,
       } as T;
     }
     default:
@@ -424,8 +399,7 @@ class StatusManager {
   }
 
   set currentTabId(tabId: string) {
-    if (!this._tabIdsInManager.includes(tabId))
-      throw new Error("Invalid tab id");
+    if (!this._tabIdsInManager.includes(tabId)) throw new Error("Invalid tab id");
     this._currentTabId = tabId;
   }
 
@@ -437,9 +411,7 @@ class StatusManager {
     return this._tabIdsInManager;
   }
 
-  addBlankTab(
-    { showInManager }: { showInManager: boolean } = { showInManager: true }
-  ) {
+  addBlankTab({ showInManager }: { showInManager: boolean } = { showInManager: true }) {
     const tabId = cvid.newId;
     this._tabsMap.set(tabId, { type: "blank" });
     if (showInManager) this._tabIdsInManager.push(tabId);
@@ -449,9 +421,7 @@ class StatusManager {
 
   removeTab(tabId: string) {
     if (this._tabIdsInManager.includes(tabId)) {
-      this._tabIdsInManager = this._tabIdsInManager.filter(
-        (id) => id !== tabId
-      );
+      this._tabIdsInManager = this._tabIdsInManager.filter((id) => id !== tabId);
     }
     this._tabsMap.delete(tabId);
     downloaderManager.removeTabDownloader(tabId);
@@ -595,8 +565,7 @@ class StatusManager {
         tab.options.minimumGid = undefined;
         tab.options.maximumGid = miniumGid;
         if (lastPage.sort_order === "favorited_time") {
-          tab.options.maximumFavoritedTimestamp =
-            lastPage.last_item_favorited_timestamp;
+          tab.options.maximumFavoritedTimestamp = lastPage.last_item_favorited_timestamp;
         }
         const page = await api.getFavoritesInfo(tab.options);
         tab.pages.push(page);
@@ -617,8 +586,7 @@ class StatusManager {
       case "archive": {
         const lastPage = tab.pages[tab.pages.length - 1];
         if (!lastPage) return;
-        if ((tab.options.page + 1) * tab.options.pageSize >= lastPage.all_count)
-          return;
+        if ((tab.options.page + 1) * tab.options.pageSize >= lastPage.all_count) return;
         tab.options.page += 1;
         const items = this.queryArchiveItem(tab.options);
         tab.pages.push({
@@ -690,12 +658,7 @@ class StatusManager {
     const sql_all = `SELECT COUNT(*) FROM archives;`;
     const sql_readlater = `SELECT COUNT(*) FROM archives WHERE readlater = 1;`;
     const sql_download = `SELECT COUNT(*) FROM archives WHERE downloaded = 1;`;
-    const sql =
-      type === "all"
-        ? sql_all
-        : type === "downloaded"
-        ? sql_download
-        : sql_readlater;
+    const sql = type === "all" ? sql_all : type === "downloaded" ? sql_download : sql_readlater;
     const rawData = dbManager.query(sql) as { "COUNT(*)": number }[];
     return rawData[0]["COUNT(*)"];
   }
@@ -921,11 +884,7 @@ class StatusManager {
     if (forceUpdate) {
       dbManager.update(sql_delete_taglist, [infos.gid]);
     }
-    dbManager.batchInsert(
-      "archive_taglist",
-      ["gid", "namespace", "tag"],
-      taglist_string
-    );
+    dbManager.batchInsert("archive_taglist", ["gid", "namespace", "tag"], taglist_string);
   }
 
   deleteArchiveItem(gid: number) {
@@ -951,9 +910,7 @@ class StatusManager {
       readlater?: boolean;
       downloaded?: boolean;
       my_rating?: number;
-      favorite_info?:
-        | { favorited: false }
-        | { favorited: true; favcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 };
+      favorite_info?: { favorited: false } | { favorited: true; favcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 };
     }
   ) {
     // 先查询是否存在
@@ -1008,9 +965,7 @@ class StatusManager {
           infos: options.infos,
           forceUpdate: true,
           first_access_time: oldInfos.first_access_time,
-          last_access_time: options.updateLastAccessTime
-            ? new Date().toISOString()
-            : oldInfos.last_access_time,
+          last_access_time: options.updateLastAccessTime ? new Date().toISOString() : oldInfos.last_access_time,
           readlater: options.readlater ?? oldInfos.readlater,
           downloaded: options.downloaded ?? oldInfos.downloaded,
           last_read_page: options.last_read_page ?? oldInfos.last_read_page,
@@ -1020,19 +975,11 @@ class StatusManager {
         const sql_update_unfavorited = `UPDATE archives SET favorited = ? WHERE gid = ?;`;
         const sql_update_favorited = `UPDATE archives SET favorited = ?, favcat = ? WHERE gid = ?;`;
         if (options.my_rating !== undefined) {
-          dbManager.update(sql_update_my_rating, [
-            true,
-            options.my_rating,
-            gid,
-          ]);
+          dbManager.update(sql_update_my_rating, [true, options.my_rating, gid]);
         }
         if (options.favorite_info) {
           if (options.favorite_info.favorited) {
-            dbManager.update(sql_update_favorited, [
-              true,
-              options.favorite_info.favcat,
-              gid,
-            ]);
+            dbManager.update(sql_update_favorited, [true, options.favorite_info.favcat, gid]);
           } else {
             dbManager.update(sql_update_unfavorited, [false, gid]);
           }
@@ -1045,8 +992,7 @@ class StatusManager {
             options.my_rating === undefined &&
             options.infos.is_my_rating &&
             (!oldInfos.is_my_rating ||
-              (oldInfos.is_my_rating &&
-                options.infos.estimated_display_rating !== oldInfos.rating))
+              (oldInfos.is_my_rating && options.infos.estimated_display_rating !== oldInfos.rating))
           ) {
             // 如果options中没有my_rating，并且options.infos的my_rating信息和oldInfos的my_rating不同
             options.my_rating = options.infos.estimated_display_rating;
@@ -1056,9 +1002,7 @@ class StatusManager {
               options.favorite_info = { favorited: false };
             } else if (
               (options.infos.favorited && !oldInfos.favorited) ||
-              (options.infos.favorited &&
-                oldInfos.favorited &&
-                options.infos.favcat !== oldInfos.favcat)
+              (options.infos.favorited && oldInfos.favorited && options.infos.favcat !== oldInfos.favcat)
             ) {
               options.favorite_info = {
                 favorited: true,
@@ -1082,31 +1026,17 @@ class StatusManager {
           dbManager.update(sql_update_downloaded, [options.downloaded, gid]);
         }
         if (options.last_read_page !== undefined) {
-          dbManager.update(sql_update_last_read_page, [
-            options.last_read_page,
-            gid,
-          ]);
+          dbManager.update(sql_update_last_read_page, [options.last_read_page, gid]);
         }
         if (options.updateLastAccessTime) {
-          dbManager.update(sql_update_last_access_time, [
-            new Date().toISOString(),
-            gid,
-          ]);
+          dbManager.update(sql_update_last_access_time, [new Date().toISOString(), gid]);
         }
         if (options.my_rating !== undefined) {
-          dbManager.update(sql_update_my_rating, [
-            true,
-            options.my_rating,
-            gid,
-          ]);
+          dbManager.update(sql_update_my_rating, [true, options.my_rating, gid]);
         }
         if (options.favorite_info) {
           if (options.favorite_info.favorited) {
-            dbManager.update(sql_update_favorited, [
-              true,
-              options.favorite_info.favcat,
-              gid,
-            ]);
+            dbManager.update(sql_update_favorited, [true, options.favorite_info.favcat, gid]);
           } else {
             dbManager.update(sql_update_unfavorited, [false, gid]);
           }

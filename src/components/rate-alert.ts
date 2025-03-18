@@ -1,10 +1,4 @@
-import {
-  UIAlertActionStyle,
-  UIAlertControllerStyle,
-  UIAlertAction,
-  UIAlertController,
-  l10n,
-} from "jsbox-cview";
+import { UIAlertActionStyle, UIAlertControllerStyle, UIAlertAction, UIAlertController, l10n } from "jsbox-cview";
 
 export function rateAlert({
   rating,
@@ -65,17 +59,9 @@ export function rateAlert({
         },
       ],
     };
-    const alertVC = new UIAlertController(
-      title,
-      "\n\n\n\n",
-      UIAlertControllerStyle.Alert
-    );
-    alertVC.addAction(
-      new UIAlertAction(cancelText, UIAlertActionStyle.Destructive, cancelEvent)
-    );
-    alertVC.addAction(
-      new UIAlertAction(confirmText, UIAlertActionStyle.Default, confirmEvent)
-    );
+    const alertVC = new UIAlertController(title, "\n\n\n\n", UIAlertControllerStyle.Alert);
+    alertVC.addAction(new UIAlertAction(cancelText, UIAlertActionStyle.Destructive, cancelEvent));
+    alertVC.addAction(new UIAlertAction(confirmText, UIAlertActionStyle.Default, confirmEvent));
     alertVC.present();
     alertVC.instance.invoke("view").jsValue().add(view);
 

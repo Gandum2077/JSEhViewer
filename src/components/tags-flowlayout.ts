@@ -136,10 +136,7 @@ class TagView extends Base<UIView, UiTypes.ViewOptions> {
         smoothCorners: true,
         userInteractionEnabled: true,
         menu: {
-          title:
-            tagNamespaceMostUsedAlternateMap[props.namespace] +
-            ": " +
-            props.name,
+          title: tagNamespaceMostUsedAlternateMap[props.namespace] + ": " + props.name,
           items: [
             {
               title: "立即搜索",
@@ -180,15 +177,9 @@ class TagView extends Base<UIView, UiTypes.ViewOptions> {
               symbol: "info.circle",
               handler: async (sender) => {
                 if (configManager.syncMyTags) {
-                  await this.updateTagDetailsWithSync(
-                    this._namespace,
-                    this._name
-                  );
+                  await this.updateTagDetailsWithSync(this._namespace, this._name);
                 } else {
-                  await this.updateTagDetailsOnLocal(
-                    this._namespace,
-                    this._name
-                  );
+                  await this.updateTagDetailsOnLocal(this._namespace, this._name);
                 }
               },
             },
@@ -204,9 +195,7 @@ class TagView extends Base<UIView, UiTypes.ViewOptions> {
       events: {
         tapped: (sender) => {
           this._selected = !this._selected;
-          ($(this.id + "tag") as UILabelView).textColor = this._selected
-            ? tagColor.selected
-            : $color("primaryText");
+          ($(this.id + "tag") as UILabelView).textColor = this._selected ? tagColor.selected : $color("primaryText");
           events.tapped();
         },
       },
@@ -216,9 +205,7 @@ class TagView extends Base<UIView, UiTypes.ViewOptions> {
           props: {
             id: this.id + "tag",
             text,
-            textColor: this._selected
-              ? tagColor.selected
-              : $color("primaryText"),
+            textColor: this._selected ? tagColor.selected : $color("primaryText"),
             font: $font(TAG_FONT_SIZE),
             align: $align.left,
           },
@@ -246,17 +233,9 @@ class TagView extends Base<UIView, UiTypes.ViewOptions> {
       $ui.warning("正在处理上一个请求，请稍后再试");
       return;
     }
-    const translationData = configManager.getTranslationDetailedInfo(
-      namespace,
-      name
-    );
+    const translationData = configManager.getTranslationDetailedInfo(namespace, name);
     const markedTag = configManager.getMarkedTag(namespace, name);
-    const params = await showDetailedInfoView(
-      namespace,
-      name,
-      translationData,
-      markedTag
-    );
+    const params = await showDetailedInfoView(namespace, name, translationData, markedTag);
     // 对比原来的数据, 查看是否有变化
     const { marked, watched, hidden, weight } = params;
     if (
@@ -331,17 +310,9 @@ class TagView extends Base<UIView, UiTypes.ViewOptions> {
    * @param name
    */
   async updateTagDetailsOnLocal(namespace: TagNamespace, name: string) {
-    const translationData = configManager.getTranslationDetailedInfo(
-      namespace,
-      name
-    );
+    const translationData = configManager.getTranslationDetailedInfo(namespace, name);
     const markedTag = configManager.getMarkedTag(namespace, name);
-    const params = await showDetailedInfoView(
-      namespace,
-      name,
-      translationData,
-      markedTag
-    );
+    const params = await showDetailedInfoView(namespace, name, translationData, markedTag);
     // 对比原来的数据, 查看是否有变化
     const { marked, watched, hidden, weight } = params;
     if (
@@ -389,9 +360,7 @@ class TagView extends Base<UIView, UiTypes.ViewOptions> {
     const watched = markedTag?.watched ?? false;
     const hidden = markedTag?.hidden ?? false;
     this.view.bgcolor = selectTagColor(marked, watched, hidden);
-    ($(this.id + "tag") as UILabelView).textColor = this._selected
-      ? tagColor.selected
-      : $color("primaryText");
+    ($(this.id + "tag") as UILabelView).textColor = this._selected ? tagColor.selected : $color("primaryText");
   }
 
   get namespace() {

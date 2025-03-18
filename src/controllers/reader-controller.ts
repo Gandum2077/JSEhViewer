@@ -1,14 +1,4 @@
-import {
-  Base,
-  BaseController,
-  Blur,
-  ContentView,
-  cvid,
-  Label,
-  Matrix,
-  Slider,
-  SymbolButton,
-} from "jsbox-cview";
+import { Base, BaseController, Blur, ContentView, cvid, Label, Matrix, Slider, SymbolButton } from "jsbox-cview";
 import { CustomImagePager } from "../components/custom-image-pager";
 import { downloaderManager } from "../utils/api";
 import { statusManager } from "../utils/status";
@@ -32,9 +22,7 @@ function define(view: any, handler: (location: JBPoint) => void) {
     type: id + ": NSObject",
     events: {
       create: () => {
-        const tap = $objc("UITapGestureRecognizer")
-          .$alloc()
-          .$initWithTarget_action(self, "tapped:");
+        const tap = $objc("UITapGestureRecognizer").$alloc().$initWithTarget_action(self, "tapped:");
         view.$addGestureRecognizer(tap);
       },
       tapped: (gesture: any) => {
@@ -274,9 +262,7 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
     this._width = 0;
     this._length = options.props.length;
     this._thumbnailItems = options.props.thumbnailItems;
-    this._thumbnailItemsFinished = this._thumbnailItems.every(
-      (item) => item.path
-    );
+    this._thumbnailItemsFinished = this._thumbnailItems.every((item) => item.path);
     this.cviews = {} as {
       thumbnailMatrix: Matrix;
       sliderLeftLabel: Label;
@@ -400,11 +386,7 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
               make.top.equalTo(view.prev.bottom);
               make.height.equalTo(50);
             },
-            views: [
-              this.cviews.sliderLeftLabel.definition,
-              sliderRightLabel.definition,
-              this.cviews.slider.definition,
-            ],
+            views: [this.cviews.sliderLeftLabel.definition, sliderRightLabel.definition, this.cviews.slider.definition],
           },
         ],
         events: {
@@ -427,9 +409,7 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
   refreshThumbnailItems(thumbnailItems: { path?: string; error: boolean }[]) {
     if (this._thumbnailItemsFinished) return;
     this._thumbnailItems = thumbnailItems;
-    this._thumbnailItemsFinished = this._thumbnailItems.every(
-      (item) => item.path
-    );
+    this._thumbnailItemsFinished = this._thumbnailItems.every((item) => item.path);
     this.cviews.thumbnailMatrix.view.data = this._mapData(this.index);
   }
 
@@ -439,18 +419,14 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
       this.cviews.thumbnailMatrix.view.contentOffset = $point(0, 0);
     } else if (
       this._width !== 0 &&
-      this.cviews.thumbnailMatrix.view.contentSize.width - (index * 85 - 85) <
-        this._width
+      this.cviews.thumbnailMatrix.view.contentSize.width - (index * 85 - 85) < this._width
     ) {
       this.cviews.thumbnailMatrix.view.contentOffset = $point(
         this.cviews.thumbnailMatrix.view.contentSize.width - this._width,
         0
       );
     } else {
-      this.cviews.thumbnailMatrix.view.contentOffset = $point(
-        85 * index - 85,
-        0
-      );
+      this.cviews.thumbnailMatrix.view.contentOffset = $point(85 * index - 85, 0);
     }
     this.cviews.thumbnailMatrix.view.data = this._mapData(index);
     this.cviews.sliderLeftLabel.view.text = (index + 1).toString();
@@ -530,12 +506,9 @@ export class ReaderController extends BaseController {
               this.refreshCurrentPage();
               this.cviews.titleLabel.view.text = this._generateTitle();
               this.handleAiTranslationButtonStatus(this.imagePager.page);
-              this.cviews.footerThumbnailView.refreshThumbnailItems(
-                galleryDownloader.result.thumbnails
-              );
+              this.cviews.footerThumbnailView.refreshThumbnailItems(galleryDownloader.result.thumbnails);
 
-              this.cviews.downloadButton.progress =
-                galleryDownloader.finishedOfImages / length;
+              this.cviews.downloadButton.progress = galleryDownloader.finishedOfImages / length;
 
               if (this._autoPagerEnabled) {
                 // 自动翻页
@@ -544,25 +517,19 @@ export class ReaderController extends BaseController {
                 // 另外，如果翻到最后一页，不再翻页
                 if (
                   !this.imagePager.srcs[this.imagePager.page].path ||
-                  this.cviews.footerThumbnailView.index ===
-                    this.imagePager.srcs.length - 1
+                  this.cviews.footerThumbnailView.index === this.imagePager.srcs.length - 1
                 ) {
                   this._autoPagerCountDown = this._autoPagerInterval;
                   return;
                 } else {
                   this._autoPagerCountDown -= 1;
                   if (this._autoPagerCountDown <= 0) {
-                    this.handleTurnPage(
-                      this.cviews.footerThumbnailView.index + 1
-                    );
+                    this.handleTurnPage(this.cviews.footerThumbnailView.index + 1);
                   }
                 }
               }
 
-              if (
-                !this._superGalleryController.fatalErrorAlerted &&
-                this._superGalleryController._checkFatalError()
-              ) {
+              if (!this._superGalleryController.fatalErrorAlerted && this._superGalleryController._checkFatalError()) {
                 this._superGalleryController.fatalErrorAlerted = true;
                 $ui.alert({
                   title: "致命错误",
@@ -688,11 +655,7 @@ export class ReaderController extends BaseController {
     const downloadButton = new DownloadButtonForReader({
       progress,
       status:
-        progress === 1
-          ? "finished"
-          : this._superGalleryController.autoCacheWhenReading
-          ? "downloading"
-          : "paused",
+        progress === 1 ? "finished" : this._superGalleryController.autoCacheWhenReading ? "downloading" : "paused",
       handler: (sender) => {
         const progress = galleryDownloader.finishedOfImages / length;
         if (progress === 1) return;
@@ -701,11 +664,9 @@ export class ReaderController extends BaseController {
         } else if (sender.status === "paused") {
           sender.status = "downloading";
         }
-        this._superGalleryController.autoCacheWhenReading =
-          !this._superGalleryController.autoCacheWhenReading;
+        this._superGalleryController.autoCacheWhenReading = !this._superGalleryController.autoCacheWhenReading;
         // downloader进行转换
-        galleryDownloader.autoCacheWhenReading =
-          this._superGalleryController.autoCacheWhenReading;
+        galleryDownloader.autoCacheWhenReading = this._superGalleryController.autoCacheWhenReading;
         if (galleryDownloader.background) {
           // 如果启动了后台下载，需要对后台下载暂停或者继续
           if (this._superGalleryController.autoCacheWhenReading) {
@@ -714,8 +675,7 @@ export class ReaderController extends BaseController {
               "downloading";
           } else {
             galleryDownloader.backgroundPaused = true;
-            this._superGalleryController.subControllers.galleryInfoController.cviews.downloadButton.status =
-              "paused";
+            this._superGalleryController.subControllers.galleryInfoController.cviews.downloadButton.status = "paused";
           }
         }
         downloaderManager.startOne(this.gid);
@@ -867,8 +827,7 @@ export class ReaderController extends BaseController {
             // 添加到翻译清单
             this.aiTranslatedPageSet.add(index);
             // 查询翻译信息
-            const aiTranslation =
-              galleryDownloader.result.aiTranslations[index];
+            const aiTranslation = galleryDownloader.result.aiTranslations[index];
             if (aiTranslation.path) {
               // 如果已经翻译成功
               aiTranslationButton.status = "success";
@@ -926,10 +885,7 @@ export class ReaderController extends BaseController {
                 {
                   type: "view",
                   props: {},
-                  views: [
-                    startAutoPagerButton.definition,
-                    stopAutoPagerButton.definition,
-                  ],
+                  views: [startAutoPagerButton.definition, stopAutoPagerButton.definition],
                 },
                 {
                   type: "view",
@@ -949,12 +905,9 @@ export class ReaderController extends BaseController {
                       events: {
                         tapped: () => {
                           const index = this.cviews.footerThumbnailView.index;
-                          const galleryDownloader = downloaderManager.get(
-                            this.gid
-                          );
+                          const galleryDownloader = downloaderManager.get(this.gid);
                           if (!galleryDownloader) return;
-                          const path =
-                            galleryDownloader.result.images[index].path;
+                          const path = galleryDownloader.result.images[index].path;
                           if (path) {
                             $share.sheet($image(path));
                           } else {
@@ -1036,18 +989,11 @@ export class ReaderController extends BaseController {
           const h = sender.frame.height;
           const x = location.x;
           const y = location.y;
-          if (
-            y / h < 1 / 4 ||
-            (y / h >= 1 / 4 && y / h <= 3 / 4 && x / w < 1 / 3)
-          ) {
+          if (y / h < 1 / 4 || (y / h >= 1 / 4 && y / h <= 3 / 4 && x / w < 1 / 3)) {
             if (footerThumbnailView.index === 0) return;
             this.handleTurnPage(footerThumbnailView.index - 1);
-          } else if (
-            y / h > 3 / 4 ||
-            (y / h >= 1 / 4 && y / h <= 3 / 4 && x / w > 2 / 3)
-          ) {
-            if (footerThumbnailView.index === this.imagePager.srcs.length - 1)
-              return;
+          } else if (y / h > 3 / 4 || (y / h >= 1 / 4 && y / h <= 3 / 4 && x / w > 2 / 3)) {
+            if (footerThumbnailView.index === this.imagePager.srcs.length - 1) return;
             this.handleTurnPage(footerThumbnailView.index + 1);
           } else {
             footer.view.hidden = !footer.view.hidden;
@@ -1065,8 +1011,7 @@ export class ReaderController extends BaseController {
           if (
             sender.frame.width <= 0 ||
             sender.frame.height <= 0 ||
-            (sender.frame.width === lastFrameWidth &&
-              sender.frame.height === lastFrameHeight)
+            (sender.frame.width === lastFrameWidth && sender.frame.height === lastFrameHeight)
           )
             return;
           viewerLayoutSubviews(sender);
@@ -1096,10 +1041,8 @@ export class ReaderController extends BaseController {
   }
 
   handleTurnPage(page: number) {
-    if (this.cviews.footerThumbnailView.index !== page)
-      this.cviews.footerThumbnailView.index = page;
-    if (this.imagePager && this.imagePager.page !== page)
-      this.imagePager.page = page;
+    if (this.cviews.footerThumbnailView.index !== page) this.cviews.footerThumbnailView.index = page;
+    if (this.imagePager && this.imagePager.page !== page) this.imagePager.page = page;
     this._autoPagerCountDown = this._autoPagerInterval;
     this.refreshCurrentPage();
     const galleryDownloader = downloaderManager.get(this.gid);
@@ -1108,10 +1051,7 @@ export class ReaderController extends BaseController {
     if (!this._superGalleryController.autoCacheWhenReading) {
       // 检查前后三张图片是否存在 未开始 的任务
       const shouldStartDownloader = galleryDownloader.result.images
-        .slice(
-          galleryDownloader.currentReadingIndex,
-          galleryDownloader.currentReadingIndex + 3
-        )
+        .slice(galleryDownloader.currentReadingIndex, galleryDownloader.currentReadingIndex + 3)
         .some((n) => !n.started);
       if (shouldStartDownloader) {
         downloaderManager.startOne(this.gid);
@@ -1122,8 +1062,7 @@ export class ReaderController extends BaseController {
     this.handleAiTranslationButtonStatus(page);
 
     // 修改上级GalleryController的阅读进度
-    this._superGalleryController.subControllers.galleryInfoController.currentReadPage =
-      page;
+    this._superGalleryController.subControllers.galleryInfoController.currentReadPage = page;
   }
 
   private handleAiTranslationButtonStatus(page: number) {
@@ -1152,8 +1091,7 @@ export class ReaderController extends BaseController {
     // 查看是否在翻译清单
     const isInAiTranslatedPageSet = this.aiTranslatedPageSet.has(index);
     // 查看翻译状态
-    let aiTranslationStatus: "pending" | "loading" | "success" | "error" =
-      "pending";
+    let aiTranslationStatus: "pending" | "loading" | "success" | "error" = "pending";
     if (isInAiTranslatedPageSet) {
       const aiTranslation = galleryDownloader.result.aiTranslations[index];
       if (aiTranslation.error) {
@@ -1167,12 +1105,7 @@ export class ReaderController extends BaseController {
     // 查看是否在重新载入清单
     const isInReloadedPageSet = this.reloadedPageSet.has(index);
     // 查看重新载入状态
-    let reloadStatus:
-      | "pending"
-      | "loading"
-      | "success"
-      | "error"
-      | "noOriginalImage" = "pending";
+    let reloadStatus: "pending" | "loading" | "success" | "error" | "noOriginalImage" = "pending";
     if (isInReloadedPageSet) {
       const originalImage = galleryDownloader.result.originalImages[index];
       if (originalImage.noOriginalImage) {

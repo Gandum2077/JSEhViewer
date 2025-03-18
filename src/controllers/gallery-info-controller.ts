@@ -375,13 +375,7 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
     this.refresh();
   }
 
-  update({
-    uploader,
-    disowned,
-  }: {
-    uploader: string | undefined;
-    disowned: boolean;
-  }) {
+  update({ uploader, disowned }: { uploader: string | undefined; disowned: boolean }) {
     this._uploader = uploader;
     this._disowned = disowned;
     this._selected = false;
@@ -423,19 +417,13 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
 
     // 刷新颜色
     if (this._selected) {
-      ($(this.id + "uploader_normal") as UILabelView).textColor =
-        tagColor.selected;
-      ($(this.id + "uploader_marked") as UILabelView).textColor =
-        tagColor.selected;
-      ($(this.id + "uploader_banned") as UILabelView).textColor =
-        tagColor.selected;
+      ($(this.id + "uploader_normal") as UILabelView).textColor = tagColor.selected;
+      ($(this.id + "uploader_marked") as UILabelView).textColor = tagColor.selected;
+      ($(this.id + "uploader_banned") as UILabelView).textColor = tagColor.selected;
     } else {
-      ($(this.id + "uploader_normal") as UILabelView).textColor =
-        $color("primaryText");
-      ($(this.id + "uploader_marked") as UILabelView).textColor =
-        tagColor.marked;
-      ($(this.id + "uploader_banned") as UILabelView).textColor =
-        tagColor.hidden;
+      ($(this.id + "uploader_normal") as UILabelView).textColor = $color("primaryText");
+      ($(this.id + "uploader_marked") as UILabelView).textColor = tagColor.marked;
+      ($(this.id + "uploader_banned") as UILabelView).textColor = tagColor.hidden;
     }
 
     // 刷新内容
@@ -456,11 +444,7 @@ class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
   }
 }
 
-function _calFontSizeAndHeight(
-  title: string,
-  width: number,
-  maxHeight: number
-): { fontSize: number; height: number } {
+function _calFontSizeAndHeight(title: string, width: number, maxHeight: number): { fontSize: number; height: number } {
   const maxFontSize = 16;
   const minFontSize = 10;
   const factor = 2;
@@ -584,13 +568,9 @@ class InfoHeaderView extends Base<UIView, UiTypes.ViewOptions> {
                         if (!this._infos) return;
                         if (!this._infos.japanese_title) return;
                         this._titleLanguage =
-                          this._titleLanguage === "english_title"
-                            ? "japanese_title"
-                            : "english_title";
+                          this._titleLanguage === "english_title" ? "japanese_title" : "english_title";
                         sender.text = this._infos[this._titleLanguage];
-                        this._updateTitleLayout(
-                          $(this.id + "rightWrapper").frame
-                        );
+                        this._updateTitleLayout($(this.id + "rightWrapper").frame);
                       },
                     },
                   },
@@ -635,8 +615,7 @@ class InfoHeaderView extends Base<UIView, UiTypes.ViewOptions> {
       this._titleLanguage = "english_title";
     }
     ($(this.id + "title") as UILabelView).text = infos[this._titleLanguage];
-    ($(this.id + "category") as UILabelView).text =
-      catTranslations[infos.category];
+    ($(this.id + "category") as UILabelView).text = catTranslations[infos.category];
     ($(this.id + "category") as UILabelView).bgcolor = catColor[infos.category];
     this.cviews.uploaderView.update({
       uploader: infos.uploader,
@@ -760,11 +739,7 @@ class RateButton extends Base<UIView, UiTypes.ViewOptions> {
   private _rating: number = 0;
   private _is_my_rating: boolean = false;
   private _isRequestInProgress: boolean = false;
-  constructor({
-    handler,
-  }: {
-    handler: (currentRating: number) => Promise<number>;
-  }) {
+  constructor({ handler }: { handler: (currentRating: number) => Promise<number> }) {
     super();
     const ratingWidth = this._calRatingWidth(this._rating);
     this._defineView = () => {
@@ -812,9 +787,7 @@ class RateButton extends Base<UIView, UiTypes.ViewOptions> {
                     type: "image",
                     props: {
                       id: "starfill",
-                      tintColor: this._is_my_rating
-                        ? ratingColor
-                        : $color("orange"),
+                      tintColor: this._is_my_rating ? ratingColor : $color("orange"),
                       symbol: "star.fill",
                     },
                     layout: (make, view) => {
@@ -874,12 +847,8 @@ class RateButton extends Base<UIView, UiTypes.ViewOptions> {
 
   set is_my_rating(is_my_rating: boolean) {
     this._is_my_rating = is_my_rating;
-    (this.view.get("star") as UIImageView).tintColor = is_my_rating
-      ? ratingColor
-      : $color("orange");
-    (this.view.get("starfill") as UIImageView).tintColor = is_my_rating
-      ? ratingColor
-      : $color("orange");
+    (this.view.get("star") as UIImageView).tintColor = is_my_rating ? ratingColor : $color("orange");
+    (this.view.get("starfill") as UIImageView).tintColor = is_my_rating ? ratingColor : $color("orange");
   }
 
   get is_my_rating() {
@@ -909,16 +878,12 @@ type FavoriteButtonActionResult =
 
 class FavoriteButton extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
-  private _handler: (
-    action: "default" | "unfavorite" | "other"
-  ) => Promise<FavoriteButtonActionResult>;
+  private _handler: (action: "default" | "unfavorite" | "other") => Promise<FavoriteButtonActionResult>;
   private _isRequestInProgress: boolean = false;
   constructor({
     handler,
   }: {
-    handler: (
-      action: "default" | "unfavorite" | "other"
-    ) => Promise<FavoriteButtonActionResult>;
+    handler: (action: "default" | "unfavorite" | "other") => Promise<FavoriteButtonActionResult>;
   }) {
     super();
     this._handler = handler;
@@ -997,9 +962,7 @@ class FavoriteButton extends Base<UIView, UiTypes.ViewOptions> {
                 pullDown: true,
                 items: [
                   {
-                    title:
-                      "收藏到" +
-                      configManager.favcatTitles[configManager.defaultFavcat],
+                    title: "收藏到" + configManager.favcatTitles[configManager.defaultFavcat],
                     handler: async () => {
                       await this._handleEvent("default");
                     },
@@ -1052,8 +1015,7 @@ class FavoriteButton extends Base<UIView, UiTypes.ViewOptions> {
   }
 
   favorite(favcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9, title: string) {
-    (this.view.get("image_favorited") as UIImageView).tintColor =
-      favcatColor[favcat];
+    (this.view.get("image_favorited") as UIImageView).tintColor = favcatColor[favcat];
     (this.view.get("label_favorited") as UILabelView).text = title;
     (this.view.get("button_unfavorited") as UIButtonView).hidden = true;
     (this.view.get("button_favorited") as UIButtonView).hidden = false;
@@ -1191,9 +1153,7 @@ export class GalleryInfoController extends BaseController {
     webDAVWidget: WebDAVWidget;
   };
 
-  onWebDAVAction?: (
-    action: "retry" | "upload" | "retry-upload" | "resume-upload" | "pause"
-  ) => void;
+  onWebDAVAction?: (action: "retry" | "upload" | "retry-upload" | "resume-upload" | "pause") => void;
   onWebDAVConfig?: () => void;
 
   constructor(gid: number, readHandler: (index: number) => void) {
@@ -1250,8 +1210,7 @@ export class GalleryInfoController extends BaseController {
       events: {
         tapped: (sender) => {
           if (!this._infos) return;
-          const galleryDetailedInfoController =
-            new GalleryDetailedInfoController(this._infos);
+          const galleryDetailedInfoController = new GalleryDetailedInfoController(this._infos);
           galleryDetailedInfoController.uipush({
             navBarHidden: true,
             statusBarStyle: 0,
@@ -1273,13 +1232,7 @@ export class GalleryInfoController extends BaseController {
         }
         if (!newRating) return 0;
         try {
-          await api.rateGallery(
-            this.gid,
-            this._infos.token,
-            this._infos.apikey,
-            this._infos.apiuid,
-            newRating
-          );
+          await api.rateGallery(this.gid, this._infos.token, this._infos.apikey, this._infos.apiuid, newRating);
           this._infos.display_rating = newRating;
           this._infos.is_my_rating = true;
           this._trySavingInfos();
@@ -1300,15 +1253,10 @@ export class GalleryInfoController extends BaseController {
           case "default": {
             const defaultFavcat = configManager.defaultFavcat;
             try {
-              await api.addOrModifyFav(
-                this.gid,
-                this._infos.token,
-                defaultFavcat
-              );
+              await api.addOrModifyFav(this.gid, this._infos.token, defaultFavcat);
               this._infos.favorited = true;
               this._infos.favcat = defaultFavcat;
-              this._infos.favcat_title =
-                configManager.favcatTitles[defaultFavcat];
+              this._infos.favcat_title = configManager.favcatTitles[defaultFavcat];
               this._trySavingInfos();
               statusManager.updateArchiveItem(this.gid, {
                 favorite_info: {
@@ -1347,16 +1295,10 @@ export class GalleryInfoController extends BaseController {
             try {
               const result = await galleryFavoriteDialog(this._infos);
               if (result.success) {
-                await api.addOrModifyFav(
-                  this.gid,
-                  this._infos.token,
-                  result.favcat,
-                  result.favnote
-                );
+                await api.addOrModifyFav(this.gid, this._infos.token, result.favcat, result.favnote);
                 this._infos.favorited = true;
                 this._infos.favcat = result.favcat;
-                this._infos.favcat_title =
-                  configManager.favcatTitles[result.favcat];
+                this._infos.favcat_title = configManager.favcatTitles[result.favcat];
                 this._trySavingInfos();
                 statusManager.updateArchiveItem(this.gid, {
                   favorite_info: {
@@ -1454,9 +1396,7 @@ export class GalleryInfoController extends BaseController {
       symbolSize: $size(40, 40),
       handler: () => {
         if (!this._infos) return;
-        const galleryTorrentsController = new GalleryTorrentsController(
-          this._infos
-        );
+        const galleryTorrentsController = new GalleryTorrentsController(this._infos);
         galleryTorrentsController.present();
       },
     });
@@ -1472,11 +1412,7 @@ export class GalleryInfoController extends BaseController {
       },
     });
 
-    const primaryButtonsWrapper = new ButtonsWarpper([
-      rateButton,
-      favoriteButton,
-      readButton,
-    ]);
+    const primaryButtonsWrapper = new ButtonsWarpper([rateButton, favoriteButton, readButton]);
 
     const secondaryButtonsWrapper = new ButtonsWarpper(
       [readLaterButton, downloadButton, torrentButton, hathDownloadButton],
@@ -1615,8 +1551,7 @@ export class GalleryInfoController extends BaseController {
   set infos(infos: EHGallery) {
     this.gid = infos.gid;
     this._infos = infos;
-    const topThumbnailPath = downloaderManager.get(this.gid)!.result
-      .topThumbnail.path;
+    const topThumbnailPath = downloaderManager.get(this.gid)!.result.topThumbnail.path;
     this._topThumbnailFinished = Boolean(topThumbnailPath);
     this.cviews.infoHeaderView.thumbnail_url = topThumbnailPath || "";
     this.cviews.infoHeaderView.infos = infos;
@@ -1634,8 +1569,7 @@ export class GalleryInfoController extends BaseController {
         label: {
           textColor: $color("secondaryText"),
           text:
-            (configManager.translate("language", infos.language) ||
-              infos.language) +
+            (configManager.translate("language", infos.language) || infos.language) +
             (infos.translated ? " 翻译" : "") +
             (infos.rewrited ? " 重写" : ""),
         },
@@ -1678,11 +1612,7 @@ export class GalleryInfoController extends BaseController {
     if (infos.visible === false) {
       data.push({
         label: {
-          text:
-            "不可见: " +
-            ((infos.invisible_cause &&
-              invisibleCauseMap[infos.invisible_cause]) ||
-              ""),
+          text: "不可见: " + ((infos.invisible_cause && invisibleCauseMap[infos.invisible_cause]) || ""),
           textColor: $color("red"),
         },
         icon: {
@@ -1784,11 +1714,8 @@ export class GalleryInfoController extends BaseController {
 
   updateSearchButtonShowingStatus() {
     // 检测uploaderView和tagsFlowLayout是否有选中的tag，如果有则显示搜索按钮
-    const uploaderViewSelected =
-      this.cviews.infoHeaderView.cviews.uploaderView.selected;
-    const tagsFlowlayoutSelected = Boolean(
-      this.cviews.tagsFlowlayoutWrapper.flowlayout?.selectedTags.length
-    );
+    const uploaderViewSelected = this.cviews.infoHeaderView.cviews.uploaderView.selected;
+    const tagsFlowlayoutSelected = Boolean(this.cviews.tagsFlowlayoutWrapper.flowlayout?.selectedTags.length);
     const shouldShow = uploaderViewSelected || tagsFlowlayoutSelected;
     if (this._isShowingSearchButton === shouldShow) return;
     this._isShowingSearchButton = shouldShow;

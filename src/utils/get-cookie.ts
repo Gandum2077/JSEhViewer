@@ -180,10 +180,7 @@ function presentSheet(url: string): Promise<ParsedCookie[]> {
         return true;
       },
       didReceiveServerRedirect: (sender, navigation) => {
-        if (
-          sender.url === "https://e-hentai.org/bounce_login.php?b=d&bt=1-1" ||
-          sender.url.includes("&act=Login")
-        ) {
+        if (sender.url === "https://e-hentai.org/bounce_login.php?b=d&bt=1-1" || sender.url.includes("&act=Login")) {
           sheet.title = "请登录";
         }
       },
@@ -225,14 +222,9 @@ function presentSheet(url: string): Promise<ParsedCookie[]> {
 export async function getCookie(exhentai = true): Promise<ParsedCookie[]> {
   const url = "https://e-hentai.org/home.php";
   const cookies = await presentSheet(url);
-  const cookie_ipb_member_id = cookies.find(
-    (cookie) => cookie.name === "ipb_member_id"
-  );
-  const cookie_ipb_pass_hash = cookies.find(
-    (cookie) => cookie.name === "ipb_pass_hash"
-  );
-  if (!cookie_ipb_member_id || !cookie_ipb_pass_hash)
-    throw new Error("网页登录失败, 未能获取到必要的Cookie");
+  const cookie_ipb_member_id = cookies.find((cookie) => cookie.name === "ipb_member_id");
+  const cookie_ipb_pass_hash = cookies.find((cookie) => cookie.name === "ipb_pass_hash");
+  if (!cookie_ipb_member_id || !cookie_ipb_pass_hash) throw new Error("网页登录失败, 未能获取到必要的Cookie");
   if (exhentai) {
     const resp = await $http.get({
       url: "https://exhentai.org",
@@ -246,15 +238,9 @@ export async function getCookie(exhentai = true): Promise<ParsedCookie[]> {
       },
       timeout: 30,
     });
-    if (
-      resp.error ||
-      resp.response.statusCode !== 200 ||
-      !(resp.data as string).startsWith("<!DOCTYPE html>")
-    )
+    if (resp.error || resp.response.statusCode !== 200 || !(resp.data as string).startsWith("<!DOCTYPE html>"))
       throw new Error("登录Exhentai失败");
-    const setCookies = parseSetCookieString(
-      resp.response.headers["Set-Cookie"]
-    );
+    const setCookies = parseSetCookieString(resp.response.headers["Set-Cookie"]);
     // 此处应该是必然有igneous的，否则登录失败，这应该是能否访问Exhentai的标志
     const cookie_igneous = setCookies.find((n) => n.name === "igneous");
     if (!cookie_igneous || cookie_igneous.value.length !== 17) {
@@ -273,11 +259,8 @@ export async function getCookie(exhentai = true): Promise<ParsedCookie[]> {
       },
       timeout: 30,
     });
-    if (resp2.error || resp2.response.statusCode !== 200)
-      throw new Error("获取Exhentai设置失败");
-    const setCookies2 = parseSetCookieString(
-      resp2.response.headers["Set-Cookie"]
-    );
+    if (resp2.error || resp2.response.statusCode !== 200) throw new Error("获取Exhentai设置失败");
+    const setCookies2 = parseSetCookieString(resp2.response.headers["Set-Cookie"]);
     // 后面这些，只有sk是必然有的，其他的不一定有
     const cookie_sk = setCookies2.find((n) => n.name === "sk");
     const cookie_star = setCookies2.find((n) => n.name === "star");

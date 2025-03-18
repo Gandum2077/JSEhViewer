@@ -187,11 +187,7 @@ function updateDB(db: SqliteTypes.SqliteInstance, sql: string, args?: any[]) {
 }
 
 // 批量更新数据库
-function updateDBBatch(
-  db: SqliteTypes.SqliteInstance,
-  sql: string,
-  manyArgs: any[][]
-) {
+function updateDBBatch(db: SqliteTypes.SqliteInstance, sql: string, manyArgs: any[][]) {
   db.beginTransaction();
   for (const args of manyArgs) {
     db.update({ sql, args });
@@ -206,12 +202,7 @@ function updateDBBatch(
  * @param columns 列名, 需要按照正确的顺序来排列
  * @param manyArgs 数据, 和列名对应
  */
-function insertDBBatch(
-  db: SqliteTypes.SqliteInstance,
-  tableName: string,
-  columns: string[],
-  manyArgs: any[][]
-) {
+function insertDBBatch(db: SqliteTypes.SqliteInstance, tableName: string, columns: string[], manyArgs: any[][]) {
   const batchSize = 10000;
   const sql0 = `INSERT INTO ${tableName} (${columns.join(",")}) VALUES `;
   const columnQuotes = "(" + columns.map(() => "?").join(",") + ")";
@@ -238,9 +229,7 @@ class DBManager {
   }
 
   checkDBUpdate() {
-    const user_version = (
-      this.query("PRAGMA user_version;") as [{ user_version: number }]
-    )[0].user_version;
+    const user_version = (this.query("PRAGMA user_version;") as [{ user_version: number }])[0].user_version;
     if (user_version === CURRENT_USER_VERSION) return;
     // 按照顺序依次提升版本
   }
@@ -253,18 +242,11 @@ class DBManager {
     return updateDB(this._db, sql, args);
   }
 
-  batchUpdate(
-    sql: string,
-    manyArgs: (string | number | boolean | null | undefined)[][]
-  ) {
+  batchUpdate(sql: string, manyArgs: (string | number | boolean | null | undefined)[][]) {
     return updateDBBatch(this._db, sql, manyArgs);
   }
 
-  batchInsert(
-    tableName: string,
-    columns: string[],
-    manyArgs: (string | number | boolean | null | undefined)[][]
-  ) {
+  batchInsert(tableName: string, columns: string[], manyArgs: (string | number | boolean | null | undefined)[][]) {
     return insertDBBatch(this._db, tableName, columns, manyArgs);
   }
 }

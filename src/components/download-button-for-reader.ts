@@ -54,20 +54,10 @@ class ProgressArc extends Base<UIView, UiTypes.ViewOptions> {
 
           // Draw outer arc
           ctx.beginPath();
-          ctx.addArc(
-            centerX,
-            centerY,
-            outerRadius,
-            startAngle,
-            endAngle,
-            false
-          );
+          ctx.addArc(centerX, centerY, outerRadius, startAngle, endAngle, false);
 
           // Draw line to inner arc
-          ctx.addLineToPoint(
-            centerX + innerRadius * Math.cos(endAngle),
-            centerY + innerRadius * Math.sin(endAngle)
-          );
+          ctx.addLineToPoint(centerX + innerRadius * Math.cos(endAngle), centerY + innerRadius * Math.sin(endAngle));
 
           // Draw inner arc (reverse direction)
           ctx.addArc(centerX, centerY, innerRadius, endAngle, startAngle, true);
@@ -108,9 +98,7 @@ class ProgressArc extends Base<UIView, UiTypes.ViewOptions> {
             props: {
               id: this.id + "progress",
               symbol: this._paused ? "pause.circle" : "stop.circle",
-              tintColor: this._paused
-                ? downloadButtonSymbolColors.paused
-                : downloadButtonSymbolColors.downloading,
+              tintColor: this._paused ? downloadButtonSymbolColors.paused : downloadButtonSymbolColors.downloading,
               contentMode: 1,
             },
             layout: $layout.fill,
@@ -128,9 +116,7 @@ class ProgressArc extends Base<UIView, UiTypes.ViewOptions> {
   }
 
   private _refresh() {
-    ($(this.id + "progress") as UIImageView).symbol = this._paused
-      ? "pause.circle"
-      : "stop.circle";
+    ($(this.id + "progress") as UIImageView).symbol = this._paused ? "pause.circle" : "stop.circle";
     ($(this.id + "progress") as UIImageView).tintColor = this._paused
       ? downloadButtonSymbolColors.paused
       : downloadButtonSymbolColors.downloading;
@@ -159,10 +145,7 @@ class ProgressArc extends Base<UIView, UiTypes.ViewOptions> {
 /**
  *
  */
-export class DownloadButtonForReader extends Base<
-  UIButtonView,
-  UiTypes.ButtonOptions
-> {
+export class DownloadButtonForReader extends Base<UIButtonView, UiTypes.ButtonOptions> {
   private _status: "paused" | "downloading" | "finished";
   private _progress: number; // 0-1
   private _progressArc: ProgressArc;
@@ -175,10 +158,7 @@ export class DownloadButtonForReader extends Base<
   }: {
     progress: number;
     status: "paused" | "downloading" | "finished";
-    handler: (
-      sender: DownloadButtonForReader,
-      status: "paused" | "downloading"
-    ) => void;
+    handler: (sender: DownloadButtonForReader, status: "paused" | "downloading") => void;
     layout: (make: MASConstraintMaker, view: UIButtonView) => void;
   }) {
     super();

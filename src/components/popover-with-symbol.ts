@@ -72,10 +72,7 @@ export function popoverWithSymbol({
         },
         events: {
           didSelect: (sender, indexPath) => {
-            if (
-              items[indexPath.row].autoDismiss === undefined ||
-              items[indexPath.row].autoDismiss === true
-            ) {
+            if (items[indexPath.row].autoDismiss === undefined || items[indexPath.row].autoDismiss === true) {
               popover.dismiss();
             }
             items[indexPath.row].handler();
@@ -156,10 +153,7 @@ export async function popoverWithSymbolAsync({
           },
           events: {
             didSelect: (sender, indexPath) => {
-              if (
-                items[indexPath.row].autoDismiss === undefined ||
-                items[indexPath.row].autoDismiss === true
-              ) {
+              if (items[indexPath.row].autoDismiss === undefined || items[indexPath.row].autoDismiss === true) {
                 popover.dismiss();
               }
               resolve(indexPath.row);

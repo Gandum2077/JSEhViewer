@@ -168,8 +168,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
           const oldPage = this.page;
           this._props.page = Math.round(target.x / sender.frame.width);
           //this.loadsrc(this.page, true);
-          if (oldPage !== this.page && events.changed)
-            events.changed(this.page);
+          if (oldPage !== this.page && events.changed) events.changed(this.page);
         },
         didScroll: (sender) => {
           this.loadsrc(this.page + 1, true);

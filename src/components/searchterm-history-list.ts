@@ -1,9 +1,4 @@
-import {
-  Base,
-  router,
-  SplitViewController,
-  TabBarController,
-} from "jsbox-cview";
+import { Base, router, SplitViewController, TabBarController } from "jsbox-cview";
 import { configManager } from "../utils/config";
 import { EHSearchTerm, tagNamespaceMostUsedAlternateMap } from "ehentai-parser";
 import { DBSearchHistory } from "../types";
@@ -20,10 +15,7 @@ import { ArchiveController } from "../controllers/archive-controller";
  *
  *
  */
-export class SearchTermHistoryList extends Base<
-  UIListView,
-  UiTypes.ListOptions
-> {
+export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions> {
   _defineView: () => UiTypes.ListOptions;
   private _searchHistory: DBSearchHistory = [];
   private _filterText?: string;
@@ -49,21 +41,12 @@ export class SearchTermHistoryList extends Base<
                 title: "立即搜索",
                 symbol: "magnifyingglass",
                 handler: (sender, indexPath) => {
-                  const id = (sender as UIListView).object(indexPath).label.info
-                    .id as number;
-                  const searchTerms = this._searchHistory.find(
-                    (item) => item.id === id
-                  )?.searchTerms;
+                  const id = (sender as UIListView).object(indexPath).label.info.id as number;
+                  const searchTerms = this._searchHistory.find((item) => item.id === id)?.searchTerms;
                   if (!searchTerms) return;
-                  (
-                    router.get("splitViewController") as SplitViewController
-                  ).sideBarShown = false;
-                  (
-                    router.get("primaryViewController") as TabBarController
-                  ).index = 0;
-                  (
-                    router.get("homepageController") as HomepageController
-                  ).triggerLoad({
+                  (router.get("splitViewController") as SplitViewController).sideBarShown = false;
+                  (router.get("primaryViewController") as TabBarController).index = 0;
+                  (router.get("homepageController") as HomepageController).triggerLoad({
                     type: "front_page",
                     options: {
                       searchTerms: searchTerms,
@@ -75,33 +58,17 @@ export class SearchTermHistoryList extends Base<
                 title: "新建搜索",
                 symbol: "plus.magnifyingglass",
                 handler: async (sender, indexPath) => {
-                  const id = (sender as UIListView).object(indexPath).label.info
-                    .id as number;
-                  const searchTerms = this._searchHistory.find(
-                    (item) => item.id === id
-                  )?.searchTerms;
+                  const id = (sender as UIListView).object(indexPath).label.info.id as number;
+                  const searchTerms = this._searchHistory.find((item) => item.id === id)?.searchTerms;
                   if (!searchTerms) return;
-                  const options = await getSearchOptions(
-                    { type: "front_page", options: { searchTerms } },
-                    "showAll"
-                  );
-                  (
-                    router.get("splitViewController") as SplitViewController
-                  ).sideBarShown = false;
+                  const options = await getSearchOptions({ type: "front_page", options: { searchTerms } }, "showAll");
+                  (router.get("splitViewController") as SplitViewController).sideBarShown = false;
                   if (options.type === "archive") {
-                    (
-                      router.get("archiveController") as ArchiveController
-                    ).triggerLoad(options);
-                    (
-                      router.get("primaryViewController") as TabBarController
-                    ).index = 1;
+                    (router.get("archiveController") as ArchiveController).triggerLoad(options);
+                    (router.get("primaryViewController") as TabBarController).index = 1;
                   } else {
-                    (
-                      router.get("homepageController") as HomepageController
-                    ).triggerLoad(options);
-                    (
-                      router.get("primaryViewController") as TabBarController
-                    ).index = 0;
+                    (router.get("homepageController") as HomepageController).triggerLoad(options);
+                    (router.get("primaryViewController") as TabBarController).index = 0;
                   }
                 },
               },
@@ -110,16 +77,10 @@ export class SearchTermHistoryList extends Base<
                 symbol: "bookmark",
                 color: $color("orange"),
                 handler: (sender, indexPath) => {
-                  const id = (sender as UIListView).object(indexPath).label.info
-                    .id as number;
-                  const history = this._searchHistory.find(
-                    (item) => item.id === id
-                  );
+                  const id = (sender as UIListView).object(indexPath).label.info.id as number;
+                  const history = this._searchHistory.find((item) => item.id === id);
                   if (!history) return;
-                  const success = configManager.addSearchBookmark(
-                    history.sorted_fsearch,
-                    history.searchTerms
-                  );
+                  const success = configManager.addSearchBookmark(history.sorted_fsearch, history.searchTerms);
                   if (success) {
                     $ui.success("书签已添加");
                   } else {
@@ -132,13 +93,9 @@ export class SearchTermHistoryList extends Base<
                 symbol: "trash",
                 destructive: true,
                 handler: (sender, indexPath) => {
-                  const id = (sender as UIListView).object(indexPath).label.info
-                    .id as number;
+                  const id = (sender as UIListView).object(indexPath).label.info.id as number;
                   configManager.deleteSearchHistory(id);
-                  const notEmpty = this.refreshSearchHistory(
-                    configManager.searchHistory,
-                    this._filterText
-                  );
+                  const notEmpty = this.refreshSearchHistory(configManager.searchHistory, this._filterText);
                   if (!notEmpty) emptyHandler();
                 },
               },
@@ -174,19 +131,12 @@ export class SearchTermHistoryList extends Base<
             sender.endRefreshing();
           },
           didSelect: (sender, indexPath) => {
-            const id = (sender as UIListView).object(indexPath).label.info
-              .id as number;
-            const searchTerms = this._searchHistory.find(
-              (item) => item.id === id
-            )?.searchTerms;
+            const id = (sender as UIListView).object(indexPath).label.info.id as number;
+            const searchTerms = this._searchHistory.find((item) => item.id === id)?.searchTerms;
             if (!searchTerms) return;
-            (
-              router.get("splitViewController") as SplitViewController
-            ).sideBarShown = false;
+            (router.get("splitViewController") as SplitViewController).sideBarShown = false;
             (router.get("primaryViewController") as TabBarController).index = 0;
-            (
-              router.get("homepageController") as HomepageController
-            ).triggerLoad({
+            (router.get("homepageController") as HomepageController).triggerLoad({
               type: "front_page",
               options: {
                 searchTerms: searchTerms,
@@ -214,10 +164,7 @@ export class SearchTermHistoryList extends Base<
         history.searchTerms.some(
           (item) =>
             item.term.includes(filterText) ||
-            (item.namespace &&
-              configManager
-                .translate(item.namespace, item.term)
-                ?.includes(filterText))
+            (item.namespace && configManager.translate(item.namespace, item.term)?.includes(filterText))
         )
       )
         return true;
@@ -237,9 +184,7 @@ export class SearchTermHistoryList extends Base<
       targetDate.setHours(0, 0, 0, 0);
       // 将时间差转换为天数
       const differenceInTime = today.getTime() - targetDate.getTime();
-      const differenceInDays = Math.round(
-        differenceInTime / (1000 * 60 * 60 * 24)
-      );
+      const differenceInDays = Math.round(differenceInTime / (1000 * 60 * 60 * 24));
       if (differenceInDays === 0) {
         todayArray.push(item);
       } else if (differenceInDays === 1) {
@@ -261,57 +206,43 @@ export class SearchTermHistoryList extends Base<
     if (todayArray.length > 0) {
       data.push({
         title: "今天",
-        rows: todayArray.map((item) =>
-          _mapSearchTermsToRow(item.searchTerms, item.id)
-        ),
+        rows: todayArray.map((item) => _mapSearchTermsToRow(item.searchTerms, item.id)),
       });
     }
     if (yesterdayArray.length > 0) {
       data.push({
         title: "昨天",
-        rows: yesterdayArray.map((item) =>
-          _mapSearchTermsToRow(item.searchTerms, item.id)
-        ),
+        rows: yesterdayArray.map((item) => _mapSearchTermsToRow(item.searchTerms, item.id)),
       });
     }
     if (beforeYesterdayArray.length > 0) {
       data.push({
         title: "前天",
-        rows: beforeYesterdayArray.map((item) =>
-          _mapSearchTermsToRow(item.searchTerms, item.id)
-        ),
+        rows: beforeYesterdayArray.map((item) => _mapSearchTermsToRow(item.searchTerms, item.id)),
       });
     }
     if (pastWeekArray.length > 0) {
       data.push({
         title: "一周内",
-        rows: pastWeekArray.map((item) =>
-          _mapSearchTermsToRow(item.searchTerms, item.id)
-        ),
+        rows: pastWeekArray.map((item) => _mapSearchTermsToRow(item.searchTerms, item.id)),
       });
     }
     if (pastMonthArray.length > 0) {
       data.push({
         title: "一月内",
-        rows: pastMonthArray.map((item) =>
-          _mapSearchTermsToRow(item.searchTerms, item.id)
-        ),
+        rows: pastMonthArray.map((item) => _mapSearchTermsToRow(item.searchTerms, item.id)),
       });
     }
     if (pastYearArray.length > 0) {
       data.push({
         title: "一年内",
-        rows: pastYearArray.map((item) =>
-          _mapSearchTermsToRow(item.searchTerms, item.id)
-        ),
+        rows: pastYearArray.map((item) => _mapSearchTermsToRow(item.searchTerms, item.id)),
       });
     }
     if (earlierArray.length > 0) {
       data.push({
         title: "更早",
-        rows: earlierArray.map((item) =>
-          _mapSearchTermsToRow(item.searchTerms, item.id)
-        ),
+        rows: earlierArray.map((item) => _mapSearchTermsToRow(item.searchTerms, item.id)),
       });
     }
     this.view.data = data;
@@ -327,8 +258,7 @@ export function _mapSearchTermsToRow(searchTerms: EHSearchTerm[], id: number) {
     if (namespace) {
       const translation = configManager.translate(namespace, term);
       color = namespaceColor[namespace];
-      text =
-        translation || `${tagNamespaceMostUsedAlternateMap[namespace]}:${term}`;
+      text = translation || `${tagNamespaceMostUsedAlternateMap[namespace]}:${term}`;
     } else {
       text = term;
       color = namespaceColor["temp"];
@@ -386,11 +316,7 @@ function isWithinLastMonth(date: Date) {
   const today = new Date();
   today.setHours(23, 59, 59, 999); // 设置为今天的最后一刻
 
-  let oneMonthAgo = new Date(
-    today.getFullYear(),
-    today.getMonth() - 1,
-    today.getDate() + 1
-  );
+  let oneMonthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate() + 1);
 
   // 处理月初的特殊情况
   if (oneMonthAgo.getDate() !== today.getDate() + 1) {
@@ -407,11 +333,7 @@ function isWithinLastYear(date: Date) {
   today.setHours(23, 59, 59, 999); // 设置为今天的最后一刻
 
   // 计算去年的同一天
-  let oneYearAgo = new Date(
-    today.getFullYear() - 1,
-    today.getMonth(),
-    today.getDate() + 1
-  );
+  let oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate() + 1);
 
   // 处理闰年问题
   if (oneYearAgo.getMonth() !== today.getMonth()) {

@@ -1,9 +1,6 @@
 import { Base } from "jsbox-cview";
 
-export class AiTranslationButton extends Base<
-  UIButtonView,
-  UiTypes.ButtonOptions
-> {
+export class AiTranslationButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
   _status: "pending" | "loading" | "success" | "error" = "pending";
   _defineView: () => UiTypes.ButtonOptions;
   constructor({

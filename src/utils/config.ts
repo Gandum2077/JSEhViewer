@@ -1,9 +1,4 @@
-import {
-  EHQualifier,
-  EHSearchTerm,
-  TagNamespace,
-  tagNamespaces,
-} from "ehentai-parser";
+import { EHQualifier, EHSearchTerm, TagNamespace, tagNamespaces } from "ehentai-parser";
 import {
   MarkedTag,
   MarkedTagDict,
@@ -14,12 +9,7 @@ import {
   DBSearchBookmarks,
 } from "../types";
 import { dbManager } from "./database";
-import {
-  aiTranslationPath,
-  imagePath,
-  originalImagePath,
-  thumbnailPath,
-} from "./glv";
+import { aiTranslationPath, imagePath, originalImagePath, thumbnailPath } from "./glv";
 
 interface Config {
   cookie: string; // 登录Cookie
@@ -31,10 +21,7 @@ interface Config {
   tagManagerOnlyShowBookmarked: boolean; // 标签管理器仅显示已收藏的标签
   webdavIntroductionFirstRead: boolean; // 是否首次阅读WebDAV介绍
   importingArchiverIntroductionRead: boolean; // 是否阅读过导入压缩包的介绍
-  archiveManagerOrderMethod:
-    | "first_access_time"
-    | "last_access_time"
-    | "posted_time"; // 存档管理器排序方式
+  archiveManagerOrderMethod: "first_access_time" | "last_access_time" | "posted_time"; // 存档管理器排序方式
   favoritesOrderMethod: "published_time" | "favorited_time"; // 收藏页排序方式（与网页同步）
   alwaysShowWebDAVWidget: boolean; // 是否始终显示WebDAV组件
   webdavEnabled: boolean; // 是否启用WebDAV
@@ -48,11 +35,7 @@ interface Config {
   autoClearCache: boolean; // 是否在关闭时自动清除缓存
   autoCacheWhenReading: boolean; // 阅读时是否自动缓存整个图库
   pageTurnMethod: "click_and_swipe" | "click" | "swipe"; // 翻页方式
-  startPageType:
-    | "blank_page"
-    | "last_access"
-    | "specific_page"
-    | "specific_searchterms"; // 起始页面类型
+  startPageType: "blank_page" | "last_access" | "specific_page" | "specific_searchterms"; // 起始页面类型
   lastAccessPageJson: string; // 上次访问页面, 以json格式存储的StatusTabOptions
   specificPageTypeOnStart:
     | "front_page"
@@ -98,15 +81,12 @@ const defaultConfig: Config = {
 };
 
 async function getEhTagTranslationText() {
-  const url =
-    "https://api.github.com/repos/EhTagTranslation/Database/releases/latest";
+  const url = "https://api.github.com/repos/EhTagTranslation/Database/releases/latest";
   const resp = await $http.get({ url: url, timeout: 30 });
   const info: {
     assets: { name: string; browser_download_url: string }[];
   } = resp.data;
-  const dbUrl = info.assets.find(
-    (i) => i.name === "db.full.json"
-  )!.browser_download_url;
+  const dbUrl = info.assets.find((i) => i.name === "db.full.json")!.browser_download_url;
   const resp2 = await $http.get({ url: dbUrl, timeout: 30 });
   return resp2.rawData.string || "";
 }
@@ -119,10 +99,7 @@ function extractTranslationData(data: any): TranslationData {
     data.data.splice(index, 1);
   }
   // 排序: 根据namespaces的顺序对data.data进行排序
-  data.data.sort(
-    (a: any, b: any) =>
-      tagNamespaces.indexOf(a.namespace) - tagNamespaces.indexOf(b.namespace)
-  );
+  data.data.sort((a: any, b: any) => tagNamespaces.indexOf(a.namespace) - tagNamespaces.indexOf(b.namespace));
   for (const namespaceData of data.data) {
     const namespace = namespaceData.namespace;
     // 排序: 根据raw的顺序对namespaceData.data进行排序
@@ -168,33 +145,22 @@ class ConfigManager {
     this._searchHistory = this._querySearchHistory();
     this._searchBookmarks = this._querySearchBookmarks();
     this._webDAVServices = this._queryWebDAVServices();
-    this.pushedSearchResultControllerLayoutMode =
-      this.homepageManagerLayoutMode;
-    this._aiTranslationSavedConfig = JSON.parse(
-      this.aiTranslationSavedConfigText
-    );
+    this.pushedSearchResultControllerLayoutMode = this.homepageManagerLayoutMode;
+    this._aiTranslationSavedConfig = JSON.parse(this.aiTranslationSavedConfigText);
   }
 
   private _initConfig() {
     dbManager.batchUpdate(
       `INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING;`,
-      Object.entries(defaultConfig).map(([key, value]) => [
-        key,
-        JSON.stringify(value),
-      ])
+      Object.entries(defaultConfig).map(([key, value]) => [key, JSON.stringify(value)])
     );
-    const existingConfig = dbManager
-      .query("SELECT * FROM config")
-      .map(({ key, value }) => [key, JSON.parse(value)]);
+    const existingConfig = dbManager.query("SELECT * FROM config").map(({ key, value }) => [key, JSON.parse(value)]);
     return Object.fromEntries(existingConfig) as Config;
   }
 
   private _setConfig(key: keyof Config, value: number | boolean | string) {
     (this._config[key] as any) = value;
-    dbManager.update("UPDATE config SET value = ? WHERE key = ?", [
-      JSON.stringify(value),
-      key,
-    ]);
+    dbManager.update("UPDATE config SET value = ? WHERE key = ?", [JSON.stringify(value), key]);
   }
 
   /***CONFIG***/
@@ -274,9 +240,7 @@ class ConfigManager {
     return this._config.archiveManagerOrderMethod;
   }
 
-  set archiveManagerOrderMethod(
-    value: "first_access_time" | "last_access_time" | "posted_time"
-  ) {
+  set archiveManagerOrderMethod(value: "first_access_time" | "last_access_time" | "posted_time") {
     this._setConfig("archiveManagerOrderMethod", value);
   }
 
@@ -388,13 +352,7 @@ class ConfigManager {
     return this._config.startPageType;
   }
 
-  set startPageType(
-    value:
-      | "blank_page"
-      | "last_access"
-      | "specific_page"
-      | "specific_searchterms"
-  ) {
+  set startPageType(value: "blank_page" | "last_access" | "specific_page" | "specific_searchterms") {
     this._setConfig("startPageType", value);
   }
 
@@ -477,9 +435,7 @@ class ConfigManager {
     }));
     const result = new Map() as MarkedTagDict;
     for (const namespace of tagNamespaces) {
-      const data: [string, MarkedTag][] = tags
-        .filter((t) => t.namespace === namespace)
-        .map((t) => [t.name, t]);
+      const data: [string, MarkedTag][] = tags.filter((t) => t.namespace === namespace).map((t) => [t.name, t]);
       result.set(namespace, new Map(data));
     }
     return result;
@@ -492,21 +448,11 @@ class ConfigManager {
     dbManager.batchInsert(
       "marked_tags",
       ["tagid", "namespace", "name", "watched", "hidden", "color", "weight"],
-      markedTags.map((t) => [
-        t.tagid,
-        t.namespace,
-        t.name,
-        t.watched,
-        t.hidden,
-        t.color || "",
-        t.weight,
-      ])
+      markedTags.map((t) => [t.tagid, t.namespace, t.name, t.watched, t.hidden, t.color || "", t.weight])
     );
     const result = new Map() as MarkedTagDict;
     for (const namespace of tagNamespaces) {
-      const data: [string, MarkedTag][] = markedTags
-        .filter((t) => t.namespace === namespace)
-        .map((t) => [t.name, t]);
+      const data: [string, MarkedTag][] = markedTags.filter((t) => t.namespace === namespace).map((t) => [t.name, t]);
       result.set(namespace, new Map(data));
     }
     this._markedTagDict = result;
@@ -520,15 +466,7 @@ class ConfigManager {
   updateMarkedTag(tag: MarkedTag) {
     const sql =
       "UPDATE marked_tags SET tagid = ?, watched = ?, hidden = ?, color = ?, weight = ? WHERE namespace = ? AND name = ?";
-    const args = [
-      tag.tagid,
-      tag.watched,
-      tag.hidden,
-      tag.color,
-      tag.weight,
-      tag.namespace,
-      tag.name,
-    ];
+    const args = [tag.tagid, tag.watched, tag.hidden, tag.color, tag.weight, tag.namespace, tag.name];
     dbManager.update(sql, args);
     if (!this._markedTagDict.get(tag.namespace)) {
       this._markedTagDict.set(tag.namespace, new Map());
@@ -540,15 +478,7 @@ class ConfigManager {
     // 添加marked_tags中的记录, 仅用于本地添加
     const sql =
       "INSERT INTO marked_tags (tagid, namespace, name, watched, hidden, color, weight) VALUES (?, ?, ?, ?, ?, ?, ?)";
-    const args = [
-      tag.tagid,
-      tag.namespace,
-      tag.name,
-      tag.watched,
-      tag.hidden,
-      tag.color || "",
-      tag.weight,
-    ];
+    const args = [tag.tagid, tag.namespace, tag.name, tag.watched, tag.hidden, tag.color || "", tag.weight];
     dbManager.update(sql, args);
     if (!this._markedTagDict.get(tag.namespace)) {
       this._markedTagDict.set(tag.namespace, new Map());
@@ -577,8 +507,7 @@ class ConfigManager {
   }
 
   addMarkedUploader(uploader: string) {
-    const sql =
-      "INSERT INTO marked_uploaders (uploader) VALUES (?) ON CONFLICT (uploader) DO NOTHING";
+    const sql = "INSERT INTO marked_uploaders (uploader) VALUES (?) ON CONFLICT (uploader) DO NOTHING";
     const args = [uploader];
     dbManager.update(sql, args);
     this._markedUploaders = this._queryMarkedUploaders();
@@ -663,8 +592,7 @@ class ConfigManager {
   }
 
   getTranslationDetailedInfo(namespace: TagNamespace, name: string) {
-    const sql =
-      "SELECT * FROM translation_data where namespace = ? and name = ?";
+    const sql = "SELECT * FROM translation_data where namespace = ? and name = ?";
     const args = [namespace, name];
     const data = dbManager.query(sql, args) as {
       namespace: TagNamespace;
@@ -691,13 +619,7 @@ class ConfigManager {
     dbManager.batchInsert(
       "translation_data",
       ["namespace", "name", "translation", "intro", "links"],
-      translationData.map((d) => [
-        d.namespace,
-        d.name,
-        d.translation,
-        d.intro,
-        d.links,
-      ])
+      translationData.map((d) => [d.namespace, d.name, d.translation, d.intro, d.links])
     );
     const r = this._queryTranslationDict();
     this._translationList = r.translationList;
@@ -740,8 +662,7 @@ GROUP BY
         sorted_fsearch: row.sorted_fsearch,
         searchTerms: row.search_terms
           ? row.search_terms.split(";").map((term) => {
-              const [namespace, qualifier, termText, dollar, subtract, tilde] =
-                term.split("|");
+              const [namespace, qualifier, termText, dollar, subtract, tilde] = term.split("|");
               return {
                 namespace: namespace ? (namespace as TagNamespace) : undefined,
                 qualifier: qualifier ? (qualifier as EHQualifier) : undefined,
@@ -763,22 +684,16 @@ GROUP BY
     const id = dbManager.query(sql_check, args_check)[0]?.id;
     const last_access_time = new Date().toISOString();
     if (id) {
-      const sql_update =
-        "UPDATE search_history SET last_access_time = ? WHERE id = ?";
+      const sql_update = "UPDATE search_history SET last_access_time = ? WHERE id = ?";
       const args_update = [last_access_time, id];
       dbManager.update(sql_update, args_update);
-      this._searchHistory.find((item) => item.id === id)!.last_access_time =
-        last_access_time;
-      this._searchHistory.sort((a, b) =>
-        b.last_access_time.localeCompare(a.last_access_time)
-      );
+      this._searchHistory.find((item) => item.id === id)!.last_access_time = last_access_time;
+      this._searchHistory.sort((a, b) => b.last_access_time.localeCompare(a.last_access_time));
     } else {
-      const sql_insert_history =
-        "INSERT INTO search_history (last_access_time, sorted_fsearch) VALUES (?, ?)";
+      const sql_insert_history = "INSERT INTO search_history (last_access_time, sorted_fsearch) VALUES (?, ?)";
       const args_insert_history = [last_access_time, sortedFsearch];
       dbManager.update(sql_insert_history, args_insert_history);
-      const sql_get_id =
-        "SELECT id FROM search_history WHERE sorted_fsearch = ?";
+      const sql_get_id = "SELECT id FROM search_history WHERE sorted_fsearch = ?";
       const args_get_id = [sortedFsearch];
       const id = dbManager.query(sql_get_id, args_get_id)[0].id;
       const sql_insert_terms =
@@ -805,12 +720,9 @@ GROUP BY
   deleteSearchHistory(id: number) {
     const sql_delete = "DELETE FROM search_history WHERE id = ?";
     dbManager.update(sql_delete, [id]);
-    const sql_delete_terms =
-      "DELETE FROM search_history_search_terms WHERE search_history_id = ?";
+    const sql_delete_terms = "DELETE FROM search_history_search_terms WHERE search_history_id = ?";
     dbManager.update(sql_delete_terms, [id]);
-    const index_delete = this._searchHistory.findIndex(
-      (item) => item.id === id
-    );
+    const index_delete = this._searchHistory.findIndex((item) => item.id === id);
     if (index_delete !== -1) {
       this._searchHistory.splice(index_delete, 1);
     }
@@ -852,8 +764,7 @@ GROUP BY
         sorted_fsearch: row.sorted_fsearch,
         searchTerms: row.search_terms
           ? row.search_terms.split(";").map((term) => {
-              const [namespace, qualifier, termText, dollar, subtract, tilde] =
-                term.split("|");
+              const [namespace, qualifier, termText, dollar, subtract, tilde] = term.split("|");
               return {
                 namespace: namespace ? (namespace as TagNamespace) : undefined,
                 qualifier: qualifier ? (qualifier as EHQualifier) : undefined,
@@ -870,24 +781,18 @@ GROUP BY
   }
 
   addSearchBookmark(sortedFsearch: string, searchTerms: EHSearchTerm[]) {
-    const sql_check =
-      "SELECT id FROM search_bookmarks WHERE sorted_fsearch = ?";
+    const sql_check = "SELECT id FROM search_bookmarks WHERE sorted_fsearch = ?";
     const args_check = [sortedFsearch];
     const id = dbManager.query(sql_check, args_check)[0]?.id;
     if (id) {
       return false;
     } else {
-      const sql_insert_bookmark =
-        "INSERT INTO search_bookmarks (sort_order, sorted_fsearch) VALUES (?, ?)";
+      const sql_insert_bookmark = "INSERT INTO search_bookmarks (sort_order, sorted_fsearch) VALUES (?, ?)";
       const newSortOrder =
-        this._searchBookmarks.length === 0
-          ? 0
-          : this._searchBookmarks[this._searchBookmarks.length - 1].sort_order +
-            1;
+        this._searchBookmarks.length === 0 ? 0 : this._searchBookmarks[this._searchBookmarks.length - 1].sort_order + 1;
       const args_insert_bookmark = [newSortOrder, sortedFsearch];
       dbManager.update(sql_insert_bookmark, args_insert_bookmark);
-      const sql_get_id =
-        "SELECT id FROM search_bookmarks WHERE sorted_fsearch = ?";
+      const sql_get_id = "SELECT id FROM search_bookmarks WHERE sorted_fsearch = ?";
       const args_get_id = [sortedFsearch];
       const id = dbManager.query(sql_get_id, args_get_id)[0].id;
       const sql_insert_terms =
@@ -915,12 +820,9 @@ GROUP BY
   deleteSearchBookmark(id: number) {
     const sql_delete = "DELETE FROM search_bookmarks WHERE id = ?";
     dbManager.update(sql_delete, [id]);
-    const sql_delete_terms =
-      "DELETE FROM search_bookmarks_search_terms WHERE search_bookmarks_id = ?";
+    const sql_delete_terms = "DELETE FROM search_bookmarks_search_terms WHERE search_bookmarks_id = ?";
     dbManager.update(sql_delete_terms, [id]);
-    const index_delete = this._searchBookmarks.findIndex(
-      (item) => item.id === id
-    );
+    const index_delete = this._searchBookmarks.findIndex((item) => item.id === id);
     if (index_delete !== -1) {
       this._searchBookmarks.splice(index_delete, 1);
     }
@@ -928,8 +830,7 @@ GROUP BY
   }
 
   reorderSearchBookmarks(resorted_ids: number[]) {
-    const sql_update =
-      "UPDATE search_bookmarks SET sort_order = ? WHERE id = ?";
+    const sql_update = "UPDATE search_bookmarks SET sort_order = ? WHERE id = ?";
     dbManager.batchUpdate(
       sql_update,
       resorted_ids.map((id, index) => [index, id])
@@ -958,11 +859,7 @@ DO UPDATE SET count = count + 1;
     // qualifier仅保留uploader
     dbManager.batchUpdate(
       sql,
-      tags.map((tag) => [
-        tag.namespace || "",
-        tag.qualifier || "",
-        tag.term || "",
-      ])
+      tags.map((tag) => [tag.namespace || "", tag.qualifier || "", tag.term || ""])
     );
   }
 
@@ -1106,8 +1003,7 @@ LIMIT 20;
     }[];
     const needDeleteIds = data.map((n) => n.id);
     const sql_delete = "DELETE FROM search_history WHERE id = ?";
-    const sql_delete_terms =
-      "DELETE FROM search_history_search_terms WHERE search_history_id = ?";
+    const sql_delete_terms = "DELETE FROM search_history_search_terms WHERE search_history_id = ?";
     dbManager.batchUpdate(
       sql_delete_terms,
       needDeleteIds.map((id) => [id])
@@ -1136,8 +1032,7 @@ LIMIT 20;
       date.setFullYear(date.getFullYear() - 1);
     }
     // 再根据日期对出符合条件的gid
-    const sql =
-      "SELECT gid FROM archives WHERE last_access_time < ? AND downloaded <> 1";
+    const sql = "SELECT gid FROM archives WHERE last_access_time < ? AND downloaded <> 1";
     const data = dbManager.query(sql, [date.toISOString()]) as {
       gid: number;
     }[];

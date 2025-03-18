@@ -51,10 +51,7 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
               color: $color("orange"),
               handler: async (sender, indexPath) => {
                 const oldService = this._services[indexPath.row];
-                const newService = await showWebdavServiceEditor(
-                  "",
-                  oldService
-                );
+                const newService = await showWebdavServiceEditor("", oldService);
                 if (newService) {
                   this._services[indexPath.row] = newService;
                   this.refresh();
@@ -153,9 +150,7 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
               (this._services.length === 0 && indexPath.section === 1) ||
               (this._services.length > 0 && indexPath.section === 2)
             ) {
-              const service = await showWebdavServiceEditor(
-                "服务器" + (this._services.length + 1)
-              );
+              const service = await showWebdavServiceEditor("服务器" + (this._services.length + 1));
               if (service) {
                 this._services.push(service);
                 // 如果只有一个服务器，自动选择
@@ -246,9 +241,7 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
         url: {
           hidden: false,
           text: service.name,
-          textColor: service.enabled
-            ? $color("systemLink")
-            : $color("primaryText"),
+          textColor: service.enabled ? $color("systemLink") : $color("primaryText"),
         },
         title: { hidden: true },
         bgview: { hidden: true },
@@ -355,10 +348,7 @@ function isValidDomain(domain: string) {
   return domainRegex.test(domain);
 }
 
-async function showWebdavServiceEditor(
-  defaultName: string,
-  oldService?: WebDAVService
-): Promise<WebDAVService> {
+async function showWebdavServiceEditor(defaultName: string, oldService?: WebDAVService): Promise<WebDAVService> {
   const result = (await formDialog({
     title: oldService ? "修改WebDAV服务器" : "添加WebDAV服务器",
     sections: [
@@ -427,10 +417,7 @@ async function showWebdavServiceEditor(
         $ui.error("请填写合法的主机");
         return false;
       }
-      if (
-        (values.username && !values.password) ||
-        (!values.username && values.password)
-      ) {
+      if ((values.username && !values.password) || (!values.username && values.password)) {
         $ui.error("用户名和密码需要同时填写或留空");
         return false;
       }

@@ -466,6 +466,12 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
   private _showingUpLoadItem = false;
   private _isPulling = false; // 是否处于下拉刷新状态
   private _isReachingBottom = false; // 是否处于到达底部后的加载状态
+  private _contentOffsetChanged?: (scrollState: {
+    layout: "large" | "normal" | "minimal";
+    totalWidth: number;
+    offsetY: number;
+    firstVisibleItemIndex: number;
+  }) => void;
   _defineView: () => UiTypes.ViewOptions;
 
   constructor({
@@ -474,6 +480,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
     pulled,
     didSelect,
     didReachBottom,
+    contentOffsetChanged,
     layout,
   }: {
     layoutMode: "normal" | "large";
@@ -485,10 +492,17 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
       item: Items[0] | EHListUploadItem
     ) => Promise<void> | void;
     didReachBottom: () => Promise<void> | void;
+    contentOffsetChanged?: (info: {
+      layout: "large" | "normal" | "minimal";
+      totalWidth: number;
+      offsetY: number;
+      firstVisibleItemIndex: number;
+    }) => void;
     layout: (make: MASConstraintMaker, view: UIView) => void;
   }) {
     super();
     this._layoutMode = layoutMode;
+    this._contentOffsetChanged = contentOffsetChanged;
     this.matrix = new Matrix({
       props: {
         bgcolor: $color("clear"),
@@ -1193,6 +1207,33 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
       },
       layout: $layout.fill,
       events: {
+        didScroll: (sender) => {
+          const offsetY = sender.contentOffset.y;
+          const spacing = 4;
+          if (this._showingUpLoadItem) {
+            this._contentOffsetChanged?.({
+              layout: "minimal",
+              totalWidth: this._totalWidth,
+              firstVisibleItemIndex: 0,
+              offsetY,
+            });
+          } else {
+            // 根据 spacing, _itemSizeWidth, _itemSizeHeight, _totalWidth
+            // 计算目前最左上方的是第几个item
+            const columns = Math.floor(
+              (this._totalWidth + spacing) / (this._itemSizeWidth + spacing)
+            );
+            const row = Math.floor(offsetY / (this._itemSizeHeight + spacing));
+
+            const index = row * columns;
+            this._contentOffsetChanged?.({
+              layout: this._layoutMode,
+              totalWidth: this._totalWidth,
+              firstVisibleItemIndex: index,
+              offsetY,
+            });
+          }
+        },
         itemSize: (sender, indexPath) => {
           if (this._showingUpLoadItem) {
             const r = this._findUploadFolders(indexPath.item);
@@ -1312,6 +1353,21 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
     this._layoutMode = mode;
     this.matrix.view.data = _mapData(this._items, this._layoutMode);
     this.reload();
+
+    const offsetY = this.matrix.view.contentOffset.y;
+    const spacing = 4;
+    const columns = Math.floor(
+      (this._totalWidth + spacing) / (this._itemSizeWidth + spacing)
+    );
+    const row = Math.floor(offsetY / (this._itemSizeHeight + spacing));
+
+    const index = row * columns;
+    this._contentOffsetChanged?.({
+      layout: this._layoutMode,
+      totalWidth: this._totalWidth,
+      firstVisibleItemIndex: index,
+      offsetY,
+    });
   }
 
   set items(items: Items) {

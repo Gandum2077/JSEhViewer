@@ -175,35 +175,41 @@ export type BlankTab = {
 export type FrontPageTab = {
   type: "front_page";
   options: EHSearchOptions;
+  scrollState?: ScrollState;
   pages: EHFrontPageList[];
 };
 
 export type WatchedTab = {
   type: "watched";
   options: EHSearchOptions;
+  scrollState?: ScrollState;
   pages: EHWatchedList[];
 };
 
 export type PopularTab = {
   type: "popular";
   options: EHPopularSearchOptions;
+  scrollState?: ScrollState;
   pages: EHPopularList[];
 };
 
 export type FavoritesTab = {
   type: "favorites";
   options: EHFavoriteSearchOptions;
+  scrollState?: ScrollState;
   pages: EHFavoritesList[];
 };
 
 export type ToplistTab = {
   type: "toplist";
   options: EHTopListSearchOptions;
+  scrollState?: ScrollState;
   pages: EHTopList[];
 };
 
 export type UploadTab = {
   type: "upload";
+  scrollState?: ScrollState;
   pages: EHUploadList[];
 };
 
@@ -225,4 +231,11 @@ export type AITranslationConfig = {
   link: string;
   description: string;
   rows: PrefsRow[];
+};
+
+export type ScrollState = {
+  layout: "large" | "normal" | "minimal";
+  totalWidth: number;
+  offsetY: number;
+  firstVisibleItemIndex: number;
 };

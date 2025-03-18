@@ -425,7 +425,43 @@ export class SidebarTabController extends BaseController {
           {
             title: "关闭",
             color: $color("red"),
-            handler: (sender, indexPath) => {},
+            handler: (sender, indexPath) => {
+              if (statusManager.tabIdsShownInManager.length <= 1) {
+                $ui.error("无法关闭最后一个标签页");
+              } else {
+                const idToDelete =
+                  statusManager.tabIdsShownInManager[indexPath.row];
+                let flag = false;
+                // 如果要关闭的是当前标签页，那么先转移到其他标签页，优先转移到下一个，如果没有则转移到上一个
+                if (statusManager.currentTabId === idToDelete) {
+                  const nextIndex =
+                    statusManager.tabIdsShownInManager.length >
+                    indexPath.row + 1
+                      ? indexPath.row + 1
+                      : indexPath.row - 1;
+                  statusManager.currentTabId =
+                    statusManager.tabIdsShownInManager[nextIndex];
+                  flag = true;
+                }
+                statusManager.tabIdsShownInManager.splice(indexPath.row, 1);
+                this.refresh();
+                if (flag) {
+                  const tab = statusManager.currentTab;
+                  if (tab.type === "blank") {
+                    (
+                      router.get("homepageController") as HomepageController
+                    ).updateBlankStatus();
+                  } else {
+                    (
+                      router.get("homepageController") as HomepageController
+                    ).updateLoadingStatus(tab);
+                    (
+                      router.get("homepageController") as HomepageController
+                    ).updateLoadedStatus();
+                  }
+                }
+              }
+            },
           },
         ],
         template: {
@@ -515,6 +551,9 @@ export class SidebarTabController extends BaseController {
         make.left.right.inset(16);
       },
       events: {
+        swipeEnabled: (sender, indexPath) => {
+          return statusManager.tabIdsShownInManager.length > 1;
+        },
         didScroll: (sender) => {
           if (sender.contentOffset.y <= 0) {
             sender.get("header").hidden = false;

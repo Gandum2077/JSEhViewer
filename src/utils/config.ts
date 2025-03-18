@@ -64,7 +64,7 @@ interface Config {
     | "toplist-past_year"
     | "toplist-all"
     | "upload"; // 指定页面
-  specificSearchtermsOnStart: string; // 指定搜索词
+  specificSearchtermsOnStart: string; // 指定搜索词，以json格式存储的EHSearchTerm[]
 }
 
 const defaultConfig: Config = {

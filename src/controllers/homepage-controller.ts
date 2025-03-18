@@ -12,7 +12,7 @@ import {
   getJumpRangeDialogForFavorites,
 } from "../components/seekpage-dialog";
 import { configManager } from "../utils/config";
-import { statusManager } from "../utils/status";
+import { clearExtraPropsForReload, statusManager } from "../utils/status";
 import { EHlistView } from "../components/ehlist-view";
 import { appLog } from "../utils/tools";
 import {
@@ -488,6 +488,12 @@ export class HomepageController extends BaseController {
       didReachBottom: async () => {
         await this.loadMore();
       },
+      contentOffsetChanged: (scrollState) => {
+        const tab = statusManager.currentTab;
+        if (tab.type !== "blank" && tab.type !== "archive") {
+          tab.scrollState = scrollState;
+        }
+      },
       layout: (make, view) => {
         make.top.equalTo(view.prev.bottom);
         make.left.right.inset(0);
@@ -616,7 +622,7 @@ export class HomepageController extends BaseController {
         statusManager.currentTabId
       ) as TabThumbnailDownloader;
       dm.clear();
-      if (tab.type !== "upload") {
+      if (tab.type !== "upload" && tab.type !== "blank") {
         dm.add(
           tab.pages
             .map((page) => page.items)
@@ -721,6 +727,10 @@ export class HomepageController extends BaseController {
       }
       default:
         throw new Error("Invalid tab type");
+    }
+    if (tab.type !== "blank") {
+      const storedOptions = clearExtraPropsForReload(tab);
+      configManager.lastAccessPageJson = JSON.stringify(storedOptions);
     }
     (router.get("sidebarTabController") as SidebarTabController).refresh();
   }

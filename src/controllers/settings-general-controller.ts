@@ -638,8 +638,10 @@ export class GeneralSettingsController extends BaseController {
   }
 
   async updateImageLimitAndFunds() {
-    const imageLimit = await api.getImageLimits();
-    const funds = await api.getCreditsAndGpCount();
+    const [imageLimit, funds] = await Promise.all([
+      api.getImageLimits(),
+      api.getCreditsAndGpCount()
+    ])
     this._imageLimit = imageLimit;
     this._funds = funds;
   }

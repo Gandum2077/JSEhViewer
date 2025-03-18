@@ -14,6 +14,7 @@ import {
   EHIgneousExpiredError,
   EHIPBannedError,
   EHMyTags,
+  EHSearchTerm,
   ParsedCookie,
 } from "ehentai-parser";
 import {
@@ -24,6 +25,7 @@ import {
   galleryInfoPath,
 } from "./utils/glv";
 import { globalTimer } from "./utils/timer";
+import { StatusTabOptions } from "./types";
 
 async function init() {
   if (!$file.exists(imagePath)) $file.mkdir(imagePath);
@@ -161,13 +163,17 @@ async function init() {
   let config: { [key: string]: string } | undefined;
   let ehMyTags: EHMyTags | undefined;
   try {
-    config = await api.getConfig();
     if (configManager.syncMyTags) {
-      ehMyTags = await api.getMyTags();
+      [config, ehMyTags] = await Promise.all([
+        api.getConfig(),
+        api.getMyTags(),
+      ]);
       // 如果没有启用我的标签，就启用
       if (!ehMyTags.enabled) {
         ehMyTags = await api.enableTagset({ tagset: 1 });
       }
+    } else {
+      config = await api.getConfig();
     }
   } catch (e: any) {
     appLog(e, "error");
@@ -310,6 +316,64 @@ async function init() {
   }
   if (homepageController.cviews.list.footerText === "请等待配置同步……") {
     homepageController.cviews.list.footerText = "";
+    // 自动加载
+    if (
+      configManager.startPageType === "last_access" &&
+      configManager.lastAccessPageJson
+    ) {
+      const options = JSON.parse(
+        configManager.lastAccessPageJson
+      ) as StatusTabOptions;
+      await homepageController.triggerLoad(options);
+    } else if (
+      configManager.startPageType === "specific_searchterms" &&
+      configManager.specificSearchtermsOnStart
+    ) {
+      await homepageController.triggerLoad({
+        type: "front_page",
+        options: {
+          searchTerms: JSON.parse(
+            configManager.specificSearchtermsOnStart
+          ) as EHSearchTerm[],
+        },
+      });
+    } else if (configManager.startPageType === "specific_page") {
+      let options: StatusTabOptions | undefined;
+      switch (configManager.specificPageTypeOnStart) {
+        case "front_page":
+          options = { type: "front_page", options: {} };
+          break;
+        case "watched":
+          options = { type: "watched", options: {} };
+          break;
+        case "popular":
+          options = { type: "popular", options: {} };
+          break;
+        case "favorites":
+          options = { type: "favorites", options: {} };
+          break;
+        case "upload":
+          options = { type: "upload" };
+          break;
+        case "toplist-all":
+          options = { type: "toplist", options: { timeRange: "all" } };
+          break;
+        case "toplist-past_year":
+          options = { type: "toplist", options: { timeRange: "past_year" } };
+          break;
+        case "toplist-past_month":
+          options = { type: "toplist", options: { timeRange: "past_month" } };
+          break;
+        case "toplist-yesterday":
+          options = { type: "toplist", options: { timeRange: "yesterday" } };
+          break;
+        default:
+          break;
+      }
+      if (options) {
+        await homepageController.triggerLoad(options);
+      }
+    }
   }
 }
 

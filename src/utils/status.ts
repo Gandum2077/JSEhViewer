@@ -12,6 +12,7 @@ import { dbManager } from "./database";
 import {
   ArchiveSearchOptions,
   DBArchiveItem,
+  FrontPageTabOptions,
   StatusTab,
   StatusTabOptions,
 } from "../types";
@@ -295,6 +296,72 @@ function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): {
   return { sql, args };
 }
 
+export function clearExtraPropsForReload<T extends StatusTabOptions>(tab: T): T {
+  switch (tab.type) {
+    case "front_page": {
+      tab.options.range = undefined;
+      tab.options.jump = undefined;
+      tab.options.seek = undefined;
+      tab.options.minimumGid = undefined;
+      tab.options.maximumGid = undefined;
+      return {
+        type: "front_page",
+        options: tab.options
+      } as T;
+    }
+    case "watched": {
+      tab.options.range = undefined;
+      tab.options.jump = undefined;
+      tab.options.seek = undefined;
+      tab.options.minimumGid = undefined;
+      tab.options.maximumGid = undefined;
+      return {
+        type: "watched",
+        options: tab.options
+      } as T;
+    }
+    case "popular": {
+      return {
+        type: "popular",
+        options: tab.options
+      } as T
+    }
+    case "favorites": {
+      tab.options.jump = undefined;
+      tab.options.seek = undefined;
+      tab.options.minimumGid = undefined;
+      tab.options.minimumFavoritedTimestamp = undefined;
+      tab.options.maximumGid = undefined;
+      tab.options.maximumFavoritedTimestamp = undefined;
+      return {
+        type: "favorites",
+        options: tab.options
+      } as T;
+    }
+    case "toplist": {
+      tab.options.page = 0;
+      return {
+        type: "toplist",
+        options: tab.options
+      } as T;
+    }
+    case "upload": {
+      return {
+        type: "upload",
+      } as T;
+    }
+    case "archive": {
+      tab.options.page = 0;
+      return {
+        type: "archive",
+        options: tab.options
+      } as T;
+    }
+    default:
+      throw new Error("Invalid tab type");
+  }
+}
+
 type ArchiveItemDBRawData = {
   gid: number;
   readlater: number;
@@ -567,25 +634,17 @@ class StatusManager {
   }
 
   async reloadTab(tabId: string) {
-    const tab = this._tabsMap.get(tabId);
-    if (!tab) throw new Error("Tab not found");
+    const oldTab = this._tabsMap.get(tabId);
+    if (!oldTab) throw new Error("Tab not found");
+    if (oldTab.type === "blank") return oldTab;
+    const tab = clearExtraPropsForReload(oldTab);
     switch (tab.type) {
       case "front_page": {
-        tab.options.range = undefined;
-        tab.options.jump = undefined;
-        tab.options.seek = undefined;
-        tab.options.minimumGid = undefined;
-        tab.options.maximumGid = undefined;
         const page = await api.getFrontPageInfo(tab.options);
         tab.pages = [page];
         return tab;
       }
       case "watched": {
-        tab.options.range = undefined;
-        tab.options.jump = undefined;
-        tab.options.seek = undefined;
-        tab.options.minimumGid = undefined;
-        tab.options.maximumGid = undefined;
         const page = await api.getWatchedInfo(tab.options);
         tab.pages = [page];
         return tab;
@@ -596,18 +655,11 @@ class StatusManager {
         return tab;
       }
       case "favorites": {
-        tab.options.jump = undefined;
-        tab.options.seek = undefined;
-        tab.options.minimumGid = undefined;
-        tab.options.minimumFavoritedTimestamp = undefined;
-        tab.options.maximumGid = undefined;
-        tab.options.maximumFavoritedTimestamp = undefined;
         const page = await api.getFavoritesInfo(tab.options);
         tab.pages = [page];
         return tab;
       }
       case "toplist": {
-        tab.options.page = 0;
         const page = await api.getTopListInfo(tab.options);
         tab.pages = [page];
         return tab;
@@ -618,7 +670,6 @@ class StatusManager {
         return tab;
       }
       case "archive": {
-        tab.options.page = 0;
         const items = this.queryArchiveItem(tab.options);
         const count = this.queryArchiveItemCount(tab.options.type);
         tab.pages = [

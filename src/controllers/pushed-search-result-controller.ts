@@ -519,7 +519,7 @@ export class PushedSearchResultController extends BaseController {
         this.tabId
       ) as TabThumbnailDownloader;
       dm.clear();
-      if (tab.type !== "upload") {
+      if (tab.type !== "upload" && tab.type !== "blank") {
         dm.add(
           tab.pages
             .map((page) => page.items)

@@ -249,40 +249,6 @@ export class PushedSearchResultController extends BaseController {
             }
             break;
           }
-          case "archive": {
-            const values = await popoverForTitleView({
-              sourceView: sender,
-              sourceRect: sender.bounds,
-              popoverOptions: {
-                type: "archive",
-                archiveType: tab.options.type ?? "all",
-                archiveManagerOrderMethod:
-                  configManager.archiveManagerOrderMethod,
-                count: {
-                  loaded: tab.pages
-                    .map((n) => n.items.length)
-                    .reduce((prev, curr) => prev + curr),
-                  all: tab.pages[tab.pages.length - 1].all_count,
-                },
-              },
-            });
-            let reloadFlag = false;
-            if (values.archiveType !== (tab.options.type ?? "all")) {
-              reloadFlag = true;
-              tab.options.type = values.archiveType;
-            }
-            if (
-              values.archiveManagerOrderMethod !==
-              configManager.archiveManagerOrderMethod
-            ) {
-              reloadFlag = true;
-              configManager.archiveManagerOrderMethod =
-                values.archiveManagerOrderMethod;
-              tab.options.sort = values.archiveManagerOrderMethod;
-            }
-            if (reloadFlag) this.reload();
-            break;
-          }
           default:
             break;
         }
@@ -397,27 +363,6 @@ export class PushedSearchResultController extends BaseController {
                     ...result,
                   },
                 });
-              } else if (type === "archive") {
-                if (tab.pages.length === 0) {
-                  $ui.toast("存档列表为空，无法翻页");
-                  return;
-                }
-                const allCount = tab.pages[0].all_count;
-                if (allCount === 0) {
-                  $ui.toast("存档列表为空，无法翻页");
-                  return;
-                }
-                const maxPage = Math.ceil(allCount / tab.options.pageSize);
-                if (tab.pages.length === maxPage) {
-                  $ui.toast("全部内容已加载");
-                  return;
-                }
-                const { page } = await getJumpPageDialog(maxPage);
-                tab.options.page = page;
-                this.updateLoadingStatus({
-                  type: "archive",
-                  options: tab.options,
-                });
               } else {
                 $ui.toast("全部内容已加载");
               }
@@ -508,8 +453,7 @@ export class PushedSearchResultController extends BaseController {
     if (
       (options.type === "front_page" ||
         options.type === "watched" ||
-        options.type === "favorites" ||
-        options.type === "archive") &&
+        options.type === "favorites") &&
       options.options.searchTerms &&
       options.options.searchTerms.length
     ) {
@@ -637,13 +581,6 @@ export class PushedSearchResultController extends BaseController {
           this.cviews.list.footerText = "上拉加载更多";
         }
         this.cviews.titleView.title = "收藏";
-        break;
-      }
-      case "archive": {
-        const items = tab.pages.map((page) => page.items).flat();
-        this.cviews.list.items = items;
-        this.cviews.list.footerText = "没有更多了";
-        this.cviews.titleView.title = "归档";
         break;
       }
       default:

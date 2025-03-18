@@ -1538,7 +1538,7 @@ export class GalleryInfoController extends BaseController {
                 searchTerms: sts,
               },
             },
-            "showAll"
+            "showAllExceptArchive"
           );
           const controller = new PushedSearchResultController();
           controller.uipush({

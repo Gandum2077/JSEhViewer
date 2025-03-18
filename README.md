@@ -15,7 +15,7 @@
 
 JSEhViewer 是运行在 iOS 平台 [JSBox](https://apps.apple.com/app/id1312014438) 上的 E-Hentai 阅读应用。
 
-目前正处于Alpha测试中，可以自行编译下载。
+**目前正处于Alpha测试中，不保证兼容之前的版本。**
 
 [安装](#安装)<span> | </span>[截图](#截图)<span> | </span>[常见问题](#常见问题)
 
@@ -36,9 +36,9 @@ JSEhViewer 是运行在 iOS 平台 [JSBox](https://apps.apple.com/app/id13120144
 需要 iOS 版本 >= 17.0.0, JSBox 版本 >= 2.22.0  
 不需要 JSBox 2.0.0 版本之后的付费订阅功能
 
-一键安装（尚未准备好）
+[一键安装(Alpha测试版本)](https://xteko.com/redir?name=JSEhViewer&url=https%3A%2F%2Fgithub.com%2FGandum2077%2FJSEhViewer%2Freleases%2Fdownload%2Fv3.0.0-alpha.17%2FJSEhViewer-3.0.0-alpha.17.box)
 
-[从 Release 下载（尚未准备好）](https://github.com/Gandum2077/JSEhViewer/releases)
+[从 Release 下载(Alpha测试版本)](https://github.com/Gandum2077/JSEhViewer/releases)
 
 源码安装：克隆源代码，进入目录并依次执行命令
 

@@ -159,7 +159,7 @@ async function init() {
     if (e instanceof EHIPBannedError) {
       $ui.alert({
         title: "错误",
-        message: "您正在使用的IP被E站封禁，请解决此问题后再启动本应用",
+        message: "您正在使用的IP被E站封禁，请更换IP后再启动本应用",
         actions: [
           {
             title: "退出应用",
@@ -167,6 +167,9 @@ async function init() {
             handler: () => {
               $app.close();
             },
+          },
+          {
+            title: "忽略",
           },
         ],
       });
@@ -199,6 +202,9 @@ async function init() {
                       handler: () => {
                         $app.close();
                       },
+                    },
+                    {
+                      title: "忽略",
                     },
                   ],
                 });
@@ -236,6 +242,9 @@ async function init() {
             handler: () => {
               $app.close();
             },
+          },
+          {
+            title: "忽略",
           },
         ],
       });

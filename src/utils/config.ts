@@ -36,6 +36,7 @@ interface Config {
     | "last_access_time"
     | "posted_time"; // 存档管理器排序方式
   favoritesOrderMethod: "published_time" | "favorited_time"; // 收藏页排序方式（与网页同步）
+  alwaysShowWebDAVWidget: boolean; // 是否始终显示WebDAV组件
   webdavEnabled: boolean; // 是否启用WebDAV
   webdavAutoUpload: boolean; // 是否自动上传到WebDAV
   translationUpdateTime: string; // 标签翻译更新时间
@@ -78,6 +79,7 @@ const defaultConfig: Config = {
   importingArchiverIntroductionRead: false,
   archiveManagerOrderMethod: "last_access_time",
   favoritesOrderMethod: "published_time",
+  alwaysShowWebDAVWidget: false,
   webdavEnabled: false,
   webdavAutoUpload: false,
   translationUpdateTime: new Date(0).toISOString(),
@@ -284,6 +286,14 @@ class ConfigManager {
 
   set favoritesOrderMethod(value: "favorited_time" | "published_time") {
     this._setConfig("favoritesOrderMethod", value);
+  }
+
+  get alwaysShowWebDAVWidget() {
+    return this._config.alwaysShowWebDAVWidget;
+  }
+
+  set alwaysShowWebDAVWidget(value: boolean) {
+    this._setConfig("alwaysShowWebDAVWidget", value);
   }
 
   get webdavEnabled() {

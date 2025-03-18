@@ -72,6 +72,7 @@ export class GeneralSettingsController extends BaseController {
           specificSearchtermsOnStart?: "";
           favoritesOrderMethod: 0 | 1;
           archiveManagerOrderMethod: 0 | 1 | 2;
+          alwaysShowWebDAVWidget: boolean;
           defaultFavcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
           autoCacheWhenReading: boolean;
           pageTurnMethod: 0 | 1 | 2;
@@ -125,6 +126,7 @@ export class GeneralSettingsController extends BaseController {
               : values.archiveManagerOrderMethod === 1
               ? "first_access_time"
               : "posted_time";
+          const alwaysShowWebDAVWidget = values.alwaysShowWebDAVWidget;
           const defaultFavcat = values.defaultFavcat;
           const autoCacheWhenReading = values.autoCacheWhenReading;
           const pageTurnMethod =
@@ -199,6 +201,9 @@ export class GeneralSettingsController extends BaseController {
             (router.get("archiveController") as ArchiveController)
               .reload()
               .then();
+          }
+          if (alwaysShowWebDAVWidget !== configManager.alwaysShowWebDAVWidget) {
+            configManager.alwaysShowWebDAVWidget = alwaysShowWebDAVWidget;
           }
           if (defaultFavcat !== configManager.defaultFavcat) {
             configManager.defaultFavcat = defaultFavcat;
@@ -396,8 +401,14 @@ export class GeneralSettingsController extends BaseController {
         ],
       },
       {
-        title: "阅读",
+        title: "图库与阅读",
         rows: [
+          {
+            type: "boolean",
+            title: "始终显示WebDAV组件",
+            key: "alwaysShowWebDAVWidget",
+            value: configManager.alwaysShowWebDAVWidget
+          },
           {
             type: "list",
             title: "默认收藏到",

@@ -60,6 +60,7 @@ export type WebDAVStatus =
   | WebDAVStatusConnected;
 
 export class WebDAVWidget extends Base<UIView, UiTypes.ViewOptions> {
+  private _hidden: boolean;
   private _mainButtonActionType:
     | "upload"
     | "retry"
@@ -71,17 +72,21 @@ export class WebDAVWidget extends Base<UIView, UiTypes.ViewOptions> {
   constructor({
     mainButtonHandler,
     configButtonHandler,
+    hidden
   }: {
     mainButtonHandler: (
       action: "upload" | "retry" | "retry-upload" | "resume-upload" | "pause"
     ) => void;
     configButtonHandler: () => void;
+    hidden: boolean
   }) {
     super();
+    this._hidden = hidden;
     this._defineView = () => ({
       type: "view",
       props: {
         id: this.id,
+        hidden,
         bgcolor: $color("clear"),
       },
       layout: $layout.fill,
@@ -389,6 +394,6 @@ export class WebDAVWidget extends Base<UIView, UiTypes.ViewOptions> {
   }
 
   heightToWidth(width: number) {
-    return 90;
+    return this._hidden? 0.1 : 90;
   }
 }

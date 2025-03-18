@@ -52,6 +52,14 @@ class BlankView extends Base<UIView, UiTypes.ViewOptions> {
     };
   }
 
+  get height() {
+    return this._height;
+  }
+
+  set height(height: number) {
+    this._height = height;
+  }
+
   heightToWidth(width: number) {
     return this._height;
   }
@@ -1542,7 +1550,12 @@ export class GalleryInfoController extends BaseController {
         },
       },
     });
+    const webDAVHidden = !(
+      configManager.alwaysShowWebDAVWidget ||
+      (!configManager.alwaysShowWebDAVWidget && configManager.webdavEnabled)
+    );
     const webDAVWidget = new WebDAVWidget({
+      hidden: webDAVHidden,
       mainButtonHandler: (action) => {
         this.onWebDAVAction?.(action);
       },
@@ -1563,7 +1576,7 @@ export class GalleryInfoController extends BaseController {
         secondaryButtonsWrapper,
         new BlankView(10),
         webDAVWidget,
-        new BlankView(10),
+        new BlankView(webDAVHidden ? 0.1 : 10),
         tagsFlowlayoutWrapper,
         new BlankView(80),
       ],

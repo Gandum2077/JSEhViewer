@@ -1,6 +1,6 @@
 import { Base, BaseController, ContentView, CustomNavigationBar } from "jsbox-cview";
 import { globalTimer } from "../utils/timer";
-import { checkWebDAVAndCreateUploader, downloaderManager } from "../utils/api";
+import { downloaderManager } from "../utils/api";
 import { defaultButtonColor, thumbnailPath } from "../utils/glv";
 import { GalleryController } from "./gallery-controller";
 
@@ -238,7 +238,7 @@ class DownloadList extends Base<UIListView, UiTypes.ListOptions> {
     const downloadingRows = downloading.map((n, i) => {
       let progressText = "";
       if (n.fatalError) {
-        progressText = "致命错误，请检查网络后刷新";
+        progressText = "致命错误，请尝试刷新";
       } else {
         progressText = `${n.finishedCount} / ${n.totalCount}`;
         if (n.errorCount > 0) {

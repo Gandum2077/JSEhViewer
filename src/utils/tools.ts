@@ -1,5 +1,5 @@
 import { EHSearchTerm, TagNamespace, tagNamespaceMostUsedAlternateMap } from "ehentai-parser";
-import { appConfigPath, globalLogLevel, namespaceColor } from "./glv";
+import { appConfigPath, globalLogLevel } from "./glv";
 import { configManager } from "./config";
 
 const levelMap = {

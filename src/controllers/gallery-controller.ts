@@ -14,7 +14,7 @@ import { WebDAVClient } from "../utils/webdav";
 import { setWebDAVConfig } from "./settings-webdav-controller";
 import { globalTimer } from "../utils/timer";
 import { defaultButtonColor, galleryInfoPath, imagePath, tempPath, tempZipPath } from "../utils/glv";
-import { title } from "process";
+import { FatalError } from "../utils/error";
 
 export class GalleryController extends PageViewerController {
   private _infos?: EHGallery;
@@ -107,6 +107,9 @@ export class GalleryController extends PageViewerController {
               ? (JSON.parse($file.read(galleryInfoPath + `${this._gid}.json`).string || "") as EHGallery)
               : await api.getGalleryInfo(this._gid, this._token, true);
             appLog(infos, "debug");
+            if (infos.thumbnail_size === "normal") {
+              throw new FatalError("参数错误: thumbnail_size不应为normal");
+            }
             this._infos = infos;
           } catch (e: any) {
             appLog(e, "error");
@@ -126,8 +129,17 @@ export class GalleryController extends PageViewerController {
               (sender.rootView.view.super.get("loadingLabel") as UILabelView).text =
                 "加载失败: 未知原因" + (e.statusCode ? `(${e.statusCode})` : "");
             }
+            return;
           }
           if (!this._infos) return;
+          const path = galleryInfoPath + `${this._infos.gid}.json`;
+          if (!$file.exists(path)) {
+            const text = JSON.stringify(this._infos, null, 2);
+            $file.write({
+              data: $data({ string: text }),
+              path,
+            });
+          }
           if (!downloaderManager.get(this._gid)) {
             downloaderManager.add(this._gid, this._infos);
             // 检查是否应该开启后台下载
@@ -283,6 +295,9 @@ export class GalleryController extends PageViewerController {
     try {
       infos = await api.getGalleryInfo(gid, token, true);
       appLog(infos, "debug");
+      if (infos.thumbnail_size === "normal") {
+        throw new FatalError("参数错误: thumbnail_size不应为normal");
+      }
     } catch (e: any) {
       appLog(e, "error");
       if (e instanceof EHCopyrightError) {
@@ -296,6 +311,7 @@ export class GalleryController extends PageViewerController {
       } else {
         $ui.error("刷新失败: 未知原因" + (e.statusCode ? `(${e.statusCode})` : ""));
       }
+      return;
     }
     if (!infos) return;
 
@@ -323,6 +339,11 @@ export class GalleryController extends PageViewerController {
     if ($file.exists(path)) {
       $file.delete(path);
     }
+    const text = JSON.stringify(this._infos, null, 2);
+    $file.write({
+      data: $data({ string: text }),
+      path,
+    });
     if (downloaderManager.get(this._gid)) {
       downloaderManager.remove(this._gid);
     }
@@ -545,7 +566,7 @@ export class GalleryController extends PageViewerController {
           }
           // 首先在第一层文件夹中寻找合格图片
           let imageFiles = $file
-            .list(tempPath)
+            .list(tempPath)!
             .filter((name) => /\.(png|jpe?g|gif|webp)$/i.test(name) && !name.startsWith("."))
             .sort((a, b) => a.localeCompare(b))
             .map((n) => ({ path: tempPath + n, name: n }));
@@ -553,7 +574,7 @@ export class GalleryController extends PageViewerController {
           // 那么去第二层文件夹中寻找
           if (imageFiles.length !== this._infos.length) {
             const secondaryDirs = $file
-              .list(tempPath)
+              .list(tempPath)!
               .map((n) => tempPath + n)
               .filter((n) => $file.isDirectory(n));
             if (secondaryDirs.length !== 1) {
@@ -564,7 +585,7 @@ export class GalleryController extends PageViewerController {
             }
             const secondaryDir = secondaryDirs[0];
             imageFiles = $file
-              .list(secondaryDir)
+              .list(secondaryDir)!
               .filter((name) => /\.(png|jpe?g|gif|webp)$/i.test(name) && !name.startsWith("."))
               .sort((a, b) => a.localeCompare(b))
               .map((n) => ({

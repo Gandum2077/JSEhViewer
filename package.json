@@ -19,7 +19,7 @@
     "@types/cheerio": "^0.22.35",
     "@types/node": "^20.11.25",
     "@types/url-parse": "^1.4.11",
-    "jsbox-types": "^1.0.42",
+    "jsbox-types": "^1.0.43",
     "webpack": "^5.98.0",
     "webpack-cli": "^5.1.4"
   }

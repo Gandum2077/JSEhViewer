@@ -48,6 +48,7 @@ interface Config {
     | "toplist-all"
     | "upload"; // 指定页面
   specificSearchtermsOnStart: string; // 指定搜索词，以json格式存储的EHSearchTerm[]
+  resumeIncompleteDownloadsOnStart: boolean; // 启动后继续未完成的下载任务
 }
 
 const defaultConfig: Config = {
@@ -78,6 +79,7 @@ const defaultConfig: Config = {
   lastAccessPageJson: "",
   specificPageTypeOnStart: "front_page",
   specificSearchtermsOnStart: "",
+  resumeIncompleteDownloadsOnStart: false
 };
 
 async function getEhTagTranslationText() {
@@ -389,6 +391,14 @@ class ConfigManager {
 
   set specificSearchtermsOnStart(value: string) {
     this._setConfig("specificSearchtermsOnStart", value);
+  }
+
+  get resumeIncompleteDownloadsOnStart() {
+    return this._config.resumeIncompleteDownloadsOnStart;
+  }
+
+  set resumeIncompleteDownloadsOnStart(value: boolean) {
+    this._setConfig("resumeIncompleteDownloadsOnStart", value);
   }
 
   /***CONFIG END***/
@@ -1066,7 +1076,7 @@ LIMIT 20;
       gid: number;
     }[];
     const needDeleteGids = data.map((n) => n.gid);
-    const imageDirs = $file.list(imagePath);
+    const imageDirs = $file.list(imagePath)!;
     for (const dir of imageDirs) {
       const gid = parseInt(dir);
       if (needDeleteGids.includes(gid)) {

@@ -9,7 +9,7 @@ import {
 } from "ehentai-parser";
 import { api, downloaderManager } from "./api";
 import { dbManager } from "./database";
-import { ArchiveSearchOptions, DBArchiveItem, FrontPageTabOptions, StatusTab, StatusTabOptions } from "../types";
+import { ArchiveSearchOptions, DBArchiveItem, StatusTab, StatusTabOptions } from "../types";
 import { cvid } from "jsbox-cview";
 
 function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): {

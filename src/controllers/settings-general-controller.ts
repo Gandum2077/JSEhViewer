@@ -67,6 +67,7 @@ export class GeneralSettingsController extends BaseController {
           autoCacheWhenReading: boolean;
           pageTurnMethod: 0 | 1 | 2;
           autoClearCache: boolean;
+          resumeIncompleteDownloadsOnStart: boolean;
         }) => {
           // 先把values中的值转换为configManager中的值的格式
           const startPageType =
@@ -118,6 +119,8 @@ export class GeneralSettingsController extends BaseController {
           const pageTurnMethod =
             values.pageTurnMethod === 0 ? "click_and_swipe" : values.pageTurnMethod === 1 ? "click" : "swipe";
           const autoClearCache = values.autoClearCache;
+          const resumeIncompleteDownloadsOnStart =
+            values.resumeIncompleteDownloadsOnStart ?? configManager.resumeIncompleteDownloadsOnStart;
 
           // 再比较configManager中的值和values中的值是否相同，如果不同，则更新configManager中的值
           if (startPageType !== configManager.startPageType) {
@@ -186,6 +189,9 @@ export class GeneralSettingsController extends BaseController {
           }
           if (autoClearCache !== configManager.autoClearCache) {
             configManager.autoClearCache = autoClearCache;
+          }
+          if (resumeIncompleteDownloadsOnStart !== configManager.resumeIncompleteDownloadsOnStart) {
+            configManager.resumeIncompleteDownloadsOnStart = resumeIncompleteDownloadsOnStart;
           }
         },
       },

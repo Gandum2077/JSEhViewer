@@ -372,8 +372,22 @@ export class SettingsDownloadsController extends BaseController {
     });
     const navbar = new CustomNavigationBar({
       props: {
-        title: "下载管理",
+        title: "下载与上传",
         popButtonEnabled: true,
+        rightBarButtonItems: [
+          {
+            symbol: "pause.fill",
+            handler: () => {
+              this.pauseAll();
+            },
+          },
+          {
+            symbol: "play.fill",
+            handler: () => {
+              this.resumeAll();
+            },
+          },
+        ],
       },
     });
     const list = new DownloadList(() => {
@@ -423,6 +437,33 @@ export class SettingsDownloadsController extends BaseController {
       list,
       emptyView,
     };
+  }
+
+  pauseAll() {
+    [...downloaderManager.galleryDownloaders.values()]
+      .filter((n) => n.background && !n.isAllFinishedDespiteError)
+      .forEach((n) => (n.backgroundPaused = true));
+    [...downloaderManager.galleryWebDAVUploaders.values()]
+      .filter((n) => !n.isAllFinishedDespiteError)
+      .forEach((n) => (n.backgroundPaused = true));
+    this.scheduledRefresh();
+  }
+
+  resumeAll() {
+    const downloading = [...downloaderManager.galleryDownloaders.values()].filter(
+      (n) => n.background && !n.isAllFinishedDespiteError
+    );
+    downloading.forEach((n) => (n.backgroundPaused = false));
+    const uploading = [...downloaderManager.galleryWebDAVUploaders.values()].filter(
+      (n) => !n.isAllFinishedDespiteError
+    );
+    uploading.forEach((n) => (n.backgroundPaused = false));
+    if (downloading.length) {
+      downloaderManager.startOne(downloading[0].gid);
+    } else if (uploading.length) {
+      downloaderManager.startGalleryWebDAVUploader(uploading[0].gid);
+    }
+    this.scheduledRefresh();
   }
 
   scheduledRefresh() {

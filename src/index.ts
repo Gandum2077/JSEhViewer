@@ -369,6 +369,7 @@ async function init() {
 
   // 恢复上次的任务
   if (configManager.resumeIncompleteDownloadsOnStart) {
+    let resumed = 0;
     lastDownloads.forEach((n) => {
       const info_path = galleryInfoPath + `${n.gid}.json`;
       const image_path = imagePath + `${n.gid}`;
@@ -381,7 +382,9 @@ async function init() {
       const d = downloaderManager.get(n.gid)!;
       d.background = true;
       d.backgroundPaused = true;
+      resumed += 1;
     });
+    $ui.success(`已恢复${resumed}个下载任务`)
   }
 }
 

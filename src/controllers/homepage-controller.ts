@@ -20,6 +20,7 @@ import { EhlistTitleView } from "../components/ehlist-titleview";
 import { popoverForTitleView } from "../components/titleview-popover";
 
 export class HomepageController extends BaseController {
+  _thumbnailAllLoaded: boolean = false; // 此标志用于在TabDownloader完成后，再进行一次刷新
   cviews: {
     navbar: CustomNavigationBar;
     list: EHlistView;
@@ -38,7 +39,15 @@ export class HomepageController extends BaseController {
             id: "homepageController",
             paused: true,
             handler: () => {
-              this.cviews.list.reload();
+              const finished = downloaderManager.getTabDownloader(
+                statusManager.currentTabId
+              )!.isAllFinishedDespiteError;
+              if (!finished || !this._thumbnailAllLoaded) {
+                this.cviews.list.reload();
+              }
+              if (finished) {
+                this._thumbnailAllLoaded = true;
+              }
             },
           });
         },
@@ -610,6 +619,7 @@ export class HomepageController extends BaseController {
       default:
         throw new Error("Invalid tab type");
     }
+    this._thumbnailAllLoaded = false;
     if (tab.type !== "blank") {
       const storedOptions = clearExtraPropsForReload(tab);
       configManager.lastAccessPageJson = JSON.stringify(storedOptions);

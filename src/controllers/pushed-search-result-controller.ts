@@ -20,6 +20,7 @@ import { EhlistTitleView } from "../components/ehlist-titleview";
 import { popoverForTitleView } from "../components/titleview-popover";
 
 export class PushedSearchResultController extends BaseController {
+  _thumbnailAllLoaded: boolean = false; // 此标志用于在TabDownloader完成后，再进行一次刷新
   readonly tabId: string;
   layoutMode: "normal" | "large";
   cviews: {
@@ -39,7 +40,13 @@ export class PushedSearchResultController extends BaseController {
             id: this.tabId,
             paused: true,
             handler: () => {
-              this.cviews.list.reload();
+              const finished = downloaderManager.getTabDownloader(this.tabId)!.isAllFinishedDespiteError;
+              if (!finished || !this._thumbnailAllLoaded) {
+                this.cviews.list.reload();
+              }
+              if (finished) {
+                this._thumbnailAllLoaded = true;
+              }
             },
           });
         },

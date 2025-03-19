@@ -14,6 +14,7 @@ import { EhlistTitleView } from "../components/ehlist-titleview";
 import { popoverForTitleView } from "../components/titleview-popover";
 
 export class ArchiveController extends BaseController {
+  _thumbnailAllLoaded: boolean = false;  // 此标志用于在TabDownloader完成后，再进行一次刷新
   cviews: {
     navbar: CustomNavigationBar;
     list: EHlistView;
@@ -32,7 +33,13 @@ export class ArchiveController extends BaseController {
             id: "archiveController",
             paused: true,
             handler: () => {
-              this.cviews.list.reload();
+              const finished = downloaderManager.getTabDownloader("archive")!.isAllFinishedDespiteError;
+              if (!finished || !this._thumbnailAllLoaded) {
+                this.cviews.list.reload();
+              }
+              if (finished) {
+                this._thumbnailAllLoaded = true;
+              }
             },
           });
         },
@@ -268,6 +275,7 @@ export class ArchiveController extends BaseController {
     this.cviews.titleView.title = type === "all" ? "全部记录" : type === "downloaded" ? "下载内容" : "稍后阅读";
     const items = tab.pages.map((page) => page.items).flat();
     this.cviews.list.items = items;
+    this._thumbnailAllLoaded = false;
     if ((tab.options.page + 1) * tab.options.pageSize >= tab.pages[0].all_count) {
       this.cviews.list.footerText = "没有更多了";
     } else {

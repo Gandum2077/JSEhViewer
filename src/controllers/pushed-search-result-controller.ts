@@ -355,6 +355,14 @@ export class PushedSearchResultController extends BaseController {
       didReachBottom: async () => {
         await this.loadMore();
       },
+      contentOffsetChanged: (scrollState) => {
+        const tab = statusManager.tabsMap.get(this.tabId);
+        if (!tab) return;
+        if (tab.type !== "blank" && tab.type !== "archive") {
+          tab.scrollState = scrollState;
+        }
+        downloaderManager.getTabDownloader(this.tabId)!.currentReadingIndex = scrollState.firstVisibleItemIndex;
+      },
       layout: (make, view) => {
         make.top.equalTo(view.prev.bottom);
         make.left.right.inset(0);

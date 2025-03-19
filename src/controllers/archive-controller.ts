@@ -209,6 +209,9 @@ export class ArchiveController extends BaseController {
         downloaderManager.startTabDownloader("archive");
         this.updateLoadedStatus();
       },
+      contentOffsetChanged: (scrollState) => {
+        downloaderManager.getTabDownloader("archive")!.currentReadingIndex = scrollState.firstVisibleItemIndex;
+      },
       layout: (make, view) => {
         make.top.equalTo(view.prev.bottom);
         make.left.right.inset(0);

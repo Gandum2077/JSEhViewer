@@ -397,7 +397,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
     pulled: () => Promise<void> | void;
     didSelect: (sender: EHlistView, indexPath: NSIndexPath, item: Items[0] | EHListUploadItem) => Promise<void> | void;
     didReachBottom: () => Promise<void> | void;
-    contentOffsetChanged?: (info: {
+    contentOffsetChanged?: (scrollState: {
       layout: "large" | "normal" | "minimal";
       totalWidth: number;
       offsetY: number;

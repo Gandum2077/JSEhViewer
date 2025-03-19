@@ -321,7 +321,7 @@ abstract class ConcurrentDownloaderBase {
  */
 export class TabThumbnailDownloader extends ConcurrentDownloaderBase {
   protected _maxConcurrency = 10;
-  private currentReadingIndex = 0;
+  currentReadingIndex = 0;
   private _items: {
     index: number;
     gid: number;

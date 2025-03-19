@@ -8,12 +8,20 @@ import { SidebarTabController } from "./controllers/sidebar-tab-controller";
 import { SidebarBookmarkController } from "./controllers/sidebar-bookemark-controller";
 import { SidebarHistoryController } from "./controllers/sidebar-history-controller";
 import { configManager } from "./utils/config";
-import { api } from "./utils/api";
+import { api, downloaderManager } from "./utils/api";
 import { appLog, getLatestVersion } from "./utils/tools";
-import { EHIgneousExpiredError, EHIPBannedError, EHMyTags, EHSearchTerm, ParsedCookie } from "ehentai-parser";
+import {
+  EHGallery,
+  EHIgneousExpiredError,
+  EHIPBannedError,
+  EHMyTags,
+  EHSearchTerm,
+  ParsedCookie,
+} from "ehentai-parser";
 import { aiTranslationPath, imagePath, thumbnailPath, originalImagePath, galleryInfoPath } from "./utils/glv";
 import { globalTimer } from "./utils/timer";
 import { StatusTabOptions } from "./types";
+import { dbManager } from "./utils/database";
 
 async function init() {
   if (!$file.exists(imagePath)) $file.mkdir(imagePath);
@@ -112,6 +120,8 @@ async function init() {
   getLatestVersion();
 
   if (!configManager.cookie) {
+    // 如果重新登录，则直接删除download_records中的内容
+    dbManager.update("DELETE FROM download_records");
     await login();
     appLog("login done");
     // 重新加载tagManagerController
@@ -120,6 +130,10 @@ async function init() {
     api.updateCookie(JSON.parse(configManager.cookie) as ParsedCookie[]);
     api.exhentai = configManager.exhentai;
   }
+
+  // 获取上次的下载清单并重置整张表
+  const lastDownloads = dbManager.query("SELECT gid,length FROM download_records") as { gid: number; length: number }[];
+  dbManager.update("DELETE FROM download_records");
 
   // 启动全局定时器
   globalTimer.init();
@@ -351,6 +365,23 @@ async function init() {
         await homepageController.triggerLoad(options);
       }
     }
+  }
+
+  // 恢复上次的任务
+  if (configManager.resumeIncompleteDownloadsOnStart) {
+    lastDownloads.forEach((n) => {
+      const info_path = galleryInfoPath + `${n.gid}.json`;
+      const image_path = imagePath + `${n.gid}`;
+      if (!$file.exists(info_path)) return;
+      if ($file.list(image_path)?.length === n.length) return;
+      const text = $file.read(info_path).string;
+      if (!text) return;
+      const infos = JSON.parse(text) as EHGallery;
+      downloaderManager.add(n.gid, infos);
+      const d = downloaderManager.get(n.gid)!;
+      d.background = true;
+      d.backgroundPaused = true;
+    });
   }
 }
 

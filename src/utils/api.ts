@@ -5,6 +5,7 @@ import { aiTranslate } from "../ai-translations/ai-translate";
 import { WebDAVClient } from "./webdav";
 import { configManager } from "./config";
 import { FatalError } from "./error";
+import { dbManager } from "./database";
 
 type CompoundThumbnail = {
   thumbnail_url: string;
@@ -439,7 +440,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
   currentReadingIndex = 0; // 当前正在阅读的图片的index，可以从外部设置
   reading = false; // 是否正在阅读，可以从外部设置
   autoCacheWhenReading = true; // 阅读的时候是否自动下载，可以从外部设置
-  background = false; // 是否后台下载，可以从外部设置
+  private _background = false; // 是否后台下载，可以从外部设置
   backgroundPaused = false; // 是否后台暂停，可以从外部设置
   completeStopped = false; // 彻底停止，打开后将不能写入存储
   webDAVConfig: { enabled: true; client: WebDAVClient; filesOnWebDAV: string[] } | { enabled: false } = {
@@ -773,7 +774,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
       );
 
     // 如果background为true且backgroundPaused为false，或者reading为true，则尝试进行图片任务
-    if ((this.background && !this.backgroundPaused) || this.reading) {
+    if ((this._background && !this.backgroundPaused) || this.reading) {
       // 5. 查找未开始的图片任务
       // 规则为：
       // 1. 如果reading为true，autoCacheWhenReading为false，则需要执行一个特殊的逻辑：
@@ -785,7 +786,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           : 0;
         // 如果不处于后台下载状态，且处于阅读状态，且autoCacheWhenReading为false，
         // 则只会下载currentReadingIndex对应的、以及往后2张图片
-        if (!(this.background && !this.backgroundPaused) && this.reading && !this.autoCacheWhenReading) {
+        if (!(this._background && !this.backgroundPaused) && this.reading && !this.autoCacheWhenReading) {
           return (
             this.result.htmls[page].success &&
             image.index >= this.currentReadingIndex &&
@@ -799,7 +800,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
       if (!imageItem)
         imageItem = this.result.images.find((image) => {
           // 如果不处于后台下载状态，且处于阅读状态，且autoCacheWhenReading为false，则不下载
-          if (!(this.background && !this.backgroundPaused) && this.reading && !this.autoCacheWhenReading) return false;
+          if (!(this._background && !this.backgroundPaused) && this.reading && !this.autoCacheWhenReading) return false;
           const page = this.infos.num_of_images_on_each_page
             ? Math.floor(image.index / this.infos.num_of_images_on_each_page)
             : 0;
@@ -1123,6 +1124,19 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
         }
       },
     };
+  }
+
+  get background() {
+    return this._background;
+  }
+
+  set background(value: boolean) {
+    dbManager.update(
+      `INSERT INTO download_records (gid, length, finished) VALUES (?,?,?) 
+      ON CONFLICT(gid) DO NOTHING`,
+      [this.gid, this.infos.length, false]
+    );
+    this._background = value;
   }
 
   get pendingOfHtmls() {

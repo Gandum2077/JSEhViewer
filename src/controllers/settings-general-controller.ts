@@ -400,8 +400,14 @@ export class GeneralSettingsController extends BaseController {
         ],
       },
       {
-        title: "存储",
+        title: "下载与存储",
         rows: [
+          {
+            type: "boolean",
+            title: "启动时恢复未完成的下载",
+            key: "resumeIncompleteDownloadsOnStart",
+            value: configManager.resumeIncompleteDownloadsOnStart,
+          },
           {
             type: "boolean",
             title: "关闭应用时自动清理缓存",

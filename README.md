@@ -51,6 +51,15 @@ npm run build
 
 ## 截图
 
+<div style="overflow-x: auto; white-space: nowrap; width: 100%; border: 1px solid #ccc; padding: 10px;">
+  <img src="screenshots/front_page.jpg" style="display: inline-block; margin-right: 10px; vertical-align: middle; max-height: 500px;">
+  <img src="screenshots/sidebar.jpg" style="display: inline-block; margin-right: 10px; vertical-align: middle; max-height: 500px;">
+  <img src="screenshots/tag.jpg" style="display: inline-block; margin-right: 10px; vertical-align: middle; max-height: 500px;">
+  <img src="screenshots/more.jpg" style="display: inline-block; margin-right: 10px; vertical-align: middle; max-height: 500px;">
+  <img src="screenshots/gallery.jpg" style="display: inline-block; margin-right: 10px; vertical-align: middle; max-height: 500px;">
+  <img src="screenshots/reader.jpg" style="display: inline-block; margin-right: 10px; vertical-align: middle; max-height: 500px;">
+</div>
+
 ## 常见问题
 
 > 这里主要罗列 JSEhViewer 相关的问题，关于 E 站本身的一些常识性问题，比如如何注册、如何进入里站、如何捐赠、图片配额等，建议阅读下面几篇文章

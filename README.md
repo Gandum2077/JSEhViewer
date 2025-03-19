@@ -15,9 +15,7 @@
 
 JSEhViewer 是运行在 iOS 平台 [JSBox](https://apps.apple.com/app/id1312014438) 上的 E-Hentai 阅读应用。
 
-**目前正处于Alpha测试中，不保证兼容之前的版本。**
-
-[安装](#安装)<span> | </span>[截图](#截图)<span> | </span>[常见问题](#常见问题)
+[安装](#安装)<span> | </span>[截图](#截图)<span> | </span>[常见问题](#常见问题)<span> | </span>[相关项目](#相关项目)
 
 本应用致力于带给你良好的 E-Hentai 阅读体验，快捷的操作方式，以及评分、收藏、评论等社区功能。
 
@@ -36,9 +34,9 @@ JSEhViewer 是运行在 iOS 平台 [JSBox](https://apps.apple.com/app/id13120144
 需要 iOS 版本 >= 17.0.0, JSBox 版本 >= 2.22.0  
 不需要 JSBox 2.0.0 版本之后的付费订阅功能
 
-[一键安装(Alpha测试版本)](https://xteko.com/redir?name=JSEhViewer&url=https%3A%2F%2Fgithub.com%2FGandum2077%2FJSEhViewer%2Freleases%2Fdownload%2Fv3.0.0-alpha.17%2FJSEhViewer-3.0.0-alpha.17.box)
+[一键安装](https://xteko.com/redir?name=JSEhViewer&url=https%3A%2F%2Fgithub.com%2FGandum2077%2FJSEhViewer%2Freleases%2Fdownload%2F3.0.0%2FJSEhViewer-3.0.0.box)
 
-[从 Release 下载(Alpha测试版本)](https://github.com/Gandum2077/JSEhViewer/releases)
+[从 Release 下载](https://github.com/Gandum2077/JSEhViewer/releases)
 
 源码安装：克隆源代码，进入目录并依次执行命令
 
@@ -50,7 +48,8 @@ npm run build
 随后会在当前目录生成安装包。
 
 ## 截图
-<img width="200" style="margin-right:10px" src="screenshots/front_page.jpg"/><img width="200" style="margin-right:10px" src="screenshots/sidebar.jpg"/> <img width="200" style="margin-right:10px" src="screenshots/gallery.jpg"/> <img width="200" style="margin-right:10px" src="screenshots/reader.jpg"/> 
+
+<img width="200" style="margin-right:10px" src="screenshots/front_page.jpg"/><img width="200" style="margin-right:10px" src="screenshots/sidebar.jpg"/> <img width="200" style="margin-right:10px" src="screenshots/gallery.jpg"/> <img width="200" style="margin-right:10px" src="screenshots/reader.jpg"/>
 
 ## 常见问题
 
@@ -119,3 +118,22 @@ hath.network
 #### 导入图库压缩包会闪退
 
 如果压缩包过大，超过了 App 最大 RAM 的限制，可能会闪退。
+
+## 相关项目
+
+在开发本项目的过程中，我编写了三个重要的子项目，以增强 JSBox 的开发体验。如果你也想开发 JSBox 应用，我相信它们会对你有所帮助。
+
+### [JSBox-Types](https://github.com/Gandum2077/JSBox-Types)
+
+✨ **TypeScript 声明文件** | **代码提示 & AI 自纠错**  
+**JSBox-Types** 为 JSBox 提供完整的 TypeScript 类型定义，使开发者可以在编辑器中获得完整的代码提示，并显著提高 AI Agent 的自纠错能力。
+
+### [JSBox-CView](https://github.com/Gandum2077/JSBox-CView)
+
+✨ **微型 UI 框架** | **轻量 & 易扩展**  
+**JSBox-CView** 是一个专门为 JSBox 设计的 UI 组件框架，内置了许多常用的组件和页面，简化 JSBox 应用的界面开发。
+
+### [Ehentai-Parser](https://github.com/Gandum2077/Ehentai-Parser)
+
+✨ **E-Hentai 解析器** | **兼容 JSBox 和 Node.js**  
+**Ehentai-Parser** 是一个完善的 E-Hentai 解析器，适用于需要爬取和解析 E-Hentai 内容的应用，可用于 JSBox 或 Node.js 运行环境。

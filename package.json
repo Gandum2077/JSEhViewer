@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tsc && webpack && zip -q -r JSEhViewer.box app && rm app/main.js",
-    "test": "tsc && webpack --config webpack.config.test.js && zip -q -r JSEhViewer.box app && rm app/main.js"
+    "build": "tsc && webpack && cd app && zip -q -r ../JSEhViewer.box . && rm main.js",
+    "test": "tsc && webpack --config webpack.config.test.js && cd app && zip -q -r ../JSEhViewer.box app && rm main.js"
   },
   "keywords": [],
   "author": "Gandum2077",

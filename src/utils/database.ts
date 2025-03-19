@@ -138,6 +138,12 @@ export function createDB() {
             count INTEGER,
             UNIQUE(namespace, qualifier, term)
             )`);
+  // 下载记录表
+  // 只记录gid和finished，供下次启动时恢复下载使用
+  db.update(`CREATE TABLE IF NOT EXISTS download_records (
+            gid INTEGER PRIMARY KEY,
+            finished INTEGER
+            `)
 
   // 创建trigger, 限制webdav_services表的enabled最多只能有一行
   db.update(`CREATE TRIGGER IF NOT EXISTS enforce_webdav_services_single_enabled

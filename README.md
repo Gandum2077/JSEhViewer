@@ -50,10 +50,7 @@ npm run build
 随后会在当前目录生成安装包。
 
 ## 截图
-<img width="200" style="margin-right:10px" src="screenshots/front_page.png"/>
-<img width="200" style="margin-right:10px" src="screenshots/sidebar.png"/> 
-<img width="200" style="margin-right:10px" src="screenshots/gallery.png"/> 
-<img width="200" style="margin-right:10px" src="screenshots/reader.png"/> 
+<img width="200" style="margin-right:10px" src="screenshots/front_page.png"/><img width="200" style="margin-right:10px" src="screenshots/sidebar.png"/> <img width="200" style="margin-right:10px" src="screenshots/gallery.png"/> <img width="200" style="margin-right:10px" src="screenshots/reader.png"/> 
 
 ## 常见问题
 

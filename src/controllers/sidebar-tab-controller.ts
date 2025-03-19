@@ -390,11 +390,16 @@ export class SidebarTabController extends BaseController {
                 this.refresh();
                 if (flag) {
                   const tab = statusManager.currentTab;
+                  const home = router.get("homepageController") as HomepageController;
                   if (tab.type === "blank") {
-                    (router.get("homepageController") as HomepageController).updateBlankStatus();
-                  } else {
-                    (router.get("homepageController") as HomepageController).updateLoadingStatus(tab);
-                    (router.get("homepageController") as HomepageController).updateLoadedStatus();
+                    home.updateBlankStatus();
+                  } else if (tab.type !== "archive") {
+                    const oldScrollState = tab.scrollState;
+                    home.updateLoadingStatus(tab);
+                    home.updateLoadedStatus();
+                    if (oldScrollState) {
+                      home.cviews.list.updateScrollState(oldScrollState);
+                    }
                   }
                 }
               }
@@ -518,11 +523,16 @@ export class SidebarTabController extends BaseController {
           (router.get("splitViewController") as SplitViewController).sideBarShown = false;
           (router.get("primaryViewController") as TabBarController).index = 0;
           const tab = statusManager.currentTab;
+          const home = router.get("homepageController") as HomepageController;
           if (tab.type === "blank") {
-            (router.get("homepageController") as HomepageController).updateBlankStatus();
-          } else {
-            (router.get("homepageController") as HomepageController).updateLoadingStatus(tab);
-            (router.get("homepageController") as HomepageController).updateLoadedStatus();
+            home.updateBlankStatus();
+          } else if (tab.type !== "archive") {
+            const oldScrollState = tab.scrollState;
+            home.updateLoadingStatus(tab);
+            home.updateLoadedStatus();
+            if (oldScrollState) {
+              home.cviews.list.updateScrollState(oldScrollState);
+            }
           }
         },
       },

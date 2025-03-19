@@ -1234,6 +1234,39 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
     this.matrix.view.reload();
   }
 
+  updateScrollState(scrollState: {
+    layout: "large" | "normal" | "minimal";
+    totalWidth: number;
+    offsetY: number;
+    firstVisibleItemIndex: number;
+  }) {
+    if (scrollState.layout === "minimal") {
+      if (this._showingUpLoadItem && scrollState.totalWidth === this._totalWidth) {
+        this.matrix.view.contentOffset = $point(0, scrollState.offsetY);
+      } else {
+        this.matrix.view.contentOffset = $point(0, 0);
+      }
+    } else if (scrollState.layout === "normal") {
+      if (this._layoutMode === "normal" && scrollState.totalWidth === this._totalWidth) {
+        this.matrix.view.contentOffset = $point(0, scrollState.offsetY);
+      } else {
+        this.matrix.view.scrollTo({
+          indexPath: $indexPath(0, scrollState.firstVisibleItemIndex),
+          animated: false
+        })
+      }
+    } else if (scrollState.layout === "large") {
+      if (this._layoutMode === "large" && scrollState.totalWidth === this._totalWidth) {
+        this.matrix.view.contentOffset = $point(0, scrollState.offsetY);
+      } else {
+        this.matrix.view.scrollTo({
+          indexPath: $indexPath(0, scrollState.firstVisibleItemIndex),
+          animated: false
+        })
+      }
+    }
+  }
+
   get layoutMode() {
     return this._layoutMode;
   }

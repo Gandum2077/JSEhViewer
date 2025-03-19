@@ -1241,6 +1241,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
   set layoutMode(mode: "normal" | "large") {
     if (mode === this._layoutMode) return;
     this._layoutMode = mode;
+    if (this._showingUpLoadItem) return;
     this.matrix.view.data = _mapData(this._items, this._layoutMode);
     this.reload();
 

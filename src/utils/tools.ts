@@ -200,7 +200,10 @@ export function getLatestVersion() {
     handler: (resp) => {
       if (resp.data && resp.response && resp.response.statusCode === 200) {
         const info = resp.data;
-        const latest_version = info?.tag_name;
+        let latest_version = info?.tag_name as string | undefined;
+        if (latest_version && (latest_version.startsWith("v") || latest_version.startsWith("V"))) {
+          latest_version = latest_version.slice(1);
+        }
         const browser_download_url = info?.assets?.at(0)?.browser_download_url;
         if (browser_download_url && latest_version && current_version !== latest_version) {
           $ui.alert({

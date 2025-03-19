@@ -17,26 +17,24 @@ import { clearCookie } from "../utils/tools";
 import { configManager } from "../utils/config";
 import { api } from "../utils/api";
 
-const galleryOneText = `欢迎使用[JSEhViewer](https://github.com/Gandum2077/JSEhViewer)，一款基于JSBox平台的开源E-Hentai应用。
+const galleryOneText = `欢迎使用[JSEhViewer](https://github.com/Gandum2077/JSEhViewer)，一款运行在JSBox平台的E-Hentai阅读应用。
 
 JSEhViewer的运行依赖从网页端抓取数据。启动时会自动将[网站设置](https://e-hentai.org/uconfig.php)修改为特定的值：
-1. 搜索页的显示模式 - 扩展
-2. 图库的缩略图模式 - 大
+搜索页的显示模式: 扩展
+图库的缩略图模式: 大
 
-在本应用运行时，请不要在网页端修改设置，有可能会导致错误。`;
+运行时请不要在网页端修改设置，有可能会导致错误。`;
 
-const syncMyTagsText = `如果不打开同步功能，不会对网页端MyTags页面进行任何操作。
+const syncMyTagsText = `
+1. 出于同步速度的考虑，只同步首个标签组。如果首个标签组没有启用，会自动启用。
 
-具体同步规则如下：
+2. 为保持风格统一，本应用不使用网页端设定的颜色，而是使用橘黄色表示标记，绿色表示订阅，红色表示隐藏。
 
-1. 出于同步速度的考虑，本应用只会和MyTags的首个标签组进行同步。如果首个标签组没有启用，会自动启用。
-2. 本应用会将对标签的操作（增/减/订阅/隐藏/设定权重）同步到网页端。
-3. 为保持风格统一，本应用不会使用网页端设定的颜色，而是使用橘黄色表示标记，绿色表示订阅，红色表示隐藏。
-4. 每次打开应用时，会将网页端的标签同步到本地。如果标签数据冲突则以网页端为准。在使用本应用的过程中，建议不要在网页端对标签进行操作，以免造成数据冲突。
+3. 每次打开应用时，会将网页端的标签同步到本地。如果标签数据冲突则以网页端为准。
 
-为了方便创建包含上传者的搜索组合，可以在本地保存上传者标签。但是由于网页端MyTags页面不能保存上传者标签，所以不会同步上传者标签。
+4. 为了方便创建包含上传者的搜索组合，可以在本地保存上传者标签。但是由于网页端不能保存上传者标签，所以不会同步上传者标签。
 
-另外请注意，本应用的标签列表由标签翻译数据库EhTagTranslation提供。不在数据库中的标签，默认并不会出现在标签列表中。需要先手动加入我的标签，才会出现。`;
+另外请注意，本应用的标签列表由标签翻译数据库EhTagTranslation提供。不在数据库中的标签，默认并不会出现在标签列表中。需要手动加入我的标签，才会出现在列表中。`;
 
 class WelcomeController extends PresentedPageController {
   constructor(finishHandler: () => void) {

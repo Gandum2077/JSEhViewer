@@ -388,6 +388,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
     searchBar,
     pulled,
     didSelect,
+    didLongPress,
     didReachBottom,
     contentOffsetChanged,
     layout,
@@ -396,6 +397,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
     searchBar: Base<any, any>;
     pulled: () => Promise<void> | void;
     didSelect: (sender: EHlistView, indexPath: NSIndexPath, item: Items[0] | EHListUploadItem) => Promise<void> | void;
+    didLongPress: (sender: EHlistView, indexPath: NSIndexPath, item: Items[0] | EHListUploadItem) => void;
     didReachBottom: () => Promise<void> | void;
     contentOffsetChanged?: (scrollState: {
       layout: "large" | "normal" | "minimal";
@@ -1187,6 +1189,21 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
             await didSelect(this, indexPath, this._items[indexPath.item]);
           }
         },
+        didLongPress: async (sender, indexPath, data) => {
+          if (this._showingUpLoadItem) {
+            const r = this._findUploadFolders(indexPath.item);
+            // 两种情况
+            if (r.type === "folder") {
+              // 1. 点了folder标题行
+              return;
+            } else {
+              // 2. 点了item行
+              await didLongPress(this, indexPath, r.item);
+            }
+          } else {
+            await didLongPress(this, indexPath, this._items[indexPath.item]);
+          }
+        }
       },
     });
     this._defineView = () => {

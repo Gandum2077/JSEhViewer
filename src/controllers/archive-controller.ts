@@ -14,7 +14,7 @@ import { EhlistTitleView } from "../components/ehlist-titleview";
 import { popoverForTitleView } from "../components/titleview-popover";
 
 export class ArchiveController extends BaseController {
-  _thumbnailAllLoaded: boolean = false;  // 此标志用于在TabDownloader完成后，再进行一次刷新
+  _thumbnailAllLoaded: boolean = false; // 此标志用于在TabDownloader完成后，再进行一次刷新
   cviews: {
     navbar: CustomNavigationBar;
     list: EHlistView;
@@ -193,6 +193,7 @@ export class ArchiveController extends BaseController {
           statusBarStyle: 0,
         });
       },
+      didLongPress: (sender, indexPath, item) => {},
       didReachBottom: async () => {
         const tab = (await statusManager.loadMoreTab("archive")) as ArchiveTab | undefined;
         if (!tab) return;

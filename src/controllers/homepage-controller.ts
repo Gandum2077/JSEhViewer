@@ -409,6 +409,7 @@ export class HomepageController extends BaseController {
           statusBarStyle: 0,
         });
       },
+      didLongPress: (sender, indexPath, item) => {},
       didReachBottom: async () => {
         await this.loadMore();
       },

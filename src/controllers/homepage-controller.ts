@@ -8,6 +8,7 @@ import {
 import { configManager } from "../utils/config";
 import { clearExtraPropsForReload, statusManager } from "../utils/status";
 import { EHlistView } from "../components/ehlist-view";
+import { EHlistUploadView } from "../components/ehlist-upload-view";
 import { appLog } from "../utils/tools";
 import { buildSortedFsearch, EHListExtendedItem, EHSearchTerm, extractGidToken } from "ehentai-parser";
 import { StatusTabOptions } from "../types";
@@ -24,6 +25,7 @@ export class HomepageController extends BaseController {
   cviews: {
     navbar: CustomNavigationBar;
     list: EHlistView;
+    uploadList: EHlistUploadView;
     searchBar: CustomSearchBar;
     titleView: EhlistTitleView;
   };
@@ -420,13 +422,61 @@ export class HomepageController extends BaseController {
         }
       },
       layout: (make, view) => {
+        make.top.equalTo(view.prev.prev.bottom);
+        make.left.right.inset(0);
+        make.bottom.equalTo(view.super.safeAreaBottom).offset(-50);
+      },
+    });
+    const searchBarForUploadList = new CustomSearchBar({
+      props: {},
+      events: {
+        tapped: async (sender) => {
+          let type: "front_page" | "watched" | "favorites" = "front_page";
+          let searchTerms: EHSearchTerm[] | undefined = undefined;
+          if (
+            statusManager.currentTab &&
+            (statusManager.currentTab.type === "front_page" ||
+              statusManager.currentTab.type === "watched" ||
+              statusManager.currentTab.type === "favorites")
+          ) {
+            searchTerms = statusManager.currentTab.options.searchTerms;
+            type = statusManager.currentTab.type;
+          }
+          const args = await getSearchOptions({ type, options: { searchTerms } }, "showAllExceptArchive");
+          await this.triggerLoad(args);
+        },
+      },
+    });
+    const uploadList = new EHlistUploadView({
+      searchBar: searchBarForUploadList,
+      pulled: async () => {
+        await this.reload();
+      },
+      didSelect: async (sender, indexPath, item) => {
+        const galleryController = new GalleryController(item.gid, item.token);
+        galleryController.uipush({
+          navBarHidden: true,
+          statusBarStyle: 0,
+        });
+      },
+      didLongPress: (sender, indexPath, item) => {},
+      didReachBottom: async () => {
+        await this.loadMore();
+      },
+      contentOffsetChanged: (scrollState) => {
+        const tab = statusManager.currentTab;
+        if (tab.type !== "blank" && tab.type !== "archive") {
+          tab.scrollState = scrollState;
+        }
+      },
+      layout: (make, view) => {
         make.top.equalTo(view.prev.bottom);
         make.left.right.inset(0);
         make.bottom.equalTo(view.super.safeAreaBottom).offset(-50);
       },
     });
-    this.cviews = { navbar, list, searchBar, titleView };
-    this.rootView.views = [navbar, list];
+    this.cviews = { navbar, list, uploadList, searchBar, titleView };
+    this.rootView.views = [navbar, uploadList, list];
   }
 
   async triggerLoad(options: StatusTabOptions) {
@@ -452,6 +502,8 @@ export class HomepageController extends BaseController {
   }
 
   updateBlankStatus() {
+    this.cviews.list.view.hidden = false;
+    this.cviews.uploadList.view.hidden = true;
     this.cviews.titleView.title = "首页";
     this.cviews.list.items = [];
     this.cviews.list.footerText = "";
@@ -462,8 +514,22 @@ export class HomepageController extends BaseController {
     // 1. 列表归零
     // 2. 搜索栏更新
     // 3. 标题更新
-    this.cviews.list.footerText = "加载中……";
+
+    if (options.type === "upload") {
+      this.cviews.list.view.hidden = true;
+      this.cviews.uploadList.view.hidden = false;
+      this.cviews.list.footerText = "";
+      this.cviews.uploadList.footerText = "加载中……";
+    } else {
+      this.cviews.list.view.hidden = false;
+      this.cviews.uploadList.view.hidden = true;
+      this.cviews.list.footerText = "加载中……";
+      this.cviews.uploadList.footerText = "";
+    }
+
     this.cviews.list.items = [];
+    this.cviews.uploadList.uploadFolders = [];
+
     if (
       (options.type === "front_page" || options.type === "watched" || options.type === "favorites") &&
       options.options.searchTerms &&
@@ -612,8 +678,8 @@ export class HomepageController extends BaseController {
       }
       case "upload": {
         const folders = tab.pages[0].folders;
-        this.cviews.list.uploadFolders = folders;
-        this.cviews.list.footerText = "没有更多了";
+        this.cviews.uploadList.uploadFolders = folders;
+        this.cviews.uploadList.footerText = "没有更多了";
         this.cviews.titleView.title = "我的上传";
         break;
       }

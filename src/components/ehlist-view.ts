@@ -3,9 +3,7 @@ import {
   EHListExtendedItem,
   EHListMinimalItem,
   EHListThumbnailItem,
-  EHListUploadItem,
   EHTagListItem,
-  EHUploadList,
 } from "ehentai-parser";
 import { Base, Matrix } from "jsbox-cview";
 import { configManager } from "../utils/config";
@@ -22,6 +20,7 @@ import {
   thumbnailPath,
 } from "../utils/glv";
 import { toSimpleUTCTimeString } from "../utils/tools";
+import { ScrollState } from "../types";
 
 type Items = EHListExtendedItem[] | EHListCompactItem[] | EHListThumbnailItem[] | EHListMinimalItem[];
 
@@ -223,43 +222,6 @@ function _mapDataForNormalLayout(
   };
 }
 
-function _mapDataForMinimalLayout(item: EHListUploadItem) {
-  return {
-    minimal: { hidden: false },
-    minimalFolder: { hidden: true },
-    normal: { hidden: true },
-    large: { hidden: true },
-    title_minimal: {
-      text: item.title,
-    },
-    category_minimal: {
-      text: catTranslations[item.public_category],
-      bgcolor: catColor[item.public_category],
-    },
-    length_minimal: {
-      text: item.length,
-    },
-    posted_time_minimal: {
-      text: toSimpleUTCTimeString(item.added_time),
-    },
-  };
-}
-
-function _mapDataForMinimalFolderLayout(folder: { name: string; fid: number; count: number; collapsed: boolean }) {
-  return {
-    minimal: { hidden: true },
-    minimalFolder: { hidden: false },
-    normal: { hidden: true },
-    large: { hidden: true },
-    minimalFolder_label: {
-      text: `（${folder.count}）` + folder.name,
-    },
-    minimalFolder_icon: {
-      symbol: folder.collapsed ? "chevron.down" : "chevron.up",
-    },
-  };
-}
-
 function _mapData(items: Items, layout: "normal" | "large") {
   if (items.length === 0) {
     return [];
@@ -276,19 +238,6 @@ function _mapData(items: Items, layout: "normal" | "large") {
   } else {
     throw new Error("Invalid layout mode");
   }
-}
-
-function _mapdataUpload(folders: EHUploadList["folders"]) {
-  const mapped = [];
-  for (const folder of folders) {
-    mapped.push(_mapDataForMinimalFolderLayout(folder));
-    if (!folder.collapsed) {
-      for (const item of folder.items) {
-        mapped.push(_mapDataForMinimalLayout(item));
-      }
-    }
-  }
-  return mapped;
 }
 
 function _getColumnsAndItemSizeWidth(
@@ -337,32 +286,6 @@ const normalLayoutItemHeight = (itemWidth: number) => {
   return Math.round(itemWidth * 1.414) + 95;
 };
 
-// minimalLayout
-const minimalLayoutProps = {
-  spacing: 4,
-  maxColumns: 1,
-};
-
-// minimalLayout的item高度随标题长度而改变
-const minimalLayoutItemHeight = (itemWidth: number, title: string) => {
-  return (
-    Math.ceil(
-      $text.sizeThatFits({
-        text: title,
-        width: itemWidth - 10,
-        font: $font(14),
-      }).height
-    ) + 30
-  );
-};
-
-// minimalFolderLayout
-const minimalFolderLayoutProps = {
-  spacing: 4,
-  maxColumns: 1,
-  fixedItemHeight: 36, // 固定高度
-};
-
 export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
   private _itemSizeWidth: number = 0;
   private _itemSizeHeight: number = 0;
@@ -370,17 +293,10 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
   matrix: Matrix;
 
   private _items: Items = [];
-  private _uploadFolders: EHUploadList["folders"] = [];
   private _layoutMode: "normal" | "large";
-  private _showingUpLoadItem = false;
   private _isPulling = false; // 是否处于下拉刷新状态
   private _isReachingBottom = false; // 是否处于到达底部后的加载状态
-  private _contentOffsetChanged?: (scrollState: {
-    layout: "large" | "normal" | "minimal";
-    totalWidth: number;
-    offsetY: number;
-    firstVisibleItemIndex: number;
-  }) => void;
+  private _contentOffsetChanged?: (scrollState: ScrollState) => void;
   _defineView: () => UiTypes.ViewOptions;
 
   constructor({
@@ -396,15 +312,10 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
     layoutMode: "normal" | "large";
     searchBar: Base<any, any>;
     pulled: () => Promise<void> | void;
-    didSelect: (sender: EHlistView, indexPath: NSIndexPath, item: Items[0] | EHListUploadItem) => Promise<void> | void;
-    didLongPress: (sender: EHlistView, indexPath: NSIndexPath, item: Items[0] | EHListUploadItem) => void;
+    didSelect: (sender: EHlistView, indexPath: NSIndexPath, item: Items[0]) => Promise<void> | void;
+    didLongPress: (sender: EHlistView, indexPath: NSIndexPath, item: Items[0]) => void;
     didReachBottom: () => Promise<void> | void;
-    contentOffsetChanged?: (scrollState: {
-      layout: "large" | "normal" | "minimal";
-      totalWidth: number;
-      offsetY: number;
-      firstVisibleItemIndex: number;
-    }) => void;
+    contentOffsetChanged?: (scrollState: ScrollState) => void;
     layout: (make: MASConstraintMaker, view: UIView) => void;
   }) {
     super();
@@ -948,160 +859,6 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                 },
               ],
             },
-            {
-              type: "view",
-              props: {
-                bgcolor: $color("primarySurface", "tertiarySurface"),
-                id: "minimal",
-              },
-              layout: $layout.fill,
-              views: [
-                {
-                  // 底下部分
-                  type: "view",
-                  props: {},
-                  layout: (make, view) => {
-                    make.left.bottom.right.inset(0);
-                    make.height.equalTo(20);
-                  },
-                  views: [
-                    {
-                      // 分类
-                      type: "view",
-                      props: {},
-                      layout: (make, view) => {
-                        make.left.top.bottom.inset(0);
-                        make.width.equalTo(100);
-                      },
-                      views: [
-                        {
-                          type: "label",
-                          props: {
-                            id: "category_minimal",
-                            textColor: $color("white"),
-                            align: $align.center,
-                            font: $font("bold", 12),
-                            smoothCorners: true,
-                            cornerRadius: 4,
-                          },
-                          layout: (make, view) => {
-                            make.center.equalTo(view.super);
-                            make.height.equalTo(18);
-                            make.width.equalTo(80);
-                          },
-                        },
-                      ],
-                    },
-                    {
-                      // 页数
-                      type: "view",
-                      props: {},
-                      layout: (make, view) => {
-                        make.left.equalTo(view.prev.right);
-                        make.width.equalTo(51);
-                        make.top.bottom.inset(0);
-                      },
-                      views: [
-                        {
-                          type: "image",
-                          props: {
-                            symbol: "photo",
-                            tintColor: $color("systemLink"),
-                          },
-                          layout: (make, view) => {
-                            make.left.inset(0);
-                            make.size.equalTo($size(16, 16));
-                            make.centerY.equalTo(view.super);
-                          },
-                        },
-                        {
-                          type: "label",
-                          props: {
-                            id: "length_minimal",
-                            align: $align.left,
-                            font: $font(12),
-                            smoothCorners: true,
-                            cornerRadius: 4,
-                          },
-                          layout: (make, view) => {
-                            make.width.equalTo(30);
-                            make.right.inset(0);
-                            make.centerY.equalTo(view.super);
-                          },
-                        },
-                      ],
-                    },
-                    {
-                      // 发布时间
-                      type: "label",
-                      props: {
-                        id: "posted_time_minimal",
-                        textColor: $color("primaryText"),
-                        align: $align.center,
-                        font: $font(12),
-                      },
-                      layout: (make, view) => {
-                        make.left.equalTo(view.prev.right).inset(10);
-                        make.width.equalTo(109);
-                        make.height.equalTo(15);
-                        make.centerY.equalTo(view.super);
-                      },
-                    },
-                  ],
-                },
-                {
-                  // 顶部标题
-                  type: "label",
-                  props: {
-                    id: "title_minimal",
-                    textColor: $color("primaryText"),
-                    align: $align.left,
-                    lines: 0,
-                    font: $font(14),
-                  },
-                  layout: (make, view) => {
-                    make.top.left.right.inset(5);
-                    make.bottom.equalTo(view.prev.top).inset(5);
-                  },
-                },
-              ],
-            },
-            {
-              type: "view",
-              props: {
-                bgcolor: $color("clear"),
-                id: "minimalFolder",
-              },
-              layout: $layout.fill,
-              views: [
-                {
-                  type: "image",
-                  props: {
-                    id: "minimalFolder_icon",
-                    tintColor: $color("systemLink"),
-                    contentMode: 1,
-                  },
-                  layout: (make, view) => {
-                    make.left.inset(3);
-                    make.centerY.equalTo(view.super);
-                    make.width.height.equalTo(18);
-                  },
-                },
-                {
-                  type: "label",
-                  props: {
-                    id: "minimalFolder_label",
-                    font: $font("bold", 14),
-                  },
-                  layout: (make, view) => {
-                    make.left.inset(24);
-                    make.centerY.equalTo(view.super);
-                    make.height.equalTo(view.super);
-                    make.right.equalTo(view.super);
-                  },
-                },
-              ],
-            },
           ],
         },
       },
@@ -1110,44 +867,21 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
         didScroll: (sender) => {
           const offsetY = sender.contentOffset.y;
           const spacing = 4;
-          if (this._showingUpLoadItem) {
-            this._contentOffsetChanged?.({
-              layout: "minimal",
-              totalWidth: this._totalWidth,
-              firstVisibleItemIndex: 0,
-              offsetY,
-            });
-          } else {
-            // 根据 spacing, _itemSizeWidth, _itemSizeHeight, _totalWidth
-            // 计算目前最左上方的是第几个item
-            const columns = Math.floor((this._totalWidth + spacing) / (this._itemSizeWidth + spacing));
-            const row = Math.floor(offsetY / (this._itemSizeHeight + spacing));
+          // 根据 spacing, _itemSizeWidth, _itemSizeHeight, _totalWidth
+          // 计算目前最左上方的是第几个item
+          const columns = Math.floor((this._totalWidth + spacing) / (this._itemSizeWidth + spacing));
+          const row = Math.floor(offsetY / (this._itemSizeHeight + spacing));
 
-            const index = row * columns;
-            this._contentOffsetChanged?.({
-              layout: this._layoutMode,
-              totalWidth: this._totalWidth,
-              firstVisibleItemIndex: index,
-              offsetY,
-            });
-          }
+          const index = row * columns;
+          this._contentOffsetChanged?.({
+            layout: this._layoutMode,
+            totalWidth: this._totalWidth,
+            firstVisibleItemIndex: index,
+            offsetY,
+          });
         },
         itemSize: (sender, indexPath) => {
-          if (this._showingUpLoadItem) {
-            const r = this._findUploadFolders(indexPath.item);
-            // 两种情况
-            if (r.type === "folder") {
-              // 1. folder标题行，内部处理
-              return $size(this._itemSizeWidth, minimalFolderLayoutProps.fixedItemHeight);
-            } else {
-              // 2. item行
-              const title = r.item.title;
-              const itemSizeHeight = minimalLayoutItemHeight(this._itemSizeWidth, title);
-              return $size(this._itemSizeWidth, itemSizeHeight);
-            }
-          } else {
-            return $size(this._itemSizeWidth, this._itemSizeHeight);
-          }
+          return $size(this._itemSizeWidth, this._itemSizeHeight);
         },
         pulled: async (sender) => {
           if (this._isPulling || this._isReachingBottom) return;
@@ -1172,38 +906,11 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
           }
         },
         didSelect: async (sender, indexPath, data) => {
-          if (this._showingUpLoadItem) {
-            const r = this._findUploadFolders(indexPath.item);
-            // 两种情况
-            if (r.type === "folder") {
-              // 1. 点了folder标题行，内部处理
-              const folder = this._uploadFolders.find((n) => n.fid === r.fid);
-              if (!folder) return;
-              folder.collapsed = !folder.collapsed;
-              this.matrix.view.data = _mapdataUpload(this._uploadFolders);
-            } else {
-              // 2. 点了item行
-              await didSelect(this, indexPath, r.item);
-            }
-          } else {
-            await didSelect(this, indexPath, this._items[indexPath.item]);
-          }
+          await didSelect(this, indexPath, this._items[indexPath.item]);
         },
         didLongPress: async (sender, indexPath, data) => {
-          if (this._showingUpLoadItem) {
-            const r = this._findUploadFolders(indexPath.item);
-            // 两种情况
-            if (r.type === "folder") {
-              // 1. 点了folder标题行
-              return;
-            } else {
-              // 2. 点了item行
-              await didLongPress(this, indexPath, r.item);
-            }
-          } else {
-            await didLongPress(this, indexPath, this._items[indexPath.item]);
-          }
-        }
+          didLongPress(this, indexPath, this._items[indexPath.item]);
+        },
       },
     });
     this._defineView = () => {
@@ -1227,9 +934,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
   }
 
   reload() {
-    if (this._showingUpLoadItem) {
-      this._itemSizeWidth = this._totalWidth - 8;
-    } else if (this._layoutMode === "normal") {
+    if (this._layoutMode === "normal") {
       const { itemSizeWidth } = _getColumnsAndItemSizeWidth(
         this._totalWidth,
         normalLayoutProps.minItemWidth,
@@ -1251,26 +956,15 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
     this.matrix.view.reload();
   }
 
-  updateScrollState(scrollState: {
-    layout: "large" | "normal" | "minimal";
-    totalWidth: number;
-    offsetY: number;
-    firstVisibleItemIndex: number;
-  }) {
-    if (scrollState.layout === "minimal") {
-      if (this._showingUpLoadItem && scrollState.totalWidth === this._totalWidth) {
-        this.matrix.view.contentOffset = $point(0, scrollState.offsetY);
-      } else {
-        this.matrix.view.contentOffset = $point(0, 0);
-      }
-    } else if (scrollState.layout === "normal") {
+  updateScrollState(scrollState: ScrollState) {
+    if (scrollState.layout === "normal") {
       if (this._layoutMode === "normal" && scrollState.totalWidth === this._totalWidth) {
         this.matrix.view.contentOffset = $point(0, scrollState.offsetY);
       } else {
         this.matrix.view.scrollTo({
           indexPath: $indexPath(0, scrollState.firstVisibleItemIndex),
-          animated: false
-        })
+          animated: false,
+        });
       }
     } else if (scrollState.layout === "large") {
       if (this._layoutMode === "large" && scrollState.totalWidth === this._totalWidth) {
@@ -1278,8 +972,8 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
       } else {
         this.matrix.view.scrollTo({
           indexPath: $indexPath(0, scrollState.firstVisibleItemIndex),
-          animated: false
-        })
+          animated: false,
+        });
       }
     }
   }
@@ -1291,7 +985,6 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
   set layoutMode(mode: "normal" | "large") {
     if (mode === this._layoutMode) return;
     this._layoutMode = mode;
-    if (this._showingUpLoadItem) return;
     this.matrix.view.data = _mapData(this._items, this._layoutMode);
     this.reload();
 
@@ -1310,9 +1003,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
   }
 
   set items(items: Items) {
-    this._showingUpLoadItem = false;
     this._items = items;
-    this._uploadFolders = [];
     if (this._isPulling) this.matrix.view.endRefreshing();
     if (this._isReachingBottom) this.matrix.view.endFetchingMore();
     this.matrix.view.data = _mapData(items, this._layoutMode);
@@ -1320,44 +1011,6 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
 
   get items() {
     return this._items;
-  }
-
-  set uploadFolders(folders: EHUploadList["folders"]) {
-    this._showingUpLoadItem = true;
-    this._uploadFolders = folders;
-    this._items = [];
-    if (this._isPulling) this.matrix.view.endRefreshing();
-    if (this._isReachingBottom) this.matrix.view.endFetchingMore();
-    this.matrix.view.data = _mapdataUpload(folders);
-  }
-
-  get uploadFolders() {
-    return this._uploadFolders;
-  }
-
-  private _findUploadFolders(
-    index: number
-  ): { type: "folder"; fid: number } | { type: "item"; item: EHListUploadItem } {
-    let i = 0;
-    for (const folder of this._uploadFolders) {
-      if (i === index)
-        return {
-          type: "folder",
-          fid: folder.fid,
-        };
-      i += 1;
-      if (!folder.collapsed) {
-        for (const item of folder.items) {
-          if (i === index)
-            return {
-              type: "item",
-              item,
-            };
-          i += 1;
-        }
-      }
-    }
-    throw Error("findUploadFolders error: out of range");
   }
 
   set footerText(text: string) {

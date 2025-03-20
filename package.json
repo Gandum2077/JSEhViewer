@@ -2,10 +2,15 @@
   "name": "jsehviewer",
   "version": "3.0.0",
   "description": "",
+  "homepage": "https://github.com/Gandum2077/JSEhViewer",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Gandum2077/JSEhViewer.git"
+  },
   "main": "index.js",
   "scripts": {
     "build": "tsc && webpack && cd app && zip -q -r ../JSEhViewer.box . && rm main.js",
-    "test": "tsc && webpack --config webpack.config.test.js && cd app && zip -q -r ../JSEhViewer.box app && rm main.js"
+    "test": "tsc && webpack --config webpack.config.test.js && cd app && zip -q -r ../JSEhViewer.box . && rm main.js"
   },
   "keywords": [],
   "author": "Gandum2077",

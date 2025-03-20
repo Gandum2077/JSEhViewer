@@ -372,7 +372,7 @@ export class EHlistUploadView extends Base<UIView, UiTypes.ViewOptions> {
         type: "view",
         props: {
           id: this.id,
-          hidden: true
+          hidden: true,
         },
         layout,
         events: {

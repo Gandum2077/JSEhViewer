@@ -239,12 +239,14 @@ export async function getCookie(exhentai = true): Promise<ParsedCookie[]> {
       timeout: 30,
     });
     if (resp.error || resp.response.statusCode !== 200 || !(resp.data as string).startsWith("<!DOCTYPE html>"))
-      throw new Error("登录Exhentai失败");
+      throw new Error("登录Exhentai失败：未知原因");
     const setCookies = parseSetCookieString(resp.response.headers["Set-Cookie"]);
     // 此处应该是必然有igneous的，否则登录失败，这应该是能否访问Exhentai的标志
     const cookie_igneous = setCookies.find((n) => n.name === "igneous");
     if (!cookie_igneous || cookie_igneous.value.length !== 17) {
-      throw new Error("登录Exhentai失败");
+      throw new Error(
+        "登录Exhentai失败：无法获取里站Cookie。如果你确定账号有里站权限，那可能是因为当前IP地址存在问题，请更换IP再尝试。"
+      );
     }
     const resp2 = await $http.get({
       url: "https://exhentai.org/uconfig.php",

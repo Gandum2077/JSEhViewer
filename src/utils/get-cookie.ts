@@ -3,6 +3,7 @@
 
 import { ParsedCookie } from "ehentai-parser";
 import { Web, ContentView, DialogSheet, SymbolButton } from "jsbox-cview";
+import { appLog } from "./tools";
 
 const UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3.1 Mobile/15E148 Safari/604.1";
@@ -238,12 +239,15 @@ export async function getCookie(exhentai = true): Promise<ParsedCookie[]> {
       },
       timeout: 30,
     });
-    if (resp.error || resp.response.statusCode !== 200 || !(resp.data as string).startsWith("<!DOCTYPE html>"))
+    if (resp.error || resp.response.statusCode !== 200 || !(resp.data as string).startsWith("<!DOCTYPE html>")) {
+      appLog(resp, "error");
       throw new Error("登录Exhentai失败：未知原因");
+    }
     const setCookies = parseSetCookieString(resp.response.headers["Set-Cookie"]);
     // 此处应该是必然有igneous的，否则登录失败，这应该是能否访问Exhentai的标志
     const cookie_igneous = setCookies.find((n) => n.name === "igneous");
     if (!cookie_igneous || cookie_igneous.value.length !== 17) {
+      appLog(resp, "error");
       throw new Error(
         "登录Exhentai失败：无法获取里站Cookie。如果你确定账号有里站权限，那可能是因为当前IP地址存在问题，请更换IP再尝试。"
       );
@@ -261,7 +265,10 @@ export async function getCookie(exhentai = true): Promise<ParsedCookie[]> {
       },
       timeout: 30,
     });
-    if (resp2.error || resp2.response.statusCode !== 200) throw new Error("获取Exhentai设置失败");
+    if (resp2.error || resp2.response.statusCode !== 200) {
+      appLog(resp, "error");
+      throw new Error("获取Exhentai设置失败");
+    }
     const setCookies2 = parseSetCookieString(resp2.response.headers["Set-Cookie"]);
     // 后面这些，只有sk是必然有的，其他的不一定有
     const cookie_sk = setCookies2.find((n) => n.name === "sk");
@@ -303,6 +310,10 @@ export async function getCookie(exhentai = true): Promise<ParsedCookie[]> {
       },
       timeout: 30,
     });
+    if (resp.error || resp.response.statusCode !== 200) {
+      appLog(resp, "error");
+      throw new Error("获取E-hentai设置失败");
+    }
     const setCookie = parseSetCookieString(resp.response.headers["Set-Cookie"]);
     // 后面这些，只有sk是必然有的，其他的不一定有
     const cookie_sk = setCookie.find((n) => n.name === "sk");

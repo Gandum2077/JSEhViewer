@@ -61,6 +61,10 @@ npm run build
 > - [eh 捐献教程](http://sinner.ehentai.info/index.php/archives/3/)
 > - [e 站的 3 种货币 GP, C, Hath](http://sinner.ehentai.info/index.php/archives/80/)
 
+### 如何查看日志
+
+首先将`assets/debug`这个文件的内容从`0`改为`1`，然后在调试模式下运行就可以查看日志了。所谓调试模式，就是先进入应用的文件目录，然后点下方的运行按钮。
+
 ### 网络相关
 
 包括无法登录、无法更新标签翻译、获取列表失败、缩略图或图片无法加载等

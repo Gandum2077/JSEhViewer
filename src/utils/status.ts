@@ -610,32 +610,32 @@ class StatusManager {
       case "front_page": {
         const page = await api.getFrontPageInfo(tab.options);
         tab.pages = [page];
-        return tab;
+        break;
       }
       case "watched": {
         const page = await api.getWatchedInfo(tab.options);
         tab.pages = [page];
-        return tab;
+        break;
       }
       case "popular": {
         const page = await api.getPopularInfo(tab.options);
         tab.pages = [page];
-        return tab;
+        break;
       }
       case "favorites": {
         const page = await api.getFavoritesInfo(tab.options);
         tab.pages = [page];
-        return tab;
+        break;
       }
       case "toplist": {
         const page = await api.getTopListInfo(tab.options);
         tab.pages = [page];
-        return tab;
+        break;
       }
       case "upload": {
         const page = await api.getUploadInfo();
         tab.pages = [page];
-        return tab;
+        break;
       }
       case "archive": {
         const items = this.queryArchiveItem(tab.options);
@@ -647,11 +647,13 @@ class StatusManager {
             items,
           },
         ];
-        return tab;
+        break;
       }
       default:
         throw new Error("Invalid tab type");
     }
+    this._tabsMap.set(tabId, tab);
+    return tab;
   }
 
   queryArchiveItemCount(type: "readlater" | "downloaded" | "all" = "all") {

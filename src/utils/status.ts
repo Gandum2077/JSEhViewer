@@ -9,7 +9,19 @@ import {
 } from "ehentai-parser";
 import { api, downloaderManager } from "./api";
 import { dbManager } from "./database";
-import { ArchiveSearchOptions, DBArchiveItem, StatusTab, StatusTabOptions } from "../types";
+import {
+  ArchiveSearchOptions,
+  ArchiveTabOptions,
+  DBArchiveItem,
+  FavoritesTabOptions,
+  FrontPageTabOptions,
+  PopularTabOptions,
+  StatusTab,
+  StatusTabOptions,
+  ToplistTabOptions,
+  UploadTabOptions,
+  WatchedTabOptions,
+} from "../types";
 import { cvid } from "jsbox-cview";
 
 function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): {
@@ -271,7 +283,7 @@ function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): {
   return { sql, args };
 }
 
-export function clearExtraPropsForReload<T extends StatusTabOptions>(tab: T): T {
+export function clearExtraPropsForReload(tab: StatusTab) {
   switch (tab.type) {
     case "front_page": {
       tab.options.range = undefined;
@@ -282,7 +294,7 @@ export function clearExtraPropsForReload<T extends StatusTabOptions>(tab: T): T 
       return {
         type: "front_page",
         options: tab.options,
-      } as T;
+      } as FrontPageTabOptions;
     }
     case "watched": {
       tab.options.range = undefined;
@@ -293,13 +305,13 @@ export function clearExtraPropsForReload<T extends StatusTabOptions>(tab: T): T 
       return {
         type: "watched",
         options: tab.options,
-      } as T;
+      } as WatchedTabOptions;
     }
     case "popular": {
       return {
         type: "popular",
         options: tab.options,
-      } as T;
+      } as PopularTabOptions;
     }
     case "favorites": {
       tab.options.jump = undefined;
@@ -311,26 +323,26 @@ export function clearExtraPropsForReload<T extends StatusTabOptions>(tab: T): T 
       return {
         type: "favorites",
         options: tab.options,
-      } as T;
+      } as FavoritesTabOptions;
     }
     case "toplist": {
       tab.options.page = 0;
       return {
         type: "toplist",
         options: tab.options,
-      } as T;
+      } as ToplistTabOptions;
     }
     case "upload": {
       return {
         type: "upload",
-      } as T;
+      } as UploadTabOptions;
     }
     case "archive": {
       tab.options.page = 0;
       return {
         type: "archive",
         options: tab.options,
-      } as T;
+      } as ArchiveTabOptions;
     }
     default:
       throw new Error("Invalid tab type");
@@ -599,61 +611,6 @@ class StatusManager {
       default:
         throw new Error("Invalid tab type");
     }
-  }
-
-  async reloadTab(tabId: string) {
-    const oldTab = this._tabsMap.get(tabId);
-    if (!oldTab) throw new Error("Tab not found");
-    if (oldTab.type === "blank") return oldTab;
-    const tab = clearExtraPropsForReload(oldTab);
-    switch (tab.type) {
-      case "front_page": {
-        const page = await api.getFrontPageInfo(tab.options);
-        tab.pages = [page];
-        break;
-      }
-      case "watched": {
-        const page = await api.getWatchedInfo(tab.options);
-        tab.pages = [page];
-        break;
-      }
-      case "popular": {
-        const page = await api.getPopularInfo(tab.options);
-        tab.pages = [page];
-        break;
-      }
-      case "favorites": {
-        const page = await api.getFavoritesInfo(tab.options);
-        tab.pages = [page];
-        break;
-      }
-      case "toplist": {
-        const page = await api.getTopListInfo(tab.options);
-        tab.pages = [page];
-        break;
-      }
-      case "upload": {
-        const page = await api.getUploadInfo();
-        tab.pages = [page];
-        break;
-      }
-      case "archive": {
-        const items = this.queryArchiveItem(tab.options);
-        const count = this.queryArchiveItemCount(tab.options.type);
-        tab.pages = [
-          {
-            type: "archive",
-            all_count: count,
-            items,
-          },
-        ];
-        break;
-      }
-      default:
-        throw new Error("Invalid tab type");
-    }
-    this._tabsMap.set(tabId, tab);
-    return tab;
   }
 
   queryArchiveItemCount(type: "readlater" | "downloaded" | "all" = "all") {

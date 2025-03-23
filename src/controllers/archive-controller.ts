@@ -3,7 +3,7 @@ import { GalleryController } from "./gallery-controller";
 import { getJumpPageDialog } from "../components/seekpage-dialog";
 import { configManager } from "../utils/config";
 import { EHlistView } from "../components/ehlist-view";
-import { statusManager } from "../utils/status";
+import { clearExtraPropsForReload, statusManager } from "../utils/status";
 import { downloaderManager } from "../utils/api";
 import { getSearchOptions } from "./search-controller";
 import { CustomSearchBar } from "../components/custom-searchbar";
@@ -223,8 +223,10 @@ export class ArchiveController extends BaseController {
     this.rootView.views = [navbar, list];
   }
 
-  async triggerLoad(options: ArchiveTabOptions) {
-    this.updateLoadingStatus(options);
+  async triggerLoad(options: ArchiveTabOptions, reload?: boolean) {
+    if (!reload) {
+      this.updateLoadingStatus(options);
+    }
     const tab = (await statusManager.loadTab(options, "archive")) as ArchiveTab;
     if (!tab) return;
     downloaderManager.getTabDownloader("archive")!.clear();
@@ -242,19 +244,10 @@ export class ArchiveController extends BaseController {
   }
 
   async reload() {
-    const tab = (await statusManager.reloadTab("archive")) as ArchiveTab;
-    downloaderManager.getTabDownloader("archive")!.clear();
-    downloaderManager.getTabDownloader("archive")!.add(
-      tab.pages
-        .map((page) => page.items)
-        .flat()
-        .map((item) => ({
-          gid: item.gid,
-          url: item.thumbnail_url,
-        }))
-    );
-    downloaderManager.startTabDownloader("archive");
-    this.updateLoadedStatus();
+    const tab = statusManager.tabsMap.get("archive");
+    if (!tab) throw new Error("tab not found");
+    const options = clearExtraPropsForReload(tab) as ArchiveTabOptions;
+    this.triggerLoad(options, true);
   }
 
   updateLoadingStatus(options: ArchiveTabOptions) {

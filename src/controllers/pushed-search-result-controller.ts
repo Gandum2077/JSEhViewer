@@ -6,7 +6,7 @@ import {
   getJumpRangeDialogForFavorites,
 } from "../components/seekpage-dialog";
 import { configManager } from "../utils/config";
-import { statusManager } from "../utils/status";
+import { clearExtraPropsForReload, statusManager } from "../utils/status";
 import { EHlistView } from "../components/ehlist-view";
 import { appLog } from "../utils/tools";
 import { buildSortedFsearch, EHListExtendedItem, EHSearchTerm } from "ehentai-parser";
@@ -374,8 +374,12 @@ export class PushedSearchResultController extends BaseController {
     this.rootView.views = [navbar, list];
   }
 
-  async triggerLoad(options: StatusTabOptions) {
-    this.updateLoadingStatus(options);
+  async triggerLoad(options: StatusTabOptions, reload?: boolean) {
+    if (reload) {
+      this.cviews.list.footerText = "正在重新加载……";
+    } else {
+      this.updateLoadingStatus(options);
+    }
     const tab = await statusManager.loadTab(options, this.tabId);
     if (!tab) return;
     const dm = downloaderManager.getTabDownloader(this.tabId) as TabThumbnailDownloader;
@@ -428,6 +432,7 @@ export class PushedSearchResultController extends BaseController {
       const lastPage = tab.pages[tab.pages.length - 1];
       if (lastPage.current_page === lastPage.total_pages - 1) return;
     }
+    
     this.cviews.list.footerText = "正在加载更多……";
     try {
       const tab = await statusManager.loadMoreTab(this.tabId);
@@ -452,27 +457,11 @@ export class PushedSearchResultController extends BaseController {
   }
 
   async reload() {
-    this.cviews.list.footerText = "正在重新加载……";
-    try {
-      const tab = await statusManager.reloadTab(this.tabId);
-      const dm = downloaderManager.getTabDownloader(this.tabId) as TabThumbnailDownloader;
-      dm.clear();
-      if (tab.type !== "upload" && tab.type !== "blank") {
-        dm.add(
-          tab.pages
-            .map((page) => page.items)
-            .flat()
-            .map((item) => ({
-              gid: item.gid,
-              url: item.thumbnail_url,
-            }))
-        );
-        downloaderManager.startTabDownloader(this.tabId);
-      }
-      this.updateLoadedStatus();
-    } catch (e) {
-      appLog(e, "error");
-    }
+    const tab = statusManager.tabsMap.get(this.tabId);
+    if (!tab) throw new Error("tab not found");
+    if (tab.type === "upload" || tab.type === "blank") return;
+    const options = clearExtraPropsForReload(tab);
+    this.triggerLoad(options, true);
   }
 
   updateLoadedStatus() {

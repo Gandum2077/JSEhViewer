@@ -479,8 +479,17 @@ export class HomepageController extends BaseController {
     this.rootView.views = [navbar, uploadList, list];
   }
 
-  async triggerLoad(options: StatusTabOptions) {
-    this.updateLoadingStatus(options);
+  async triggerLoad(options: StatusTabOptions, reload?: boolean) {
+    if (reload) {
+      // reload则不更改除了底部文字之外的内容
+      if (options.type === "upload") {
+        this.cviews.uploadList.footerText = "正在重新加载……";
+      } else {
+        this.cviews.list.footerText = "正在重新加载……";
+      }
+    } else {
+      this.updateLoadingStatus(options);
+    }
     const tabId = statusManager.currentTabId;
     const tab = await statusManager.loadTab(options, tabId);
     if (!tab) return;
@@ -583,34 +592,18 @@ export class HomepageController extends BaseController {
   }
 
   async reload() {
-    this.cviews.list.footerText = "正在重新加载……";
-    try {
-      const tab = await statusManager.reloadTab(statusManager.currentTabId);
-      const dm = downloaderManager.getTabDownloader(statusManager.currentTabId) as TabThumbnailDownloader;
-      dm.clear();
-      if (tab.type !== "upload" && tab.type !== "blank") {
-        dm.add(
-          tab.pages
-            .map((page) => page.items)
-            .flat()
-            .map((item) => ({
-              gid: item.gid,
-              url: item.thumbnail_url,
-            }))
-        );
-        downloaderManager.startTabDownloader(statusManager.currentTabId);
-      }
-      this.updateLoadedStatus();
-    } catch (e) {
-      appLog(e, "error");
-    }
+    const tab = statusManager.tabsMap.get(statusManager.currentTabId);
+    if (!tab) throw new Error("tab not found");
+    if (tab.type === "upload" || tab.type === "blank") return;
+    const options = clearExtraPropsForReload(tab);
+    this.triggerLoad(options, true);
   }
 
   updateLoadedStatus() {
     const tab = statusManager.currentTab;
     switch (tab.type) {
       case "blank": {
-        this.cviews.titleView.title = "首页";
+        this.cviews.titleView.title = "空白页";
         this.cviews.list.items = [];
         this.cviews.list.footerText = "";
         break;

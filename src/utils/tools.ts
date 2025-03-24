@@ -148,10 +148,10 @@ export function getUtf8Length(str: string) {
 /**
  * 裁剪图片
  */
-export function cropImageData(imageData: NSData, image: UIImage | undefined, rect: JBRect): NSData {
+export function cropImageData(imageData: NSData, image: UIImage | undefined, rect: JBRect): NSData | undefined {
   if (!image) {
     console.error("cropImageData: image is nil");
-    return imageData;
+    return;
   }
   if (image.size.width === rect.width && image.size.height === rect.height) {
     return imageData;

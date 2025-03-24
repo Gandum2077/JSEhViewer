@@ -6,7 +6,7 @@ import {
   getJumpRangeDialogForFavorites,
 } from "../components/seekpage-dialog";
 import { configManager } from "../utils/config";
-import { clearExtraPropsForReload, statusManager } from "../utils/status";
+import { clearExtraPropsForReload, statusManager, VirtualTab } from "../utils/status";
 import { EHlistView } from "../components/ehlist-view";
 import { EHlistUploadView } from "../components/ehlist-upload-view";
 import { appLog } from "../utils/tools";
@@ -131,34 +131,35 @@ export class HomepageController extends BaseController {
       defaultTitle: "空白页",
       tapped: async (sender) => {
         const tab = statusManager.currentTab;
-        switch (tab.type) {
+        switch (tab.data.type) {
           case "front_page": {
             const values = await popoverForTitleView({
               sourceView: sender,
               sourceRect: sender.bounds,
               popoverOptions: {
-                type: tab.type,
+                type: tab.data.type,
                 filterOptions: {
-                  disableLanguageFilters: tab.options.disableLanguageFilters ?? false,
-                  disableUploaderFilters: tab.options.disableUploaderFilters ?? false,
-                  disableTagFilters: tab.options.disableTagFilters ?? false,
+                  disableLanguageFilters: tab.data.options.disableLanguageFilters ?? false,
+                  disableUploaderFilters: tab.data.options.disableUploaderFilters ?? false,
+                  disableTagFilters: tab.data.options.disableTagFilters ?? false,
                 },
                 count: {
-                  loaded: tab.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
-                  all: tab.pages[0].total_item_count,
-                  filtered: tab.pages.map((n) => n.filtered_count).reduce((prev, curr) => prev + curr),
+                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
+                  all: tab.data.pages.at(0)?.total_item_count ?? 0,
+                  filtered: tab.data.pages.map((n) => n.filtered_count).reduce((prev, curr) => prev + curr),
                 },
               },
             });
             if (
-              (tab.options.disableLanguageFilters ?? false) !== values.filterOptions.disableLanguageFilters ||
-              (tab.options.disableUploaderFilters ?? false) !== values.filterOptions.disableUploaderFilters ||
-              (tab.options.disableTagFilters ?? false) !== values.filterOptions.disableTagFilters
+              (tab.data.options.disableLanguageFilters ?? false) !== values.filterOptions.disableLanguageFilters ||
+              (tab.data.options.disableUploaderFilters ?? false) !== values.filterOptions.disableUploaderFilters ||
+              (tab.data.options.disableTagFilters ?? false) !== values.filterOptions.disableTagFilters
             ) {
-              tab.options.disableLanguageFilters = values.filterOptions.disableLanguageFilters || undefined;
-              tab.options.disableUploaderFilters = values.filterOptions.disableUploaderFilters || undefined;
-              tab.options.disableTagFilters = values.filterOptions.disableTagFilters || undefined;
-              await this.reload();
+              const newOptions = clearExtraPropsForReload(tab.data);
+              newOptions.options.disableLanguageFilters = values.filterOptions.disableLanguageFilters || undefined;
+              newOptions.options.disableUploaderFilters = values.filterOptions.disableUploaderFilters || undefined;
+              newOptions.options.disableTagFilters = values.filterOptions.disableTagFilters || undefined;
+              this.triggerLoad(newOptions);
             }
             break;
           }
@@ -167,27 +168,28 @@ export class HomepageController extends BaseController {
               sourceView: sender,
               sourceRect: sender.bounds,
               popoverOptions: {
-                type: tab.type,
+                type: tab.data.type,
                 filterOptions: {
-                  disableLanguageFilters: tab.options.disableLanguageFilters ?? false,
-                  disableUploaderFilters: tab.options.disableUploaderFilters ?? false,
-                  disableTagFilters: tab.options.disableTagFilters ?? false,
+                  disableLanguageFilters: tab.data.options.disableLanguageFilters ?? false,
+                  disableUploaderFilters: tab.data.options.disableUploaderFilters ?? false,
+                  disableTagFilters: tab.data.options.disableTagFilters ?? false,
                 },
                 count: {
-                  loaded: tab.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
-                  filtered: tab.pages.map((n) => n.filtered_count).reduce((prev, curr) => prev + curr),
+                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
+                  filtered: tab.data.pages.map((n) => n.filtered_count).reduce((prev, curr) => prev + curr),
                 },
               },
             });
             if (
-              (tab.options.disableLanguageFilters ?? false) !== values.filterOptions.disableLanguageFilters ||
-              (tab.options.disableUploaderFilters ?? false) !== values.filterOptions.disableUploaderFilters ||
-              (tab.options.disableTagFilters ?? false) !== values.filterOptions.disableTagFilters
+              (tab.data.options.disableLanguageFilters ?? false) !== values.filterOptions.disableLanguageFilters ||
+              (tab.data.options.disableUploaderFilters ?? false) !== values.filterOptions.disableUploaderFilters ||
+              (tab.data.options.disableTagFilters ?? false) !== values.filterOptions.disableTagFilters
             ) {
-              tab.options.disableLanguageFilters = values.filterOptions.disableLanguageFilters || undefined;
-              tab.options.disableUploaderFilters = values.filterOptions.disableUploaderFilters || undefined;
-              tab.options.disableTagFilters = values.filterOptions.disableTagFilters || undefined;
-              await this.reload();
+              const newOptions = clearExtraPropsForReload(tab.data);
+              newOptions.options.disableLanguageFilters = values.filterOptions.disableLanguageFilters || undefined;
+              newOptions.options.disableUploaderFilters = values.filterOptions.disableUploaderFilters || undefined;
+              newOptions.options.disableTagFilters = values.filterOptions.disableTagFilters || undefined;
+              this.triggerLoad(newOptions);
             }
             break;
           }
@@ -196,27 +198,28 @@ export class HomepageController extends BaseController {
               sourceView: sender,
               sourceRect: sender.bounds,
               popoverOptions: {
-                type: tab.type,
+                type: tab.data.type,
                 filterOptions: {
-                  disableLanguageFilters: tab.options.disableLanguageFilters ?? false,
-                  disableUploaderFilters: tab.options.disableUploaderFilters ?? false,
-                  disableTagFilters: tab.options.disableTagFilters ?? false,
+                  disableLanguageFilters: tab.data.options.disableLanguageFilters ?? false,
+                  disableUploaderFilters: tab.data.options.disableUploaderFilters ?? false,
+                  disableTagFilters: tab.data.options.disableTagFilters ?? false,
                 },
                 count: {
-                  loaded: tab.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
-                  filtered: tab.pages.map((n) => n.filtered_count).reduce((prev, curr) => prev + curr),
+                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
+                  filtered: tab.data.pages.map((n) => n.filtered_count).reduce((prev, curr) => prev + curr),
                 },
               },
             });
             if (
-              (tab.options.disableLanguageFilters ?? false) !== values.filterOptions.disableLanguageFilters ||
-              (tab.options.disableUploaderFilters ?? false) !== values.filterOptions.disableUploaderFilters ||
-              (tab.options.disableTagFilters ?? false) !== values.filterOptions.disableTagFilters
+              (tab.data.options.disableLanguageFilters ?? false) !== values.filterOptions.disableLanguageFilters ||
+              (tab.data.options.disableUploaderFilters ?? false) !== values.filterOptions.disableUploaderFilters ||
+              (tab.data.options.disableTagFilters ?? false) !== values.filterOptions.disableTagFilters
             ) {
-              tab.options.disableLanguageFilters = values.filterOptions.disableLanguageFilters || undefined;
-              tab.options.disableUploaderFilters = values.filterOptions.disableUploaderFilters || undefined;
-              tab.options.disableTagFilters = values.filterOptions.disableTagFilters || undefined;
-              await this.reload();
+              const newOptions = clearExtraPropsForReload(tab.data);
+              newOptions.options.disableLanguageFilters = values.filterOptions.disableLanguageFilters || undefined;
+              newOptions.options.disableUploaderFilters = values.filterOptions.disableUploaderFilters || undefined;
+              newOptions.options.disableTagFilters = values.filterOptions.disableTagFilters || undefined;
+              this.triggerLoad(newOptions);
             }
             break;
           }
@@ -225,10 +228,10 @@ export class HomepageController extends BaseController {
               sourceView: sender,
               sourceRect: sender.bounds,
               popoverOptions: {
-                type: tab.type,
+                type: tab.data.type,
                 favoritesOrderMethod: configManager.favoritesOrderMethod,
                 count: {
-                  loaded: tab.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
+                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
                 },
               },
             });
@@ -236,8 +239,10 @@ export class HomepageController extends BaseController {
               api
                 .setFavoritesSortOrder(values.favoritesOrderMethod)
                 .then(() => {
-                  configManager.favoritesOrderMethod = values.favoritesOrderMethod;
-                  this.reload().then();
+                  if (tab.data.type === "favorites") {
+                    configManager.favoritesOrderMethod = values.favoritesOrderMethod;
+                    this.triggerLoad(clearExtraPropsForReload(tab.data));
+                  }
                 })
                 .catch(() => {
                   $ui.error("收藏页排序更新失败");
@@ -250,9 +255,9 @@ export class HomepageController extends BaseController {
               sourceView: sender,
               sourceRect: sender.bounds,
               popoverOptions: {
-                type: tab.type,
+                type: tab.data.type,
                 count: {
-                  loaded: tab.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
+                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
                 },
               },
             });
@@ -263,9 +268,13 @@ export class HomepageController extends BaseController {
               sourceView: sender,
               sourceRect: sender.bounds,
               popoverOptions: {
-                type: tab.type,
+                type: tab.data.type,
                 count: {
-                  loaded: tab.pages[0].folders.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
+                  loaded:
+                    tab.data.pages
+                      .at(0)
+                      ?.folders.map((n) => n.items.length)
+                      .reduce((prev, curr) => prev + curr) ?? 0,
                 },
               },
             });
@@ -297,16 +306,18 @@ export class HomepageController extends BaseController {
           {
             symbol: "arrow.left.arrow.right.circle",
             handler: async () => {
-              if (!statusManager.currentTab) {
-                $ui.toast("无法翻页，请先加载内容");
+              const tab = statusManager.currentTab;
+              if (tab.data.type === "archive") throw new Error("invalid tab type");
+              if (tab.data.type === "blank" || tab.data.type === "upload" || tab.data.type === "popular") {
+                $ui.toast("目前无法翻页");
                 return;
               }
-              const type = statusManager.currentTab.type;
+              const type = tab.data.type;
               if (type === "front_page" || type === "watched") {
-                const firstPage = statusManager.currentTab.pages[0];
-                const lastPage = statusManager.currentTab.pages[statusManager.currentTab.pages.length - 1];
-                if (firstPage.items.length === 0 || lastPage.items.length === 0) {
-                  $ui.toast("没有内容，无法翻页");
+                const firstPage = tab.data.pages.at(0);
+                const lastPage = tab.data.pages.at(-1);
+                if (!firstPage || !lastPage || firstPage.items.length === 0 || lastPage.items.length === 0) {
+                  $ui.toast("目前无法翻页");
                   return;
                 }
                 if (firstPage.prev_page_available === false && lastPage.next_page_available === false) {
@@ -319,10 +330,10 @@ export class HomepageController extends BaseController {
                   prev_page_available: firstPage.prev_page_available,
                   next_page_available: lastPage.next_page_available,
                 });
-                await this.triggerLoad({
+                this.triggerLoad({
                   type,
                   options: {
-                    ...statusManager.currentTab.options,
+                    ...tab.data.options,
                     range: result.range,
                     minimumGid: result.minimumGid,
                     maximumGid: result.maximumGid,
@@ -331,10 +342,10 @@ export class HomepageController extends BaseController {
                   },
                 });
               } else if (type === "favorites") {
-                const firstPage = statusManager.currentTab.pages[0];
-                const lastPage = statusManager.currentTab.pages[statusManager.currentTab.pages.length - 1];
-                if (firstPage.items.length === 0 || lastPage.items.length === 0) {
-                  $ui.toast("没有内容，无法翻页");
+                const firstPage = tab.data.pages.at(0);
+                const lastPage = tab.data.pages.at(-1);
+                if (!firstPage || !lastPage || firstPage.items.length === 0 || lastPage.items.length === 0) {
+                  $ui.toast("目前无法翻页");
                   return;
                 }
                 if (firstPage.prev_page_available === false && lastPage.next_page_available === false) {
@@ -349,10 +360,10 @@ export class HomepageController extends BaseController {
                   prev_page_available: firstPage.prev_page_available,
                   next_page_available: lastPage.next_page_available,
                 });
-                await this.triggerLoad({
+                this.triggerLoad({
                   type,
                   options: {
-                    ...statusManager.currentTab.options,
+                    ...tab.data.options,
                     minimumGid: result.minimumGid,
                     minimumFavoritedTimestamp: result.minimumFavoritedTimestamp,
                     maximumGid: result.maximumGid,
@@ -366,12 +377,10 @@ export class HomepageController extends BaseController {
                 await this.triggerLoad({
                   type,
                   options: {
-                    ...statusManager.currentTab.options,
+                    ...tab.data.options,
                     ...result,
                   },
                 });
-              } else {
-                $ui.toast("全部内容已加载");
               }
             },
           },
@@ -382,16 +391,12 @@ export class HomepageController extends BaseController {
       props: {},
       events: {
         tapped: async (sender) => {
+          const tab = statusManager.currentTab;
           let type: "front_page" | "watched" | "favorites" = "front_page";
           let searchTerms: EHSearchTerm[] | undefined = undefined;
-          if (
-            statusManager.currentTab &&
-            (statusManager.currentTab.type === "front_page" ||
-              statusManager.currentTab.type === "watched" ||
-              statusManager.currentTab.type === "favorites")
-          ) {
-            searchTerms = statusManager.currentTab.options.searchTerms;
-            type = statusManager.currentTab.type;
+          if (tab.data.type === "front_page" || tab.data.type === "watched" || tab.data.type === "favorites") {
+            searchTerms = tab.data.options.searchTerms;
+            type = tab.data.type;
           }
           const args = await getSearchOptions({ type, options: { searchTerms } }, "showAllExceptArchive");
           await this.triggerLoad(args);
@@ -401,10 +406,13 @@ export class HomepageController extends BaseController {
     const list = new EHlistView({
       layoutMode: configManager.homepageManagerLayoutMode,
       searchBar,
-      pulled: async () => {
-        await this.reload();
+      pulled: () => {
+        const tab = statusManager.currentTab;
+        if (tab.data.type !== "blank" && tab.data.type !== "upload") {
+          this.triggerLoad(clearExtraPropsForReload(tab.data), true);
+        }
       },
-      didSelect: async (sender, indexPath, item) => {
+      didSelect: (sender, indexPath, item) => {
         const galleryController = new GalleryController(item.gid, item.token);
         galleryController.uipush({
           navBarHidden: true,
@@ -412,12 +420,12 @@ export class HomepageController extends BaseController {
         });
       },
       didLongPress: (sender, indexPath, item) => {},
-      didReachBottom: async () => {
-        await this.loadMore();
+      didReachBottom: () => {
+        this.triggerLoadMore();
       },
       contentOffsetChanged: (scrollState) => {
         const tab = statusManager.currentTab;
-        if (tab.type !== "blank" && tab.type !== "archive") {
+        if (tab.data.type !== "blank" && tab.data.type !== "upload") {
           tab.scrollState = scrollState;
         }
       },
@@ -431,16 +439,12 @@ export class HomepageController extends BaseController {
       props: {},
       events: {
         tapped: async (sender) => {
+          const tab = statusManager.currentTab;
           let type: "front_page" | "watched" | "favorites" = "front_page";
           let searchTerms: EHSearchTerm[] | undefined = undefined;
-          if (
-            statusManager.currentTab &&
-            (statusManager.currentTab.type === "front_page" ||
-              statusManager.currentTab.type === "watched" ||
-              statusManager.currentTab.type === "favorites")
-          ) {
-            searchTerms = statusManager.currentTab.options.searchTerms;
-            type = statusManager.currentTab.type;
+          if (tab.data.type === "front_page" || tab.data.type === "watched" || tab.data.type === "favorites") {
+            searchTerms = tab.data.options.searchTerms;
+            type = tab.data.type;
           }
           const args = await getSearchOptions({ type, options: { searchTerms } }, "showAllExceptArchive");
           await this.triggerLoad(args);
@@ -449,10 +453,13 @@ export class HomepageController extends BaseController {
     });
     const uploadList = new EHlistUploadView({
       searchBar: searchBarForUploadList,
-      pulled: async () => {
-        await this.reload();
+      pulled: () => {
+        const tab = statusManager.currentTab;
+        if (tab.data.type === "upload") {
+          this.triggerLoad(clearExtraPropsForReload(tab.data), true);
+        }
       },
-      didSelect: async (sender, indexPath, item) => {
+      didSelect: (sender, indexPath, item) => {
         const galleryController = new GalleryController(item.gid, item.token);
         galleryController.uipush({
           navBarHidden: true,
@@ -460,12 +467,12 @@ export class HomepageController extends BaseController {
         });
       },
       didLongPress: (sender, indexPath, item) => {},
-      didReachBottom: async () => {
-        await this.loadMore();
+      didReachBottom: () => {
+        return;
       },
       contentOffsetChanged: (scrollState) => {
         const tab = statusManager.currentTab;
-        if (tab.type !== "blank" && tab.type !== "archive") {
+        if (tab.data.type === "upload") {
           tab.scrollState = scrollState;
         }
       },
@@ -479,25 +486,49 @@ export class HomepageController extends BaseController {
     this.rootView.views = [navbar, uploadList, list];
   }
 
-  async triggerLoad(options: StatusTabOptions, reload?: boolean) {
-    if (reload) {
-      // reload则不更改除了底部文字之外的内容
-      if (options.type === "upload") {
-        this.cviews.uploadList.footerText = "正在重新加载……";
-      } else {
-        this.cviews.list.footerText = "正在重新加载……";
+  async triggerLoad(tabOptions: StatusTabOptions, reload?: boolean) {
+    const tab = statusManager.currentTab;
+    if (tab.data.type === "archive") throw new Error("invalid tab type");
+    tab.loadTab({
+      tabOptions,
+      loadedHandler: (vtab, success) => {
+        this._loadedHandler(vtab, success, !reload);
+      },
+    });
+    this.updateStatus(reload);
+  }
+
+  triggerLoadMore() {
+    const tab = statusManager.currentTab;
+    if (tab.data.type === "archive") throw new Error("invalid tab type");
+    if (!tab.isNextPageAvailable) return;
+    tab.loadMoreTab({
+      loadedHandler: (vtab, success) => {
+        this._loadedHandler(vtab, success, false);
+      },
+    });
+    this.updateStatus(true);
+  }
+
+  private _loadedHandler(vtab: VirtualTab, success: boolean, updateSearchTermsCount: boolean) {
+    if (vtab.data.type === "archive") throw new Error("invalid tab type");
+    this.updateStatus();
+    if (
+      updateSearchTermsCount &&
+      (vtab.data.type === "front_page" || vtab.data.type === "watched" || vtab.data.type === "favorites")
+    ) {
+      const searchTerms = vtab.data.options.searchTerms;
+      if (searchTerms && searchTerms.length) {
+        const fsearch = buildSortedFsearch(searchTerms);
+        configManager.addOrUpdateSearchHistory(fsearch, searchTerms);
+        configManager.updateTagAccessCount(searchTerms);
       }
-    } else {
-      this.updateLoadingStatus(options);
     }
-    const tabId = statusManager.currentTabId;
-    const tab = await statusManager.loadTab(options, tabId);
-    if (!tab) return;
-    const dm = downloaderManager.getTabDownloader(statusManager.currentTabId) as TabThumbnailDownloader;
-    dm.clear();
-    if (tab.type !== "upload") {
-      dm.add(
-        tab.pages
+
+    if (success && vtab.data.type !== "upload" && vtab.data.type !== "blank") {
+      downloaderManager.getTabDownloader(statusManager.currentTabId)!.clear();
+      downloaderManager.getTabDownloader(statusManager.currentTabId)!.add(
+        vtab.data.pages
           .map((page) => page.items)
           .flat()
           .map((item) => ({
@@ -507,183 +538,94 @@ export class HomepageController extends BaseController {
       );
       downloaderManager.startTabDownloader(statusManager.currentTabId);
     }
-    this.updateLoadedStatus();
   }
 
-  updateBlankStatus() {
-    this.cviews.list.view.hidden = false;
-    this.cviews.uploadList.view.hidden = true;
-    this.cviews.titleView.title = "首页";
-    this.cviews.list.items = [];
-    this.cviews.list.footerText = "";
-    this.cviews.searchBar.searchTerms = [];
-  }
+  /**
+   * 根据virtualTab更新状态，可以在任何时候调用
+   * @param reloading 代表是否处于刷新中，如果是，不要刷新列表，节约UI资源
+   */
+  updateStatus(reloading: boolean = false) {
+    // 五个内容需要更新状态：列表、搜索栏、标题、底部、两个列表的隐藏状态
 
-  updateLoadingStatus(options: StatusTabOptions) {
-    // 1. 列表归零
-    // 2. 搜索栏更新
-    // 3. 标题更新
+    const tab = statusManager.currentTab;
+    if (tab.data.type === "archive") throw new Error("invalid tab type");
 
-    if (options.type === "upload") {
+    // 更新列表的隐藏状态
+    if (tab.data.type === "upload") {
       this.cviews.list.view.hidden = true;
       this.cviews.uploadList.view.hidden = false;
-      this.cviews.list.footerText = "";
-      this.cviews.uploadList.footerText = "加载中……";
     } else {
       this.cviews.list.view.hidden = false;
       this.cviews.uploadList.view.hidden = true;
-      this.cviews.list.footerText = "加载中……";
-      this.cviews.uploadList.footerText = "";
     }
 
-    this.cviews.list.items = [];
-    this.cviews.uploadList.uploadFolders = [];
-
-    if (
-      (options.type === "front_page" || options.type === "watched" || options.type === "favorites") &&
-      options.options.searchTerms &&
-      options.options.searchTerms.length
-    ) {
-      const fsearch = buildSortedFsearch(options.options.searchTerms);
-      configManager.addOrUpdateSearchHistory(fsearch, options.options.searchTerms);
-      configManager.updateTagAccessCount(options.options.searchTerms);
-      this.cviews.searchBar.searchTerms = options.options.searchTerms;
+    // 更新搜索栏
+    const searchTerms =
+      tab.data.type === "front_page" || tab.data.type === "watched" || tab.data.type === "favorites"
+        ? tab.data.options.searchTerms
+        : [];
+    if (searchTerms && searchTerms.length) {
+      this.cviews.searchBar.searchTerms = searchTerms;
     } else {
       this.cviews.searchBar.searchTerms = [];
     }
-  }
 
-  async loadMore() {
-    if (statusManager.currentTab.type === "blank" || statusManager.currentTab.pages.length === 0) return;
-    // popular and upload tab can not load more
-    if (statusManager.currentTab.type === "popular" || statusManager.currentTab.type === "upload") return;
-    if (
-      statusManager.currentTab.type === "front_page" ||
-      statusManager.currentTab.type === "watched" ||
-      statusManager.currentTab.type === "favorites"
-    ) {
-      const lastPage = statusManager.currentTab.pages[statusManager.currentTab.pages.length - 1];
-      if (!lastPage.next_page_available) return;
-    } else if (statusManager.currentTab.type === "toplist") {
-      const lastPage = statusManager.currentTab.pages[statusManager.currentTab.pages.length - 1];
-      if (lastPage.current_page === lastPage.total_pages - 1) return;
-    }
-    this.cviews.list.footerText = "正在加载更多……";
-    try {
-      const tab = await statusManager.loadMoreTab(statusManager.currentTabId);
-      if (!tab) return;
-      const dm = downloaderManager.getTabDownloader(statusManager.currentTabId) as TabThumbnailDownloader;
-      dm.clear();
-      dm.add(
-        tab.pages
-          .map((page) => page.items)
-          .flat()
-          .map((item) => ({
-            gid: item.gid,
-            url: item.thumbnail_url,
-          }))
-      );
-      downloaderManager.startTabDownloader(statusManager.currentTabId);
+    // 更新标题
+    this.cviews.titleView.title =
+      tab.data.type === "blank"
+        ? "空白页"
+        : tab.data.type === "front_page"
+        ? "首页"
+        : tab.data.type === "watched"
+        ? "订阅"
+        : tab.data.type === "favorites"
+        ? "收藏"
+        : tab.data.type === "popular"
+        ? "热门"
+        : tab.data.type === "toplist" && tab.data.options.timeRange === "yesterday"
+        ? "日排行"
+        : tab.data.type === "toplist" && tab.data.options.timeRange === "past_month"
+        ? "月排行"
+        : tab.data.type === "toplist" && tab.data.options.timeRange === "past_year"
+        ? "年排行"
+        : tab.data.type === "toplist" && tab.data.options.timeRange === "all"
+        ? "总排行"
+        : tab.data.type === "upload"
+        ? "我的上传"
+        : "";
 
-      this.updateLoadedStatus();
-    } catch (e) {
-      appLog(e, "error");
-    }
-  }
-
-  async reload() {
-    const tab = statusManager.tabsMap.get(statusManager.currentTabId);
-    if (!tab) throw new Error("tab not found");
-    if (tab.type === "upload" || tab.type === "blank") return;
-    const options = clearExtraPropsForReload(tab);
-    this.triggerLoad(options, true);
-  }
-
-  updateLoadedStatus() {
-    const tab = statusManager.currentTab;
-    switch (tab.type) {
-      case "blank": {
-        this.cviews.titleView.title = "空白页";
-        this.cviews.list.items = [];
-        this.cviews.list.footerText = "";
-        break;
-      }
-      case "front_page": {
-        const items = tab.pages.map((page) => page.items).flat() as EHListExtendedItem[];
-        this.cviews.list.items = items;
-        const lastPage = tab.pages[tab.pages.length - 1];
-        if (!lastPage.next_page_available) {
-          this.cviews.list.footerText = "没有更多了";
-        } else {
-          this.cviews.list.footerText = "上拉加载更多";
-        }
-        this.cviews.titleView.title = "首页";
-        break;
-      }
-      case "watched": {
-        const items = tab.pages.map((page) => page.items).flat() as EHListExtendedItem[];
-        this.cviews.list.items = items;
-        const lastPage = tab.pages[tab.pages.length - 1];
-        if (!lastPage.next_page_available) {
-          this.cviews.list.footerText = "没有更多了";
-        } else {
-          this.cviews.list.footerText = "上拉加载更多";
-        }
-        this.cviews.titleView.title = "订阅";
-        break;
-      }
-      case "popular": {
-        const items = tab.pages.map((page) => page.items).flat() as EHListExtendedItem[];
-        this.cviews.list.items = items;
-        this.cviews.list.footerText = "没有更多了";
-        this.cviews.titleView.title = "热门";
-        break;
-      }
-      case "favorites": {
-        const items = tab.pages.map((page) => page.items).flat() as EHListExtendedItem[];
-        this.cviews.list.items = items;
-        const lastPage = tab.pages[tab.pages.length - 1];
-        if (!lastPage.next_page_available) {
-          this.cviews.list.footerText = "没有更多了";
-        } else {
-          this.cviews.list.footerText = "上拉加载更多";
-        }
-        this.cviews.titleView.title = "收藏";
-        break;
-      }
-      case "toplist": {
-        const items = tab.pages.map((page) => page.items).flat();
-        this.cviews.list.items = items;
-        const lastPage = tab.pages[tab.pages.length - 1];
-        if (lastPage.current_page === lastPage.total_pages - 1) {
-          this.cviews.list.footerText = "没有更多了";
-        } else {
-          this.cviews.list.footerText = "上拉加载更多";
-        }
-        const timeRange = tab.options.timeRange;
-        this.cviews.titleView.title = {
-          yesterday: "日排行",
-          past_month: "月排行",
-          past_year: "年排行",
-          all: "总排行",
-        }[timeRange];
-        break;
-      }
-      case "upload": {
-        const folders = tab.pages[0].folders;
+    // 更新列表
+    if (!reloading) {
+      if (tab.data.type === "upload") {
+        const folders = tab.data.pages[0].folders;
         this.cviews.uploadList.uploadFolders = folders;
-        this.cviews.uploadList.footerText = "没有更多了";
-        this.cviews.titleView.title = "我的上传";
-        break;
+        this.cviews.list.items = [];
+      } else if (tab.data.type === "blank") {
+        this.cviews.list.items = [];
+        this.cviews.uploadList.uploadFolders = [];
+      } else {
+        this.cviews.list.items = tab.data.pages.map((page) => page.items).flat() as EHListExtendedItem[];
       }
-      default:
-        throw new Error("Invalid tab type");
     }
-    this._thumbnailAllLoaded = false;
-    if (tab.type !== "blank") {
-      const storedOptions = clearExtraPropsForReload(tab);
+
+    // 更新底部
+    this.cviews.list.footerText =
+      tab.data.type === "blank"
+        ? ""
+        : tab.status === "loading"
+        ? "加载中……"
+        : tab.status === "error"
+        ? "加载出现错误"
+        : tab.isNextPageAvailable
+        ? "上拉加载更多"
+        : "没有更多了";
+
+    // 其他
+    if (tab.data.type !== "blank") {
+      const storedOptions = clearExtraPropsForReload(tab.data);
       configManager.lastAccessPageJson = JSON.stringify(storedOptions);
     }
+    this._thumbnailAllLoaded = false;
     (router.get("sidebarTabController") as SidebarTabController).refresh();
   }
 }

@@ -2,7 +2,7 @@ import { BaseController, CustomNavigationBar, DynamicPreferenceListView, Prefere
 import { configManager } from "../utils/config";
 import { appLog, toLocalTimeString } from "../utils/tools";
 import { ArchiveController } from "./archive-controller";
-import { statusManager } from "../utils/status";
+import { clearExtraPropsForReload, statusManager } from "../utils/status";
 import { api } from "../utils/api";
 import { HomepageController } from "./homepage-controller";
 import { assembleSearchTerms, EHSearchTerm, parseFsearch } from "ehentai-parser";
@@ -159,8 +159,9 @@ export class GeneralSettingsController extends BaseController {
                 configManager.favoritesOrderMethod = favoritesOrderMethod;
                 // 如果当前页面是收藏页，则需要刷新当前页面
                 const tab = statusManager.currentTab;
-                if (tab.type === "favorites") {
-                  (router.get("homepageController") as HomepageController).reload().then();
+                if (tab.data.type === "favorites") {
+                  const options = clearExtraPropsForReload(tab.data);
+                  (router.get("homepageController") as HomepageController).triggerLoad(options);
                 }
               })
               .catch(() => {
@@ -171,9 +172,11 @@ export class GeneralSettingsController extends BaseController {
           if (archiveManagerOrderMethod !== configManager.archiveManagerOrderMethod) {
             configManager.archiveManagerOrderMethod = archiveManagerOrderMethod;
             // 刷新存档页
-            const tab = statusManager.tabsMap.get("archive") as ArchiveTab;
-            tab.options.sort = archiveManagerOrderMethod;
-            (router.get("archiveController") as ArchiveController).reload().then();
+            const tab = statusManager.get("archive");
+            if (!tab || tab.data.type !== "archive") throw new Error("tab type not archive");
+            const options = clearExtraPropsForReload(tab.data);
+            options.options.sort = archiveManagerOrderMethod;
+            (router.get("archiveController") as ArchiveController).triggerLoad(options);
           }
           if (alwaysShowWebDAVWidget !== configManager.alwaysShowWebDAVWidget) {
             configManager.alwaysShowWebDAVWidget = alwaysShowWebDAVWidget;
@@ -434,7 +437,10 @@ export class GeneralSettingsController extends BaseController {
                 items: ["一个月前", "三个月前", "六个月前", "一年前"],
                 handler: (title, index) => {
                   configManager.clearOldReadRecords(index);
-                  (router.get("archiveController") as ArchiveController).reload();
+                  const tab = statusManager.get("archive");
+                  if (!tab || tab.data.type !== "archive") throw new Error("tab type not archive");
+                  const options = clearExtraPropsForReload(tab.data);
+                  (router.get("archiveController") as ArchiveController).triggerLoad(options);
                 },
               });
             },

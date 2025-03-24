@@ -350,7 +350,7 @@ export class SidebarTabController extends BaseController {
                   },
                   events: {
                     tapped: () => {
-                      statusManager.addBlankTab();
+                      statusManager.addTab({showInManager: true});
                       this.refresh();
                     },
                   },
@@ -390,16 +390,11 @@ export class SidebarTabController extends BaseController {
                 this.refresh();
                 if (flag) {
                   const tab = statusManager.currentTab;
+                  const oldScrollState = tab.scrollState;
                   const home = router.get("homepageController") as HomepageController;
-                  if (tab.type === "blank") {
-                    home.updateBlankStatus();
-                  } else if (tab.type !== "archive") {
-                    const oldScrollState = tab.scrollState;
-                    home.updateLoadingStatus(tab);
-                    home.updateLoadedStatus();
-                    if (oldScrollState) {
-                      home.cviews.list.updateScrollState(oldScrollState);
-                    }
+                  home.updateStatus();
+                  if (oldScrollState) {
+                    home.cviews.list.updateScrollState(oldScrollState);
                   }
                 }
               }
@@ -523,16 +518,11 @@ export class SidebarTabController extends BaseController {
           (router.get("splitViewController") as SplitViewController).sideBarShown = false;
           (router.get("primaryViewController") as TabBarController).index = 0;
           const tab = statusManager.currentTab;
+          const oldScrollState = tab.scrollState;
           const home = router.get("homepageController") as HomepageController;
-          if (tab.type === "blank") {
-            home.updateBlankStatus();
-          } else if (tab.type !== "archive") {
-            const oldScrollState = tab.scrollState;
-            home.updateLoadingStatus(tab);
-            home.updateLoadedStatus();
-            if (oldScrollState) {
-              home.cviews.list.updateScrollState(oldScrollState);
-            }
+          home.updateStatus();
+          if (oldScrollState) {
+            home.cviews.list.updateScrollState(oldScrollState);
           }
         },
       },
@@ -550,7 +540,8 @@ export class SidebarTabController extends BaseController {
     const data = statusManager.tabIdsShownInManager.map((id, index) => {
       const tab = statusManager.tabsMap.get(id);
       if (!tab) throw new Error("标签页不存在");
-      if (tab.type === "blank") {
+      const type = tab.data.type;
+      if (type === "blank") {
         return {
           image: {
             symbol: "rectangle.fill.on.rectangle.angled.fill",
@@ -578,25 +569,26 @@ export class SidebarTabController extends BaseController {
           },
         };
       } else if (
-        tab.type === "toplist" ||
-        tab.type === "popular" ||
-        tab.type === "upload" ||
-        ((tab.type === "front_page" || tab.type === "watched" || tab.type === "favorites") &&
-          (!tab.options.searchTerms || tab.options.searchTerms.length === 0))
+        type === "toplist" ||
+        type === "popular" ||
+        type === "upload" ||
+        ((type === "front_page" || type === "watched" || type === "favorites") &&
+          (!tab.data.options.searchTerms || tab.data.options.searchTerms.length === 0))
       ) {
-        let title = fixedTabSymbolTitle[tab.type].title;
-        if (tab.type === "toplist") {
-          title = {
-            yesterday: "日排行",
-            past_month: "月排行",
-            past_year: "年排行",
-            all: "总排行",
-          }[tab.options.timeRange];
+        let title = fixedTabSymbolTitle[type].title;
+        if (type === "toplist") {
+          title = tab.data.options.timeRange === "yesterday"
+          ? "日排行"
+          : tab.data.options.timeRange === "past_month"
+          ? "月排行"
+          : tab.data.options.timeRange === "past_year"
+          ? "年排行"
+          : "总排行";
         }
         return {
           image: {
-            symbol: fixedTabSymbolTitle[tab.type].symbol,
-            tintColor: fixedTabSymbolTitle[tab.type].color,
+            symbol: fixedTabSymbolTitle[tab.data.type].symbol,
+            tintColor: fixedTabSymbolTitle[tab.data.type].color,
           },
           label: {
             styledText: {
@@ -612,33 +604,33 @@ export class SidebarTabController extends BaseController {
           },
           leftColumn: {
             hidden: id !== statusManager.currentTabId,
-            bgcolor: fixedTabSymbolTitle[tab.type].color,
+            bgcolor: fixedTabSymbolTitle[tab.data.type].color,
           },
           rightColumn: {
             hidden: id !== statusManager.currentTabId,
-            bgcolor: fixedTabSymbolTitle[tab.type].color,
+            bgcolor: fixedTabSymbolTitle[tab.data.type].color,
           },
         };
       } else if (
-        (tab.type === "front_page" || tab.type === "watched" || tab.type === "favorites") &&
-        tab.options.searchTerms &&
-        tab.options.searchTerms.length
+        (type === "front_page" || type === "watched" || type === "favorites") &&
+        tab.data.options.searchTerms &&
+        tab.data.options.searchTerms.length
       ) {
         return {
           image: {
-            symbol: fixedTabSymbolTitle[tab.type].symbol,
-            tintColor: fixedTabSymbolTitle[tab.type].color,
+            symbol: fixedTabSymbolTitle[tab.data.type].symbol,
+            tintColor: fixedTabSymbolTitle[tab.data.type].color,
           },
           label: {
-            styledText: _mapSearchTermsToRow(tab.options.searchTerms, 0).label.styledText,
+            styledText: _mapSearchTermsToRow(tab.data.options.searchTerms, 0).label.styledText,
           },
           leftColumn: {
             hidden: id !== statusManager.currentTabId,
-            bgcolor: fixedTabSymbolTitle[tab.type].color,
+            bgcolor: fixedTabSymbolTitle[tab.data.type].color,
           },
           rightColumn: {
             hidden: id !== statusManager.currentTabId,
-            bgcolor: fixedTabSymbolTitle[tab.type].color,
+            bgcolor: fixedTabSymbolTitle[tab.data.type].color,
           },
         };
       } else {

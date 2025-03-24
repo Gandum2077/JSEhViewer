@@ -1,10 +1,18 @@
 import {
   EHCategory,
+  EHFavoriteSearchOptions,
+  EHFavoritesList,
+  EHFrontPageList,
   EHGallery,
   EHListCompactItem,
   EHListExtendedItem,
+  EHPopularList,
   EHQualifier,
+  EHSearchOptions,
   EHTagListItem,
+  EHTopList,
+  EHUploadList,
+  EHWatchedList,
   TagNamespace,
 } from "ehentai-parser";
 import { api, downloaderManager } from "./api";
@@ -16,6 +24,7 @@ import {
   FavoritesTabOptions,
   FrontPageTabOptions,
   PopularTabOptions,
+  ScrollState,
   StatusTab,
   StatusTabOptions,
   ToplistTabOptions,
@@ -23,6 +32,7 @@ import {
   WatchedTabOptions,
 } from "../types";
 import { cvid } from "jsbox-cview";
+import { FatalError } from "./error";
 
 function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): {
   sql: string;
@@ -283,66 +293,97 @@ function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): {
   return { sql, args };
 }
 
-export function clearExtraPropsForReload(tab: StatusTab) {
-  switch (tab.type) {
+type InferTabOptions<T> = T extends { type: "front_page" }
+  ? FrontPageTabOptions
+  : T extends { type: "watched" }
+  ? WatchedTabOptions
+  : T extends { type: "popular" }
+  ? PopularTabOptions
+  : T extends { type: "favorites" }
+  ? FavoritesTabOptions
+  : T extends { type: "toplist" }
+  ? ToplistTabOptions
+  : T extends { type: "upload" }
+  ? UploadTabOptions
+  : T extends { type: "archive" }
+  ? ArchiveTabOptions
+  : never;
+
+/**
+ * 清除关于“定位”信息
+ * @param oldOptions
+ * @returns
+ */
+export function clearExtraPropsForReload<T extends StatusTabOptions>(oldOptions: T): InferTabOptions<T> {
+  switch (oldOptions.type) {
     case "front_page": {
-      tab.options.range = undefined;
-      tab.options.jump = undefined;
-      tab.options.seek = undefined;
-      tab.options.minimumGid = undefined;
-      tab.options.maximumGid = undefined;
       return {
         type: "front_page",
-        options: tab.options,
-      } as FrontPageTabOptions;
+        options: {
+          ...oldOptions.options,
+          range: undefined,
+          jump: undefined,
+          seek: undefined,
+          minimumGid: undefined,
+          maximumGid: undefined,
+        },
+      } as InferTabOptions<T>;
     }
     case "watched": {
-      tab.options.range = undefined;
-      tab.options.jump = undefined;
-      tab.options.seek = undefined;
-      tab.options.minimumGid = undefined;
-      tab.options.maximumGid = undefined;
       return {
         type: "watched",
-        options: tab.options,
-      } as WatchedTabOptions;
+        options: {
+          ...oldOptions.options,
+          range: undefined,
+          jump: undefined,
+          seek: undefined,
+          minimumGid: undefined,
+          maximumGid: undefined,
+        },
+      } as InferTabOptions<T>;
     }
     case "popular": {
       return {
         type: "popular",
-        options: tab.options,
-      } as PopularTabOptions;
+        options: oldOptions.options,
+      } as InferTabOptions<T>;
     }
     case "favorites": {
-      tab.options.jump = undefined;
-      tab.options.seek = undefined;
-      tab.options.minimumGid = undefined;
-      tab.options.minimumFavoritedTimestamp = undefined;
-      tab.options.maximumGid = undefined;
-      tab.options.maximumFavoritedTimestamp = undefined;
       return {
         type: "favorites",
-        options: tab.options,
-      } as FavoritesTabOptions;
+        options: {
+          ...oldOptions.options,
+          jump: undefined,
+          seek: undefined,
+          minimumGid: undefined,
+          minimumFavoritedTimestamp: undefined,
+          maximumGid: undefined,
+          maximumFavoritedTimestamp: undefined,
+        },
+      } as InferTabOptions<T>;
     }
     case "toplist": {
-      tab.options.page = 0;
       return {
         type: "toplist",
-        options: tab.options,
-      } as ToplistTabOptions;
+        options: {
+          ...oldOptions.options,
+          page: 0,
+        },
+      } as InferTabOptions<T>;
     }
     case "upload": {
       return {
         type: "upload",
-      } as UploadTabOptions;
+      } as InferTabOptions<T>;
     }
     case "archive": {
-      tab.options.page = 0;
       return {
         type: "archive",
-        options: tab.options,
-      } as ArchiveTabOptions;
+        options: {
+          ...oldOptions.options,
+          page: 0,
+        },
+      } as InferTabOptions<T>;
     }
     default:
       throw new Error("Invalid tab type");
@@ -377,236 +418,401 @@ type ArchiveItemDBRawData = {
   last_read_page: number;
 };
 
-/**
- * 管理状态
- */
-class StatusManager {
-  private _tabsMap: Map<string, StatusTab> = new Map();
-  private _tabIdsInManager: string[];
-  private _currentTabId;
-  constructor() {
-    // 初始化
-    this._tabsMap.set("archive", {
-      type: "archive",
-      options: { page: 0, pageSize: 50, type: "all" },
-      pages: [],
-    });
-    const firstTabId = cvid.newId;
-    this._tabsMap.set(firstTabId, { type: "blank" });
-    this._tabIdsInManager = [firstTabId];
-    this._currentTabId = firstTabId;
-    // 建立对应的下载器
-    downloaderManager.addTabDownloader("archive");
-    downloaderManager.addTabDownloader(firstTabId);
-  }
-
-  get tabsMap() {
-    return this._tabsMap;
-  }
-
-  get currentTab() {
-    const tab = this._tabsMap.get(this._currentTabId);
-    if (!tab) throw new Error("Invalid tab id");
-    return tab;
-  }
-
-  set currentTabId(tabId: string) {
-    if (!this._tabIdsInManager.includes(tabId)) throw new Error("Invalid tab id");
-    this._currentTabId = tabId;
-  }
-
-  get currentTabId() {
-    return this._currentTabId;
-  }
-
-  get tabIdsShownInManager() {
-    return this._tabIdsInManager;
-  }
-
-  addBlankTab({ showInManager }: { showInManager: boolean } = { showInManager: true }) {
-    const tabId = cvid.newId;
-    this._tabsMap.set(tabId, { type: "blank" });
-    if (showInManager) this._tabIdsInManager.push(tabId);
-    downloaderManager.addTabDownloader(tabId);
-    return tabId;
-  }
-
-  removeTab(tabId: string) {
-    if (this._tabIdsInManager.includes(tabId)) {
-      this._tabIdsInManager = this._tabIdsInManager.filter((id) => id !== tabId);
+export class VirtualTab {
+  id: string;
+  private _status: "pending" | "loading" | "loaded" | "error" = "pending";
+  private _loadingId: number = 0;
+  // 代表本次更新列表的ID，如果ID改变，说明用户主动进行了刷新，那么回调函数不应该响应，data.pages也不应该改变
+  errorMessage?: string;
+  scrollState?: ScrollState;
+  data: StatusTab; // 初始为空白页
+  constructor({ id, initalTabType }: { id: string; initalTabType?: StatusTabOptions["type"] }) {
+    this.id = id;
+    if (!initalTabType) {
+      this.data = {
+        type: "blank",
+      };
+    } else if (initalTabType === "toplist") {
+      this.data = {
+        type: initalTabType,
+        options: {
+          timeRange: "all",
+        },
+        pages: [],
+      };
+    } else if (initalTabType === "upload") {
+      this.data = {
+        type: "upload",
+        pages: [],
+      };
+    } else if (initalTabType === "archive") {
+      this.data = {
+        type: "archive",
+        options: {
+          page: 0,
+          pageSize: 50,
+        },
+        pages: [],
+      };
+    } else {
+      this.data = {
+        type: initalTabType,
+        options: {},
+        pages: [],
+      };
     }
-    this._tabsMap.delete(tabId);
-    downloaderManager.removeTabDownloader(tabId);
   }
 
-  showTabInManager(tabId: string) {
-    if (this._tabIdsInManager.includes(tabId)) return;
-    this._tabIdsInManager.push(tabId);
+  get status() {
+    return this._status;
   }
 
-  hideTabInManager(tabId: string) {
-    if (!this._tabIdsInManager.includes(tabId)) return;
-    this._tabIdsInManager = this._tabIdsInManager.filter((id) => id !== tabId);
+  get isNextPageAvailable() {
+    if (
+      this.data.type === "blank" ||
+      this.data.type === "upload" ||
+      this.data.type === "popular" ||
+      this.data.pages.length === 0
+    ) {
+      return false;
+    } else if (this.data.type === "front_page" || this.data.type === "watched" || this.data.type === "favorites") {
+      const lastPage = this.data.pages[this.data.pages.length - 1];
+      return lastPage.next_page_available;
+    } else if (this.data.type === "toplist") {
+      const lastPage = this.data.pages[this.data.pages.length - 1];
+      return lastPage.current_page !== lastPage.total_pages - 1;
+    } else if (this.data.type === "archive") {
+      const lastPage = this.data.pages[this.data.pages.length - 1];
+      return (this.data.options.page + 1) * this.data.options.pageSize < lastPage.all_count;
+    }
+    return false;
   }
 
-  async loadTab(options: StatusTabOptions, tabId: string) {
-    const tab = this._tabsMap.get(tabId);
-    if (!tab) throw new Error("Tab not found");
-    let newTab: StatusTab;
-    switch (options.type) {
+  async loadTab({
+    tabOptions,
+    reload,
+    loadedHandler,
+  }: {
+    tabOptions: StatusTabOptions;
+    reload?: boolean;
+    loadedHandler: (vtab: VirtualTab, success: boolean) => void;
+  }) {
+    this._loadingId++;
+    this._status = "loading";
+    this.errorMessage = undefined;
+    const cachedLoadingId = this._loadingId;
+    switch (tabOptions.type) {
       case "front_page": {
-        const page = await api.getFrontPageInfo(options.options);
-        newTab = {
+        this.data = {
           type: "front_page",
-          options: options.options,
-          pages: [page],
+          options: tabOptions.options,
+          pages: reload && this.data.type === "front_page" ? this.data.pages : [],
         };
+        let page: EHFrontPageList | undefined;
+        try {
+          page = await api.getFrontPageInfo(tabOptions.options);
+        } catch (e: any) {
+          this._status = "error";
+          this.errorMessage = e.message;
+          loadedHandler(this, false);
+        }
+        if (page) {
+          if (page.items.length && page.display_mode !== "extended") {
+            throw new FatalError("列表的显示模式不为扩展，您可能在网页端或其他App中更改了设置");
+          }
+          if (this._loadingId === cachedLoadingId) {
+            this._status = "loaded";
+            this.data.pages = [page];
+            loadedHandler(this, true);
+          }
+        }
         break;
       }
       case "watched": {
-        const page = await api.getWatchedInfo(options.options);
-        newTab = {
+        this.data = {
           type: "watched",
-          options: options.options,
-          pages: [page],
+          options: tabOptions.options,
+          pages: reload && this.data.type === "watched" ? this.data.pages : [],
         };
+        let page: EHWatchedList | undefined;
+        try {
+          page = await api.getWatchedInfo(tabOptions.options);
+        } catch (e: any) {
+          this._status = "error";
+          this.errorMessage = e.message;
+          loadedHandler(this, false);
+        }
+        if (page) {
+          if (page.items.length && page.display_mode !== "extended") {
+            throw new FatalError("列表的显示模式不为扩展，您可能在网页端或其他App中更改了设置");
+          }
+          if (this._loadingId === cachedLoadingId) {
+            this._status = "loaded";
+            this.data.pages = [page];
+            loadedHandler(this, true);
+          }
+        }
         break;
       }
       case "popular": {
-        const page = await api.getPopularInfo(options.options);
-        newTab = {
+        this.data = {
           type: "popular",
-          options: options.options,
-          pages: [page],
+          options: tabOptions.options,
+          pages: reload && this.data.type === "popular" ? this.data.pages : [],
         };
+        let page: EHPopularList | undefined;
+        try {
+          page = await api.getPopularInfo(tabOptions.options);
+        } catch (e: any) {
+          this._status = "error";
+          this.errorMessage = e.message;
+          loadedHandler(this, false);
+        }
+        if (page) {
+          if (page.items.length && page.display_mode !== "extended") {
+            throw new FatalError("列表的显示模式不为扩展，您可能在网页端或其他App中更改了设置");
+          }
+          if (this._loadingId === cachedLoadingId) {
+            this._status = "loaded";
+            this.data.pages = [page];
+            loadedHandler(this, true);
+          }
+        }
         break;
       }
       case "favorites": {
-        const page = await api.getFavoritesInfo(options.options);
-        newTab = {
+        this.data = {
           type: "favorites",
-          options: options.options,
-          pages: [page],
+          options: tabOptions.options,
+          pages: reload && this.data.type === "favorites" ? this.data.pages : [],
         };
+        let page: EHFavoritesList | undefined;
+        try {
+          page = await api.getFavoritesInfo(tabOptions.options);
+        } catch (e: any) {
+          this._status = "error";
+          this.errorMessage = e.message;
+          loadedHandler(this, false);
+        }
+        if (page) {
+          if (page.items.length && page.display_mode !== "extended") {
+            throw new FatalError("列表的显示模式不为扩展，您可能在网页端或其他App中更改了设置");
+          }
+          if (this._loadingId === cachedLoadingId) {
+            this._status = "loaded";
+            this.data.pages = [page];
+            loadedHandler(this, true);
+          }
+        }
         break;
       }
       case "toplist": {
-        const page = await api.getTopListInfo(options.options);
-        newTab = {
+        this.data = {
           type: "toplist",
-          options: options.options,
-          pages: [page],
+          options: tabOptions.options,
+          pages: reload && this.data.type === "toplist" ? this.data.pages : [],
         };
+        let page: EHTopList | undefined;
+        try {
+          page = await api.getTopListInfo(tabOptions.options);
+        } catch (e: any) {
+          this._status = "error";
+          this.errorMessage = e.message;
+          loadedHandler(this, false);
+        }
+        if (page) {
+          if (this._loadingId === cachedLoadingId) {
+            this._status = "loaded";
+            this.data.pages = [page];
+            loadedHandler(this, true);
+          }
+        }
         break;
       }
       case "upload": {
-        const page = await api.getUploadInfo();
-        newTab = {
+        this.data = {
           type: "upload",
-          pages: [page],
+          pages: reload && this.data.type === "upload" ? this.data.pages : [],
         };
+        let page: EHUploadList | undefined;
+        try {
+          page = await api.getUploadInfo();
+        } catch (e: any) {
+          this._status = "error";
+          this.errorMessage = e.message;
+          loadedHandler(this, false);
+        }
+        if (page) {
+          if (this._loadingId === cachedLoadingId) {
+            this._status = "loaded";
+            this.data.pages = [page];
+            loadedHandler(this, true);
+          }
+        }
         break;
       }
       case "archive": {
-        const items = this.queryArchiveItem(options.options);
-        const count = this.queryArchiveItemCount(options.options.type);
-        newTab = {
+        this.data = {
           type: "archive",
-          options: options.options,
-          pages: [
+          options: tabOptions.options,
+          pages: reload && this.data.type === "archive" ? this.data.pages : [],
+        };
+        const items = this.queryArchiveItem(tabOptions.options);
+        const count = this.queryArchiveItemCount(tabOptions.options.type);
+        if (this._loadingId === cachedLoadingId) {
+          this._status = "loaded";
+          this.data.pages = [
             {
               type: "archive",
               all_count: count,
               items,
             },
-          ],
-        };
+          ];
+          loadedHandler(this, true);
+        }
         break;
       }
       default:
         throw new Error("Invalid tab type");
     }
-    // 表示此tab在运行过程中被删除
-    if (!this._tabsMap.has(tabId)) return;
-    this._tabsMap.set(tabId, newTab);
-    return newTab;
   }
 
-  async loadMoreTab(tabId: string) {
-    const tab = this._tabsMap.get(tabId);
-    if (!tab) throw new Error("Tab not found");
-    switch (tab.type) {
+  async loadMoreTab({ loadedHandler }: { loadedHandler: (vtab: VirtualTab, success: boolean) => void }) {
+    if (!this.isNextPageAvailable) throw new Error("LoadMoreTab Error: Next Page Not Available");
+    this._loadingId++;
+    const cachedLoadingId = this._loadingId;
+    switch (this.data.type) {
       case "front_page": {
-        const lastPage = tab.pages[tab.pages.length - 1];
-        if (!lastPage) return;
-        if (!lastPage.next_page_available) return;
-        const miniumGid = lastPage.items[lastPage.items.length - 1].gid;
-        tab.options.range = undefined;
-        tab.options.jump = undefined;
-        tab.options.seek = undefined;
-        tab.options.minimumGid = undefined;
-        tab.options.maximumGid = miniumGid;
-        const page = await api.getFrontPageInfo(tab.options);
-        tab.pages.push(page);
-        return tab;
+        const lastPage = this.data.pages[this.data.pages.length - 1];
+        const maximumGid = lastPage.items[lastPage.items.length - 1].gid;
+        this.data.options = {
+          ...this.data.options,
+          range: undefined,
+          jump: undefined,
+          seek: undefined,
+          minimumGid: undefined,
+          maximumGid,
+        };
+        let page: EHFrontPageList | undefined;
+        try {
+          page = await api.getFrontPageInfo(this.data.options);
+        } catch (e: any) {
+          this._status = "error";
+          this.errorMessage = e.message;
+          loadedHandler(this, false);
+        }
+        if (page) {
+          if (page.items.length && page.display_mode !== "extended") {
+            throw new FatalError("列表的显示模式不为扩展，您可能在网页端或其他App中更改了设置");
+          }
+          if (this._loadingId === cachedLoadingId) {
+            this._status = "loaded";
+            this.data.pages.push(page);
+            loadedHandler(this, true);
+          }
+        }
+        break;
       }
       case "watched": {
-        const lastPage = tab.pages[tab.pages.length - 1];
-        if (!lastPage) return;
-        if (!lastPage.next_page_available) return;
-        const miniumGid = lastPage.items[lastPage.items.length - 1].gid;
-        tab.options.range = undefined;
-        tab.options.jump = undefined;
-        tab.options.seek = undefined;
-        tab.options.minimumGid = undefined;
-        tab.options.maximumGid = miniumGid;
-        const page = await api.getWatchedInfo(tab.options);
-        tab.pages.push(page);
-        return tab;
-      }
-      case "popular": {
+        const lastPage = this.data.pages[this.data.pages.length - 1];
+        const maximumGid = lastPage.items[lastPage.items.length - 1].gid;
+        this.data.options = {
+          ...this.data.options,
+          range: undefined,
+          jump: undefined,
+          seek: undefined,
+          minimumGid: undefined,
+          maximumGid,
+        };
+        let page: EHWatchedList | undefined;
+        try {
+          page = await api.getWatchedInfo(this.data.options);
+        } catch (e: any) {
+          this._status = "error";
+          this.errorMessage = e.message;
+          loadedHandler(this, false);
+        }
+        if (page) {
+          if (page.items.length && page.display_mode !== "extended") {
+            throw new FatalError("列表的显示模式不为扩展，您可能在网页端或其他App中更改了设置");
+          }
+          if (this._loadingId === cachedLoadingId) {
+            this._status = "loaded";
+            this.data.pages.push(page);
+            loadedHandler(this, true);
+          }
+        }
         break;
       }
       case "favorites": {
-        const lastPage = tab.pages[tab.pages.length - 1];
-        if (!lastPage) return;
-        if (!lastPage.next_page_available) return;
-        const miniumGid = lastPage.items[lastPage.items.length - 1].gid;
-        tab.options.jump = undefined;
-        tab.options.seek = undefined;
-        tab.options.minimumGid = undefined;
-        tab.options.maximumGid = miniumGid;
-        if (lastPage.sort_order === "favorited_time") {
-          tab.options.maximumFavoritedTimestamp = lastPage.last_item_favorited_timestamp;
+        const lastPage = this.data.pages[this.data.pages.length - 1];
+        const maximumGid = lastPage.items[lastPage.items.length - 1].gid;
+        this.data.options = {
+          ...this.data.options,
+          jump: undefined,
+          seek: undefined,
+          minimumGid: undefined,
+          maximumGid,
+          maximumFavoritedTimestamp:
+            lastPage.sort_order === "favorited_time" ? lastPage.last_item_favorited_timestamp : undefined,
+        };
+        let page: EHFavoritesList | undefined;
+        try {
+          page = await api.getFavoritesInfo(this.data.options);
+        } catch (e: any) {
+          this._status = "error";
+          this.errorMessage = e.message;
+          loadedHandler(this, false);
         }
-        const page = await api.getFavoritesInfo(tab.options);
-        tab.pages.push(page);
-        return tab;
+        if (page) {
+          if (page.items.length && page.display_mode !== "extended") {
+            throw new FatalError("列表的显示模式不为扩展，您可能在网页端或其他App中更改了设置");
+          }
+          if (this._loadingId === cachedLoadingId) {
+            this._status = "loaded";
+            this.data.pages.push(page);
+            loadedHandler(this, true);
+          }
+        }
+        break;
       }
       case "toplist": {
-        const lastPage = tab.pages[tab.pages.length - 1];
-        if (!lastPage) return;
-        if (lastPage.current_page === lastPage.total_pages - 1) return; //
-        tab.options.page = lastPage.current_page + 1;
-        const page = await api.getTopListInfo(tab.options);
-        tab.pages.push(page);
-        return tab;
-      }
-      case "upload": {
+        const lastPage = this.data.options.page || 0;
+        this.data.options = {
+          ...this.data.options,
+          page: lastPage + 1,
+        };
+        let page: EHTopList | undefined;
+        try {
+          page = await api.getTopListInfo(this.data.options);
+        } catch (e: any) {
+          this._status = "error";
+          this.errorMessage = e.message;
+          loadedHandler(this, false);
+        }
+        if (page) {
+          if (this._loadingId === cachedLoadingId) {
+            this.data.pages.push(page);
+            loadedHandler(this, true);
+          }
+        }
         break;
       }
       case "archive": {
-        const lastPage = tab.pages[tab.pages.length - 1];
-        if (!lastPage) return;
-        if ((tab.options.page + 1) * tab.options.pageSize >= lastPage.all_count) return;
-        tab.options.page += 1;
-        const items = this.queryArchiveItem(tab.options);
-        tab.pages.push({
-          type: "archive",
-          all_count: this.queryArchiveItemCount(tab.options.type),
-          items,
-        });
-        return tab;
+        const lastPage = this.data.options.page;
+        this.data.options = {
+          ...this.data.options,
+          page: lastPage + 1,
+        };
+        if (this._loadingId === cachedLoadingId) {
+          this.data.pages.push({
+            type: "archive",
+            all_count: this.queryArchiveItemCount(this.data.options.type),
+            items: this.queryArchiveItem(this.data.options),
+          });
+          loadedHandler(this, true);
+        }
+        break;
       }
       default:
         throw new Error("Invalid tab type");
@@ -672,6 +878,79 @@ class StatusManager {
       taglist: item.taglist,
     }));
     return extendedItems;
+  }
+}
+
+/**
+ * 管理状态
+ */
+class StatusManager {
+  private _tabsMap: Map<string, VirtualTab> = new Map();
+  private _tabIdsInManager: string[];
+  private _currentTabId;
+  constructor() {
+    // 初始化
+    this._tabsMap.set("archive", new VirtualTab({ id: "archive", initalTabType: "archive" }));
+    const firstTabId = cvid.newId;
+    this._tabsMap.set(firstTabId, new VirtualTab({ id: firstTabId }));
+    this._tabIdsInManager = [firstTabId];
+    this._currentTabId = firstTabId;
+    // 建立对应的下载器
+    downloaderManager.addTabDownloader("archive");
+    downloaderManager.addTabDownloader(firstTabId);
+  }
+
+  get tabsMap() {
+    return this._tabsMap;
+  }
+
+  get(tabId: string) {
+    return this._tabsMap.get(tabId);
+  }
+
+  get currentTab() {
+    const tab = this._tabsMap.get(this._currentTabId);
+    if (!tab) throw new Error("Invalid tab id");
+    return tab;
+  }
+
+  set currentTabId(tabId: string) {
+    if (!this._tabIdsInManager.includes(tabId)) throw new Error("Invalid tab id");
+    this._currentTabId = tabId;
+  }
+
+  get currentTabId() {
+    return this._currentTabId;
+  }
+
+  get tabIdsShownInManager() {
+    return this._tabIdsInManager;
+  }
+
+  addTab({ showInManager, initalTabType }: { showInManager: boolean; initalTabType?: StatusTabOptions["type"] }) {
+    const tabId = cvid.newId;
+    this._tabsMap.set(tabId, new VirtualTab({ id: tabId, initalTabType }));
+    if (showInManager) this._tabIdsInManager.push(tabId);
+    downloaderManager.addTabDownloader(tabId);
+    return tabId;
+  }
+
+  removeTab(tabId: string) {
+    if (this._tabIdsInManager.includes(tabId)) {
+      this._tabIdsInManager = this._tabIdsInManager.filter((id) => id !== tabId);
+    }
+    this._tabsMap.delete(tabId);
+    downloaderManager.removeTabDownloader(tabId);
+  }
+
+  showTabInManager(tabId: string) {
+    if (this._tabIdsInManager.includes(tabId)) return;
+    this._tabIdsInManager.push(tabId);
+  }
+
+  hideTabInManager(tabId: string) {
+    if (!this._tabIdsInManager.includes(tabId)) return;
+    this._tabIdsInManager = this._tabIdsInManager.filter((id) => id !== tabId);
   }
 
   getArchiveItem(gid: number) {

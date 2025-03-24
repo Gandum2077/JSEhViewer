@@ -3,7 +3,7 @@ import { GalleryController } from "./gallery-controller";
 import { getJumpPageDialog } from "../components/seekpage-dialog";
 import { configManager } from "../utils/config";
 import { EHlistView } from "../components/ehlist-view";
-import { clearExtraPropsForReload, statusManager } from "../utils/status";
+import { clearExtraPropsForReload, statusManager, VirtualTab } from "../utils/status";
 import { downloaderManager } from "../utils/api";
 import { getSearchOptions } from "./search-controller";
 import { CustomSearchBar } from "../components/custom-searchbar";
@@ -88,31 +88,33 @@ export class ArchiveController extends BaseController {
     const titleView = new EhlistTitleView({
       defaultTitle: "全部记录",
       tapped: async (sender) => {
-        const tab = statusManager.tabsMap.get("archive") as ArchiveTab;
+        const tab = statusManager.tabsMap.get("archive");
+        if (!tab || tab.data.type !== "archive") throw new Error("tab type not archive");
         const values = await popoverForTitleView({
           sourceView: sender,
           sourceRect: sender.bounds,
           popoverOptions: {
             type: "archive",
-            archiveType: tab.options.type ?? "all",
+            archiveType: tab.data.options.type || "all",
             archiveManagerOrderMethod: configManager.archiveManagerOrderMethod,
             count: {
-              loaded: tab.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
-              all: tab.pages[tab.pages.length - 1].all_count,
+              loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
+              all: tab.data.pages[tab.data.pages.length - 1].all_count,
             },
           },
         });
         let reloadFlag = false;
-        if (values.archiveType !== (tab.options.type ?? "all")) {
+        const newOptions = clearExtraPropsForReload(tab.data);
+        if (values.archiveType !== (tab.data.options.type || "all")) {
           reloadFlag = true;
-          tab.options.type = values.archiveType;
+          newOptions.options.type = values.archiveType;
         }
         if (values.archiveManagerOrderMethod !== configManager.archiveManagerOrderMethod) {
           reloadFlag = true;
           configManager.archiveManagerOrderMethod = values.archiveManagerOrderMethod;
-          tab.options.sort = values.archiveManagerOrderMethod;
+          newOptions.options.sort = values.archiveManagerOrderMethod;
         }
-        if (reloadFlag) this.reload();
+        if (reloadFlag) this.triggerLoad(newOptions);
       },
     });
     const navbar = new CustomNavigationBar({
@@ -133,27 +135,26 @@ export class ArchiveController extends BaseController {
           {
             symbol: "arrow.left.arrow.right.circle",
             handler: async () => {
-              const tab = statusManager.tabsMap.get("archive") as ArchiveTab;
-              if (!tab || tab.pages.length === 0) {
-                $ui.toast("存档列表为空，无法翻页");
+              const tab = statusManager.get("archive");
+              if (!tab || tab.data.type !== "archive") throw new Error("tab type not archive");
+              if (!tab || tab.data.pages.length === 0) {
+                $ui.toast("列表为空，无法翻页");
                 return;
               }
-              const allCount = tab.pages[0].all_count;
+              const allCount = tab.data.pages[tab.data.pages.length - 1].all_count;
               if (allCount === 0) {
-                $ui.toast("存档列表为空，无法翻页");
+                $ui.toast("列表为空，无法翻页");
                 return;
               }
-              const maxPage = Math.ceil(allCount / tab.options.pageSize);
-              if (tab.pages.length === maxPage) {
+              const maxPage = Math.ceil(allCount / tab.data.options.pageSize);
+              if (tab.data.pages.length === maxPage) {
                 $ui.toast("全部内容已加载");
                 return;
               }
               const { page } = await getJumpPageDialog(maxPage);
-              tab.options.page = page;
-              this.updateLoadingStatus({
-                type: "archive",
-                options: tab.options,
-              });
+              const newOptions = clearExtraPropsForReload(tab.data);
+              newOptions.options.page = page;
+              this.triggerLoad(newOptions);
             },
           },
         ],
@@ -163,11 +164,13 @@ export class ArchiveController extends BaseController {
       props: {},
       events: {
         tapped: async (sender) => {
+          const tab = statusManager.get("archive");
+          if (!tab || tab.data.type !== "archive") throw new Error("tab type not archive");
           const args = (await getSearchOptions(
             {
               type: "archive",
               options: {
-                searchTerms: (statusManager.tabsMap.get("archive") as ArchiveTab).options.searchTerms,
+                searchTerms: tab.data.options.searchTerms,
                 page: 0,
                 pageSize: 50,
                 sort: configManager.archiveManagerOrderMethod,
@@ -176,17 +179,19 @@ export class ArchiveController extends BaseController {
             },
             "onlyShowArchive"
           )) as ArchiveTabOptions;
-          await this.triggerLoad(args);
+          this.triggerLoad(args);
         },
       },
     });
     const list = new EHlistView({
       layoutMode: configManager.archiveManagerLayoutMode,
       searchBar,
-      pulled: async () => {
-        await this.reload();
+      pulled: () => {
+        const tab = statusManager.get("archive");
+        if (!tab || tab.data.type !== "archive") throw new Error("tab type not archive");
+        this.triggerLoad(clearExtraPropsForReload(tab.data), true);
       },
-      didSelect: async (sender, indexPath, item) => {
+      didSelect: (sender, indexPath, item) => {
         const galleryController = new GalleryController(item.gid, item.token);
         galleryController.uipush({
           navBarHidden: true,
@@ -194,21 +199,8 @@ export class ArchiveController extends BaseController {
         });
       },
       didLongPress: (sender, indexPath, item) => {},
-      didReachBottom: async () => {
-        const tab = (await statusManager.loadMoreTab("archive")) as ArchiveTab | undefined;
-        if (!tab) return;
-        downloaderManager.getTabDownloader("archive")!.clear();
-        downloaderManager.getTabDownloader("archive")!.add(
-          tab.pages
-            .map((page) => page.items)
-            .flat()
-            .map((item) => ({
-              gid: item.gid,
-              url: item.thumbnail_url,
-            }))
-        );
-        downloaderManager.startTabDownloader("archive");
-        this.updateLoadedStatus();
+      didReachBottom: () => {
+        this.triggerLoadMore();
       },
       contentOffsetChanged: (scrollState) => {
         downloaderManager.getTabDownloader("archive")!.currentReadingIndex = scrollState.firstVisibleItemIndex;
@@ -223,60 +215,88 @@ export class ArchiveController extends BaseController {
     this.rootView.views = [navbar, list];
   }
 
-  async triggerLoad(options: ArchiveTabOptions, reload?: boolean) {
-    if (!reload) {
-      this.updateLoadingStatus(options);
+  triggerLoad(tabOptions: ArchiveTabOptions, reload?: boolean) {
+    const tab = statusManager.get("archive");
+    if (!tab || tab.data.type !== "archive") throw new Error("tab type not archive");
+    tab.loadTab({
+      tabOptions,
+      loadedHandler: (vtab, success) => {
+        this._loadedHandler(vtab, success, !reload);
+      },
+    });
+  }
+
+  triggerLoadMore() {
+    const tab = statusManager.get("archive");
+    if (!tab || tab.data.type !== "archive") throw new Error("tab type not archive");
+    if (!tab.isNextPageAvailable) return;
+    tab.loadMoreTab({
+      loadedHandler: (vtab, success) => {
+        this._loadedHandler(vtab, success, false);
+      },
+    });
+  }
+
+  private _loadedHandler(vtab: VirtualTab, success: boolean, updateSearchTermsCount: boolean) {
+    if (vtab.data.type !== "archive") throw new Error("tab type not archive");
+    this.updateStatus();
+    if (updateSearchTermsCount) {
+      const searchTerms = vtab.data.options.searchTerms;
+      if (searchTerms && searchTerms.length) {
+        const fsearch = buildSortedFsearch(searchTerms);
+        configManager.addOrUpdateSearchHistory(fsearch, searchTerms);
+        configManager.updateTagAccessCount(searchTerms);
+      }
     }
-    const tab = (await statusManager.loadTab(options, "archive")) as ArchiveTab;
-    if (!tab) return;
-    downloaderManager.getTabDownloader("archive")!.clear();
-    downloaderManager.getTabDownloader("archive")!.add(
-      tab.pages
-        .map((page) => page.items)
-        .flat()
-        .map((item) => ({
-          gid: item.gid,
-          url: item.thumbnail_url,
-        }))
-    );
-    downloaderManager.startTabDownloader("archive");
-    this.updateLoadedStatus();
+    if (success) {
+      downloaderManager.getTabDownloader("archive")!.clear();
+      downloaderManager.getTabDownloader("archive")!.add(
+        vtab.data.pages
+          .map((page) => page.items)
+          .flat()
+          .map((item) => ({
+            gid: item.gid,
+            url: item.thumbnail_url,
+          }))
+      );
+      downloaderManager.startTabDownloader("archive");
+    }
   }
 
-  async reload() {
-    const tab = statusManager.tabsMap.get("archive");
-    if (!tab) throw new Error("tab not found");
-    const options = clearExtraPropsForReload(tab) as ArchiveTabOptions;
-    this.triggerLoad(options, true);
-  }
+  /**
+   * 根据virtualTab更新状态，可以在任何时候调用
+   */
+  updateStatus() {
+    // 四个内容需要更新状态：列表、搜索栏、标题、底部
+    const tab = statusManager.get("archive");
+    if (!tab || tab.data.type !== "archive") throw new Error("tab type not archive");
 
-  updateLoadingStatus(options: ArchiveTabOptions) {
-    // 1. 列表归零
-    // 2. 搜索栏更新
-    // 3. 标题更新
-    this.cviews.list.items = [];
-    if (options.options.searchTerms && options.options.searchTerms.length) {
-      const fsearch = buildSortedFsearch(options.options.searchTerms);
-      configManager.addOrUpdateSearchHistory(fsearch, options.options.searchTerms);
-      configManager.updateTagAccessCount(options.options.searchTerms);
-      this.cviews.searchBar.searchTerms = options.options.searchTerms;
+    // 更新搜索栏
+    const searchTerms = tab.data.options.searchTerms;
+    if (searchTerms && searchTerms.length) {
+      this.cviews.searchBar.searchTerms = searchTerms;
     } else {
       this.cviews.searchBar.searchTerms = [];
     }
-  }
 
-  updateLoadedStatus() {
-    const tab = statusManager.tabsMap.get("archive") as ArchiveTab;
-    if (!tab) return;
-    const type = tab.options.type ?? "all";
+    // 更新标题
+    const type = tab.data.options.type ?? "all";
     this.cviews.titleView.title = type === "all" ? "全部记录" : type === "downloaded" ? "下载内容" : "稍后阅读";
-    const items = tab.pages.map((page) => page.items).flat();
+
+    // 更新列表
+    const items = tab.data.pages.map((page) => page.items).flat();
     this.cviews.list.items = items;
+
+    // 更新底部
+    this.cviews.list.footerText =
+      tab.status === "loading"
+        ? "加载中……"
+        : tab.status === "error"
+        ? "加载出现错误"
+        : tab.isNextPageAvailable
+        ? "上拉加载更多"
+        : "没有更多了";
+
     this._thumbnailAllLoaded = false;
-    if ((tab.options.page + 1) * tab.options.pageSize >= tab.pages[0].all_count) {
-      this.cviews.list.footerText = "没有更多了";
-    } else {
-      this.cviews.list.footerText = "上拉加载更多";
-    }
   }
 }

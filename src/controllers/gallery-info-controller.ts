@@ -33,6 +33,7 @@ import { galleryFavoriteDialog } from "../components/gallery-favorite-dialog";
 import { getSearchOptions } from "./search-controller";
 import { PushedSearchResultController } from "./pushed-search-result-controller";
 import { WebDAVStatus, WebDAVWidget } from "../components/webdav-widget";
+import { FavoritesTabOptions, FrontPageTabOptions, WatchedTabOptions } from "../types";
 
 class BlankView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
@@ -1475,7 +1476,7 @@ export class GalleryInfoController extends BaseController {
               },
             },
             "showAllExceptArchive"
-          );
+          ) as FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions;
           const controller = new PushedSearchResultController();
           controller.uipush({
             navBarHidden: true,

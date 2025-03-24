@@ -22,7 +22,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
   /**
    *
    * @param props
-   * - srcs: {path?: string, error: boolean}[] - 图片地址列表
+   * - srcs: {path?: string, errorName?: string,error: boolean}[] - 图片地址列表
    * - page: number - 当前页码
    * @param layout
    * @param events
@@ -38,6 +38,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
       srcs?: {
         path?: string;
         error: boolean;
+        errorName?: string;
         type: "ai-translated" | "reloaded" | "normal";
       }[];
       page?: number;
@@ -82,7 +83,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
                 {
                   type: "label",
                   props: {
-                    text: "网络似乎不太给力◉_◉",
+                    id: "error_label",
                     textColor: $color("primaryText"),
                     align: $align.center,
                   },
@@ -226,6 +227,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
     srcs: {
       path?: string;
       error: boolean;
+      errorName?: string;
       type: "ai-translated" | "reloaded" | "normal";
     }[]
   ) {
@@ -234,19 +236,27 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
     this._matrix.view.data = data;
   }
 
-  private _mapData(n: { path?: string; error: boolean }) {
-    if (n.error) {
-      return {
-        image: { src: "" },
-        scroll: { hidden: true },
-        error_view: { hidden: false },
-        spinner: { loading: false, hidden: true },
-      };
-    } else if (n.path) {
+  private _mapData(n: { path?: string; error: boolean; errorName?: string }) {
+    if (n.path) {
       return {
         image: { src: n.path },
         scroll: { hidden: false },
         error_view: { hidden: true },
+        spinner: { loading: false, hidden: true },
+      };
+    } else if (n.error) {
+      return {
+        image: { src: "" },
+        scroll: { hidden: true },
+        error_view: { hidden: false },
+        error_label: {
+          text:
+            n.errorName === "EHBandwidthLimitExceededError"
+              ? "509错误"
+              : n.errorName === "EHServerError"
+              ? "服务器错误"
+              : "网络似乎不太给力◉_◉",
+        },
         spinner: { loading: false, hidden: true },
       };
     } else {

@@ -1152,6 +1152,7 @@ export class ReaderController extends BaseController {
   private _generateSrcs(): {
     path?: string;
     error: boolean;
+    errorName?: string;
     type: "ai-translated" | "reloaded" | "normal";
   }[] {
     const galleryDownloader = downloaderManager.get(this.gid);
@@ -1178,6 +1179,7 @@ export class ReaderController extends BaseController {
       return {
         path: image.path,
         error: image.error,
+        errorName: image.errorName,
         type: "normal",
       };
     });

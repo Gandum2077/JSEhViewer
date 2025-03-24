@@ -25,13 +25,6 @@ type CompoundThumbnail = {
   }[];
 };
 
-class RetryTooManyError extends Error {
-  name = "RetryTooManyError";
-  constructor(times: number) {
-    super(`重试次数达到${times}次`);
-  }
-}
-
 // APIHandler中补充的方法均不抛出错误，所有错误都在内部处理。
 class APIHandler extends EHAPIHandler {
   constructor() {
@@ -465,6 +458,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
       index: number;
       path?: string;
       error: boolean;
+      errorName?: string;
       started: boolean;
     }[];
     topThumbnail: { path?: string; error: boolean; started: boolean };
@@ -1063,6 +1057,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           this.result.images[index].path = path;
         } else {
           this.result.images[index].error = true;
+          this.result.images[index].errorName = result.error;
         }
         if (!this._paused && this.isAllFinishedDespiteError) {
           this.finishHandler();

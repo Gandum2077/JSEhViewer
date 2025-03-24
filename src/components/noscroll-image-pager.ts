@@ -19,7 +19,7 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
   /**
    *
    * @param props
-   * - srcs: {path?: string, error: boolean}[] - 图片地址列表
+   * - srcs: {path?: string, errorName?: string, error: boolean}[] - 图片地址列表
    * - page: number - 当前页码
    * @param layout
    * @param events
@@ -35,6 +35,7 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
       srcs?: {
         path?: string;
         error: boolean;
+        errorName?: string;
         type: "ai-translated" | "reloaded" | "normal";
       }[];
       page?: number;
@@ -79,7 +80,7 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
               {
                 type: "label",
                 props: {
-                  text: "网络似乎不太给力◉_◉",
+                  id: this.id + "error_label",
                   textColor: $color("primaryText"),
                   align: $align.center,
                 },
@@ -168,18 +169,25 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
   }
 
   // 刷新当前页面
-  private _refreshData(n: { path?: string; error: boolean }) {
-    if (n.error) {
-      $(this.id + "spinner").hidden = true;
-      ($(this.id + "spinner") as UISpinnerView).loading = false;
-      $(this.id + "error_view").hidden = false;
-      $(this.id + "scroll").hidden = true;
-    } else if (n.path) {
+  private _refreshData(n: { path?: string; error: boolean; errorName?: string }) {
+    if (n.path) {
       $(this.id + "spinner").hidden = true;
       ($(this.id + "spinner") as UISpinnerView).loading = false;
       $(this.id + "error_view").hidden = true;
       $(this.id + "scroll").hidden = false;
       ($(this.id + "image") as UIImageView).src = n.path;
+    } else if (n.error) {
+      $(this.id + "spinner").hidden = true;
+      ($(this.id + "spinner") as UISpinnerView).loading = false;
+      $(this.id + "error_view").hidden = false;
+      $(this.id + "scroll").hidden = true;
+
+      ($(this.id + "error_label") as UILabelView).text =
+        n.errorName === "EHBandwidthLimitExceededError"
+          ? "509错误"
+          : n.errorName === "EHServerError"
+          ? "服务器错误"
+          : "网络似乎不太给力◉_◉";
     } else {
       $(this.id + "spinner").hidden = false;
       ($(this.id + "spinner") as UISpinnerView).loading = true;
@@ -196,6 +204,7 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
     srcs: {
       path?: string;
       error: boolean;
+      errorName?: string;
       type: "ai-translated" | "reloaded" | "normal";
     }[]
   ) {

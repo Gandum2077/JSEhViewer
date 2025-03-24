@@ -405,10 +405,10 @@ export class HomepageController extends BaseController {
     const list = new EHlistView({
       layoutMode: configManager.homepageManagerLayoutMode,
       searchBar,
-      pulled: () => {
+      pulled: async () => {
         const tab = statusManager.currentTab;
         if (tab.data.type !== "blank" && tab.data.type !== "upload") {
-          this.triggerLoad(clearExtraPropsForReload(tab.data), true);
+          await this.triggerLoadAsync(clearExtraPropsForReload(tab.data), true);
         }
       },
       didSelect: (sender, indexPath, item) => {
@@ -452,10 +452,10 @@ export class HomepageController extends BaseController {
     });
     const uploadList = new EHlistUploadView({
       searchBar: searchBarForUploadList,
-      pulled: () => {
+      pulled: async () => {
         const tab = statusManager.currentTab;
         if (tab.data.type === "upload") {
-          this.triggerLoad(clearExtraPropsForReload(tab.data), true);
+          await this.triggerLoadAsync(clearExtraPropsForReload(tab.data), true);
         }
       },
       didSelect: (sender, indexPath, item) => {
@@ -507,6 +507,21 @@ export class HomepageController extends BaseController {
       },
     });
     this.updateStatus(true);
+  }
+
+  async triggerLoadAsync(tabOptions: StatusTabOptions, reload?: boolean) {
+    const tab = statusManager.currentTab;
+    if (tab.data.type === "archive") throw new Error("invalid tab type");
+    return new Promise<void>((resolve) => {
+      tab.loadTab({
+        tabOptions,
+        loadedHandler: (vtab, success) => {
+          this._loadedHandler(vtab, success, !reload);
+          resolve();
+        },
+      });
+      this.updateStatus(reload);
+    });
   }
 
   private _loadedHandler(vtab: VirtualTab, success: boolean, updateSearchTermsCount: boolean) {
@@ -596,8 +611,8 @@ export class HomepageController extends BaseController {
     // 更新列表
     if (!reloading) {
       if (tab.data.type === "upload") {
-        const folders = tab.data.pages[0].folders;
-        this.cviews.uploadList.uploadFolders = folders;
+        const folders = tab.data.pages.at(0)?.folders;
+        this.cviews.uploadList.uploadFolders = folders || [];
         this.cviews.list.items = [];
       } else if (tab.data.type === "blank") {
         this.cviews.list.items = [];

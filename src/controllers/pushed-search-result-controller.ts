@@ -338,12 +338,12 @@ export class PushedSearchResultController extends BaseController {
     const list = new EHlistView({
       layoutMode: this.layoutMode,
       searchBar,
-      pulled: () => {
+      pulled: async () => {
         const tab = statusManager.get(this.tabId);
         if (!tab || (tab.data.type !== "front_page" && tab.data.type !== "watched" && tab.data.type !== "favorites")) {
           throw new Error("Tab not found or invalid tab type");
         }
-        this.triggerLoad(clearExtraPropsForReload(tab.data), true);
+        await this.triggerLoadAsync(clearExtraPropsForReload(tab.data), true);
       },
       didSelect: (sender, indexPath, item) => {
         const galleryController = new GalleryController(item.gid, item.token);
@@ -400,6 +400,26 @@ export class PushedSearchResultController extends BaseController {
       },
     });
     this.updateStatus(true);
+  }
+
+  private async triggerLoadAsync(
+    tabOptions: FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions,
+    reload?: boolean
+  ) {
+    const tab = statusManager.get(this.tabId);
+    if (!tab || (tab.data.type !== "front_page" && tab.data.type !== "watched" && tab.data.type !== "favorites")) {
+      throw new Error("Tab not found or invalid tab type");
+    }
+    return new Promise<void>((resolve) => {
+      tab.loadTab({
+        tabOptions,
+        loadedHandler: (vtab, success) => {
+          this._loadedHandler(vtab, success, !reload);
+          resolve();
+        },
+      });
+      this.updateStatus(reload);
+    });
   }
 
   private _loadedHandler(vtab: VirtualTab, success: boolean, updateSearchTermsCount: boolean) {

@@ -6,7 +6,6 @@ import { clearExtraPropsForReload, statusManager } from "../utils/status";
 import { api } from "../utils/api";
 import { HomepageController } from "./homepage-controller";
 import { assembleSearchTerms, EHSearchTerm, parseFsearch } from "ehentai-parser";
-import { ArchiveTab } from "../types";
 
 export class GeneralSettingsController extends BaseController {
   private _isUpdatingTranslationData = false;

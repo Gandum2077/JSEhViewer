@@ -7,7 +7,7 @@ import { clearExtraPropsForReload, statusManager, VirtualTab } from "../utils/st
 import { downloaderManager } from "../utils/api";
 import { getSearchOptions } from "./search-controller";
 import { CustomSearchBar } from "../components/custom-searchbar";
-import { ArchiveTab, ArchiveTabOptions } from "../types";
+import { ArchiveTabOptions } from "../types";
 import { buildSortedFsearch } from "ehentai-parser";
 import { globalTimer } from "../utils/timer";
 import { EhlistTitleView } from "../components/ehlist-titleview";

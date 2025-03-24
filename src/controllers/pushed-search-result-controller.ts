@@ -1,17 +1,12 @@
 import { BaseController, CustomNavigationBar, SymbolButton, router } from "jsbox-cview";
 import { GalleryController } from "./gallery-controller";
-import {
-  getJumpRangeDialogForHomepage,
-  getJumpPageDialog,
-  getJumpRangeDialogForFavorites,
-} from "../components/seekpage-dialog";
+import { getJumpRangeDialogForHomepage, getJumpRangeDialogForFavorites } from "../components/seekpage-dialog";
 import { configManager } from "../utils/config";
 import { clearExtraPropsForReload, statusManager, VirtualTab } from "../utils/status";
 import { EHlistView } from "../components/ehlist-view";
-import { appLog } from "../utils/tools";
-import { buildSortedFsearch, EHListExtendedItem, EHSearchTerm } from "ehentai-parser";
-import { FavoritesTabOptions, FrontPageTabOptions, StatusTabOptions, WatchedTabOptions } from "../types";
-import { api, downloaderManager, TabThumbnailDownloader } from "../utils/api";
+import { buildSortedFsearch, EHListExtendedItem } from "ehentai-parser";
+import { FavoritesTabOptions, FrontPageTabOptions, WatchedTabOptions } from "../types";
+import { api, downloaderManager } from "../utils/api";
 import { CustomSearchBar } from "../components/custom-searchbar";
 import { getSearchOptions } from "./search-controller";
 import { SidebarTabController } from "./sidebar-tab-controller";

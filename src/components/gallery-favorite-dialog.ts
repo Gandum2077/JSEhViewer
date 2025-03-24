@@ -1,5 +1,5 @@
 import { EHFavoriteInfo, EHGallery } from "ehentai-parser";
-import { Base, DialogSheet, DynamicRowHeightList, Text, Label, List, ContentView } from "jsbox-cview";
+import { Base, DialogSheet, DynamicRowHeightList, Label, List, ContentView } from "jsbox-cview";
 import { api } from "../utils/api";
 import { configManager } from "../utils/config";
 import { favcatColor } from "../utils/glv";

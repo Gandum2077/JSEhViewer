@@ -9,7 +9,6 @@ import {
   PreferenceSection,
   Sheet,
   SymbolButton,
-  Text,
 } from "jsbox-cview";
 import * as MangaImageTranslator from "../ai-translations/manga-image-translator";
 import * as CotransTouhouAi from "../ai-translations/cotrans-touhou-ai";

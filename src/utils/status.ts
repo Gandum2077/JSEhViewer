@@ -1,6 +1,5 @@
 import {
   EHCategory,
-  EHFavoriteSearchOptions,
   EHFavoritesList,
   EHFrontPageList,
   EHGallery,
@@ -8,7 +7,6 @@ import {
   EHListExtendedItem,
   EHPopularList,
   EHQualifier,
-  EHSearchOptions,
   EHTagListItem,
   EHTopList,
   EHUploadList,

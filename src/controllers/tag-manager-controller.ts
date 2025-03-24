@@ -594,7 +594,7 @@ export class TagManagerController extends BaseController {
     }
     const ys = this.cviews.list.view.data.map((i) => i.rows.length * 44 + 57.375);
     // 重新计算 sectionCumYs: ys 的累加和
-    this._sectionCumYs = ys.map((_, i) => ys.slice(0, i + 1).reduce((a, b) => a + b));
+    this._sectionCumYs = ys.map((_, i) => ys.slice(0, i + 1).reduce((a, b) => a + b, 0));
   }
 
   /**

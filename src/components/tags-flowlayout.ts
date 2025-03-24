@@ -148,7 +148,7 @@ class TagView extends Base<UIView, UiTypes.ViewOptions> {
                   statusBarStyle: 0,
                 });
                 await $wait(0.3);
-                await controller.triggerLoad({
+                controller.triggerLoad({
                   type: "front_page",
                   options: {
                     searchTerms: [

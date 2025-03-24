@@ -98,7 +98,7 @@ export class ArchiveController extends BaseController {
             archiveType: tab.data.options.type || "all",
             archiveManagerOrderMethod: configManager.archiveManagerOrderMethod,
             count: {
-              loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
+              loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr, 0),
               all: tab.data.pages[tab.data.pages.length - 1].all_count,
             },
           },

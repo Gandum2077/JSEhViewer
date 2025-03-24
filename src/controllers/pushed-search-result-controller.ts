@@ -145,9 +145,9 @@ export class PushedSearchResultController extends BaseController {
                   disableTagFilters: tab.data.options.disableTagFilters ?? false,
                 },
                 count: {
-                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
+                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr, 0),
                   all: tab.data.pages.at(0)?.total_item_count || 0,
-                  filtered: tab.data.pages.map((n) => n.filtered_count).reduce((prev, curr) => prev + curr),
+                  filtered: tab.data.pages.map((n) => n.filtered_count).reduce((prev, curr) => prev + curr, 0),
                 },
               },
             });
@@ -176,8 +176,8 @@ export class PushedSearchResultController extends BaseController {
                   disableTagFilters: tab.data.options.disableTagFilters ?? false,
                 },
                 count: {
-                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
-                  filtered: tab.data.pages.map((n) => n.filtered_count).reduce((prev, curr) => prev + curr),
+                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr, 0),
+                  filtered: tab.data.pages.map((n) => n.filtered_count).reduce((prev, curr) => prev + curr, 0),
                 },
               },
             });
@@ -203,7 +203,7 @@ export class PushedSearchResultController extends BaseController {
                 type: tab.data.type,
                 favoritesOrderMethod: configManager.favoritesOrderMethod,
                 count: {
-                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
+                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr, 0),
                 },
               },
             });

@@ -320,9 +320,9 @@ async function init() {
     // 自动加载
     if (configManager.startPageType === "last_access" && configManager.lastAccessPageJson) {
       const options = JSON.parse(configManager.lastAccessPageJson) as StatusTabOptions;
-      await homepageController.triggerLoad(options);
+      homepageController.triggerLoad(options);
     } else if (configManager.startPageType === "specific_searchterms" && configManager.specificSearchtermsOnStart) {
-      await homepageController.triggerLoad({
+      homepageController.triggerLoad({
         type: "front_page",
         options: {
           searchTerms: JSON.parse(configManager.specificSearchtermsOnStart) as EHSearchTerm[],
@@ -362,7 +362,7 @@ async function init() {
           break;
       }
       if (options) {
-        await homepageController.triggerLoad(options);
+        homepageController.triggerLoad(options);
       }
     }
   }

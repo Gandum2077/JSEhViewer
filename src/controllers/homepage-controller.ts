@@ -144,9 +144,9 @@ export class HomepageController extends BaseController {
                   disableTagFilters: tab.data.options.disableTagFilters ?? false,
                 },
                 count: {
-                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
+                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr, 0),
                   all: tab.data.pages.at(0)?.total_item_count ?? 0,
-                  filtered: tab.data.pages.map((n) => n.filtered_count).reduce((prev, curr) => prev + curr),
+                  filtered: tab.data.pages.map((n) => n.filtered_count).reduce((prev, curr) => prev + curr, 0),
                 },
               },
             });
@@ -175,8 +175,8 @@ export class HomepageController extends BaseController {
                   disableTagFilters: tab.data.options.disableTagFilters ?? false,
                 },
                 count: {
-                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
-                  filtered: tab.data.pages.map((n) => n.filtered_count).reduce((prev, curr) => prev + curr),
+                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr, 0),
+                  filtered: tab.data.pages.map((n) => n.filtered_count).reduce((prev, curr) => prev + curr, 0),
                 },
               },
             });
@@ -205,8 +205,8 @@ export class HomepageController extends BaseController {
                   disableTagFilters: tab.data.options.disableTagFilters ?? false,
                 },
                 count: {
-                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
-                  filtered: tab.data.pages.map((n) => n.filtered_count).reduce((prev, curr) => prev + curr),
+                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr, 0),
+                  filtered: tab.data.pages.map((n) => n.filtered_count).reduce((prev, curr) => prev + curr, 0),
                 },
               },
             });
@@ -231,7 +231,7 @@ export class HomepageController extends BaseController {
                 type: tab.data.type,
                 favoritesOrderMethod: configManager.favoritesOrderMethod,
                 count: {
-                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
+                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr, 0),
                 },
               },
             });
@@ -257,7 +257,7 @@ export class HomepageController extends BaseController {
               popoverOptions: {
                 type: tab.data.type,
                 count: {
-                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr),
+                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr, 0),
                 },
               },
             });
@@ -274,7 +274,7 @@ export class HomepageController extends BaseController {
                     tab.data.pages
                       .at(0)
                       ?.folders.map((n) => n.items.length)
-                      .reduce((prev, curr) => prev + curr) ?? 0,
+                      .reduce((prev, curr) => prev + curr, 0) ?? 0,
                 },
               },
             });
@@ -374,7 +374,7 @@ export class HomepageController extends BaseController {
                 });
               } else if (type === "toplist") {
                 const result = await getJumpPageDialog(200);
-                await this.triggerLoad({
+                this.triggerLoad({
                   type,
                   options: {
                     ...tab.data.options,
@@ -399,7 +399,7 @@ export class HomepageController extends BaseController {
             type = tab.data.type;
           }
           const args = await getSearchOptions({ type, options: { searchTerms } }, "showAllExceptArchive");
-          await this.triggerLoad(args);
+          this.triggerLoad(args);
         },
       },
     });
@@ -447,7 +447,7 @@ export class HomepageController extends BaseController {
             type = tab.data.type;
           }
           const args = await getSearchOptions({ type, options: { searchTerms } }, "showAllExceptArchive");
-          await this.triggerLoad(args);
+          this.triggerLoad(args);
         },
       },
     });
@@ -486,7 +486,7 @@ export class HomepageController extends BaseController {
     this.rootView.views = [navbar, uploadList, list];
   }
 
-  async triggerLoad(tabOptions: StatusTabOptions, reload?: boolean) {
+  triggerLoad(tabOptions: StatusTabOptions, reload?: boolean) {
     const tab = statusManager.currentTab;
     if (tab.data.type === "archive") throw new Error("invalid tab type");
     tab.loadTab({

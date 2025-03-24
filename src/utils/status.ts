@@ -498,9 +498,9 @@ export class VirtualTab {
     loadedHandler: (vtab: VirtualTab, success: boolean) => void;
   }) {
     this._loadingId++;
+    const cachedLoadingId = this._loadingId;
     this._status = "loading";
     this.errorMessage = undefined;
-    const cachedLoadingId = this._loadingId;
     switch (tabOptions.type) {
       case "front_page": {
         this.data = {
@@ -681,6 +681,8 @@ export class VirtualTab {
     if (!this.isNextPageAvailable) throw new Error("LoadMoreTab Error: Next Page Not Available");
     this._loadingId++;
     const cachedLoadingId = this._loadingId;
+    this._status = "loading";
+    this.errorMessage = undefined;
     switch (this.data.type) {
       case "front_page": {
         const lastPage = this.data.pages[this.data.pages.length - 1];

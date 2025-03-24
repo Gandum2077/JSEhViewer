@@ -803,6 +803,7 @@ export class VirtualTab {
         }
         if (page) {
           if (this._loadingId === cachedLoadingId) {
+            this._status = "loaded";
             this.data.pages.push(page);
             loadedHandler(this, true);
           }
@@ -816,6 +817,7 @@ export class VirtualTab {
           page: lastPage + 1,
         };
         if (this._loadingId === cachedLoadingId) {
+          this._status = "loaded";
           this.data.pages.push({
             type: "archive",
             all_count: this.queryArchiveItemCount(this.data.options),

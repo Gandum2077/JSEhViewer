@@ -32,14 +32,24 @@ import {
 import { cvid } from "jsbox-cview";
 import { FatalError } from "./error";
 
-function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): {
+function buildArchiveSearchSQLQuery(
+  options: ArchiveSearchOptions,
+  countOnly: boolean = false
+): {
   sql: string;
   args: any[];
 } {
   const { page, pageSize, type, sort, searchTerms, excludedCategories, minimumPages, maximumPages, minimumRating } =
     options;
 
-  let sql = `
+  let sql = countOnly
+    ? `
+    SELECT 
+      COUNT(*) as total
+    FROM 
+      archives
+  `
+    : `
     SELECT 
       archives.*
     FROM 
@@ -276,17 +286,18 @@ function buildArchiveSearchSQLQuery(options: ArchiveSearchOptions): {
     sql += ` WHERE ${conditions.join(" AND ")}`;
   }
 
-  // Handle sorting
-  if (sort) {
-    sql += ` ORDER BY ${sort} DESC`;
-  } else {
-    sql += ` ORDER BY first_access_time DESC`;
-  }
+  // Handle sorting and pagination if not countOnly
+  if (!countOnly) {
+    if (sort) {
+      sql += ` ORDER BY ${sort} DESC`;
+    } else {
+      sql += ` ORDER BY first_access_time DESC`;
+    }
 
-  // Handle pagination
-  const offset = page * pageSize;
-  sql += ` LIMIT ? OFFSET ?`;
-  args.push(pageSize, offset);
+    const offset = page * pageSize;
+    sql += ` LIMIT ? OFFSET ?`;
+    args.push(pageSize, offset);
+  }
 
   return { sql, args };
 }
@@ -656,7 +667,7 @@ export class VirtualTab {
           pages: reload && this.data.type === "archive" ? this.data.pages : [],
         };
         const items = this.queryArchiveItem(tabOptions.options);
-        const count = this.queryArchiveItemCount(tabOptions.options.type);
+        const count = this.queryArchiveItemCount(tabOptions.options);
         if (this._loadingId === cachedLoadingId) {
           this._status = "loaded";
           this.data.pages = [
@@ -807,7 +818,7 @@ export class VirtualTab {
         if (this._loadingId === cachedLoadingId) {
           this.data.pages.push({
             type: "archive",
-            all_count: this.queryArchiveItemCount(this.data.options.type),
+            all_count: this.queryArchiveItemCount(this.data.options),
             items: this.queryArchiveItem(this.data.options),
           });
           loadedHandler(this, true);
@@ -819,13 +830,10 @@ export class VirtualTab {
     }
   }
 
-  queryArchiveItemCount(type: "readlater" | "downloaded" | "all" = "all") {
-    const sql_all = `SELECT COUNT(*) FROM archives;`;
-    const sql_readlater = `SELECT COUNT(*) FROM archives WHERE readlater = 1;`;
-    const sql_download = `SELECT COUNT(*) FROM archives WHERE downloaded = 1;`;
-    const sql = type === "all" ? sql_all : type === "downloaded" ? sql_download : sql_readlater;
-    const rawData = dbManager.query(sql) as { "COUNT(*)": number }[];
-    return rawData[0]["COUNT(*)"];
+  queryArchiveItemCount(options: ArchiveSearchOptions) {
+    const { sql, args } = buildArchiveSearchSQLQuery(options, true);
+    const rawData = dbManager.query(sql, args) as { total: number }[];
+    return rawData[0].total;
   }
 
   queryArchiveItem(options: ArchiveSearchOptions) {

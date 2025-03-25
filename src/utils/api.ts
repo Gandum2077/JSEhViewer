@@ -1,4 +1,4 @@
-import { EHAPIHandler, EHGallery, EHMPV, EHPage } from "ehentai-parser";
+import { EHAPIHandler, EHGallery, EHIgneousExpiredError, EHIPBannedError, EHMPV, EHPage } from "ehentai-parser";
 import { appLog, cropImageData, isNameMatchGid } from "./tools";
 import { aiTranslationPath, galleryInfoPath, imagePath, originalImagePath, thumbnailPath } from "./glv";
 import { aiTranslate } from "../ai-translations/ai-translate";
@@ -29,7 +29,6 @@ type CompoundThumbnail = {
 class APIHandler extends EHAPIHandler {
   constructor() {
     super((parsedCookies) => {
-      console.log("here");
       configManager.cookie = JSON.stringify(parsedCookies);
     });
   }
@@ -42,6 +41,7 @@ class APIHandler extends EHAPIHandler {
       const info = await this.getMPVInfo(gid, token);
       return { success: true, info };
     } catch (error: any) {
+      appLog(error, "error");
       appLog("获取MPV信息失败", "error");
       return { success: false, error: error.name };
     }
@@ -71,7 +71,14 @@ class APIHandler extends EHAPIHandler {
       const info = await this.getGalleryInfo(gid, token, false, page);
       return { success: true, images: info.images, info };
     } catch (error: any) {
+      appLog(error, "error");
       appLog(`获取图库页面失败: gid=${gid}, page=${page}`, "error");
+      if (error instanceof EHIgneousExpiredError) {
+        throw new FatalError("里站Cookie已过期，且无法自动刷新");
+      }
+      if (error instanceof EHIPBannedError) {
+        throw new FatalError("你的IP地址可能被封禁");
+      }
       return { success: false, error: error.name };
     }
   }
@@ -104,6 +111,7 @@ class APIHandler extends EHAPIHandler {
       const data = await this.downloadImage(pageInfo.imageUrl);
       return { success: true, info: pageInfo, data };
     } catch (error: any) {
+      appLog(error, "error");
       appLog(`图片下载失败: gid=${gid}, page=${page}`, "error");
       return { success: false, error: error.name, info: pageInfo };
     }
@@ -121,6 +129,7 @@ class APIHandler extends EHAPIHandler {
       const data = await this.downloadImage(pageInfo.imageUrl);
       return { success: true, info: pageInfo, data };
     } catch (error: any) {
+      appLog(error, "error");
       appLog(`图片下载失败: gid=${gid}, page=${page}`, "error");
       return { success: false, error: error.name, info: pageInfo };
     }
@@ -165,6 +174,7 @@ class APIHandler extends EHAPIHandler {
       const data = await this.downloadImage(pageInfo.imageUrl);
       return { success: true, info: pageInfo, data };
     } catch (error: any) {
+      appLog(error, "error");
       appLog(`图片下载失败: gid=${gid}, page=${page}`, "error");
       return { success: false, error: error.name, info: pageInfo };
     }
@@ -232,6 +242,7 @@ class APIHandler extends EHAPIHandler {
       const data = await this.downloadOriginalImage(pageInfo.fullSizeUrl);
       return { success: true, data };
     } catch (error: any) {
+      appLog(error, "error");
       appLog(`图片下载失败: gid=${gid}, page=${page}`, "error");
       return { success: false, error: error.name };
     }
@@ -1298,6 +1309,8 @@ class GalleryWebDAVUploader extends ConcurrentDownloaderBase {
           // 如果mkdir成功，则重新启动任务
           if (!this._paused) this._run();
         } catch (e: any) {
+          appLog(e, "error");
+          appLog(`创建WebDAV目录失败: gid=${this.gid}`, "error");
           this.result.mkdir.error = true;
         }
       },
@@ -1701,6 +1714,7 @@ export function checkWebDAVAndCreateUploader(gid: number, infos: EHGallery) {
       }
     })
     .catch((error) => {
+      appLog(error, "warn");
       appLog("WebDAV 连接失败, 无法创建上传任务", "warn");
     });
 }

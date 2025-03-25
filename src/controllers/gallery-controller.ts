@@ -2,7 +2,15 @@ import { PageViewerController, RefreshButton } from "jsbox-cview";
 import { GalleryInfoController } from "./gallery-info-controller";
 import { GalleryThumbnailController } from "./gallery-thumbnail-controller";
 import { GalleryCommentController } from "./gallery-comment-controller";
-import { EHGallery, EHNetworkError, EHServerError, EHCopyrightError, EHTimeoutError } from "ehentai-parser";
+import {
+  EHGallery,
+  EHNetworkError,
+  EHServerError,
+  EHCopyrightError,
+  EHTimeoutError,
+  EHIgneousExpiredError,
+  EHIPBannedError,
+} from "ehentai-parser";
 import { popoverWithSymbol } from "../components/popover-with-symbol";
 import { GalleryDetailedInfoController } from "./gallery-detailed-info-controller";
 import { configManager } from "../utils/config";
@@ -113,6 +121,12 @@ export class GalleryController extends PageViewerController {
             this._infos = infos;
           } catch (e: any) {
             appLog(e, "error");
+            if (e instanceof EHIgneousExpiredError) {
+              throw new FatalError("里站Cookie已过期，且无法自动刷新");
+            }
+            if (e instanceof EHIPBannedError) {
+              throw new FatalError("你的IP地址可能被封禁");
+            }
             if (e instanceof EHCopyrightError) {
               (sender.rootView.view.super.get("loadingLabel") as UILabelView).text = `加载失败：版权问题`;
             } else if (e instanceof EHServerError) {
@@ -300,6 +314,12 @@ export class GalleryController extends PageViewerController {
       }
     } catch (e: any) {
       appLog(e, "error");
+      if (e instanceof EHIgneousExpiredError) {
+        throw new FatalError("里站Cookie已过期，且无法自动刷新");
+      }
+      if (e instanceof EHIPBannedError) {
+        throw new FatalError("你的IP地址可能被封禁");
+      }
       if (e instanceof EHCopyrightError) {
         $ui.error(`加载失败：版权问题`);
       } else if (e instanceof EHServerError) {

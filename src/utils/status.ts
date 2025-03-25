@@ -3,6 +3,8 @@ import {
   EHFavoritesList,
   EHFrontPageList,
   EHGallery,
+  EHIgneousExpiredError,
+  EHIPBannedError,
   EHListCompactItem,
   EHListExtendedItem,
   EHPopularList,
@@ -497,6 +499,15 @@ export class VirtualTab {
     return false;
   }
 
+  private _fateErrorAlert(e: any) {
+    if (e instanceof EHIgneousExpiredError) {
+      throw new FatalError("里站Cookie已过期，且无法自动刷新");
+    }
+    if (e instanceof EHIPBannedError) {
+      throw new FatalError("你的IP地址可能被封禁");
+    }
+  }
+
   async loadTab({
     tabOptions,
     reload,
@@ -521,6 +532,7 @@ export class VirtualTab {
         try {
           page = await api.getFrontPageInfo(tabOptions.options);
         } catch (e: any) {
+          this._fateErrorAlert(e);
           this._status = "error";
           this.errorMessage = e.message;
           loadedHandler(this, false);
@@ -547,6 +559,7 @@ export class VirtualTab {
         try {
           page = await api.getWatchedInfo(tabOptions.options);
         } catch (e: any) {
+          this._fateErrorAlert(e);
           this._status = "error";
           this.errorMessage = e.message;
           loadedHandler(this, false);
@@ -573,6 +586,7 @@ export class VirtualTab {
         try {
           page = await api.getPopularInfo(tabOptions.options);
         } catch (e: any) {
+          this._fateErrorAlert(e);
           this._status = "error";
           this.errorMessage = e.message;
           loadedHandler(this, false);
@@ -599,6 +613,7 @@ export class VirtualTab {
         try {
           page = await api.getFavoritesInfo(tabOptions.options);
         } catch (e: any) {
+          this._fateErrorAlert(e);
           this._status = "error";
           this.errorMessage = e.message;
           loadedHandler(this, false);
@@ -625,6 +640,7 @@ export class VirtualTab {
         try {
           page = await api.getTopListInfo(tabOptions.options);
         } catch (e: any) {
+          this._fateErrorAlert(e);
           this._status = "error";
           this.errorMessage = e.message;
           loadedHandler(this, false);
@@ -647,6 +663,7 @@ export class VirtualTab {
         try {
           page = await api.getUploadInfo();
         } catch (e: any) {
+          this._fateErrorAlert(e);
           this._status = "error";
           this.errorMessage = e.message;
           loadedHandler(this, false);
@@ -708,6 +725,7 @@ export class VirtualTab {
         try {
           page = await api.getFrontPageInfo(this.data.options);
         } catch (e: any) {
+          this._fateErrorAlert(e);
           this._status = "error";
           this.errorMessage = e.message;
           loadedHandler(this, false);
@@ -739,6 +757,7 @@ export class VirtualTab {
         try {
           page = await api.getWatchedInfo(this.data.options);
         } catch (e: any) {
+          this._fateErrorAlert(e);
           this._status = "error";
           this.errorMessage = e.message;
           loadedHandler(this, false);
@@ -771,6 +790,7 @@ export class VirtualTab {
         try {
           page = await api.getFavoritesInfo(this.data.options);
         } catch (e: any) {
+          this._fateErrorAlert(e);
           this._status = "error";
           this.errorMessage = e.message;
           loadedHandler(this, false);
@@ -797,6 +817,7 @@ export class VirtualTab {
         try {
           page = await api.getTopListInfo(this.data.options);
         } catch (e: any) {
+          this._fateErrorAlert(e);
           this._status = "error";
           this.errorMessage = e.message;
           loadedHandler(this, false);

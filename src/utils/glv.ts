@@ -1,8 +1,8 @@
 // 此文件中只定义常量
 import { EHCategory, EHSearchedCategory, TagNamespace } from "ehentai-parser";
 
-const debugText = $file.read("assets/debug")?.string;
-export const globalLogLevel: "debug" | "info" | "warn" | "error" | "fatal" = debugText === "1" ? "debug" : "info";
+const debugText = $file.read("assets/debug")?.string?.trim();
+export const globalLogLevel: "debug" | "info" | "warn" | "error" | "fatal" = debugText === "1" ? "debug" : "warn";
 
 export const webdavIntroductionPath = "assets/webdav-introduction.md";
 export const databasePath = "assets/database.db";
@@ -14,6 +14,7 @@ export const galleryInfoPath = "assets/info/";
 export const tempPath = "assets/temp/";
 export const tempZipPath = "assets/temp.zip";
 export const appConfigPath = "config.json";
+export const debugLogPath = "debug.db";
 
 export const logoColorHex = "#5D1215";
 

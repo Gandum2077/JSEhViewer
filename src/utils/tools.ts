@@ -1,5 +1,5 @@
 import { EHSearchTerm, TagNamespace, tagNamespaceMostUsedAlternateMap } from "ehentai-parser";
-import { appConfigPath, globalLogLevel } from "./glv";
+import { appConfigPath, debugLogPath, globalLogLevel } from "./glv";
 import { configManager } from "./config";
 
 const levelMap = {
@@ -10,7 +10,9 @@ const levelMap = {
   fatal: 3,
 };
 
-export function appLog(message: any, level: "debug" | "info" | "warn" | "error" | "fatal" = "info") {
+let debugDB: SqliteTypes.SqliteInstance | undefined = undefined;
+
+export function appLog(message: any, level: "debug" | "info" | "warn" | "error" = "info") {
   if (levelMap[level] >= levelMap[globalLogLevel]) {
     if (level === "info") {
       console.info(message);
@@ -18,24 +20,29 @@ export function appLog(message: any, level: "debug" | "info" | "warn" | "error" 
       console.warn(message);
     } else if (level === "error") {
       console.error(message);
-    } else if (level === "fatal") {
-      console.error(message);
-      const text = message instanceof Error ? message.name + ": " + message.message : message.toString();
-      $ui.alert({
-        title: "致命错误",
-        message: text,
-        actions: [
-          {
-            title: "退出应用",
-            handler: () => {
-              $app.close();
-            },
-          },
-        ],
-      });
     } else {
       console.log(message);
     }
+  }
+  if (level === "debug") {
+    if (!debugDB) {
+      debugDB = $sqlite.open(debugLogPath);
+      debugDB.update(`CREATE TABLE IF NOT EXISTS debug (
+        time TEXT DEFAULT (datetime('now')),
+        level TEXT,
+        info TEXT
+        )`);
+    }
+    let text: string;
+    try {
+      text = JSON.stringify(message);
+    } catch (e) {
+      text = "不可序列化的内容";
+    }
+    debugDB.update({
+      sql: "INSERT INTO debug (level, info) VALUES (?,?)",
+      args: [level, text],
+    });
   }
 }
 

@@ -18,7 +18,7 @@ import {
   EHSearchTerm,
   ParsedCookie,
 } from "ehentai-parser";
-import { aiTranslationPath, imagePath, thumbnailPath, originalImagePath, galleryInfoPath } from "./utils/glv";
+import { aiTranslationPath, imagePath, thumbnailPath, originalImagePath, galleryInfoPath, debugLogPath } from "./utils/glv";
 import { globalTimer } from "./utils/timer";
 import { StatusTabOptions } from "./types";
 import { dbManager } from "./utils/database";

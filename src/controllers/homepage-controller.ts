@@ -20,7 +20,7 @@ import { EhlistTitleView } from "../components/ehlist-titleview";
 import { popoverForTitleView } from "../components/titleview-popover";
 
 export class HomepageController extends BaseController {
-  _thumbnailAllLoaded: boolean = false; // 此标志用于在TabDownloader完成后，再进行一次刷新
+  private _thumbnailAllLoaded: boolean = false; // 此标志用于在TabDownloader完成后，再进行一次刷新
   cviews: {
     navbar: CustomNavigationBar;
     list: EHlistView;
@@ -526,7 +526,8 @@ export class HomepageController extends BaseController {
 
   private _loadedHandler(vtab: VirtualTab, success: boolean, updateSearchTermsCount: boolean) {
     if (vtab.data.type === "archive") throw new Error("invalid tab type");
-    this.updateStatus();
+
+    // 更新搜索历史和标签访问次数
     if (
       updateSearchTermsCount &&
       (vtab.data.type === "front_page" || vtab.data.type === "watched" || vtab.data.type === "favorites")
@@ -539,9 +540,17 @@ export class HomepageController extends BaseController {
       }
     }
 
+    // 更新页面状态
+    if (vtab.id === statusManager.currentTabId) {
+      this.updateStatus();
+    }
+
+    // 下载器更新
     if (success && vtab.data.type !== "upload" && vtab.data.type !== "blank") {
-      downloaderManager.getTabDownloader(statusManager.currentTabId)!.clear();
-      downloaderManager.getTabDownloader(statusManager.currentTabId)!.add(
+      const d = downloaderManager.getTabDownloader(vtab.id);
+      if (!d) return;
+      d.clear();
+      d.add(
         vtab.data.pages
           .map((page) => page.items)
           .flat()
@@ -550,7 +559,10 @@ export class HomepageController extends BaseController {
             url: item.thumbnail_url,
           }))
       );
-      downloaderManager.startTabDownloader(statusManager.currentTabId);
+      // 只有id一致时才开始下载
+      if (vtab.id === statusManager.currentTabId) {
+        downloaderManager.startTabDownloader(vtab.id);
+      }
     }
   }
 

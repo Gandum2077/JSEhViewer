@@ -15,7 +15,8 @@ import { EhlistTitleView } from "../components/ehlist-titleview";
 import { popoverForTitleView } from "../components/titleview-popover";
 
 export class PushedSearchResultController extends BaseController {
-  _thumbnailAllLoaded: boolean = false; // 此标志用于在TabDownloader完成后，再进行一次刷新
+  private _thumbnailAllLoaded: boolean = false; // 此标志用于在TabDownloader完成后，再进行一次刷新
+  private _visible: boolean = true; // 用于判断是否可见
   readonly tabId: string;
   layoutMode: "normal" | "large";
   cviews: {
@@ -53,6 +54,7 @@ export class PushedSearchResultController extends BaseController {
           globalTimer.pauseTask(this.tabId);
         },
         didRemove: () => {
+          this._visible = false;
           if (!statusManager.tabIdsShownInManager.includes(this.tabId)) {
             downloaderManager.removeTabDownloader(this.tabId);
             statusManager.removeTab(this.tabId);
@@ -426,7 +428,8 @@ export class PushedSearchResultController extends BaseController {
     if (vtab.data.type !== "front_page" && vtab.data.type !== "watched" && vtab.data.type !== "favorites") {
       throw new Error("Invalid tab type");
     }
-    this.updateStatus();
+
+    // 更新搜索历史和标签访问次数
     if (updateSearchTermsCount) {
       const searchTerms = vtab.data.options.searchTerms;
       if (searchTerms && searchTerms.length) {
@@ -435,9 +438,14 @@ export class PushedSearchResultController extends BaseController {
         configManager.updateTagAccessCount(searchTerms);
       }
     }
+
+    this.updateStatus();
+
     if (success) {
-      downloaderManager.getTabDownloader(this.tabId)!.clear();
-      downloaderManager.getTabDownloader(this.tabId)!.add(
+      const d = downloaderManager.getTabDownloader(this.tabId);
+      if (!d) return;
+      d.clear();
+      d.add(
         vtab.data.pages
           .map((page) => page.items)
           .flat()
@@ -458,7 +466,8 @@ export class PushedSearchResultController extends BaseController {
     // 四个内容需要更新状态：列表、搜索栏、标题、底部
     // 本controller只有三种情况：front_page, watched, favorites
     const tab = statusManager.get(this.tabId);
-    if (!tab || (tab.data.type !== "front_page" && tab.data.type !== "watched" && tab.data.type !== "favorites")) {
+    if (!tab || !this._visible) return; // 要考虑到tab已经被用户主动关闭的情况
+    if (tab.data.type !== "front_page" && tab.data.type !== "watched" && tab.data.type !== "favorites") {
       throw new Error("Tab not found or invalid tab type");
     }
 

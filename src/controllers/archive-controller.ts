@@ -14,7 +14,7 @@ import { EhlistTitleView } from "../components/ehlist-titleview";
 import { popoverForTitleView } from "../components/titleview-popover";
 
 export class ArchiveController extends BaseController {
-  _thumbnailAllLoaded: boolean = false; // 此标志用于在TabDownloader完成后，再进行一次刷新
+  private _thumbnailAllLoaded: boolean = false; // 此标志用于在TabDownloader完成后，再进行一次刷新
   cviews: {
     navbar: CustomNavigationBar;
     list: EHlistView;
@@ -137,7 +137,7 @@ export class ArchiveController extends BaseController {
             handler: async () => {
               const tab = statusManager.get("archive");
               if (!tab || tab.data.type !== "archive") throw new Error("tab type not archive");
-              if (!tab || tab.data.pages.length === 0) {
+              if (tab.data.pages.length === 0) {
                 $ui.toast("列表为空，无法翻页");
                 return;
               }

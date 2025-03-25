@@ -1071,15 +1071,15 @@ LIMIT 20;
     $file.delete(thumbnailPath);
     $file.delete(originalImagePath);
     $file.delete(aiTranslationPath);
-    const sql = "SELECT gid FROM archives WHERE downloaded <> 1";
+    const sql = "SELECT gid FROM archives WHERE downloaded = 1";
     const data = dbManager.query(sql) as {
       gid: number;
     }[];
-    const needDeleteGids = data.map((n) => n.gid);
+    const downloadedGids = data.map((n) => n.gid);
     const imageDirs = $file.list(imagePath)!;
     for (const dir of imageDirs) {
       const gid = parseInt(dir);
-      if (needDeleteGids.includes(gid)) {
+      if (!downloadedGids.includes(gid)) {
         $file.delete(imagePath + dir);
       }
     }

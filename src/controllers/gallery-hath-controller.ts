@@ -1,4 +1,4 @@
-import { EHArchive, EHGallery } from "ehentai-parser";
+import { EHArchive, EHGallery, EHInsufficientFundError } from "ehentai-parser";
 import { CustomNavigationBar, DynamicItemSizeMatrix, Label, PresentedPageController } from "jsbox-cview";
 import { api } from "../utils/api";
 import { appLog } from "../utils/tools";
@@ -143,9 +143,13 @@ export class GalleryHathController extends PresentedPageController {
       } else {
         $ui.success("下载会在几分钟内开始");
       }
-    } catch (e) {
+    } catch (e: any) {
       appLog(e, "error");
-      $ui.error("错误：请求失败");
+      if (e instanceof EHInsufficientFundError) {
+        $ui.error("错误：账号资金不足");
+      } else {
+        $ui.error("错误：请求失败");
+      }
     } finally {
       this._isRequestInProgress = false;
     }

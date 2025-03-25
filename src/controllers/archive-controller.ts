@@ -186,6 +186,10 @@ export class ArchiveController extends BaseController {
     const list = new EHlistView({
       layoutMode: configManager.archiveManagerLayoutMode,
       searchBar,
+      removeFromArchiveHandler: (item) => {
+        // TODO: 后续添加刷新存档列表功能
+        statusManager.deleteArchiveItem(item.gid);
+      },
       pulled: () => {
         const tab = statusManager.get("archive");
         if (!tab || tab.data.type !== "archive") throw new Error("tab type not archive");
@@ -198,7 +202,6 @@ export class ArchiveController extends BaseController {
           statusBarStyle: 0,
         });
       },
-      didLongPress: (sender, indexPath, item) => {},
       didReachBottom: () => {
         this.triggerLoadMore();
       },

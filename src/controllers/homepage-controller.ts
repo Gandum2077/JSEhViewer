@@ -405,6 +405,26 @@ export class HomepageController extends BaseController {
     const list = new EHlistView({
       layoutMode: configManager.homepageManagerLayoutMode,
       searchBar,
+      readlaterHandler: (item) => {
+        // TODO: 后续添加刷新存档列表功能
+        const dbitem = statusManager.getArchiveItem(item.gid);
+        if (dbitem) {
+          if (dbitem.readlater) {
+            $ui.toast("稍后阅读中已有该图库");
+          } else {
+            statusManager.updateArchiveItem(item.gid, {
+              readlater: true,
+            });
+            $ui.success("已添加到稍后阅读");
+          }
+        } else {
+          statusManager.updateArchiveItem(item.gid, {
+            infos: item,
+            readlater: true,
+          });
+          $ui.success("已添加到稍后阅读");
+        }
+      },
       pulled: async () => {
         const tab = statusManager.currentTab;
         if (tab.data.type !== "blank" && tab.data.type !== "upload") {
@@ -418,7 +438,6 @@ export class HomepageController extends BaseController {
           statusBarStyle: 0,
         });
       },
-      didLongPress: (sender, indexPath, item) => {},
       didReachBottom: () => {
         this.triggerLoadMore();
       },
@@ -465,7 +484,6 @@ export class HomepageController extends BaseController {
           statusBarStyle: 0,
         });
       },
-      didLongPress: (sender, indexPath, item) => {},
       didReachBottom: () => {
         return;
       },

@@ -302,18 +302,20 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
   constructor({
     layoutMode,
     searchBar,
+    readlaterHandler,
+    removeFromArchiveHandler,
     pulled,
     didSelect,
-    didLongPress,
     didReachBottom,
     contentOffsetChanged,
     layout,
   }: {
     layoutMode: "normal" | "large";
     searchBar: Base<any, any>;
+    readlaterHandler?: (item: EHListExtendedItem | EHListCompactItem) => Promise<void> | void;
+    removeFromArchiveHandler?: (item: EHListExtendedItem | EHListCompactItem) => Promise<void> | void;
     pulled: () => Promise<void> | void;
     didSelect: (sender: EHlistView, indexPath: NSIndexPath, item: Items[0]) => Promise<void> | void;
-    didLongPress: (sender: EHlistView, indexPath: NSIndexPath, item: Items[0]) => void;
     didReachBottom: () => Promise<void> | void;
     contentOffsetChanged?: (scrollState: ScrollState) => void;
     layout: (make: MASConstraintMaker, view: UIView) => void;
@@ -321,6 +323,27 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
     super();
     this._layoutMode = layoutMode;
     this._contentOffsetChanged = contentOffsetChanged;
+    const menuItems: UiTypes.ContextMenuSubItem[] = [];
+    if (readlaterHandler) {
+      menuItems.push({
+        title: "稍后阅读",
+        symbol: "bookmark",
+        handler: (sender, indexPath) => {
+          const item = this._items[indexPath.item] as EHListExtendedItem | EHListCompactItem;
+          readlaterHandler(item);
+        },
+      });
+    }
+    if (removeFromArchiveHandler) {
+      menuItems.push({
+        title: "删除该记录",
+        symbol: "trash",
+        handler: (sender, indexPath) => {
+          const item = this._items[indexPath.item] as EHListExtendedItem | EHListCompactItem;
+          removeFromArchiveHandler(item);
+        },
+      });
+    }
     this.matrix = new Matrix({
       props: {
         bgcolor: $color("clear"),
@@ -343,6 +366,9 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
             font: $font(12),
             lines: 2,
           },
+        },
+        menu: {
+          items: menuItems,
         },
         template: {
           props: {
@@ -907,9 +933,6 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
         },
         didSelect: async (sender, indexPath, data) => {
           await didSelect(this, indexPath, this._items[indexPath.item]);
-        },
-        didLongPress: async (sender, indexPath, data) => {
-          didLongPress(this, indexPath, this._items[indexPath.item]);
         },
       },
     });

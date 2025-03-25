@@ -33,8 +33,6 @@ class HeaderStackBlur extends Base<UIButtonView, UiTypes.ButtonOptions> {
         },
         events: {
           tapped: () => {
-            (router.get("splitViewController") as SplitViewController).sideBarShown = false;
-            (router.get("primaryViewController") as TabBarController).index = 0;
             let options: StatusTabOptions;
             switch (type) {
               case "front_page":
@@ -70,6 +68,8 @@ class HeaderStackBlur extends Base<UIButtonView, UiTypes.ButtonOptions> {
                 throw new Error("未知的选项");
             }
             (router.get("homepageController") as HomepageController).triggerLoad(options);
+            (router.get("splitViewController") as SplitViewController).sideBarShown = false;
+            (router.get("primaryViewController") as TabBarController).index = 0;
           },
         },
         views: [
@@ -192,8 +192,6 @@ export class SidebarTabController extends BaseController {
                         {
                           title: "昨天",
                           handler: () => {
-                            (router.get("splitViewController") as SplitViewController).sideBarShown = false;
-                            (router.get("primaryViewController") as TabBarController).index = 0;
                             (router.get("homepageController") as HomepageController).triggerLoad({
                               type: "toplist",
                               options: {
@@ -201,13 +199,13 @@ export class SidebarTabController extends BaseController {
                                 page: 0,
                               },
                             });
+                            (router.get("splitViewController") as SplitViewController).sideBarShown = false;
+                            (router.get("primaryViewController") as TabBarController).index = 0;
                           },
                         },
                         {
                           title: "最近一月",
                           handler: () => {
-                            (router.get("splitViewController") as SplitViewController).sideBarShown = false;
-                            (router.get("primaryViewController") as TabBarController).index = 0;
                             (router.get("homepageController") as HomepageController).triggerLoad({
                               type: "toplist",
                               options: {
@@ -215,13 +213,13 @@ export class SidebarTabController extends BaseController {
                                 page: 0,
                               },
                             });
+                            (router.get("splitViewController") as SplitViewController).sideBarShown = false;
+                            (router.get("primaryViewController") as TabBarController).index = 0;
                           },
                         },
                         {
                           title: "最近一年",
                           handler: () => {
-                            (router.get("splitViewController") as SplitViewController).sideBarShown = false;
-                            (router.get("primaryViewController") as TabBarController).index = 0;
                             (router.get("homepageController") as HomepageController).triggerLoad({
                               type: "toplist",
                               options: {
@@ -229,13 +227,13 @@ export class SidebarTabController extends BaseController {
                                 page: 0,
                               },
                             });
+                            (router.get("splitViewController") as SplitViewController).sideBarShown = false;
+                            (router.get("primaryViewController") as TabBarController).index = 0;
                           },
                         },
                         {
                           title: "总排行",
                           handler: () => {
-                            (router.get("splitViewController") as SplitViewController).sideBarShown = false;
-                            (router.get("primaryViewController") as TabBarController).index = 0;
                             (router.get("homepageController") as HomepageController).triggerLoad({
                               type: "toplist",
                               options: {
@@ -243,6 +241,8 @@ export class SidebarTabController extends BaseController {
                                 page: 0,
                               },
                             });
+                            (router.get("splitViewController") as SplitViewController).sideBarShown = false;
+                            (router.get("primaryViewController") as TabBarController).index = 0;
                           },
                         },
                       ],
@@ -350,7 +350,7 @@ export class SidebarTabController extends BaseController {
                   },
                   events: {
                     tapped: () => {
-                      statusManager.addTab({showInManager: true});
+                      statusManager.addTab({ showInManager: true });
                       this.refresh();
                     },
                   },
@@ -515,8 +515,6 @@ export class SidebarTabController extends BaseController {
         didSelect: (sender, indexPath, data) => {
           statusManager.currentTabId = statusManager.tabIdsShownInManager[indexPath.row];
           this.refresh();
-          (router.get("splitViewController") as SplitViewController).sideBarShown = false;
-          (router.get("primaryViewController") as TabBarController).index = 0;
           const tab = statusManager.currentTab;
           const oldScrollState = tab.scrollState;
           const home = router.get("homepageController") as HomepageController;
@@ -524,6 +522,8 @@ export class SidebarTabController extends BaseController {
           if (oldScrollState) {
             home.cviews.list.updateScrollState(oldScrollState);
           }
+          (router.get("splitViewController") as SplitViewController).sideBarShown = false;
+          (router.get("primaryViewController") as TabBarController).index = 0;
         },
       },
     });
@@ -577,13 +577,14 @@ export class SidebarTabController extends BaseController {
       ) {
         let title = fixedTabSymbolTitle[type].title;
         if (type === "toplist") {
-          title = tab.data.options.timeRange === "yesterday"
-          ? "日排行"
-          : tab.data.options.timeRange === "past_month"
-          ? "月排行"
-          : tab.data.options.timeRange === "past_year"
-          ? "年排行"
-          : "总排行";
+          title =
+            tab.data.options.timeRange === "yesterday"
+              ? "日排行"
+              : tab.data.options.timeRange === "past_month"
+              ? "月排行"
+              : tab.data.options.timeRange === "past_year"
+              ? "年排行"
+              : "总排行";
         }
         return {
           image: {

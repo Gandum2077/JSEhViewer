@@ -114,7 +114,7 @@ export class ArchiveController extends BaseController {
           configManager.archiveManagerOrderMethod = values.archiveManagerOrderMethod;
           newOptions.options.sort = values.archiveManagerOrderMethod;
         }
-        if (reloadFlag) this.triggerLoad(newOptions);
+        if (reloadFlag) this.triggerLoad({ tabOptions: newOptions });
       },
     });
     const navbar = new CustomNavigationBar({
@@ -138,12 +138,12 @@ export class ArchiveController extends BaseController {
               const tab = statusManager.get("archive");
               if (!tab || tab.data.type !== "archive") throw new Error("tab type not archive");
               if (tab.data.pages.length === 0) {
-                $ui.toast("列表为空，无法翻页");
+                $ui.toast("目前无法翻页");
                 return;
               }
               const allCount = tab.data.pages[0].all_count;
               if (allCount === 0) {
-                $ui.toast("列表为空，无法翻页");
+                $ui.toast("目前无法翻页");
                 return;
               }
               if (tab.data.pages[0].items.length === allCount) {
@@ -154,7 +154,7 @@ export class ArchiveController extends BaseController {
               const newOptions = clearExtraPropsForReload(tab.data);
               newOptions.options.fromPage = page;
               newOptions.options.toPage = page;
-              this.triggerLoad(newOptions);
+              this.triggerLoad({ tabOptions: newOptions });
             },
           },
         ],
@@ -166,7 +166,7 @@ export class ArchiveController extends BaseController {
         tapped: async (sender) => {
           const tab = statusManager.get("archive");
           if (!tab || tab.data.type !== "archive") throw new Error("tab type not archive");
-          const args = (await getSearchOptions(
+          const newOptions = (await getSearchOptions(
             {
               type: "archive",
               options: {
@@ -179,7 +179,7 @@ export class ArchiveController extends BaseController {
             },
             "onlyShowArchive"
           )) as ArchiveTabOptions;
-          this.triggerLoad(args);
+          this.triggerLoad({ tabOptions: newOptions });
         },
       },
     });
@@ -187,13 +187,21 @@ export class ArchiveController extends BaseController {
       layoutMode: configManager.archiveManagerLayoutMode,
       searchBar,
       removeFromArchiveHandler: (item) => {
-        // TODO: 后续添加刷新存档列表功能
+        const dbItem = statusManager.getArchiveItem(item.gid);
+        if (!dbItem) return;
         statusManager.deleteArchiveItem(item.gid);
+        this.silentRefresh({ ignoreThumbnailDownload: false });
+        const d = downloaderManager.get(item.gid);
+        if (d) {
+          d.background = false;
+          downloaderManager.remove(item.gid);
+          downloaderManager.startIfIdle({ prioritized: [{ type: "tab", id: "archive" }] });
+        }
       },
       pulled: () => {
         const tab = statusManager.get("archive");
         if (!tab || tab.data.type !== "archive") throw new Error("tab type not archive");
-        this.triggerLoad(clearExtraPropsForReload(tab.data), true);
+        this.triggerLoad({ tabOptions: clearExtraPropsForReload(tab.data), reload: true });
       },
       didSelect: (sender, indexPath, item) => {
         const galleryController = new GalleryController(item.gid, item.token);
@@ -218,13 +226,21 @@ export class ArchiveController extends BaseController {
     this.rootView.views = [navbar, list];
   }
 
-  triggerLoad(tabOptions: ArchiveTabOptions, reload?: boolean) {
+  triggerLoad({
+    tabOptions,
+    reload,
+    ignoreThumbnailDownload,
+  }: {
+    tabOptions: ArchiveTabOptions;
+    reload?: boolean;
+    ignoreThumbnailDownload?: boolean;
+  }) {
     const tab = statusManager.get("archive");
     if (!tab || tab.data.type !== "archive") throw new Error("tab type not archive");
     tab.loadTab({
       tabOptions,
       loadedHandler: (vtab, success) => {
-        this._loadedHandler(vtab, success, !reload);
+        this._loadedHandler({ vtab, success, updateSearchTermsCount: !reload, ignoreThumbnailDownload });
       },
     });
   }
@@ -235,12 +251,34 @@ export class ArchiveController extends BaseController {
     if (!tab.isNextPageAvailable) return;
     tab.loadMoreTab({
       loadedHandler: (vtab, success) => {
-        this._loadedHandler(vtab, success, false);
+        this._loadedHandler({ vtab, success, updateSearchTermsCount: false });
       },
     });
   }
 
-  private _loadedHandler(vtab: VirtualTab, success: boolean, updateSearchTermsCount: boolean) {
+  /**
+   *
+   */
+  silentRefresh({ ignoreThumbnailDownload }: { ignoreThumbnailDownload: boolean } = { ignoreThumbnailDownload: true }) {
+    const tab = statusManager.get("archive");
+    if (!tab || tab.data.type !== "archive") throw new Error("tab type not archive");
+    const newOptions = clearExtraPropsForReload(tab.data);
+    newOptions.options.fromPage = tab.data.options.fromPage;
+    newOptions.options.toPage = tab.data.options.toPage;
+    this.triggerLoad({ tabOptions: newOptions, reload: true, ignoreThumbnailDownload });
+  }
+
+  private _loadedHandler({
+    vtab,
+    success,
+    updateSearchTermsCount,
+    ignoreThumbnailDownload,
+  }: {
+    vtab: VirtualTab;
+    success: boolean;
+    updateSearchTermsCount: boolean;
+    ignoreThumbnailDownload?: boolean;
+  }) {
     if (vtab.data.type !== "archive") throw new Error("tab type not archive");
     this.updateStatus();
     if (updateSearchTermsCount) {
@@ -262,7 +300,9 @@ export class ArchiveController extends BaseController {
             url: item.thumbnail_url,
           }))
       );
-      downloaderManager.startTabDownloader("archive");
+      if (!ignoreThumbnailDownload) {
+        downloaderManager.startTabDownloader("archive");
+      }
     }
   }
 

@@ -31,8 +31,11 @@ import {
   UploadTabOptions,
   WatchedTabOptions,
 } from "../types";
-import { cvid } from "jsbox-cview";
+import { cvid, router } from "jsbox-cview";
 import { FatalError } from "./error";
+import { PushedSearchResultController } from "../controllers/pushed-search-result-controller";
+import { HomepageController } from "../controllers/homepage-controller";
+import { ArchiveController } from "../controllers/archive-controller";
 
 function buildArchiveSearchSQLQuery(
   options: ArchiveSearchOptions,
@@ -869,6 +872,33 @@ export class VirtualTab {
     }
   }
 
+  silentUpdateItem(
+    gid: number,
+    options: {
+      my_rating?: number;
+      favorite_info?: { favorited: false } | { favorited: true; favcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 };
+    }
+  ) {
+    if (
+      this.data.type !== "blank" &&
+      this.data.type !== "archive" &&
+      this.data.type !== "upload" &&
+      this.data.pages.length > 0
+    ) {
+      const item = this.data.pages.find((n) => n.items.some((m) => m.gid === gid))?.items.find((n) => n.gid === gid);
+      if (item) {
+        if (options.my_rating) {
+          item.is_my_rating = true;
+          item.estimated_display_rating = options.my_rating;
+        }
+        if (options.favorite_info) {
+          item.favorited = options.favorite_info.favorited;
+          item.favcat = options.favorite_info.favorited ? options.favorite_info.favcat : undefined;
+        }
+      }
+    }
+  }
+
   queryArchiveItemCount(options: ArchiveSearchOptions) {
     const { sql, args } = buildArchiveSearchSQLQuery(options, true);
     const rawData = dbManager.query(sql, args) as { total: number }[];
@@ -935,6 +965,7 @@ class StatusManager {
   private _tabsMap: Map<string, VirtualTab> = new Map();
   private _tabIdsInManager: string[];
   private _currentTabId;
+  pushedControllerMap: Map<string, PushedSearchResultController> = new Map();
   constructor() {
     // 初始化
     this._tabsMap.set("archive", new VirtualTab({ id: "archive", initalTabType: "archive" }));
@@ -998,6 +1029,23 @@ class StatusManager {
   hideTabInManager(tabId: string) {
     if (!this._tabIdsInManager.includes(tabId)) return;
     this._tabIdsInManager = this._tabIdsInManager.filter((id) => id !== tabId);
+  }
+
+  silentRefreshAll(
+    gid: number,
+    options: {
+      my_rating?: number;
+      favorite_info?: { favorited: false } | { favorited: true; favcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 };
+    }
+  ) {
+    for (const c of this.tabsMap.values()) {
+      if (c.id !== "archive") c.silentUpdateItem(gid, options);
+    }
+    for (const controller of this.pushedControllerMap.values()) {
+      controller.updateStatus();
+    }
+    (router.get("homepageController") as HomepageController).updateStatus();
+    (router.get("archiveController") as ArchiveController).silentRefresh();
   }
 
   getArchiveItem(gid: number) {

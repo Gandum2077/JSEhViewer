@@ -189,7 +189,7 @@ export class TagManagerController extends BaseController {
               "showAll"
             );
             if (options.type === "archive") {
-              (router.get("archiveController") as ArchiveController).triggerLoad(options);
+              (router.get("archiveController") as ArchiveController).triggerLoad({ tabOptions: options });
               (router.get("primaryViewController") as TabBarController).index = 1;
             } else {
               (router.get("homepageController") as HomepageController).triggerLoad(options);
@@ -344,7 +344,7 @@ export class TagManagerController extends BaseController {
                   "showAll"
                 );
                 if (options.type === "archive") {
-                  (router.get("archiveController") as ArchiveController).triggerLoad(options);
+                  (router.get("archiveController") as ArchiveController).triggerLoad({ tabOptions: options });
                   (router.get("primaryViewController") as TabBarController).index = 1;
                 } else {
                   (router.get("homepageController") as HomepageController).triggerLoad(options);

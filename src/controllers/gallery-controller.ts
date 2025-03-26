@@ -1,4 +1,4 @@
-import { PageViewerController, RefreshButton } from "jsbox-cview";
+import { PageViewerController, RefreshButton, router } from "jsbox-cview";
 import { GalleryInfoController } from "./gallery-info-controller";
 import { GalleryThumbnailController } from "./gallery-thumbnail-controller";
 import { GalleryCommentController } from "./gallery-comment-controller";
@@ -23,6 +23,7 @@ import { setWebDAVConfig } from "./settings-webdav-controller";
 import { globalTimer } from "../utils/timer";
 import { defaultButtonColor, galleryInfoPath, imagePath, tempPath, tempZipPath } from "../utils/glv";
 import { FatalError } from "../utils/error";
+import { ArchiveController } from "./archive-controller";
 
 export class GalleryController extends PageViewerController {
   private _infos?: EHGallery;
@@ -168,6 +169,7 @@ export class GalleryController extends PageViewerController {
             updateLastAccessTime: true,
             readlater: false,
           });
+          (router.get("archiveController") as ArchiveController).silentRefresh();
 
           sender.rootView.view.super.get("loadingLabel").remove();
 
@@ -381,6 +383,7 @@ export class GalleryController extends PageViewerController {
       updateLastAccessTime: true,
       readlater: isSameGallery ? readlater_old : false,
     });
+    (router.get("archiveController") as ArchiveController).silentRefresh();
 
     // 重新初始化webdav客户端
     this.resetWebDAV();

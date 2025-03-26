@@ -175,7 +175,10 @@ export class GeneralSettingsController extends BaseController {
             if (!tab || tab.data.type !== "archive") throw new Error("tab type not archive");
             const options = clearExtraPropsForReload(tab.data);
             options.options.sort = archiveManagerOrderMethod;
-            (router.get("archiveController") as ArchiveController).triggerLoad(options);
+            (router.get("archiveController") as ArchiveController).triggerLoad({
+              tabOptions: options,
+              ignoreThumbnailDownload: true,
+            });
           }
           if (alwaysShowWebDAVWidget !== configManager.alwaysShowWebDAVWidget) {
             configManager.alwaysShowWebDAVWidget = alwaysShowWebDAVWidget;
@@ -439,7 +442,10 @@ export class GeneralSettingsController extends BaseController {
                   const tab = statusManager.get("archive");
                   if (!tab || tab.data.type !== "archive") throw new Error("tab type not archive");
                   const options = clearExtraPropsForReload(tab.data);
-                  (router.get("archiveController") as ArchiveController).triggerLoad(options);
+                  (router.get("archiveController") as ArchiveController).triggerLoad({
+                    tabOptions: options,
+                    ignoreThumbnailDownload: true,
+                  });
                 },
               });
             },

@@ -146,12 +146,14 @@ async function init() {
   // 此时可以加载archiveController了
   $delay(0.3, () =>
     archiveController.triggerLoad({
-      type: "archive",
-      options: {
-        fromPage: 0,
-        toPage: 0,
-        type: "all",
-        sort: configManager.archiveManagerOrderMethod,
+      tabOptions: {
+        type: "archive",
+        options: {
+          fromPage: 0,
+          toPage: 0,
+          type: "all",
+          sort: configManager.archiveManagerOrderMethod,
+        },
       },
     })
   );

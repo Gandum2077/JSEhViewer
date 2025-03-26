@@ -1363,7 +1363,6 @@ class GalleryWebDAVUploader extends ConcurrentDownloaderBase {
  * 下载器管理器。
  *
  * 1. 始终都只能有一个下载器在下载，其他下载器都处于暂停状态。
- * TODO：为galleryDownloaders添加background属性，当前下载器下载完成后，会自动查找background为true的下载器并启动。
  */
 class DownloaderManager {
   tabDownloaders: Map<string, TabThumbnailDownloader>; // key为tab的id
@@ -1428,7 +1427,6 @@ class DownloaderManager {
 
   /**
    * 启动某一个图库下载器，并暂停其他全部图库下载器
-   * TODO：如果当前下载器没有可以启动的子任务，那么尝试启动别的下载器
    */
   startOne(gid: number) {
     // 先检测该下载器是否还有未完成的任务，如果没有，则不启动
@@ -1664,6 +1662,74 @@ class DownloaderManager {
     }
     for (const [k, v] of this.galleryWebDAVUploaders) {
       if (k !== gid && !v.backgroundPaused && !v.isAllFinishedDespiteError) {
+        this.startOne(k);
+        return;
+      }
+    }
+  }
+
+  /**
+   * 启动一个下载器/上传器/缩略图下载器
+   * @param params
+   * @param params.prioritized 优先任务
+   * @param params.excluded 排除任务
+   */
+  startIfIdle({
+    prioritized,
+    excluded,
+  }: {
+    prioritized?: ({ type: "tab"; id: string } | { type: "gallery" | "webdav"; id: number })[];
+    excluded?: ({ type: "tab"; id: string } | { type: "gallery" | "webdav"; id: number })[];
+  } = {}) {
+    prioritized = prioritized ?? [];
+    excluded = excluded ?? [];
+    for (const { type, id } of prioritized) {
+      switch (type) {
+        case "tab": {
+          const d = this.getTabDownloader(id);
+          if (d && !d.isAllFinishedDespiteError) {
+            this.startTabDownloader(id);
+            return;
+          }
+          break;
+        }
+        case "gallery": {
+          const d = this.get(id);
+          if (d && !d.isAllFinishedDespiteError) {
+            this.startOne(id);
+            return;
+          }
+          break;
+        }
+        case "webdav": {
+          const d = this.getGalleryWebDAVUploader(id);
+          if (d && !d.isAllFinishedDespiteError) {
+            this.startGalleryWebDAVUploader(id);
+            return;
+          }
+          break;
+        }
+        default:
+          break;
+      }
+    }
+    for (const [k, v] of this.galleryDownloaders) {
+      if (
+        !excluded.some((n) => n.type === "gallery" && n.id === k) &&
+        v.background &&
+        !v.backgroundPaused &&
+        !v.isAllFinishedDespiteError
+      ) {
+        this.startOne(k);
+        return;
+      }
+    }
+    for (const [k, v] of this.galleryWebDAVUploaders) {
+      if (
+        !excluded.some((n) => n.type === "webdav" && n.id === k) &&
+        !v.backgroundPaused &&
+        !v.isAllFinishedDespiteError
+      ) {
         this.startOne(k);
         return;
       }

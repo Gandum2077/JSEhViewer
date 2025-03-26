@@ -5,6 +5,7 @@ import {
   DynamicItemSizeMatrix,
   DynamicRowHeightList,
   layerCommonOptions,
+  router,
   setLayer,
 } from "jsbox-cview";
 import { TagsFlowlayout } from "../components/tags-flowlayout";
@@ -34,6 +35,7 @@ import { getSearchOptions } from "./search-controller";
 import { PushedSearchResultController } from "./pushed-search-result-controller";
 import { WebDAVStatus, WebDAVWidget } from "../components/webdav-widget";
 import { FavoritesTabOptions, FrontPageTabOptions, WatchedTabOptions } from "../types";
+import { ArchiveController } from "./archive-controller";
 
 class BlankView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
@@ -1240,6 +1242,10 @@ export class GalleryInfoController extends BaseController {
           statusManager.updateArchiveItem(this.gid, {
             my_rating: newRating,
           });
+          statusManager.silentRefreshAll(this.gid, {
+            my_rating: newRating,
+          });
+
           return newRating;
         } catch (e) {
           $ui.error("评分失败");
@@ -1260,6 +1266,12 @@ export class GalleryInfoController extends BaseController {
               this._infos.favcat_title = configManager.favcatTitles[defaultFavcat];
               this._trySavingInfos();
               statusManager.updateArchiveItem(this.gid, {
+                favorite_info: {
+                  favorited: true,
+                  favcat: defaultFavcat,
+                },
+              });
+              statusManager.silentRefreshAll(this.gid, {
                 favorite_info: {
                   favorited: true,
                   favcat: defaultFavcat,
@@ -1287,6 +1299,11 @@ export class GalleryInfoController extends BaseController {
                   favorited: false,
                 },
               });
+              statusManager.silentRefreshAll(this.gid, {
+                favorite_info: {
+                  favorited: false,
+                },
+              });
             } catch (e) {
               return { success: false };
             }
@@ -1302,6 +1319,12 @@ export class GalleryInfoController extends BaseController {
                 this._infos.favcat_title = configManager.favcatTitles[result.favcat];
                 this._trySavingInfos();
                 statusManager.updateArchiveItem(this.gid, {
+                  favorite_info: {
+                    favorited: true,
+                    favcat: result.favcat,
+                  },
+                });
+                statusManager.silentRefreshAll(this.gid, {
                   favorite_info: {
                     favorited: true,
                     favcat: result.favcat,
@@ -1356,6 +1379,7 @@ export class GalleryInfoController extends BaseController {
           });
           readLaterButton.symbolColor = $color("orange");
         }
+        (router.get("archiveController") as ArchiveController).silentRefresh();
       },
     });
 
@@ -1366,6 +1390,7 @@ export class GalleryInfoController extends BaseController {
         statusManager.updateArchiveItem(this.gid, {
           downloaded: true,
         });
+        (router.get("archiveController") as ArchiveController).silentRefresh();
         const d = downloaderManager.get(this.gid);
         if (!d) return;
         if (status === "paused") {
@@ -1468,7 +1493,7 @@ export class GalleryInfoController extends BaseController {
               tilde: false,
             });
           });
-          const options = await getSearchOptions(
+          const options = (await getSearchOptions(
             {
               type: "front_page",
               options: {
@@ -1476,7 +1501,7 @@ export class GalleryInfoController extends BaseController {
               },
             },
             "showAllExceptArchive"
-          ) as FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions;
+          )) as FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions;
           const controller = new PushedSearchResultController();
           controller.uipush({
             navBarHidden: true,

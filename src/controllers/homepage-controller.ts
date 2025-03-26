@@ -18,6 +18,7 @@ import { SidebarTabController } from "./sidebar-tab-controller";
 import { globalTimer } from "../utils/timer";
 import { EhlistTitleView } from "../components/ehlist-titleview";
 import { popoverForTitleView } from "../components/titleview-popover";
+import { ArchiveController } from "./archive-controller";
 
 export class HomepageController extends BaseController {
   private _thumbnailAllLoaded: boolean = false; // 此标志用于在TabDownloader完成后，再进行一次刷新
@@ -406,24 +407,17 @@ export class HomepageController extends BaseController {
       layoutMode: configManager.homepageManagerLayoutMode,
       searchBar,
       readlaterHandler: (item) => {
-        // TODO: 后续添加刷新存档列表功能
         const dbitem = statusManager.getArchiveItem(item.gid);
-        if (dbitem) {
-          if (dbitem.readlater) {
-            $ui.toast("稍后阅读中已有该图库");
-          } else {
-            statusManager.updateArchiveItem(item.gid, {
-              readlater: true,
-            });
-            $ui.success("已添加到稍后阅读");
-          }
-        } else {
-          statusManager.updateArchiveItem(item.gid, {
-            infos: item,
-            readlater: true,
-          });
-          $ui.success("已添加到稍后阅读");
+        if (dbitem && dbitem.readlater) {
+          $ui.toast("稍后阅读中已有该图库");
+          return;
         }
+        statusManager.updateArchiveItem(item.gid, {
+          infos: dbitem ? undefined : item,
+          readlater: true,
+        });
+        $ui.success("已添加到稍后阅读");
+        (router.get("archiveController") as ArchiveController).silentRefresh();
       },
       pulled: async () => {
         const tab = statusManager.currentTab;

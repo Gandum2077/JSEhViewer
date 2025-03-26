@@ -13,6 +13,7 @@ import { SidebarTabController } from "./sidebar-tab-controller";
 import { globalTimer } from "../utils/timer";
 import { EhlistTitleView } from "../components/ehlist-titleview";
 import { popoverForTitleView } from "../components/titleview-popover";
+import { ArchiveController } from "./archive-controller";
 
 export class PushedSearchResultController extends BaseController {
   private _thumbnailAllLoaded: boolean = false; // 此标志用于在TabDownloader完成后，再进行一次刷新
@@ -32,6 +33,7 @@ export class PushedSearchResultController extends BaseController {
       },
       events: {
         didLoad: () => {
+          statusManager.pushedControllerMap.set(this.tabId, this);
           globalTimer.addTask({
             id: this.tabId,
             paused: true,
@@ -55,6 +57,7 @@ export class PushedSearchResultController extends BaseController {
         },
         didRemove: () => {
           this._visible = false;
+          statusManager.pushedControllerMap.delete(this.tabId);
           if (!statusManager.tabIdsShownInManager.includes(this.tabId)) {
             downloaderManager.removeTabDownloader(this.tabId);
             statusManager.removeTab(this.tabId);
@@ -343,22 +346,16 @@ export class PushedSearchResultController extends BaseController {
       readlaterHandler: (item) => {
         // TODO: 后续添加刷新存档列表功能
         const dbitem = statusManager.getArchiveItem(item.gid);
-        if (dbitem) {
-          if (dbitem.readlater) {
-            $ui.toast("稍后阅读中已有该图库");
-          } else {
-            statusManager.updateArchiveItem(item.gid, {
-              readlater: true,
-            });
-            $ui.success("已添加到稍后阅读");
-          }
-        } else {
-          statusManager.updateArchiveItem(item.gid, {
-            infos: item,
-            readlater: true,
-          });
-          $ui.success("已添加到稍后阅读");
+        if (dbitem && dbitem.readlater) {
+          $ui.toast("稍后阅读中已有该图库");
+          return;
         }
+        statusManager.updateArchiveItem(item.gid, {
+          infos: dbitem ? undefined : item,
+          readlater: true,
+        });
+        $ui.success("已添加到稍后阅读");
+        (router.get("archiveController") as ArchiveController).silentRefresh();
       },
       pulled: async () => {
         const tab = statusManager.get(this.tabId);

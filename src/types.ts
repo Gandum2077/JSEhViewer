@@ -95,8 +95,9 @@ export type DBArchiveItem = {
 };
 
 export type ArchiveSearchOptions = {
-  page: number; // 从0开始
-  pageSize: number;
+  fromPage: number; // 从0开始
+  toPage: number; // 需要加载的页面区间是包含toPage这一页的
+  pageSize?: number; // pageSize固定为50
   type?: "readlater" | "downloaded" | "all";
   sort?: "first_access_time" | "last_access_time" | "posted_time";
   searchTerms?: EHSearchTerm[];

@@ -41,8 +41,18 @@ function buildArchiveSearchSQLQuery(
   sql: string;
   args: any[];
 } {
-  const { page, pageSize, type, sort, searchTerms, excludedCategories, minimumPages, maximumPages, minimumRating } =
-    options;
+  const {
+    fromPage,
+    toPage,
+    pageSize,
+    type,
+    sort,
+    searchTerms,
+    excludedCategories,
+    minimumPages,
+    maximumPages,
+    minimumRating,
+  } = options;
 
   let sql = countOnly
     ? `
@@ -296,9 +306,11 @@ function buildArchiveSearchSQLQuery(
       sql += ` ORDER BY first_access_time DESC`;
     }
 
-    const offset = page * pageSize;
+    const pageSize_ = pageSize || 50;
+    const offset = fromPage * pageSize_;
+    const limit = (toPage - fromPage + 1) * 50;
     sql += ` LIMIT ? OFFSET ?`;
-    args.push(pageSize, offset);
+    args.push(limit, offset);
   }
 
   return { sql, args };
@@ -392,7 +404,8 @@ export function clearExtraPropsForReload<T extends StatusTabOptions>(oldOptions:
         type: "archive",
         options: {
           ...oldOptions.options,
-          page: 0,
+          fromPage: 0,
+          toPage: 0,
         },
       } as InferTabOptions<T>;
     }
@@ -460,8 +473,8 @@ export class VirtualTab {
       this.data = {
         type: "archive",
         options: {
-          page: 0,
-          pageSize: 50,
+          fromPage: 0,
+          toPage: 0,
         },
         pages: [],
       };
@@ -493,8 +506,9 @@ export class VirtualTab {
       const lastPage = this.data.pages[this.data.pages.length - 1];
       return lastPage.current_page !== lastPage.total_pages - 1;
     } else if (this.data.type === "archive") {
-      const lastPage = this.data.pages[this.data.pages.length - 1];
-      return (this.data.options.page + 1) * this.data.options.pageSize < lastPage.all_count;
+      const lastPage = this.data.pages[0]; // archive只有一页
+      const pageSize = this.data.options.pageSize || 50;
+      return lastPage.all_count > lastPage.items.length + this.data.options.fromPage * pageSize;
     }
     return false;
   }
@@ -832,18 +846,20 @@ export class VirtualTab {
         break;
       }
       case "archive": {
-        const lastPage = this.data.options.page;
+        const lastPage = this.data.options.toPage;
         this.data.options = {
           ...this.data.options,
-          page: lastPage + 1,
+          toPage: lastPage + 1,
         };
         if (this._loadingId === cachedLoadingId) {
           this._status = "loaded";
-          this.data.pages.push({
-            type: "archive",
-            all_count: this.queryArchiveItemCount(this.data.options),
-            items: this.queryArchiveItem(this.data.options),
-          });
+          this.data.pages = [
+            {
+              type: "archive",
+              all_count: this.queryArchiveItemCount(this.data.options),
+              items: this.queryArchiveItem(this.data.options),
+            },
+          ];
           loadedHandler(this, true);
         }
         break;

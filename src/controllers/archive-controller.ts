@@ -141,19 +141,19 @@ export class ArchiveController extends BaseController {
                 $ui.toast("列表为空，无法翻页");
                 return;
               }
-              const allCount = tab.data.pages[tab.data.pages.length - 1].all_count;
+              const allCount = tab.data.pages[0].all_count;
               if (allCount === 0) {
                 $ui.toast("列表为空，无法翻页");
                 return;
               }
-              const maxPage = Math.ceil(allCount / tab.data.options.pageSize);
-              if (tab.data.pages.length === maxPage) {
+              if (tab.data.pages[0].items.length === allCount) {
                 $ui.toast("全部内容已加载");
                 return;
               }
-              const { page } = await getJumpPageDialog(maxPage);
+              const { page } = await getJumpPageDialog(Math.ceil(allCount / 50));
               const newOptions = clearExtraPropsForReload(tab.data);
-              newOptions.options.page = page;
+              newOptions.options.fromPage = page;
+              newOptions.options.toPage = page;
               this.triggerLoad(newOptions);
             },
           },
@@ -171,8 +171,8 @@ export class ArchiveController extends BaseController {
               type: "archive",
               options: {
                 searchTerms: tab.data.options.searchTerms,
-                page: 0,
-                pageSize: 50,
+                fromPage: 0,
+                toPage: 0,
                 sort: configManager.archiveManagerOrderMethod,
                 type: "all",
               },

@@ -18,12 +18,13 @@ import {
   EHSearchTerm,
   ParsedCookie,
 } from "ehentai-parser";
-import { aiTranslationPath, imagePath, thumbnailPath, originalImagePath, galleryInfoPath, debugLogPath } from "./utils/glv";
+import { aiTranslationPath, imagePath, thumbnailPath, originalImagePath, galleryInfoPath } from "./utils/glv";
 import { globalTimer } from "./utils/timer";
 import { StatusTabOptions } from "./types";
 import { dbManager } from "./utils/database";
 
 async function init() {
+  appLog("app start", "debug");
   if (!$file.exists(imagePath)) $file.mkdir(imagePath);
   if (!$file.exists(thumbnailPath)) $file.mkdir(thumbnailPath);
   if (!$file.exists(aiTranslationPath)) $file.mkdir(aiTranslationPath);
@@ -147,8 +148,8 @@ async function init() {
     archiveController.triggerLoad({
       type: "archive",
       options: {
-        page: 0,
-        pageSize: 50,
+        fromPage: 0,
+        toPage: 0,
         type: "all",
         sort: configManager.archiveManagerOrderMethod,
       },
@@ -384,7 +385,7 @@ async function init() {
       d.backgroundPaused = true;
       resumed += 1;
     });
-    $ui.success(`已恢复${resumed}个下载任务`)
+    $ui.success(`已恢复${resumed}个下载任务`);
   }
 }
 

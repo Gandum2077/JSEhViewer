@@ -1576,8 +1576,8 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
           resolveHandler({
             type: "archive",
             options: {
-              page: 0,
-              pageSize: 50,
+              fromPage: 0,
+              toPage: 0,
               searchTerms,
               excludedCategories: data.excludedCategories,
               sort: configManager.archiveManagerOrderMethod,

@@ -44,7 +44,7 @@ export class ArchiveController extends BaseController {
           });
         },
         didAppear: () => {
-          downloaderManager.startTabDownloader("archive");
+          downloaderManager.startIfIdle({ prioritized: [{ type: "tab", id: "archive" }] });
           globalTimer.resumeTask("archiveController");
         },
         didDisappear: () => {

@@ -49,7 +49,7 @@ export class PushedSearchResultController extends BaseController {
           });
         },
         didAppear: () => {
-          downloaderManager.startTabDownloader(this.tabId);
+          downloaderManager.startIfIdle({ prioritized: [{ type: "tab", id: this.tabId }] });
           globalTimer.resumeTask(this.tabId);
         },
         didDisappear: () => {

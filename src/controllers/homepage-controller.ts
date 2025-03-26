@@ -54,7 +54,7 @@ export class HomepageController extends BaseController {
           });
         },
         didAppear: () => {
-          downloaderManager.startTabDownloader(statusManager.currentTabId);
+          downloaderManager.startIfIdle({ prioritized: [{ type: "tab", id: statusManager.currentTabId }] });
           globalTimer.resumeTask("homepageController");
         },
         didDisappear: () => {

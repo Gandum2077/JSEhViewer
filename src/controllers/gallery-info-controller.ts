@@ -1548,7 +1548,8 @@ export class GalleryInfoController extends BaseController {
         showsVerticalIndicator: false,
       },
       layout: (make, view) => {
-        make.left.right.inset(10);
+        make.centerX.equalTo(view.super);
+        make.width.equalTo($ui.controller.view.safeArea).offset(-20);
         make.top.bottom.inset(0);
       },
       events: {},

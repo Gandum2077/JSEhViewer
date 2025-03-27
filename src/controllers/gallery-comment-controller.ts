@@ -90,7 +90,11 @@ export class GalleryCommentController extends BaseController {
         transparent: true,
         script: `document.documentElement.setAttribute('data-theme', '${$device.isDarkMode ? "dark" : "light"}');`,
       },
-      layout: $layout.fill,
+      layout: (make, view) => {
+        make.centerX.equalTo(view.super);
+        make.width.equalTo($ui.controller.view.safeArea).offset(-20);
+        make.top.bottom.inset(0);
+      },
       events: {
         themeChanged: (sender, isDarkMode) => {
           sender.notify({

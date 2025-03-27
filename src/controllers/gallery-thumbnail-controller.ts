@@ -52,7 +52,11 @@ export class GalleryThumbnailController extends BaseController {
           },
         },
       },
-      layout: $layout.fill,
+      layout: (make, view) => {
+        make.centerX.equalTo(view.super);
+        make.width.equalTo($ui.controller.view.safeArea).offset(-20);
+        make.top.bottom.inset(0);
+      },
       events: {
         itemHeight: (width) => width * 1.414 + 20,
         didSelect: (sender, indexPath, data) => {

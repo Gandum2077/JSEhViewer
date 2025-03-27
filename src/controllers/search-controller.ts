@@ -91,7 +91,11 @@ class SearchSuggestionView extends Base<UIListView, UiTypes.ListOptions> {
           ],
         },
       },
-      layout: $layout.fill,
+      layout: (make, view) => {
+        make.top.equalTo(view.super);
+        make.left.right.equalTo(view.super);
+        make.bottom.equalTo(view.super);
+      },
       events: {
         didSelect: (sender, indexPath, data) => {
           const suggestion = this.currentSuggestions[indexPath.row];
@@ -312,7 +316,11 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
         id: this.id,
         bgcolor: $color("insetGroupedBackground"),
       },
-      layout: $layout.fill,
+      layout: (make, view) => {
+        make.top.equalTo(view.super);
+        make.left.right.equalTo(view.super.safeArea);
+        make.bottom.equalTo(view.super);
+      },
       views: [list.definition],
     });
   }
@@ -344,7 +352,7 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         style: 2,
         scrollEnabled: false,
         rowHeight: 44,
-        bgcolor: $color("backgroundColor"),
+        bgcolor: $color("insetGroupedBackground"),
       },
       layout: $layout.fill,
       events: {
@@ -369,7 +377,7 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     });
     const catList = new DynamicItemSizeMatrix({
       props: {
-        bgcolor: $color("backgroundColor"),
+        bgcolor: $color("insetGroupedBackground"),
         minItemWidth: 100,
         fixedItemHeight: 36,
         spacing: 10,
@@ -501,7 +509,11 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         id: this.id,
         hidden: true,
       },
-      layout: $layout.fill,
+      layout: (make, view) => {
+        make.top.equalTo(view.super);
+        make.left.right.equalTo(view.super.safeArea);
+        make.bottom.equalTo(view.super);
+      },
       views: [catList.definition],
     });
   }
@@ -661,14 +673,14 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         scrollEnabled: false,
         height: 44 * 3 + 35 * 2,
         rowHeight: 44,
-        bgcolor: $color("backgroundColor"),
+        bgcolor: $color("insetGroupedBackground"),
       },
       layout: $layout.fill,
       events: {},
     });
     const favcatList = new DynamicItemSizeMatrix({
       props: {
-        bgcolor: $color("backgroundColor"),
+        bgcolor: $color("insetGroupedBackground"),
         minItemWidth: 170,
         fixedItemHeight: 36,
         spacing: 10,
@@ -737,7 +749,11 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         id: this.id,
         hidden: true,
       },
-      layout: $layout.fill,
+      layout: (make, view) => {
+        make.top.equalTo(view.super);
+        make.left.right.equalTo(view.super.safeArea);
+        make.bottom.equalTo(view.super);
+      },
       views: [favcatList.definition],
     });
   }
@@ -795,7 +811,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         style: 2,
         scrollEnabled: false,
         rowHeight: 44,
-        bgcolor: $color("backgroundColor"),
+        bgcolor: $color("insetGroupedBackground"),
       },
       layout: $layout.fill,
       events: {
@@ -817,7 +833,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     });
     const catList = new DynamicItemSizeMatrix({
       props: {
-        bgcolor: $color("backgroundColor"),
+        bgcolor: $color("insetGroupedBackground"),
         minItemWidth: 100,
         fixedItemHeight: 36,
         spacing: 10,
@@ -949,7 +965,11 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
         id: this.id,
         hidden: true,
       },
-      layout: $layout.fill,
+      layout: (make, view) => {
+        make.top.equalTo(view.super);
+        make.left.right.equalTo(view.super.safeArea);
+        make.bottom.equalTo(view.super);
+      },
       views: [catList.definition],
     });
   }
@@ -1036,8 +1056,8 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
 
 type SearchArgs = FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ArchiveTabOptions;
 
-class NavBar extends Base<UIView, UiTypes.ViewOptions> {
-  _defineView: () => UiTypes.ViewOptions;
+class NavBar extends Base<UIBlurView, UiTypes.BlurOptions> {
+  _defineView: () => UiTypes.BlurOptions;
   cviews: {
     tab: Tab;
     input: Input;
@@ -1123,7 +1143,7 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
     });
     const searchInput = new ContentView({
       props: {
-        bgcolor: searchBarBgcolor,
+        bgcolor: $color("#DFE1E2", "tertiarySurface"),
         cornerRadius: 8,
         smoothCorners: true,
       },
@@ -1155,7 +1175,7 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
       },
       layout: (make, view) => {
         make.top.equalTo(view.super.safeAreaTop).inset(0);
-        make.left.right.inset(0);
+        make.left.right.equalTo(view.super.safeArea).inset(0);
         make.height.equalTo(50);
       },
       views: [popButton.definition, searchInput.definition, filterButton.definition],
@@ -1200,8 +1220,9 @@ class NavBar extends Base<UIView, UiTypes.ViewOptions> {
       input,
     };
     this._defineView = () => ({
-      type: "view",
+      type: "blur",
       props: {
+        style: 10,
         id: this.id,
       },
       layout: (make, view) => {
@@ -1623,12 +1644,11 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
         {
           type: "view",
           props: {
-            id: this.id,
-            bgcolor: $color("backgroundColor"),
+            bgcolor: $color("insetGroupedBackground"),
           },
           layout: (make, view) => {
             make.top.equalTo(view.prev.bottom);
-            make.left.right.bottom.equalTo(view.super.safeArea);
+            make.left.right.bottom.equalTo(view.super);
           },
           views: [
             searchHistoryView.definition,

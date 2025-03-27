@@ -485,7 +485,7 @@ export class SidebarTabController extends BaseController {
       },
       layout: (make, view) => {
         make.top.bottom.equalTo(view.super.safeArea);
-        make.left.right.inset(16);
+        make.left.right.equalTo(view.super.safeArea).inset(16);
       },
       events: {
         swipeEnabled: (sender, indexPath) => {

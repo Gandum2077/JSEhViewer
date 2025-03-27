@@ -217,8 +217,9 @@ export class ArchiveController extends BaseController {
         downloaderManager.getTabDownloader("archive")!.currentReadingIndex = scrollState.firstVisibleItemIndex;
       },
       layout: (make, view) => {
+        make.centerX.equalTo(view.super);
+        make.width.equalTo($ui.controller.view.safeArea);
         make.top.equalTo(view.prev.bottom);
-        make.left.right.inset(0);
         make.bottom.equalTo(view.super.safeAreaBottom).offset(-50);
       },
     });

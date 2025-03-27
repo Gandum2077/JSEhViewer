@@ -34,7 +34,7 @@ interface Config {
   aiTranslationSavedConfigText: string; // AI翻译配置
   autoClearCache: boolean; // 是否在关闭时自动清除缓存
   autoCacheWhenReading: boolean; // 阅读时是否自动缓存整个图库
-  pageTurnMethod: "click_and_swipe" | "click" | "swipe"; // 翻页方式
+  pageTurnMethod: "click_and_swipe" | "click" | "swipe" | "vertical"; // 翻页方式
   startPageType: "blank_page" | "last_access" | "specific_page" | "specific_searchterms"; // 起始页面类型
   lastAccessPageJson: string; // 上次访问页面, 以json格式存储的StatusTabOptions
   specificPageTypeOnStart:
@@ -79,7 +79,7 @@ const defaultConfig: Config = {
   lastAccessPageJson: "",
   specificPageTypeOnStart: "front_page",
   specificSearchtermsOnStart: "",
-  resumeIncompleteDownloadsOnStart: false
+  resumeIncompleteDownloadsOnStart: false,
 };
 
 async function getEhTagTranslationText() {
@@ -346,7 +346,7 @@ class ConfigManager {
     return this._config.pageTurnMethod;
   }
 
-  set pageTurnMethod(value: "click_and_swipe" | "click" | "swipe") {
+  set pageTurnMethod(value: "click_and_swipe" | "click" | "swipe" | "vertical") {
     this._setConfig("pageTurnMethod", value);
   }
 

@@ -10,6 +10,7 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
     srcs: {
       path?: string;
       error: boolean;
+      errorName?: string;
       type: "ai-translated" | "reloaded" | "normal";
     }[];
     page: number;

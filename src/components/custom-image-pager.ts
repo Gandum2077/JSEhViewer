@@ -11,6 +11,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
     srcs: {
       path?: string;
       error: boolean;
+      errorName?: string;
       type: "ai-translated" | "reloaded" | "normal";
     }[];
     page: number;
@@ -178,7 +179,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
         didLongPress: (sender, indexPath, data) => {
           const path = this._props.srcs[indexPath.item].path;
           if (path) {
-            const img = $file.read(path).image;
+            const img = $file.read(path)?.image;
             if (img) $share.universal(img);
           }
         },
@@ -264,7 +265,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
         image: { src: "" },
         scroll: { hidden: true },
         error_view: { hidden: true },
-        spinner: { loading: true },
+        spinner: { loading: true, hidden: false },
       };
     }
   }

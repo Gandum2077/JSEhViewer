@@ -397,7 +397,7 @@ export class GeneralSettingsController extends BaseController {
           {
             type: "list",
             title: "翻页方式",
-            items: ["点击和滑动", "仅点击", "仅滑动"],
+            items: ["点击和左右滑动", "仅点击", "左右滑动", "上下滑动"],
             key: "pageTurnMethod",
             value:
               configManager.pageTurnMethod === "click_and_swipe" ? 0 : configManager.pageTurnMethod === "click" ? 1 : 2,

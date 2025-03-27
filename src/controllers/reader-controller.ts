@@ -9,6 +9,7 @@ import { globalTimer } from "../utils/timer";
 import { NoscrollImagePager } from "../components/noscroll-image-pager";
 import { DownloadButtonForReader } from "../components/download-button-for-reader";
 import { GalleryController } from "./gallery-controller";
+import { VerticalImagePager } from "../components/vertical-image-pager";
 
 let lastUITapGestureRecognizer: any;
 
@@ -42,9 +43,11 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
   constructor({
     loadOrginalHandler,
     reloadPagerHandler,
+    checkVerticalAllowed,
   }: {
     loadOrginalHandler: () => void;
     reloadPagerHandler: () => void;
+    checkVerticalAllowed: () => boolean;
   }) {
     super();
     const button1 = new SymbolButton({
@@ -74,7 +77,7 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
               inline: true,
               items: [
                 {
-                  title: "点击和滑动",
+                  title: "点击和左右滑动",
                   symbol: "checkmark",
                   handler: () => {},
                 },
@@ -85,16 +88,33 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
                     button1.view.hidden = true;
                     button2.view.hidden = false;
                     button3.view.hidden = true;
+                    button4.view.hidden = true;
                     reloadPagerHandler();
                   },
                 },
                 {
-                  title: "仅滑动",
+                  title: "左右滑动",
                   handler: () => {
                     configManager.pageTurnMethod = "swipe";
                     button1.view.hidden = true;
                     button2.view.hidden = true;
                     button3.view.hidden = false;
+                    button4.view.hidden = true;
+                    reloadPagerHandler();
+                  },
+                },
+                {
+                  title: "上下滑动",
+                  handler: () => {
+                    if (!checkVerticalAllowed()) {
+                      vertialNotAllowedAlert();
+                      return;
+                    }
+                    configManager.pageTurnMethod = "vertical";
+                    button1.view.hidden = true;
+                    button2.view.hidden = true;
+                    button3.view.hidden = true;
+                    button4.view.hidden = false;
                     reloadPagerHandler();
                   },
                 },
@@ -132,12 +152,13 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
               inline: true,
               items: [
                 {
-                  title: "点击和滑动",
+                  title: "点击和左右滑动",
                   handler: () => {
                     configManager.pageTurnMethod = "click_and_swipe";
                     button1.view.hidden = false;
                     button2.view.hidden = true;
                     button3.view.hidden = true;
+                    button4.view.hidden = true;
                     reloadPagerHandler();
                   },
                 },
@@ -147,12 +168,28 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
                   handler: () => {},
                 },
                 {
-                  title: "仅滑动",
+                  title: "左右滑动",
                   handler: () => {
                     configManager.pageTurnMethod = "swipe";
                     button1.view.hidden = true;
                     button2.view.hidden = true;
                     button3.view.hidden = false;
+                    button4.view.hidden = true;
+                    reloadPagerHandler();
+                  },
+                },
+                {
+                  title: "上下滑动",
+                  handler: () => {
+                    if (!checkVerticalAllowed()) {
+                      vertialNotAllowedAlert();
+                      return;
+                    }
+                    configManager.pageTurnMethod = "vertical";
+                    button1.view.hidden = true;
+                    button2.view.hidden = true;
+                    button3.view.hidden = true;
+                    button4.view.hidden = false;
                     reloadPagerHandler();
                   },
                 },
@@ -190,12 +227,13 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
               inline: true,
               items: [
                 {
-                  title: "点击和滑动",
+                  title: "点击和左右滑动",
                   handler: () => {
                     configManager.pageTurnMethod = "click_and_swipe";
                     button1.view.hidden = false;
                     button2.view.hidden = true;
                     button3.view.hidden = true;
+                    button4.view.hidden = true;
                     reloadPagerHandler();
                   },
                 },
@@ -206,11 +244,98 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
                     button1.view.hidden = true;
                     button2.view.hidden = false;
                     button3.view.hidden = true;
+                    button4.view.hidden = true;
                     reloadPagerHandler();
                   },
                 },
                 {
-                  title: "仅滑动",
+                  title: "左右滑动",
+                  symbol: "checkmark",
+                  handler: () => {},
+                },
+                {
+                  title: "上下滑动",
+                  handler: () => {
+                    if (!checkVerticalAllowed()) {
+                      vertialNotAllowedAlert();
+                      return;
+                    }
+                    configManager.pageTurnMethod = "vertical";
+                    button1.view.hidden = true;
+                    button2.view.hidden = true;
+                    button3.view.hidden = true;
+                    button4.view.hidden = false;
+                    reloadPagerHandler();
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+      layout: $layout.fill,
+    });
+    const button4 = new SymbolButton({
+      props: {
+        hidden: configManager.pageTurnMethod !== "vertical",
+        symbol: "ellipsis",
+        menu: {
+          pullDown: true,
+          asPrimary: true,
+          items: [
+            {
+              title: "加载原图",
+              symbol: "arrow.down.backward.and.arrow.up.forward.square",
+              handler: (sender) => {
+                loadOrginalHandler();
+              },
+            },
+            {
+              title: "AI翻译设置",
+              symbol: "globe",
+              handler: async (sender) => {
+                await setAITranslationConfig();
+              },
+            },
+            {
+              title: "翻页方式",
+              inline: true,
+              items: [
+                {
+                  title: "点击和左右滑动",
+                  handler: () => {
+                    configManager.pageTurnMethod = "click_and_swipe";
+                    button1.view.hidden = false;
+                    button2.view.hidden = true;
+                    button3.view.hidden = true;
+                    button4.view.hidden = true;
+                    reloadPagerHandler();
+                  },
+                },
+                {
+                  title: "仅点击",
+                  handler: () => {
+                    configManager.pageTurnMethod = "click";
+                    button1.view.hidden = true;
+                    button2.view.hidden = false;
+                    button3.view.hidden = true;
+                    button4.view.hidden = true;
+                    reloadPagerHandler();
+                  },
+                },
+                {
+                  title: "左右滑动",
+                  handler: () => {
+                    configManager.pageTurnMethod = "swipe";
+                    button1.view.hidden = true;
+                    button2.view.hidden = true;
+                    button3.view.hidden = false;
+                    button4.view.hidden = true;
+                    reloadPagerHandler();
+                  },
+                },
+                {
+                  title: "上下滑动",
                   symbol: "checkmark",
                   handler: () => {},
                 },
@@ -231,7 +356,7 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
           make.right.top.bottom.inset(0);
           make.width.equalTo(50);
         },
-        views: [button1.definition, button2.definition, button3.definition],
+        views: [button1.definition, button2.definition, button3.definition, button4.definition],
       };
     };
   }
@@ -375,7 +500,7 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
       return {
         type: "view",
         props: { id: this.id },
-        layout: $layout.fill,
+        layout: $layout.fillSafeArea,
         views: [
           this.cviews.thumbnailMatrix.definition,
           {
@@ -459,15 +584,13 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
 
 export class ReaderController extends BaseController {
   private gid: number;
-  private imagePager?: CustomImagePager | NoscrollImagePager;
+  private imagePager?: CustomImagePager | NoscrollImagePager | VerticalImagePager;
   private _autoPagerEnabled: boolean = false;
   private _autoPagerInterval: number = 1;
   private _autoPagerCountDown: number = 1;
   // 增加两个Set，其中一个记录以原画质重新载入的图片，另一个记录启用AI翻译的图片
   private reloadedPageSet: Set<number> = new Set();
   private aiTranslatedPageSet: Set<number> = new Set();
-  // 增加autoCacheWhenReading，用于表示是否自动缓存整个图库
-  // private _autoCacheWhenReading: boolean;
   // 使用上级的autoCacheWhenReading
 
   // 上级GalleryController
@@ -565,6 +688,15 @@ export class ReaderController extends BaseController {
     this.gid = gid;
     const galleryDownloader = downloaderManager.get(gid);
     if (!galleryDownloader) throw new Error("galleryDownloader not found");
+
+    // 检查纵向滑动是否可用：需要所有分页都下载完
+    if (
+      configManager.pageTurnMethod === "vertical" &&
+      galleryDownloader.finishedOfHtmls !== galleryDownloader.infos.total_pages
+    ) {
+      configManager.pageTurnMethod = "click_and_swipe";
+      vertialNotAllowedAlert();
+    }
     const footerThumbnailView = new FooterThumbnailView({
       props: {
         index,
@@ -614,6 +746,11 @@ export class ReaderController extends BaseController {
       reloadPagerHandler: () => {
         viewerLayoutSubviews(viewer.view);
       },
+      checkVerticalAllowed: () => {
+        const d = downloaderManager.get(gid);
+        if (!d) throw new Error("galleryDownloader not found");
+        return d.finishedOfHtmls === d.infos.total_pages;
+      },
     });
     const header = new Blur({
       props: {
@@ -628,7 +765,7 @@ export class ReaderController extends BaseController {
           type: "view",
           props: {},
           layout: (make, view) => {
-            make.left.right.inset(5);
+            make.left.right.equalTo(view.super.safeArea).inset(5);
             make.bottom.inset(0);
             make.height.equalTo(50);
           },
@@ -657,6 +794,8 @@ export class ReaderController extends BaseController {
       status:
         progress === 1 ? "finished" : this._superGalleryController.autoCacheWhenReading ? "downloading" : "paused",
       handler: (sender) => {
+        const galleryDownloader = downloaderManager.get(gid);
+        if (!galleryDownloader) throw new Error("galleryDownloader not found");
         const progress = galleryDownloader.finishedOfImages / length;
         if (progress === 1) return;
         if (sender.status === "downloading") {
@@ -956,6 +1095,40 @@ export class ReaderController extends BaseController {
                 },
               },
             })
+          : configManager.pageTurnMethod === "vertical"
+          ? new VerticalImagePager({
+              props: {
+                srcs: this._generateSrcs(),
+                page: footerThumbnailView.index,
+              },
+              layout: (make, view) => {
+                make.left.right.inset(2);
+                make.top.bottom.inset(0);
+              },
+              events: {
+                changed: (page) => this.handleTurnPage(page),
+                reloadHandler: (page) => {
+                  galleryDownloader.result.images[page].error = false;
+                  galleryDownloader.result.images[page].started = false;
+                  downloaderManager.startOne(this.gid);
+                  this.refreshCurrentPage();
+                },
+                rowHeight: (page, width) => {
+                  const d = downloaderManager.get(this.gid);
+                  if (!d) return 0;
+                  const htmlPage = d.infos.num_of_images_on_each_page
+                    ? Math.floor(page / d.infos.num_of_images_on_each_page)
+                    : 0;
+                  if (htmlPage in d.infos.images) {
+                    const frame = d.infos.images[htmlPage].find((n) => n.page === page)?.frame;
+                    if (!frame) return Math.ceil(width * 1.414);
+                    return Math.ceil((frame.height / frame.width) * width);
+                  } else {
+                    return Math.ceil(width * 1.414);
+                  }
+                },
+              },
+            })
           : new CustomImagePager({
               props: {
                 srcs: this._generateSrcs(),
@@ -980,7 +1153,7 @@ export class ReaderController extends BaseController {
         if (!this.imagePager) return;
         define(this.imagePager.view.ocValue(), (location) => {
           if (!this.imagePager) return;
-          if (configManager.pageTurnMethod === "swipe") {
+          if (configManager.pageTurnMethod === "swipe" || configManager.pageTurnMethod === "vertical") {
             footer.view.hidden = !footer.view.hidden;
             header.view.hidden = !header.view.hidden;
             return;
@@ -1184,4 +1357,13 @@ export class ReaderController extends BaseController {
       };
     });
   }
+}
+
+function vertialNotAllowedAlert() {
+  $ui.alert({
+    title: "上下滑动翻页暂不可用",
+    message:
+      "上下滑动翻页需要先获取图库中的所有分页，目前还没有完成此步骤。请稍后手动切换。\n" +
+      "附注：开通Hath Perk中的多页查看器可以快速完成此步骤，开通后需要在本应用中重新登录。",
+  });
 }

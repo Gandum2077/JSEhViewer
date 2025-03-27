@@ -77,7 +77,7 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
               inline: true,
               items: [
                 {
-                  title: "点击和左右滑动",
+                  title: "点击和横向滑动",
                   symbol: "checkmark",
                   handler: () => {},
                 },
@@ -93,7 +93,7 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
                   },
                 },
                 {
-                  title: "左右滑动",
+                  title: "横向滑动",
                   handler: () => {
                     configManager.pageTurnMethod = "swipe";
                     button1.view.hidden = true;
@@ -104,7 +104,7 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
                   },
                 },
                 {
-                  title: "上下滑动",
+                  title: "纵向滑动",
                   handler: () => {
                     if (!checkVerticalAllowed()) {
                       vertialNotAllowedAlert();
@@ -152,7 +152,7 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
               inline: true,
               items: [
                 {
-                  title: "点击和左右滑动",
+                  title: "点击和横向滑动",
                   handler: () => {
                     configManager.pageTurnMethod = "click_and_swipe";
                     button1.view.hidden = false;
@@ -168,7 +168,7 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
                   handler: () => {},
                 },
                 {
-                  title: "左右滑动",
+                  title: "横向滑动",
                   handler: () => {
                     configManager.pageTurnMethod = "swipe";
                     button1.view.hidden = true;
@@ -179,7 +179,7 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
                   },
                 },
                 {
-                  title: "上下滑动",
+                  title: "纵向滑动",
                   handler: () => {
                     if (!checkVerticalAllowed()) {
                       vertialNotAllowedAlert();
@@ -227,7 +227,7 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
               inline: true,
               items: [
                 {
-                  title: "点击和左右滑动",
+                  title: "点击和横向滑动",
                   handler: () => {
                     configManager.pageTurnMethod = "click_and_swipe";
                     button1.view.hidden = false;
@@ -249,12 +249,12 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
                   },
                 },
                 {
-                  title: "左右滑动",
+                  title: "横向滑动",
                   symbol: "checkmark",
                   handler: () => {},
                 },
                 {
-                  title: "上下滑动",
+                  title: "纵向滑动",
                   handler: () => {
                     if (!checkVerticalAllowed()) {
                       vertialNotAllowedAlert();
@@ -302,7 +302,7 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
               inline: true,
               items: [
                 {
-                  title: "点击和左右滑动",
+                  title: "点击和横向滑动",
                   handler: () => {
                     configManager.pageTurnMethod = "click_and_swipe";
                     button1.view.hidden = false;
@@ -324,7 +324,7 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
                   },
                 },
                 {
-                  title: "左右滑动",
+                  title: "横向滑动",
                   handler: () => {
                     configManager.pageTurnMethod = "swipe";
                     button1.view.hidden = true;
@@ -335,7 +335,7 @@ class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
                   },
                 },
                 {
-                  title: "上下滑动",
+                  title: "纵向滑动",
                   symbol: "checkmark",
                   handler: () => {},
                 },
@@ -1361,9 +1361,9 @@ export class ReaderController extends BaseController {
 
 function vertialNotAllowedAlert() {
   $ui.alert({
-    title: "上下滑动翻页暂不可用",
+    title: "纵向滑动翻页暂不可用",
     message:
-      "上下滑动翻页需要先获取图库中的所有分页，目前还没有完成此步骤。请稍后手动切换。\n" +
+      "纵向滑动翻页需要先获取图库中的所有分页，目前还没有完成此步骤。请稍后手动切换。\n" +
       "附注：开通Hath Perk中的多页查看器可以快速完成此步骤，开通后需要在本应用中重新登录。",
   });
 }

@@ -211,10 +211,12 @@ export function getLatestVersion() {
         if (latest_version && (latest_version.startsWith("v") || latest_version.startsWith("V"))) {
           latest_version = latest_version.slice(1);
         }
+        const body = info?.body;
         const browser_download_url = info?.assets?.at(0)?.browser_download_url;
         if (browser_download_url && latest_version && current_version !== latest_version) {
           $ui.alert({
-            title: "发现新版本",
+            title: "发现新版本 " + latest_version,
+            message: body || "",
             actions: [
               {
                 title: "一键更新",

@@ -242,18 +242,14 @@ export class VerticalImagePager extends Base<UIListView, UiTypes.ListOptions> {
   }
 
   set page(page) {
-    this.view.scrollTo({
-      indexPath: $indexPath(0, page),
-      animated: false,
-    });
+    const offsetY = this._heights.slice(0, page).reduce((prev, curr) => prev + curr, 0);
+    this.view.contentOffset = $point(0, offsetY + 1);
     this._props.page = page;
   }
 
   scrollToPage(page: number) {
-    this.view.scrollTo({
-      indexPath: $indexPath(0, page),
-      animated: true,
-    });
+    const offsetY = this._heights.slice(0, page).reduce((prev, curr) => prev + curr, 0);
+    this.view.scrollToOffset($point(0, offsetY + 1));
     this._props.page = page;
   }
 }

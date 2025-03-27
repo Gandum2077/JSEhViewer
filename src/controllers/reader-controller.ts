@@ -540,7 +540,7 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
 
   updateFooter(index: number, sliderOnGoing: boolean) {
     if (index < 0 || index >= this._length) return;
-    if (index === 0) {
+    if (index === 0 || this.cviews.thumbnailMatrix.view.contentSize.width <= this._width) {
       this.cviews.thumbnailMatrix.view.contentOffset = $point(0, 0);
     } else if (
       this._width !== 0 &&

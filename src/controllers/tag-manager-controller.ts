@@ -272,7 +272,8 @@ export class TagManagerController extends BaseController {
         changed: (sender) => {
           list.view.scrollToOffset({
             x: 0,
-            y: sender.index === 0 ? 0 : this._sectionCumYs[sender.index - 1],
+            y: sender.index === 0 ? 0 : this._sectionCumYs[sender.index - 1] + 1,
+            // y需要额外增加1，否则会恰好卡在上一个的末尾
           });
         },
       },

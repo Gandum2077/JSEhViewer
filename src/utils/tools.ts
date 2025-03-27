@@ -24,7 +24,7 @@ export function appLog(message: any, level: "debug" | "info" | "warn" | "error" 
       console.log(message);
     }
   }
-  if (level === "debug") {
+  if (globalLogLevel === "debug") {
     if (!debugDB) {
       debugDB = $sqlite.open(debugLogPath);
       debugDB.update(`CREATE TABLE IF NOT EXISTS debug (

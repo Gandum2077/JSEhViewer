@@ -1694,7 +1694,11 @@ export class GalleryInfoController extends BaseController {
     }
   }
 
-  resetDownloadButton() {
+  resetDownloadButton({ fininshed }: { fininshed: boolean }) {
+    if (fininshed) {
+      this.cviews.downloadButton.progress = 1;
+      return;
+    }
     const d = downloaderManager.get(this.gid);
     if (!d) return;
     if (!d.background) {

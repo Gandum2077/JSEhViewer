@@ -159,7 +159,8 @@ export class GalleryController extends PageViewerController {
             downloaderManager.add(this._gid, this._infos);
             // 检查是否应该开启后台下载
             const downloaded = statusManager.getArchiveItem(this._gid)?.downloaded ?? false;
-            if (downloaded) {
+            const isFinishedOfImages = downloaderManager.get(this._gid)?.finishedOfImages === this._infos.length;
+            if (downloaded && !isFinishedOfImages) {
               downloaderManager.get(this._gid)!.background = true;
             }
           }
@@ -176,7 +177,13 @@ export class GalleryController extends PageViewerController {
           galleryInfoController.infos = this._infos;
           galleryInfoController.currentReadPage = statusManager.getLastReadPage(this._gid);
           galleryThumbnailController.thumbnailItems = downloaderManager.get(this._gid)!.result.thumbnails;
-          galleryInfoController.resetDownloadButton();
+
+          // 重置DownloadButton
+          const downloaded = statusManager.getArchiveItem(this._gid)?.downloaded ?? false;
+          const isFinishedOfImages = downloaderManager.get(this._gid)?.finishedOfImages === this._infos.length;
+          galleryInfoController.resetDownloadButton({
+            fininshed: downloaded && isFinishedOfImages,
+          });
 
           sender.rootView.view.alpha = 1;
 
@@ -373,8 +380,11 @@ export class GalleryController extends PageViewerController {
     downloaderManager.add(this._gid, this._infos);
     // 检查是否应该开启后台下载
     const downloaded = statusManager.getArchiveItem(this._gid)?.downloaded ?? false;
-    downloaderManager.get(this._gid)!.background = downloaded || background_old;
-    downloaderManager.get(this._gid)!.backgroundPaused = backgroundPaused_old;
+    const isFinishedOfImages = downloaderManager.get(this._gid)?.finishedOfImages === this._infos.length;
+
+    downloaderManager.get(this._gid)!.background =
+      (downloaded && !isFinishedOfImages) || (isSameGallery && background_old);
+    downloaderManager.get(this._gid)!.backgroundPaused = isSameGallery && backgroundPaused_old;
 
     downloaderManager.startOne(this._gid);
 
@@ -399,7 +409,9 @@ export class GalleryController extends PageViewerController {
     this.subControllers.galleryInfoController.cviews.readLaterButton.symbolColor =
       isSameGallery && readlater_old ? $color("orange") : defaultButtonColor;
 
-    this.subControllers.galleryInfoController.resetDownloadButton();
+    this.subControllers.galleryInfoController.resetDownloadButton({
+      fininshed: downloaded && isFinishedOfImages,
+    });
 
     globalTimer.addTask({
       id: this._gid.toString(),

@@ -1120,7 +1120,7 @@ class NavBar extends Base<UIBlurView, UiTypes.BlurOptions> {
     });
     const input = new Input({
       props: {
-        text: options.searchTerms && options.searchTerms.length ? assembleSearchTerms(options.searchTerms) : "",
+        text: options.searchTerms && options.searchTerms.length ? assembleSearchTerms(options.searchTerms) + " " : "",
         type: $kbType.search,
         bgcolor: $color("clear"),
         textColor: $color("primaryText"),

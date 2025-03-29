@@ -396,7 +396,7 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
     this.cviews.sliderLeftLabel = new Label({
       props: {
         text: (this._index + 1).toString(),
-        textColor: $color("white"),
+        textColor: $color("primaryText"),
         font: $font(16),
         align: $align.center,
       },
@@ -408,7 +408,7 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
     const sliderRightLabel = new Label({
       props: {
         text: this._length.toString(),
-        textColor: $color("white"),
+        textColor: $color("primaryText"),
         font: $font(16),
         align: $align.center,
       },
@@ -423,6 +423,7 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
         min: 0,
         max: this._length - 1,
         continuous: true,
+        minColor: $color("systemLink")
       },
       layout: (make, view) => {
         make.left.equalTo(view.prev.prev.right).inset(5);
@@ -469,7 +470,7 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
               type: "image",
               props: {
                 id: "image",
-                contentMode: 1,
+                contentMode: 2,
                 bgcolor: $color("black"),
                 borderWidth: 0,
                 borderColor: $color("systemLink"),
@@ -754,7 +755,7 @@ export class ReaderController extends BaseController {
     });
     const header = new Blur({
       props: {
-        style: 20,
+        style: 10,
       },
       layout: (make, view) => {
         make.left.right.top.inset(0);
@@ -993,7 +994,7 @@ export class ReaderController extends BaseController {
     });
     const footer = new Blur({
       props: {
-        style: 16,
+        style: 6,
       },
       layout: (make, view) => {
         make.left.right.bottom.inset(0);

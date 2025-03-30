@@ -144,7 +144,7 @@ export function createDB() {
             gid INTEGER PRIMARY KEY,
             length INTEGER NOT NULL,
             finished INTEGER
-            )`)
+            )`);
 
   // 创建trigger, 限制webdav_services表的enabled最多只能有一行
   db.update(`CREATE TRIGGER IF NOT EXISTS enforce_webdav_services_single_enabled
@@ -155,6 +155,19 @@ export function createDB() {
                 SELECT RAISE(ABORT, 'Only one row can have enabled = 1')
                 WHERE (SELECT COUNT(*) FROM webdav_services WHERE enabled = 1) >= 1;
             END;`);
+  // 写入favcat_titles的初始值
+  const r = queryDB(db, "SELECT COUNT(*) as count FROM favcat_titles") as {count: number}[];
+  if (!r.at(0)?.count) {
+    insertDBBatch(
+      db,
+      "favcat_titles",
+      ["favcat", "title"],
+      [...Array(10)].map((_, i) => {
+        return [i, "Favorites " + i];
+      })
+    );
+  }
+
   $sqlite.close(db);
 }
 

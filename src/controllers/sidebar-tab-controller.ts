@@ -351,7 +351,10 @@ export class SidebarTabController extends BaseController {
                   events: {
                     tapped: () => {
                       statusManager.addTab({ showInManager: true });
+                      statusManager.currentTabId = statusManager.tabIdsShownInManager.at(-1)!;
                       this.refresh();
+                      const home = router.get("homepageController") as HomepageController;
+                      home.updateStatus();
                     },
                   },
                 },

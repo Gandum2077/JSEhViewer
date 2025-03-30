@@ -318,6 +318,10 @@ async function init() {
     configManager.mytagsApiuid = ehMyTags.apiuid;
     configManager.mytagsApikey = ehMyTags.apikey;
   }
+
+  // 更新sidebar-tab的favoritesButton
+  sideBarTabController.cviews.favoriteButton.refresh();
+  
   if (homepageController.cviews.list.footerText === "请等待配置同步……") {
     homepageController.cviews.list.footerText = "";
     // 自动加载

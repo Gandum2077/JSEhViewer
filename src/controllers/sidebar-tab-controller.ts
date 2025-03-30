@@ -14,6 +14,7 @@ import { statusManager } from "../utils/status";
 import { StatusTabOptions } from "../types";
 import { HomepageController } from "./homepage-controller";
 import { _mapSearchTermsToRow } from "../components/searchterm-history-list";
+import { configManager } from "../utils/config";
 
 class HeaderStackBlur extends Base<UIButtonView, UiTypes.ButtonOptions> {
   _defineView: () => UiTypes.ButtonOptions;
@@ -27,9 +28,6 @@ class HeaderStackBlur extends Base<UIButtonView, UiTypes.ButtonOptions> {
           cornerRadius: 15,
           smoothCorners: true,
           bgcolor: $color("tertiarySurface"),
-        },
-        layout: (make, view) => {
-          make.size.equalTo($size(30, 30));
         },
         events: {
           tapped: () => {
@@ -103,11 +101,102 @@ class HeaderStackBlur extends Base<UIButtonView, UiTypes.ButtonOptions> {
   }
 }
 
+class DelayRefreshFavoritesButtonPart extends Base<UIButtonView, UiTypes.ButtonOptions> {
+  _defineView: () => UiTypes.ButtonOptions;
+  constructor() {
+    super();
+    this._defineView = () => {
+      return {
+        type: "button",
+        props: {
+          id: this.id,
+          cornerRadius: 15,
+          smoothCorners: true,
+          bgcolor: $color("tertiarySurface"),
+          menu: {
+            asPrimary: true,
+            pullDown: true,
+            items: ["全部", ...configManager.favcatTitles].map((title, index) => {
+              return {
+                title,
+                handler: () => {
+                  (router.get("homepageController") as HomepageController).triggerLoad({
+                    type: "favorites",
+                    options: {
+                      favcat: index === 0 ? undefined : ((index - 1) as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9),
+                    },
+                  });
+                  (router.get("splitViewController") as SplitViewController).sideBarShown = false;
+                  (router.get("primaryViewController") as TabBarController).index = 0;
+                },
+              };
+            }),
+          },
+        },
+        layout: $layout.fill,
+        views: [
+          {
+            type: "image",
+            props: {
+              symbol: fixedTabSymbolTitle["favorites"].symbol,
+              tintColor: fixedTabSymbolTitle["favorites"].color,
+              contentMode: 1,
+            },
+            layout: (make, view) => {
+              make.centerX.equalTo(view.super);
+              make.top.inset(12.5);
+              make.size.equalTo($size(32.5, 32.5));
+            },
+          },
+          {
+            type: "label",
+            props: {
+              text: fixedTabSymbolTitle["favorites"].title,
+              font: $font("bold", 12),
+            },
+            layout: (make, view) => {
+              make.centerX.equalTo(view.super);
+              make.top.equalTo(view.prev.bottom).inset(3);
+            },
+          },
+        ],
+      };
+    };
+  }
+}
+
+class DelayRefreshFavoritesButton extends Base<UIView, UiTypes.ViewOptions> {
+  cviews: {
+    buttonPart: DelayRefreshFavoritesButtonPart
+  }
+  _defineView: () => UiTypes.ViewOptions;
+  constructor() {
+    super();
+    const buttonPart = new DelayRefreshFavoritesButtonPart()
+    this.cviews= {buttonPart}
+    this._defineView = () => {
+      return {
+        type: "view",
+        props: {
+          id: this.id
+        },
+        views: [buttonPart.definition],
+      };
+    };
+  }
+
+  refresh() {
+    this.cviews.buttonPart.view.hidden = true;
+    this.view.add(new DelayRefreshFavoritesButtonPart().definition);
+  }
+}
+
 export class SidebarTabController extends BaseController {
   cviews: {
     headerView: CustomNavigationBar;
     bgview: ContentView;
     list: List;
+    favoriteButton: DelayRefreshFavoritesButton;
   };
   constructor() {
     super({
@@ -139,6 +228,7 @@ export class SidebarTabController extends BaseController {
         make.bottom.equalTo(view.super.safeAreaTop).inset(-50);
       },
     });
+    const favoriteButton = new DelayRefreshFavoritesButton();
     // 首页 订阅 热门 收藏 排行 我的上传
     const headerStack = new ContentView({
       props: {
@@ -178,7 +268,7 @@ export class SidebarTabController extends BaseController {
             distribution: $stackViewDistribution.fillEqually,
             stack: {
               views: [
-                new HeaderStackBlur("favorites").definition,
+                favoriteButton.definition,
                 {
                   type: "button",
                   props: {
@@ -247,9 +337,6 @@ export class SidebarTabController extends BaseController {
                         },
                       ],
                     },
-                  },
-                  layout: (make, view) => {
-                    make.size.equalTo($size(30, 30));
                   },
                   views: [
                     {
@@ -534,6 +621,7 @@ export class SidebarTabController extends BaseController {
       headerView,
       bgview,
       list,
+      favoriteButton,
     };
     this.rootView.views = [list, bgview, headerView];
   }
@@ -579,6 +667,9 @@ export class SidebarTabController extends BaseController {
           (!tab.data.options.searchTerms || tab.data.options.searchTerms.length === 0))
       ) {
         let title = fixedTabSymbolTitle[type].title;
+        if (type === "favorites" && tab.data.options.favcat !== undefined) {
+          title = configManager.favcatTitles[tab.data.options.favcat]
+        }
         if (type === "toplist") {
           title =
             tab.data.options.timeRange === "yesterday"

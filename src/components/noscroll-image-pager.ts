@@ -143,9 +143,9 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
                   // JSBox中的双指缩放存在一个bug，如果在根视图渲染后通过`add`方法加入双指缩放视图，
                   // 会导致其中的image控件的大小不能和scroll控件同步，所以需要这样一个布局
                   // 如果在最开始，双指缩放视图作为子视图和根视图一起渲染，那么不需要为image控件写布局，JSBox会自动处理
-                  make.top.left.equalTo(0);
-                  make.height.equalTo(view.super);
-                  make.width.equalTo(view.super);
+                  make.center.equalTo(view.super);
+                  make.height.equalTo(view.super.safeArea);
+                  make.width.equalTo(view.super.safeArea);
                 },
               },
             ],

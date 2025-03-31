@@ -423,7 +423,7 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
         min: 0,
         max: this._length - 1,
         continuous: true,
-        minColor: $color("systemLink")
+        minColor: $color("systemLink"),
       },
       layout: (make, view) => {
         make.left.equalTo(view.prev.prev.right).inset(5);
@@ -1082,10 +1082,8 @@ export class ReaderController extends BaseController {
                 srcs: this._generateSrcs(),
                 page: footerThumbnailView.index,
               },
-              layout: (make, view) => {
-                make.left.right.inset(2);
-                make.top.bottom.inset(0);
-              },
+              layout: $layout.fillSafeArea,
+              // 点击模式保持和横向滑动模式相同的方案，不过它可以改成$layout.fill，那样的话可以缩放全屏
               events: {
                 changed: (page) => this.handleTurnPage(page),
                 reloadHandler: (page) => {
@@ -1102,10 +1100,7 @@ export class ReaderController extends BaseController {
                 srcs: this._generateSrcs(),
                 page: footerThumbnailView.index,
               },
-              layout: (make, view) => {
-                make.left.right.inset(2);
-                make.top.bottom.inset(0);
-              },
+              layout: $layout.fill,
               events: {
                 changed: (page) => this.handleTurnPage(page),
                 reloadHandler: (page) => {
@@ -1135,10 +1130,8 @@ export class ReaderController extends BaseController {
                 srcs: this._generateSrcs(),
                 page: footerThumbnailView.index,
               },
-              layout: (make, view) => {
-                make.left.right.inset(2);
-                make.top.bottom.inset(0);
-              },
+              layout: $layout.fillSafeArea,
+              // 横向滑动模式必须限制在安全区域内，否则会出现切页时图片随机上下浮动一点点的问题（猜测和状态栏有关？）
               events: {
                 changed: (page) => this.handleTurnPage(page),
                 reloadHandler: (page) => {
@@ -1178,7 +1171,7 @@ export class ReaderController extends BaseController {
     };
     const viewer = new ContentView({
       props: { bgcolor: $color("clear") },
-      layout: $layout.fillSafeArea,
+      layout: $layout.fill,
       views: [],
       events: {
         layoutSubviews: (sender) => {

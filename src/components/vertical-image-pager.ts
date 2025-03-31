@@ -16,6 +16,7 @@ export class VerticalImagePager extends Base<UIListView, UiTypes.ListOptions> {
     page: number;
   };
   private _heights: number[];
+  private _initialLayoutFinished: boolean = false;
   _defineView: () => UiTypes.ListOptions;
 
   /**
@@ -147,6 +148,7 @@ export class VerticalImagePager extends Base<UIListView, UiTypes.ListOptions> {
               });
               this.view.reload();
               this.page = this._props.page;
+              this._initialLayoutFinished = true;
             } else {
               $delay(0.1, () => {
                 this._heights = this._heights.map((_, i) => {
@@ -154,6 +156,7 @@ export class VerticalImagePager extends Base<UIListView, UiTypes.ListOptions> {
                 });
                 this.view.reload();
                 this.page = this._props.page;
+                this._initialLayoutFinished = true;
               });
             }
           },
@@ -169,6 +172,7 @@ export class VerticalImagePager extends Base<UIListView, UiTypes.ListOptions> {
             }
           },
           didScroll: (sender) => {
+            if (!this._initialLayoutFinished) return;
             const offsetY = sender.contentOffset.y;
             let sum = 0;
             let page = 0;

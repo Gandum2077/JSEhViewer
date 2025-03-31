@@ -1100,7 +1100,10 @@ export class ReaderController extends BaseController {
                 srcs: this._generateSrcs(),
                 page: footerThumbnailView.index,
               },
-              layout: $layout.fill,
+              layout: (make, view) => {
+                make.left.right.equalTo(view.super.safeArea);
+                make.top.bottom.inset(0);
+              },
               events: {
                 changed: (page) => this.handleTurnPage(page),
                 reloadHandler: (page) => {

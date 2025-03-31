@@ -16,15 +16,20 @@ import {
   EHIPBannedError,
   EHMyTags,
   EHSearchTerm,
+  extractGidToken,
   ParsedCookie,
 } from "ehentai-parser";
 import { aiTranslationPath, imagePath, thumbnailPath, originalImagePath, galleryInfoPath } from "./utils/glv";
 import { globalTimer } from "./utils/timer";
 import { StatusTabOptions } from "./types";
 import { dbManager } from "./utils/database";
+import { GalleryController } from "./controllers/gallery-controller";
 
-async function init() {
+async function init(url?: string) {
   appLog("app start", "debug");
+  if (url) {
+    appLog("外部链接: " + url, "debug");
+  }
   if (!$file.exists(imagePath)) $file.mkdir(imagePath);
   if (!$file.exists(thumbnailPath)) $file.mkdir(thumbnailPath);
   if (!$file.exists(aiTranslationPath)) $file.mkdir(aiTranslationPath);
@@ -321,11 +326,30 @@ async function init() {
 
   // 更新sidebar-tab的favoritesButton
   sideBarTabController.cviews.favoriteButton.refresh();
-  
+
   if (homepageController.cviews.list.footerText === "请等待配置同步……") {
     homepageController.cviews.list.footerText = "";
     // 自动加载
-    if (configManager.startPageType === "last_access" && configManager.lastAccessPageJson) {
+    if (url) {
+      let gid: number | undefined;
+      let token: string | undefined;
+      try {
+        const r = extractGidToken(url);
+        gid = r.gid;
+        token = r.token;
+      } catch (e) {
+        $ui.toast("从外部导入的链接无效");
+      }
+      if (!gid || !token) {
+        $ui.toast("从外部导入的链接无效");
+      } else {
+        const galleryController = new GalleryController(gid, token);
+        galleryController.uipush({
+          navBarHidden: true,
+          statusBarStyle: 0,
+        });
+      }
+    } else if (configManager.startPageType === "last_access" && configManager.lastAccessPageJson) {
       const options = JSON.parse(configManager.lastAccessPageJson) as StatusTabOptions;
       homepageController.triggerLoad(options);
     } else if (configManager.startPageType === "specific_searchterms" && configManager.specificSearchtermsOnStart) {
@@ -396,7 +420,13 @@ async function init() {
 }
 
 if ($app.env === $env.app) {
-  init()
+  const query = $context.query;
+  let url = typeof query === "object" && "url" in query ? (query.url as string) : undefined;
+  if (url) {
+    if (url.includes("%3A%2F%2F")) url = decodeURIComponent(url);
+    url = url.trim().toLowerCase();
+  }
+  init(url)
     .then()
     .catch((e) => console.error(e));
 } else {

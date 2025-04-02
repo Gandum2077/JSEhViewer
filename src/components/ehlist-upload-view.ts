@@ -297,7 +297,7 @@ export class EHlistUploadView extends Base<UIView, UiTypes.ViewOptions> {
           const spacing = 4;
 
           this._contentOffsetChanged?.({
-            layout: "minimal",
+            layout: "upload",
             totalWidth: this._totalWidth,
             firstVisibleItemIndex: 0,
             offsetY,
@@ -381,7 +381,7 @@ export class EHlistUploadView extends Base<UIView, UiTypes.ViewOptions> {
   }
 
   updateScrollState(scrollState: ScrollState) {
-    if (scrollState.layout === "minimal") {
+    if (scrollState.layout === "upload") {
       if (scrollState.totalWidth === this._totalWidth) {
         this.matrix.view.contentOffset = $point(0, scrollState.offsetY);
       } else {

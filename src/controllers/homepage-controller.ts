@@ -64,7 +64,12 @@ export class HomepageController extends BaseController {
     });
     const listLayoutButton = new SymbolButton({
       props: {
-        symbol: configManager.homepageManagerLayoutMode === "normal" ? "square.grid.2x2" : "list.bullet",
+        symbol:
+          configManager.homepageManagerLayoutMode === "large"
+            ? "list.bullet"
+            : configManager.homepageManagerLayoutMode === "normal"
+            ? "square.grid.2x2.fill"
+            : "square.grid.3x3.fill",
         menu: {
           title: "布局方式",
           pullDown: true,
@@ -82,12 +87,22 @@ export class HomepageController extends BaseController {
             },
             {
               title: "矩阵布局",
-              symbol: "square.grid.2x2",
+              symbol: "square.grid.2x2.fill",
               handler: () => {
                 if (configManager.homepageManagerLayoutMode === "normal") return;
                 configManager.homepageManagerLayoutMode = "normal";
-                listLayoutButton.symbol = "square.grid.2x2";
+                listLayoutButton.symbol = "square.grid.2x2.fill";
                 list.layoutMode = "normal";
+              },
+            },
+            {
+              title: "紧凑布局",
+              symbol: "square.grid.3x3.fill",
+              handler: () => {
+                if (configManager.homepageManagerLayoutMode === "minimal") return;
+                configManager.homepageManagerLayoutMode = "minimal";
+                listLayoutButton.symbol = "square.grid.3x3.fill";
+                list.layoutMode = "minimal";
               },
             },
           ],

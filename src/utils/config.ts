@@ -16,8 +16,8 @@ interface Config {
   exhentai: boolean; // 是否登录Exhentai
   syncMyTags: boolean; // 是否同步我的标签
   mpvAvailable: boolean; // 是否可用MPV
-  homepageManagerLayoutMode: "large" | "normal"; // 主页管理器布局模式
-  archiveManagerLayoutMode: "large" | "normal"; // 存档管理器布局模式
+  homepageManagerLayoutMode: "large" | "normal" | "minimal"; // 主页管理器布局模式
+  archiveManagerLayoutMode: "large" | "normal" | "minimal"; // 存档管理器布局模式
   tagManagerOnlyShowBookmarked: boolean; // 标签管理器仅显示已收藏的标签
   webdavIntroductionFirstRead: boolean; // 是否首次阅读WebDAV介绍
   importingArchiverIntroductionRead: boolean; // 是否阅读过导入压缩包的介绍
@@ -132,7 +132,7 @@ class ConfigManager {
   private _searchHistory: DBSearchHistory;
   private _searchBookmarks: DBSearchBookmarks;
   private _webDAVServices: WebDAVService[];
-  pushedSearchResultControllerLayoutMode: "large" | "normal";
+  pushedSearchResultControllerLayoutMode: "large" | "normal" | "minimal";
   private _aiTranslationSavedConfig: Record<string, any>;
   // 用于控制搜索结果页面的布局模式，其初始值和homepageManagerLayoutMode相同，但后续可以被PushedSearchResultController组件修改
   constructor() {
@@ -202,7 +202,7 @@ class ConfigManager {
     return this._config.homepageManagerLayoutMode;
   }
 
-  set homepageManagerLayoutMode(value: "large" | "normal") {
+  set homepageManagerLayoutMode(value: "large" | "normal" | "minimal") {
     this._setConfig("homepageManagerLayoutMode", value);
   }
 
@@ -210,7 +210,7 @@ class ConfigManager {
     return this._config.archiveManagerLayoutMode;
   }
 
-  set archiveManagerLayoutMode(value: "large" | "normal") {
+  set archiveManagerLayoutMode(value: "large" | "normal" | "minimal") {
     this._setConfig("archiveManagerLayoutMode", value);
   }
 

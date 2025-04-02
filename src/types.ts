@@ -228,7 +228,7 @@ export type AITranslationConfig = {
 };
 
 export type ScrollState = {
-  layout: "large" | "normal" | "minimal";
+  layout: "large" | "normal" | "minimal" | "upload";
   totalWidth: number;
   offsetY: number;
   firstVisibleItemIndex: number;

@@ -19,7 +19,7 @@ export class PushedSearchResultController extends BaseController {
   private _thumbnailAllLoaded: boolean = false; // 此标志用于在TabDownloader完成后，再进行一次刷新
   private _visible: boolean = true; // 用于判断是否可见
   readonly tabId: string;
-  layoutMode: "normal" | "large";
+  layoutMode: "large" | "normal" | "minimal";
   cviews: {
     navbar: CustomNavigationBar;
     list: EHlistView;
@@ -71,7 +71,12 @@ export class PushedSearchResultController extends BaseController {
     this.layoutMode = configManager.pushedSearchResultControllerLayoutMode;
     const listLayoutButton = new SymbolButton({
       props: {
-        symbol: this.layoutMode === "normal" ? "square.grid.2x2" : "list.bullet",
+        symbol:
+          this.layoutMode === "large"
+            ? "list.bullet"
+            : this.layoutMode === "normal"
+            ? "square.grid.2x2.fill"
+            : "square.grid.3x3.fill",
         menu: {
           title: "布局方式",
           pullDown: true,
@@ -90,13 +95,24 @@ export class PushedSearchResultController extends BaseController {
             },
             {
               title: "矩阵布局",
-              symbol: "square.grid.2x2",
+              symbol: "square.grid.2x2.fill",
               handler: () => {
                 if (this.layoutMode === "normal") return;
                 configManager.pushedSearchResultControllerLayoutMode = "normal";
                 this.layoutMode = "normal";
-                listLayoutButton.symbol = "square.grid.2x2";
+                listLayoutButton.symbol = "square.grid.2x2.fill";
                 list.layoutMode = "normal";
+              },
+            },
+            {
+              title: "紧凑布局",
+              symbol: "square.grid.3x3.fill",
+              handler: () => {
+                if (this.layoutMode === "minimal") return;
+                configManager.pushedSearchResultControllerLayoutMode = "minimal";
+                this.layoutMode = "minimal";
+                listLayoutButton.symbol = "square.grid.3x3.fill";
+                list.layoutMode = "minimal";
               },
             },
           ],

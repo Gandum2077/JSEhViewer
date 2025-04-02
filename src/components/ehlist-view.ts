@@ -88,7 +88,6 @@ function _mapDataForLargeLayout(
   const ratingArray = ratingToArray(item.estimated_display_rating);
   return {
     minimal: { hidden: true },
-    minimalFolder: { hidden: true },
     normal: { hidden: true },
     large: { hidden: false },
     title_large: {
@@ -171,7 +170,6 @@ function _mapDataForNormalLayout(
 
   return {
     minimal: { hidden: true },
-    minimalFolder: { hidden: true },
     normal: { hidden: false },
     large: { hidden: true },
     title_normal: {
@@ -222,18 +220,68 @@ function _mapDataForNormalLayout(
   };
 }
 
-function _mapData(items: Items, layout: "normal" | "large") {
+function _mapDataForMinimalLayout(
+  item: EHListExtendedItem | EHListCompactItem | EHListThumbnailItem | EHListMinimalItem
+) {
+  let languageAbbr: string | undefined;
+  let languageBgcolor: UIColor | undefined;
+  const t = item.taglist
+    .find((n) => n.namespace === "language")
+    ?.tags.filter((n) => n in languageAbbreviates)
+    .sort((a, b) => {
+      const indexA = languageCustomSort.indexOf(a);
+      const indexB = languageCustomSort.indexOf(b);
+      if (indexA !== -1 && indexB === -1) return -1;
+      if (indexA === -1 && indexB !== -1) return 1;
+      return indexA - indexB;
+    });
+  if (t && t.length > 0) {
+    const language = t[0];
+    languageAbbr = languageAbbreviates[language].toUpperCase();
+    if (language === "chinese" || language === "english" || language === "korean" || language === "japanese") {
+      languageBgcolor = languageTagColor[language];
+    } else {
+      languageBgcolor = languageTagColor.other;
+    }
+  }
+
+  return {
+    minimal: { hidden: false },
+    normal: { hidden: true },
+    large: { hidden: true },
+    category_minimal: {
+      text: catTranslations[item.category],
+      bgcolor: catColor[item.category],
+    },
+    language_minimal: { hidden: !Boolean(languageAbbr) },
+    language_bgview_minimal: { bgcolor: languageBgcolor },
+    language_label_minimal: { text: languageAbbr },
+    length_minimal: {
+      text: item.length,
+    },
+    thumbnail_minimal: {
+      src: thumbnailPath + `${item.gid}.jpg`,
+    },
+  };
+}
+
+function _mapData(items: Items, layout: "large" | "normal" | "minimal") {
   if (items.length === 0) {
     return [];
+  } else if (layout === "large") {
+    return items.map((item) => {
+      item = item as EHListExtendedItem | EHListCompactItem | EHListThumbnailItem | EHListMinimalItem;
+      return _mapDataForLargeLayout(item);
+    });
   } else if (layout === "normal") {
     return items.map((item) => {
       item = item as EHListExtendedItem | EHListCompactItem | EHListThumbnailItem | EHListMinimalItem;
       return _mapDataForNormalLayout(item);
     });
-  } else if (layout === "large") {
+  } else if (layout === "minimal") {
     return items.map((item) => {
       item = item as EHListExtendedItem | EHListCompactItem | EHListThumbnailItem | EHListMinimalItem;
-      return _mapDataForLargeLayout(item);
+      return _mapDataForMinimalLayout(item);
     });
   } else {
     throw new Error("Invalid layout mode");
@@ -281,9 +329,20 @@ const normalLayoutProps = {
   maxColumns: 8,
 };
 
+const minimalLayoutProps = {
+  spacing: 4,
+  minItemWidth: 119,
+  maxColumns: 20,
+};
+
 // normalLayout的item高度随宽度改变
 const normalLayoutItemHeight = (itemWidth: number) => {
   return Math.round(itemWidth * 1.414) + 95;
+};
+
+// minimalLayout的item高度随宽度改变
+const minimalLayoutItemHeight = (itemWidth: number) => {
+  return Math.round(itemWidth * 1.414);
 };
 
 export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
@@ -293,7 +352,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
   matrix: Matrix;
 
   private _items: Items = [];
-  private _layoutMode: "normal" | "large";
+  private _layoutMode: "large" | "normal" | "minimal";
   private _isPulling = false; // 是否处于下拉刷新状态
   private _isReachingBottom = false; // 是否处于到达底部后的加载状态
   private _contentOffsetChanged?: (scrollState: ScrollState) => void;
@@ -310,7 +369,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
     contentOffsetChanged,
     layout,
   }: {
-    layoutMode: "normal" | "large";
+    layoutMode: "large" | "normal" | "minimal";
     searchBar: Base<any, any>;
     readlaterHandler?: (item: EHListExtendedItem | EHListCompactItem) => Promise<void> | void;
     removeFromArchiveHandler?: (item: EHListExtendedItem | EHListCompactItem) => Promise<void> | void;
@@ -885,6 +944,115 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                 },
               ],
             },
+            {
+              type: "view",
+              props: {
+                bgcolor: $color("primarySurface", "tertiarySurface"),
+                id: "minimal",
+              },
+              layout: $layout.fill,
+              views: [
+                {
+                  type: "image",
+                  props: {
+                    id: "thumbnail_minimal",
+                    contentMode: 2,
+                  },
+                  layout: $layout.fill,
+                },
+                {
+                  type: "label",
+                  props: {
+                    id: "category_minimal",
+                    textColor: $color("white"),
+                    align: $align.center,
+                    font: $font("bold", 10),
+                    smoothCorners: true,
+                    cornerRadius: 4,
+                  },
+                  layout: (make, view) => {
+                    make.left.bottom.inset(2);
+                    make.height.equalTo(14);
+                    make.width.equalTo(49);
+                  },
+                },
+                {
+                  type: "blur",
+                  props: {
+                    style: 7,
+                    smoothCorners: true,
+                    cornerRadius: 4,
+                  },
+                  layout: (make, view) => {
+                    make.left.equalTo(view.prev.right).inset(4);
+                    make.bottom.inset(2);
+                    make.height.equalTo(14);
+                    make.width.equalTo(44);
+                  },
+                  views: [
+                    {
+                      type: "image",
+                      props: {
+                        symbol: "photo",
+                        tintColor: $color("systemLink"),
+                        contentMode: 1,
+                      },
+                      layout: (make, view) => {
+                        make.left.inset(3);
+                        make.size.equalTo($size(13, 13));
+                        make.centerY.equalTo(view.super);
+                      },
+                    },
+                    {
+                      type: "label",
+                      props: {
+                        id: "length_minimal",
+                        align: $align.center,
+                        font: $font(10),
+                      },
+                      layout: (make, view) => {
+                        make.width.equalTo(26);
+                        make.right.inset(2);
+                        make.centerY.equalTo(view.super);
+                      },
+                    },
+                  ],
+                },
+                {
+                  type: "view",
+                  props: {
+                    id: "language_minimal",
+                  },
+                  layout: (make, view) => {
+                    make.bottom.inset(2);
+                    make.left.equalTo(view.prev.right).inset(4);
+                    make.width.equalTo(14);
+                    make.height.equalTo(14);
+                  },
+                  views: [
+                    {
+                      type: "view",
+                      props: {
+                        id: "language_bgview_minimal",
+                        cornerRadius: 7,
+                        smoothCorners: true,
+                      },
+                      layout: $layout.fill,
+                    },
+                    {
+                      type: "label",
+                      props: {
+                        id: "language_label_minimal",
+                        align: $align.center,
+                        textColor: $color("white"),
+                        font: $font("bold", 8),
+                      },
+                      layout: $layout.center,
+                    },
+                  ],
+                },
+              ],
+            },
           ],
         },
       },
@@ -957,16 +1125,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
   }
 
   reload() {
-    if (this._layoutMode === "normal") {
-      const { itemSizeWidth } = _getColumnsAndItemSizeWidth(
-        this._totalWidth,
-        normalLayoutProps.minItemWidth,
-        normalLayoutProps.maxColumns,
-        normalLayoutProps.spacing
-      );
-      this._itemSizeWidth = itemSizeWidth;
-      this._itemSizeHeight = normalLayoutItemHeight(this._itemSizeWidth);
-    } else if (this._layoutMode === "large") {
+    if (this._layoutMode === "large") {
       const { itemSizeWidth } = _getColumnsAndItemSizeWidth(
         this._totalWidth,
         largeLayoutProps.minItemWidth,
@@ -975,12 +1134,39 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
       );
       this._itemSizeWidth = itemSizeWidth;
       this._itemSizeHeight = largeLayoutProps.fixedItemHeight;
-    }
+    } else if (this._layoutMode === "normal") {
+      const { itemSizeWidth } = _getColumnsAndItemSizeWidth(
+        this._totalWidth,
+        normalLayoutProps.minItemWidth,
+        normalLayoutProps.maxColumns,
+        normalLayoutProps.spacing
+      );
+      this._itemSizeWidth = itemSizeWidth;
+      this._itemSizeHeight = normalLayoutItemHeight(this._itemSizeWidth);
+    } else if (this._layoutMode === "minimal") {
+      const { itemSizeWidth } = _getColumnsAndItemSizeWidth(
+        this._totalWidth,
+        minimalLayoutProps.minItemWidth,
+        minimalLayoutProps.maxColumns,
+        minimalLayoutProps.spacing
+      );
+      this._itemSizeWidth = itemSizeWidth;
+      this._itemSizeHeight = minimalLayoutItemHeight(this._itemSizeWidth);
+    } 
     this.matrix.view.reload();
   }
 
   updateScrollState(scrollState: ScrollState) {
-    if (scrollState.layout === "normal") {
+    if (scrollState.layout === "large") {
+      if (this._layoutMode === "large" && scrollState.totalWidth === this._totalWidth) {
+        this.matrix.view.contentOffset = $point(0, scrollState.offsetY);
+      } else {
+        this.matrix.view.scrollTo({
+          indexPath: $indexPath(0, scrollState.firstVisibleItemIndex),
+          animated: false,
+        });
+      }
+    } else if (scrollState.layout === "normal") {
       if (this._layoutMode === "normal" && scrollState.totalWidth === this._totalWidth) {
         this.matrix.view.contentOffset = $point(0, scrollState.offsetY);
       } else {
@@ -989,8 +1175,8 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
           animated: false,
         });
       }
-    } else if (scrollState.layout === "large") {
-      if (this._layoutMode === "large" && scrollState.totalWidth === this._totalWidth) {
+    } else if (scrollState.layout === "minimal") {
+      if (this._layoutMode === "minimal" && scrollState.totalWidth === this._totalWidth) {
         this.matrix.view.contentOffset = $point(0, scrollState.offsetY);
       } else {
         this.matrix.view.scrollTo({
@@ -1005,7 +1191,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
     return this._layoutMode;
   }
 
-  set layoutMode(mode: "normal" | "large") {
+  set layoutMode(mode: "large" | "normal" | "minimal") {
     if (mode === this._layoutMode) return;
     this._layoutMode = mode;
     this.matrix.view.data = _mapData(this._items, this._layoutMode);

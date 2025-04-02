@@ -68,6 +68,14 @@ export class PushedSearchResultController extends BaseController {
     });
     const tabId = statusManager.addTab({ showInManager: false, initalTabType: "front_page" });
     this.tabId = tabId;
+
+    // 如果statusManager.pushedControllerMap中没有值，说明这是第一个pushedController
+    // 那么pushedSearchResultControllerLayoutMode重新赋值为homepageManagerLayoutMode
+    // 从而保证pushedController的布局和homepage一致
+    if (statusManager.pushedControllerMap.size === 0) {
+      configManager.pushedSearchResultControllerLayoutMode = configManager.homepageManagerLayoutMode;
+    }
+
     this.layoutMode = configManager.pushedSearchResultControllerLayoutMode;
     const listLayoutButton = new SymbolButton({
       props: {

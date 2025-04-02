@@ -318,7 +318,7 @@ class DownloadList extends Base<UIListView, UiTypes.ListOptions> {
           progressColor,
         },
         progressText: { text: progressText },
-        button: { info: { indexPath: { row: i, section: 1 } } },
+        button: { info: { indexPath: { row: i, section: downloadingRows.length > 0 ? 1 : 0 } } },
         buttonImage: {
           symbol: buttonSymbol,
           tintColor: buttonColor,

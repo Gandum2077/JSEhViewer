@@ -241,7 +241,7 @@ export async function getCookie(exhentai = true): Promise<ParsedCookie[]> {
     });
     if (resp.error || resp.response.statusCode !== 200 || !(resp.data as string).startsWith("<!DOCTYPE html>")) {
       appLog(resp, "error");
-      throw new Error("登录Exhentai失败：未知原因");
+      throw new Error("登录Exhentai失败：未知原因（可能是账号没有里站权限）");
     }
     const setCookies = parseSetCookieString(resp.response.headers["Set-Cookie"]);
     // 此处应该是必然有igneous的，否则登录失败，这应该是能否访问Exhentai的标志

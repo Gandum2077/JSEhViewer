@@ -10,6 +10,7 @@ import {
 } from "../types";
 import { dbManager } from "./database";
 import { aiTranslationPath, imagePath, originalImagePath, thumbnailPath } from "./glv";
+import { appLog } from "./tools";
 
 interface Config {
   cookie: string; // 登录Cookie
@@ -87,11 +88,29 @@ const defaultConfig: Config = {
 async function getEhTagTranslationText() {
   const url = "https://api.github.com/repos/EhTagTranslation/Database/releases/latest";
   const resp = await $http.get({ url: url, timeout: 30 });
+  if (resp.error) {
+    appLog(resp, "error");
+    throw new Error("访问GitHub API失败: " + resp.error.localizedDescription);
+  }
+  if (resp.response && resp.response.statusCode > 300) {
+    appLog(resp, "error");
+    throw new Error(`GitHub API返回错误，状态码: ${resp.response.statusCode}，返回内容: ${JSON.stringify(resp.data)}`);
+  }
   const info: {
     assets: { name: string; browser_download_url: string }[];
   } = resp.data;
   const dbUrl = info.assets.find((i) => i.name === "db.full.json")!.browser_download_url;
   const resp2 = await $http.get({ url: dbUrl, timeout: 30 });
+  if (resp2.error) {
+    appLog(resp, "error");
+    throw new Error("下载标签翻译数据失败: " + resp2.error.localizedDescription);
+  }
+  if (resp2.response && resp2.response.statusCode > 300) {
+    appLog(resp, "error");
+    throw new Error(
+      `下载标签翻译数据失败，状态码: ${resp2.response.statusCode}，返回内容: ${JSON.stringify(resp2.data)}`
+    );
+  }
   return resp2.rawData.string || "";
 }
 

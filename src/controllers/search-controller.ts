@@ -1148,8 +1148,8 @@ class NavBar extends Base<UIBlurView, UiTypes.BlurOptions> {
         smoothCorners: true,
       },
       layout: (make, view) => {
-        make.left.inset(30);
-        make.right.inset(30);
+        make.left.inset(35);
+        make.right.inset(35);
         make.centerY.equalTo(view.super);
         make.height.equalTo(36);
       },
@@ -1175,7 +1175,7 @@ class NavBar extends Base<UIBlurView, UiTypes.BlurOptions> {
       },
       layout: (make, view) => {
         make.top.equalTo(view.super.safeAreaTop).inset(0);
-        make.left.right.equalTo(view.super.safeArea).inset(0);
+        make.left.right.equalTo(view.super.safeArea).inset(5);
         make.height.equalTo(50);
       },
       views: [popButton.definition, searchInput.definition, filterButton.definition],
@@ -1194,7 +1194,7 @@ class NavBar extends Base<UIBlurView, UiTypes.BlurOptions> {
             : ["首页", "订阅", "收藏", "存档"],
       },
       layout: (make, view) => {
-        make.left.right.inset(50);
+        make.left.right.equalTo(view.super.safeArea).inset(50);
         make.height.equalTo(30);
         make.bottom.inset(10);
       },

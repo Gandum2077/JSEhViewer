@@ -664,21 +664,18 @@ export class HomepageController extends BaseController {
     }
 
     // 更新底部
-    if (tab.data.type === "upload") {
-      this.cviews.uploadList.footerText =
-        tab.status === "loading" ? "加载中……" : tab.status === "error" ? "加载出现错误" : "没有更多了";
-    } else {
-      this.cviews.list.footerText =
-        tab.data.type === "blank"
-          ? ""
-          : tab.status === "loading"
-          ? "加载中……"
-          : tab.status === "error"
-          ? "加载出现错误"
-          : tab.isNextPageAvailable
-          ? "上拉加载更多"
-          : "没有更多了";
-    }
+    const footerText =
+      tab.data.type === "blank"
+        ? ""
+        : tab.status === "loading"
+        ? "加载中……"
+        : tab.status === "error"
+        ? "加载出现错误"
+        : tab.isNextPageAvailable
+        ? "上拉加载更多"
+        : "没有更多了";
+    this.cviews.uploadList.footerText = footerText;
+    this.cviews.list.footerText = footerText;
 
     // 其他
     if (tab.data.type !== "blank") {

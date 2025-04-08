@@ -680,6 +680,18 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
           },
           views: [
             {
+              type: "view",
+              props: {
+                id: "bgview",
+                bgcolor: $color("clear"),
+                borderWidth: 1,
+                borderColor: $color("systemLink"),
+                cornerRadius: 10,
+                smoothCorners: true,
+              },
+              layout: $layout.fill,
+            },
+            {
               type: "image",
               props: {
                 id: "icon",
@@ -745,6 +757,9 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     return configManager.favcatTitles.map((title, index) => {
       const i = index as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
       return {
+        bgview: {
+          hidden: this._selectedFavcat === i ? false : true,
+        },
         icon: {
           tintColor: favcatColor[i],
         },

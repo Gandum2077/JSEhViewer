@@ -633,6 +633,8 @@ export class HomepageController extends BaseController {
         ? "首页"
         : tab.data.type === "watched"
         ? "订阅"
+        : tab.data.type === "favorites" && typeof tab.data.options.favcat === "number"
+        ? configManager.favcatTitles[tab.data.options.favcat]
         : tab.data.type === "favorites"
         ? "收藏"
         : tab.data.type === "popular"

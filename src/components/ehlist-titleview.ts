@@ -15,7 +15,9 @@ export class EhlistTitleView extends Base<UIButtonView, UiTypes.ButtonOptions> {
           enabled: !this._arrowSymbolHidden,
         },
         layout: (make, view) => {
-          make.width.equalTo(110);
+          make.width.greaterThanOrEqualTo(110).priority(1000);
+          make.width.lessThanOrEqualTo(170).priority(1000);
+          make.width.equalTo(view.super).priority(999);
           make.height.equalTo(view.super);
           make.center.equalTo(view.super);
         },
@@ -43,6 +45,7 @@ export class EhlistTitleView extends Base<UIButtonView, UiTypes.ButtonOptions> {
             layout: (make, view) => {
               make.centerY.equalTo(view.super);
               make.centerX.equalTo(view.super).offset(-8);
+              make.width.lessThanOrEqualTo(view.super).offset(-12);
             },
           },
           {

@@ -533,7 +533,13 @@ export class PushedSearchResultController extends BaseController {
 
     // 更新标题
     this.cviews.titleView.title =
-      tab.data.type === "front_page" ? "搜索" : tab.data.type === "watched" ? "订阅" : "收藏";
+      tab.data.type === "front_page"
+        ? "搜索"
+        : tab.data.type === "watched"
+        ? "订阅"
+        : tab.data.type === "favorites" && typeof tab.data.options.favcat === "number"
+        ? configManager.favcatTitles[tab.data.options.favcat]
+        : "收藏";
 
     // 更新列表
     if (!reloading) {

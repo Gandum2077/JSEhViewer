@@ -330,6 +330,7 @@ async function init(url?: string) {
 
   if (homepageController.cviews.list.footerText === "请等待配置同步……") {
     homepageController.cviews.list.footerText = "";
+    let flagOpenUrl = false; // 是否成功从外部链接打开
     // 自动加载
     if (url) {
       let gid: number | undefined;
@@ -344,16 +345,21 @@ async function init(url?: string) {
       if (!gid || !token) {
         $ui.toast("从外部导入的链接无效");
       } else {
+        flagOpenUrl = true;
         const galleryController = new GalleryController(gid, token);
         galleryController.uipush({
           navBarHidden: true,
           statusBarStyle: 0,
         });
       }
-    } else if (configManager.startPageType === "last_access" && configManager.lastAccessPageJson) {
-      const options = JSON.parse(configManager.lastAccessPageJson) as StatusTabOptions | StatusTabOptions[];
+    }
+    if (configManager.startPageType === "last_access" && configManager.lastAccessPageJson) {
+      let options = JSON.parse(configManager.lastAccessPageJson) as StatusTabOptions | StatusTabOptions[];
       // 为了保持历史兼容性，因此这里有两种类型
-      if (Array.isArray(options) && options.length > 1) {
+      if (!Array.isArray(options)) {
+        options = [options];
+      }
+      if (options.length > 0) {
         statusManager.currentTab.data = {
           ...clearExtraPropsForReload(options[0]),
           pages: [],
@@ -368,23 +374,26 @@ async function init(url?: string) {
           statusManager.currentTabId = statusManager.tabIdsShownInManager[configManager.lastAccessTabIndex];
         }
         const tab = statusManager.currentTab;
-        if (tab.data.type !== "blank") {
+        if (tab.data.type !== "blank" && !flagOpenUrl) {
           // 事实上此时的tab.data.type不可能为blank，因此不需要额外的操作
+          // 如果已经从外部链接打开，则不要加载，只更新状态
           homepageController.triggerLoad(clearExtraPropsForReload(tab.data));
+        } else {
+          homepageController.updateStatus();
         }
-      } else if (Array.isArray(options) && options.length === 1) {
-        homepageController.triggerLoad(clearExtraPropsForReload(options[0]));
-      } else if (!Array.isArray(options)) {
-        homepageController.triggerLoad(clearExtraPropsForReload(options));
       }
-    } else if (configManager.startPageType === "specific_searchterms" && configManager.specificSearchtermsOnStart) {
+    } else if (
+      !flagOpenUrl &&
+      configManager.startPageType === "specific_searchterms" &&
+      configManager.specificSearchtermsOnStart
+    ) {
       homepageController.triggerLoad({
         type: "front_page",
         options: {
           searchTerms: JSON.parse(configManager.specificSearchtermsOnStart) as EHSearchTerm[],
         },
       });
-    } else if (configManager.startPageType === "specific_page") {
+    } else if (!flagOpenUrl && configManager.startPageType === "specific_page") {
       let options: StatusTabOptions | undefined;
       switch (configManager.specificPageTypeOnStart) {
         case "front_page":

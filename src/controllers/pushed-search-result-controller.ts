@@ -368,7 +368,6 @@ export class PushedSearchResultController extends BaseController {
       layoutMode: this.layoutMode,
       searchBar,
       readlaterHandler: (item) => {
-        // TODO: 后续添加刷新存档列表功能
         const dbitem = statusManager.getArchiveItem(item.gid);
         if (dbitem && dbitem.readlater) {
           $ui.toast("稍后阅读中已有该图库");

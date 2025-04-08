@@ -665,7 +665,7 @@ export class HomepageController extends BaseController {
 
     // 更新底部
     const footerText =
-      tab.data.type === "blank"
+      tab.data.type === "blank" || tab.status === "pending"
         ? ""
         : tab.status === "loading"
         ? "加载中……"

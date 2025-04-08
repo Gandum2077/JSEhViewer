@@ -1368,7 +1368,7 @@ class DownloaderManager {
   tabDownloaders: Map<string, TabThumbnailDownloader>; // key为tab的id
   galleryDownloaders: Map<number, GalleryCommonDownloader>;
   galleryWebDAVUploaders: Map<number, GalleryWebDAVUploader>;
-  mpv = false; // 是否使用mpv的api TODO：暂时不支持动态修改
+  mpv = false; // 是否使用mpv的api
 
   constructor() {
     this.tabDownloaders = new Map() as Map<string, TabThumbnailDownloader>;

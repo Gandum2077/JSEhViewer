@@ -24,6 +24,7 @@ import { globalTimer } from "./utils/timer";
 import { StatusTabOptions } from "./types";
 import { dbManager } from "./utils/database";
 import { GalleryController } from "./controllers/gallery-controller";
+import { clearExtraPropsForReload, statusManager } from "./utils/status";
 
 async function init(url?: string) {
   appLog("app start", "debug");
@@ -350,8 +351,32 @@ async function init(url?: string) {
         });
       }
     } else if (configManager.startPageType === "last_access" && configManager.lastAccessPageJson) {
-      const options = JSON.parse(configManager.lastAccessPageJson) as StatusTabOptions;
-      homepageController.triggerLoad(options);
+      const options = JSON.parse(configManager.lastAccessPageJson) as StatusTabOptions | StatusTabOptions[];
+      // 为了保持历史兼容性，因此这里有两种类型
+      if (Array.isArray(options) && options.length > 1) {
+        statusManager.currentTab.data = {
+          ...clearExtraPropsForReload(options[0]),
+          pages: [],
+        };
+        options.slice(1).forEach((n) =>
+          statusManager.addTab({
+            showInManager: true,
+            initalTabOptions: n,
+          })
+        );
+        if (configManager.lastAccessTabIndex > 0 && configManager.lastAccessTabIndex < options.length) {
+          statusManager.currentTabId = statusManager.tabIdsShownInManager[configManager.lastAccessTabIndex];
+        }
+        const tab = statusManager.currentTab;
+        if (tab.data.type !== "blank") {
+          // 事实上此时的tab.data.type不可能为blank，因此不需要额外的操作
+          homepageController.triggerLoad(clearExtraPropsForReload(tab.data));
+        }
+      } else if (Array.isArray(options) && options.length === 1) {
+        homepageController.triggerLoad(clearExtraPropsForReload(options[0]));
+      } else if (!Array.isArray(options)) {
+        homepageController.triggerLoad(clearExtraPropsForReload(options));
+      }
     } else if (configManager.startPageType === "specific_searchterms" && configManager.specificSearchtermsOnStart) {
       homepageController.triggerLoad({
         type: "front_page",

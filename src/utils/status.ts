@@ -453,38 +453,51 @@ export class VirtualTab {
   errorMessage?: string;
   scrollState?: ScrollState;
   data: StatusTab; // 初始为空白页
-  constructor({ id, initalTabType }: { id: string; initalTabType?: StatusTabOptions["type"] }) {
+  constructor({ id, initalTabOptions }: { id: string; initalTabOptions?: StatusTabOptions }) {
     this.id = id;
-    if (!initalTabType) {
+    if (!initalTabOptions) {
       this.data = {
         type: "blank",
       };
-    } else if (initalTabType === "toplist") {
+    } else if (initalTabOptions.type === "front_page") {
       this.data = {
-        type: initalTabType,
-        options: {
-          timeRange: "all",
-        },
+        type: "front_page",
+        options: clearExtraPropsForReload(initalTabOptions).options,
         pages: [],
       };
-    } else if (initalTabType === "upload") {
+    } else if (initalTabOptions.type === "watched") {
+      this.data = {
+        type: "watched",
+        options: clearExtraPropsForReload(initalTabOptions).options,
+        pages: [],
+      };
+    } else if (initalTabOptions.type === "popular") {
+      this.data = {
+        type: "popular",
+        options: clearExtraPropsForReload(initalTabOptions).options,
+        pages: [],
+      };
+    } else if (initalTabOptions.type === "favorites") {
+      this.data = {
+        type: "favorites",
+        options: clearExtraPropsForReload(initalTabOptions).options,
+        pages: [],
+      };
+    } else if (initalTabOptions.type === "toplist") {
+      this.data = {
+        type: "toplist",
+        options: clearExtraPropsForReload(initalTabOptions).options,
+        pages: [],
+      };
+    } else if (initalTabOptions.type === "upload") {
       this.data = {
         type: "upload",
         pages: [],
       };
-    } else if (initalTabType === "archive") {
-      this.data = {
-        type: "archive",
-        options: {
-          fromPage: 0,
-          toPage: 0,
-        },
-        pages: [],
-      };
     } else {
       this.data = {
-        type: initalTabType,
-        options: {},
+        type: "archive",
+        options: clearExtraPropsForReload(initalTabOptions).options,
         pages: [],
       };
     }
@@ -968,7 +981,10 @@ class StatusManager {
   pushedControllerMap: Map<string, PushedSearchResultController> = new Map();
   constructor() {
     // 初始化
-    this._tabsMap.set("archive", new VirtualTab({ id: "archive", initalTabType: "archive" }));
+    this._tabsMap.set(
+      "archive",
+      new VirtualTab({ id: "archive", initalTabOptions: { type: "archive", options: { fromPage: 0, toPage: 0 } } })
+    );
     const firstTabId = cvid.newId;
     this._tabsMap.set(firstTabId, new VirtualTab({ id: firstTabId }));
     this._tabIdsInManager = [firstTabId];
@@ -1005,9 +1021,9 @@ class StatusManager {
     return this._tabIdsInManager;
   }
 
-  addTab({ showInManager, initalTabType }: { showInManager: boolean; initalTabType?: StatusTabOptions["type"] }) {
+  addTab({ showInManager, initalTabOptions }: { showInManager: boolean; initalTabOptions?: StatusTabOptions }) {
     const tabId = cvid.newId;
-    this._tabsMap.set(tabId, new VirtualTab({ id: tabId, initalTabType }));
+    this._tabsMap.set(tabId, new VirtualTab({ id: tabId, initalTabOptions }));
     if (showInManager) this._tabIdsInManager.push(tabId);
     downloaderManager.addTabDownloader(tabId);
     return tabId;

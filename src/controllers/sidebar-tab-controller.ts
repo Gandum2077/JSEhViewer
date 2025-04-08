@@ -10,7 +10,7 @@ import {
   TabBarController,
 } from "jsbox-cview";
 import { logoColorHex, fixedTabSymbolTitle } from "../utils/glv";
-import { statusManager } from "../utils/status";
+import { clearExtraPropsForReload, statusManager } from "../utils/status";
 import { StatusTabOptions } from "../types";
 import { HomepageController } from "./homepage-controller";
 import { _mapSearchTermsToRow } from "../components/searchterm-history-list";
@@ -167,18 +167,18 @@ class DelayRefreshFavoritesButtonPart extends Base<UIButtonView, UiTypes.ButtonO
 
 class DelayRefreshFavoritesButton extends Base<UIView, UiTypes.ViewOptions> {
   cviews: {
-    buttonPart: DelayRefreshFavoritesButtonPart
-  }
+    buttonPart: DelayRefreshFavoritesButtonPart;
+  };
   _defineView: () => UiTypes.ViewOptions;
   constructor() {
     super();
-    const buttonPart = new DelayRefreshFavoritesButtonPart()
-    this.cviews= {buttonPart}
+    const buttonPart = new DelayRefreshFavoritesButtonPart();
+    this.cviews = { buttonPart };
     this._defineView = () => {
       return {
         type: "view",
         props: {
-          id: this.id
+          id: this.id,
         },
         views: [buttonPart.definition],
       };
@@ -486,6 +486,9 @@ export class SidebarTabController extends BaseController {
                   if (oldScrollState) {
                     home.cviews.list.updateScrollState(oldScrollState);
                   }
+                  if (tab.status === "pending" && tab.data.type !== "blank") {
+                    home.triggerLoad(clearExtraPropsForReload(tab.data));
+                  }
                 }
               }
             },
@@ -614,6 +617,9 @@ export class SidebarTabController extends BaseController {
           }
           (router.get("splitViewController") as SplitViewController).sideBarShown = false;
           (router.get("primaryViewController") as TabBarController).index = 0;
+          if (tab.status === "pending" && tab.data.type !== "blank") {
+            home.triggerLoad(clearExtraPropsForReload(tab.data));
+          }
         },
       },
     });
@@ -668,7 +674,7 @@ export class SidebarTabController extends BaseController {
       ) {
         let title = fixedTabSymbolTitle[type].title;
         if (type === "favorites" && tab.data.options.favcat !== undefined) {
-          title = configManager.favcatTitles[tab.data.options.favcat]
+          title = configManager.favcatTitles[tab.data.options.favcat];
         }
         if (type === "toplist") {
           title =

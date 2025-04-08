@@ -37,6 +37,7 @@ interface Config {
   pageTurnMethod: "click_and_swipe" | "click" | "swipe" | "vertical"; // 翻页方式
   startPageType: "blank_page" | "last_access" | "specific_page" | "specific_searchterms"; // 起始页面类型
   lastAccessPageJson: string; // 上次访问页面, 以json格式存储的StatusTabOptions
+  lastAccessTabIndex: number; // 上次访问页面的index
   specificPageTypeOnStart:
     | "front_page"
     | "watched"
@@ -77,6 +78,7 @@ const defaultConfig: Config = {
   pageTurnMethod: "click_and_swipe",
   startPageType: "blank_page",
   lastAccessPageJson: "",
+  lastAccessTabIndex: 0,
   specificPageTypeOnStart: "front_page",
   specificSearchtermsOnStart: "",
   resumeIncompleteDownloadsOnStart: false,
@@ -364,6 +366,14 @@ class ConfigManager {
 
   set lastAccessPageJson(value: string) {
     this._setConfig("lastAccessPageJson", value);
+  }
+
+  get lastAccessTabIndex() {
+    return this._config.lastAccessTabIndex;
+  }
+
+  set lastAccessTabIndex(value: number) {
+    this._setConfig("lastAccessTabIndex", value);
   }
 
   get specificPageTypeOnStart() {

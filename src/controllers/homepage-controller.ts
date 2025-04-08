@@ -679,8 +679,18 @@ export class HomepageController extends BaseController {
 
     // 其他
     if (tab.data.type !== "blank") {
-      const storedOptions = clearExtraPropsForReload(tab.data);
+      const storedOptions: StatusTabOptions[] = [];
+      statusManager.tabIdsShownInManager.forEach((id) => {
+        const tab = statusManager.tabsMap.get(id);
+        if (!tab) throw new Error("标签页不存在");
+        if (tab.data.type !== "blank") {
+          storedOptions.push(clearExtraPropsForReload(tab.data));
+        }
+      });
       configManager.lastAccessPageJson = JSON.stringify(storedOptions);
+      configManager.lastAccessTabIndex = statusManager.tabIdsShownInManager.findIndex(
+        (n) => n === statusManager.currentTabId
+      );
     }
     this._thumbnailAllLoaded = false;
     (router.get("sidebarTabController") as SidebarTabController).refresh();

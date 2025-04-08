@@ -66,7 +66,7 @@ export class PushedSearchResultController extends BaseController {
         },
       },
     });
-    const tabId = statusManager.addTab({ showInManager: false, initalTabType: "front_page" });
+    const tabId = statusManager.addTab({ showInManager: false, initalTabOptions: { type: "front_page", options: {} } });
     this.tabId = tabId;
 
     // 如果statusManager.pushedControllerMap中没有值，说明这是第一个pushedController

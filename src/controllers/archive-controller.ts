@@ -184,13 +184,7 @@ export class ArchiveController extends BaseController {
           const newOptions = (await getSearchOptions(
             {
               type: "archive",
-              options: {
-                searchTerms: tab.data.options.searchTerms,
-                fromPage: 0,
-                toPage: 0,
-                sort: configManager.archiveManagerOrderMethod,
-                type: "all",
-              },
+              options: tab.data.options,
             },
             "onlyShowArchive"
           )) as ArchiveTabOptions;

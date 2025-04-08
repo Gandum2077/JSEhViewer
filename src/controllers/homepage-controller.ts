@@ -9,7 +9,13 @@ import { configManager } from "../utils/config";
 import { clearExtraPropsForReload, statusManager, VirtualTab } from "../utils/status";
 import { EHlistView } from "../components/ehlist-view";
 import { EHlistUploadView } from "../components/ehlist-upload-view";
-import { buildSortedFsearch, EHListExtendedItem, EHSearchTerm, extractGidToken } from "ehentai-parser";
+import {
+  buildSortedFsearch,
+  EHFavoriteSearchOptions,
+  EHListExtendedItem,
+  EHSearchOptions,
+  extractGidToken,
+} from "ehentai-parser";
 import { StatusTabOptions } from "../types";
 import { api, downloaderManager } from "../utils/api";
 import { CustomSearchBar } from "../components/custom-searchbar";
@@ -408,12 +414,12 @@ export class HomepageController extends BaseController {
         tapped: async (sender) => {
           const tab = statusManager.currentTab;
           let type: "front_page" | "watched" | "favorites" = "front_page";
-          let searchTerms: EHSearchTerm[] | undefined = undefined;
+          let options: EHSearchOptions | EHFavoriteSearchOptions = {};
           if (tab.data.type === "front_page" || tab.data.type === "watched" || tab.data.type === "favorites") {
-            searchTerms = tab.data.options.searchTerms;
             type = tab.data.type;
+            options = tab.data.options;
           }
-          const args = await getSearchOptions({ type, options: { searchTerms } }, "showAllExceptArchive");
+          const args = await getSearchOptions({ type, options }, "showAllExceptArchive");
           this.triggerLoad(args);
         },
       },
@@ -469,12 +475,12 @@ export class HomepageController extends BaseController {
         tapped: async (sender) => {
           const tab = statusManager.currentTab;
           let type: "front_page" | "watched" | "favorites" = "front_page";
-          let searchTerms: EHSearchTerm[] | undefined = undefined;
+          let options: EHSearchOptions | EHFavoriteSearchOptions = {};
           if (tab.data.type === "front_page" || tab.data.type === "watched" || tab.data.type === "favorites") {
-            searchTerms = tab.data.options.searchTerms;
             type = tab.data.type;
+            options = tab.data.options;
           }
-          const args = await getSearchOptions({ type, options: { searchTerms } }, "showAllExceptArchive");
+          const args = await getSearchOptions({ type, options }, "showAllExceptArchive");
           this.triggerLoad(args);
         },
       },

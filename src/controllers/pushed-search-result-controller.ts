@@ -370,7 +370,7 @@ export class PushedSearchResultController extends BaseController {
             throw new Error("Tab not found or invalid tab type");
           }
           const args = (await getSearchOptions(
-            { type: tab.data.type, options: { searchTerms: tab.data.options.searchTerms } },
+            { type: tab.data.type, options: tab.data.options },
             "showAllExceptArchive"
           )) as FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions;
           this.triggerLoad(args);

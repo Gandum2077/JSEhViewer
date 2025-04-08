@@ -9,7 +9,6 @@ import {
   PrefsRowBoolean,
   PrefsRowInteger,
   PrefsRowList,
-  searchBarBgcolor,
   SymbolButton,
   Tab,
 } from "jsbox-cview";
@@ -35,8 +34,16 @@ import {
   tagNamespaceAlternates,
   TagNamespaceAlternate,
   tagNamespaceAlternateMap,
+  EHSearchOptions,
+  EHFavoriteSearchOptions,
 } from "ehentai-parser";
-import { ArchiveTabOptions, FavoritesTabOptions, FrontPageTabOptions, WatchedTabOptions } from "../types";
+import {
+  ArchiveSearchOptions,
+  ArchiveTabOptions,
+  FavoritesTabOptions,
+  FrontPageTabOptions,
+  WatchedTabOptions,
+} from "../types";
 
 // 整体构造是上面一个自定义导航栏，下面是一个搜索选项列表
 // 下面一共有五个List叠放在一起，分别是：
@@ -328,7 +335,7 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
 
 class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
-  private _excludedCategories: Set<EHSearchedCategory> = new Set();
+  private _excludedCategories: Set<EHSearchedCategory>;
   private _enablePageFilters: boolean = false;
   private _options: {
     browseExpungedGalleries?: boolean;
@@ -339,13 +346,27 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     disableLanguageFilters?: boolean;
     disableUploaderFilters?: boolean;
     disableTagFilters?: boolean;
-  } = {};
+  };
   cviews: {
     catList: DynamicItemSizeMatrix;
     optionsList: DynamicPreferenceListView;
   };
-  constructor() {
+  constructor(options?: EHSearchOptions) {
     super();
+    this._excludedCategories = new Set(options?.excludedCategories || []);
+    this._options = {
+      browseExpungedGalleries: options?.browseExpungedGalleries || undefined,
+      requireGalleryTorrent: options?.requireGalleryTorrent || undefined,
+      minimumPages: options?.minimumPages,
+      maximumPages: options?.maximumPages,
+      minimumRating: options?.minimumRating,
+      disableLanguageFilters: options?.disableLanguageFilters || undefined,
+      disableUploaderFilters: options?.disableUploaderFilters || undefined,
+      disableTagFilters: options?.disableTagFilters || undefined,
+    };
+    if (this._options.minimumPages !== undefined || this._options.maximumPages !== undefined) {
+      this._enablePageFilters = true;
+    }
     const optionsList = new DynamicPreferenceListView({
       sections: this.mapSections(),
       props: {
@@ -638,46 +659,10 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   private _selectedFavcat?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   cviews: {
     favcatList: DynamicItemSizeMatrix;
-    optionsList: DynamicPreferenceListView;
   };
-  constructor() {
+  constructor(options?: EHFavoriteSearchOptions) {
     super();
-    const optionsList = new DynamicPreferenceListView({
-      sections: [
-        {
-          title: "",
-          rows: [
-            {
-              type: "boolean",
-              title: "禁用过滤器（语言）",
-              key: "disableLanguageFilters",
-              value: false,
-            },
-            {
-              type: "boolean",
-              title: "禁用过滤器（上传者）",
-              key: "disableUploaderFilters",
-              value: false,
-            },
-            {
-              type: "boolean",
-              title: "禁用过滤器（标签）",
-              key: "disableTagFilters",
-              value: false,
-            },
-          ],
-        },
-      ],
-      props: {
-        style: 2,
-        scrollEnabled: false,
-        height: 44 * 3 + 35 * 2,
-        rowHeight: 44,
-        bgcolor: $color("insetGroupedBackground"),
-      },
-      layout: $layout.fill,
-      events: {},
-    });
+    this._selectedFavcat = options?.favcat;
     const favcatList = new DynamicItemSizeMatrix({
       props: {
         bgcolor: $color("insetGroupedBackground"),
@@ -723,7 +708,6 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
             },
           ],
         },
-        footer: optionsList.definition,
         keyboardDismissMode: 1,
       },
       layout: $layout.fill,
@@ -741,7 +725,6 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     });
     this.cviews = {
       favcatList,
-      optionsList,
     };
     this._defineView = () => ({
       type: "view",
@@ -773,38 +756,39 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     });
   }
 
-  get options() {
-    return this.cviews.optionsList.values as {
-      disableLanguageFilters: boolean;
-      disableUploaderFilters: boolean;
-      disableTagFilters: boolean;
-    };
-  }
-
   get data() {
     return {
       selectedFavcat: this._selectedFavcat,
-      options: this.options,
     };
   }
 }
 
 class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
-  private _excludedCategories: Set<EHSearchedCategory> = new Set();
+  private _excludedCategories: Set<EHSearchedCategory>;
   private _enablePageFilters: boolean = false;
   private _options: {
     type: "readlater" | "downloaded" | "all";
     minimumPages?: number;
     maximumPages?: number;
     minimumRating?: number;
-  } = { type: "all" };
+  };
   cviews: {
     catList: DynamicItemSizeMatrix;
     optionsList: DynamicPreferenceListView;
   };
-  constructor() {
+  constructor(options?: ArchiveSearchOptions) {
     super();
+    this._excludedCategories = new Set(options?.excludedCategories || []);
+    this._options = {
+      type: options?.type || "all",
+      minimumPages: options?.minimumPages,
+      maximumPages: options?.maximumPages,
+      minimumRating: options?.minimumRating,
+    };
+    if (this._options.minimumPages !== undefined || this._options.maximumPages !== undefined) {
+      this._enablePageFilters = true;
+    }
     const optionsList = new DynamicPreferenceListView({
       sections: this.mapSections(),
       props: {
@@ -1581,7 +1565,6 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
             options: {
               searchTerms,
               favcat: data.selectedFavcat,
-              ...data.options,
             },
           });
         } else {
@@ -1620,10 +1603,10 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
         : text + " ";
       navbar.cviews.input.view.text = newText;
     });
-    const frontPageOptionsView = new FrontPageOptionsView();
-    const watchedOptionsView = new FrontPageOptionsView();
-    const favoritesOptionsView = new FavoritesOptionsView();
-    const archiveOptionsView = new ArchiveOptionsView();
+    const frontPageOptionsView = new FrontPageOptionsView(args.type === "front_page" ? args.options : undefined);
+    const watchedOptionsView = new FrontPageOptionsView(args.type === "watched" ? args.options : undefined);
+    const favoritesOptionsView = new FavoritesOptionsView(args.type === "favorites" ? args.options : undefined);
+    const archiveOptionsView = new ArchiveOptionsView(args.type === "archive" ? args.options : undefined);
     this.cviews = {
       navbar,
       searchSuggestionView,

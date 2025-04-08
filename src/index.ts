@@ -440,7 +440,9 @@ async function init(url?: string) {
       d.backgroundPaused = true;
       resumed += 1;
     });
-    $ui.success(`已恢复${resumed}个下载任务`);
+    if (resumed > 0) {
+      $ui.success(`已恢复${resumed}个下载任务`);
+    }
   }
 }
 

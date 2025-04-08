@@ -123,10 +123,23 @@ export class HomepageController extends BaseController {
       layout: $layout.fill,
       events: {
         tapped: async () => {
+          let gid0: number | undefined;
+          let token0: string | undefined;
+          try {
+            const clipboardText = $clipboard.text || "";
+            const r = extractGidToken(clipboardText);
+            gid0 = r.gid;
+            token0 = r.token;
+          } catch (e) {
+            // do nothing
+          }
+          // 重新组装链接
+          const text =
+            gid0 && token0 ? `https://e${configManager.exhentai ? "x" : "-"}hentai.org/g/${gid0}/${token0}` : "";
           const result = await $input.text({
             type: $kbType.url,
             placeholder: "输入链接，直接打开图库",
-            text: "",
+            text,
           });
           if (!result) return;
           const url = result.trim().toLowerCase();

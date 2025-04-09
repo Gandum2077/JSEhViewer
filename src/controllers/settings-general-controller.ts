@@ -310,8 +310,11 @@ export class GeneralSettingsController extends BaseController {
                         this.cviews.list.sections = this.getCurrentSections();
                         await configManager.updateTranslationData();
                         $ui.success("标签翻译更新完成");
-                      } catch (error) {
-                        $ui.error("标签翻译更新失败");
+                      } catch (error: any) {
+                        $ui.alert({
+                          title: "标签翻译更新失败",
+                          message: error.message,
+                        });
                       } finally {
                         this._isUpdatingTranslationData = false;
                         this.cviews.list.sections = this.getCurrentSections();

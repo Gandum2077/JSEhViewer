@@ -85,7 +85,7 @@ ehgt.org
 hath.network
 ```
 
-- 无法访问 github.com 和 githubusercontent.com 将导致无法获取标签翻译，从而无法完成登录步骤，如果速度很慢也不行，会超时导致失败
+- 无法访问 github.com 和 githubusercontent.com 将导致无法获取标签翻译，从而无法完成登录步骤。如果速度很慢，会超时导致失败；此外，你使用的 IP 可能会因为滥用而被 GitHub 风控，此种情况下获取标签翻译也将失败
 - e-hentai.org 和 exhentai.org 是主站点
 - 无法访问 ehgt.org 会导致无法加载缩略图和评论中的图片
 - 无法访问 hath.network 会导致加载不了图库的图片

@@ -1,6 +1,8 @@
 import { EHSearchTerm, TagNamespace, tagNamespaceMostUsedAlternateMap } from "ehentai-parser";
 import { appConfigPath, debugLogPath, globalLogLevel } from "./glv";
 import { configManager } from "./config";
+import { StatusTabOptions } from "../types";
+import { clearExtraPropsForReload, statusManager } from "./status";
 
 const levelMap = {
   debug: -1,
@@ -241,4 +243,24 @@ export function getLatestVersion() {
       }
     },
   });
+}
+
+/**
+ * 更新最后访问的标签页
+ */
+export function updateLastAccess() {
+  const storedOptions: StatusTabOptions[] = [];
+  let index = 0;
+  statusManager.tabIdsShownInManager.forEach((id) => {
+    const tab = statusManager.tabsMap.get(id);
+    if (!tab) throw new Error("标签页不存在");
+    if (tab.data.type !== "blank") {
+      storedOptions.push(clearExtraPropsForReload(tab.data));
+      if (id === statusManager.currentTabId) {
+        configManager.lastAccessTabIndex = index;
+      }
+      index++;
+    }
+  });
+  configManager.lastAccessPageJson = JSON.stringify(storedOptions);
 }

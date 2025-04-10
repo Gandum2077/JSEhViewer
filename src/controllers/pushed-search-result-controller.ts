@@ -5,7 +5,7 @@ import { configManager } from "../utils/config";
 import { clearExtraPropsForReload, statusManager, VirtualTab } from "../utils/status";
 import { EHlistView } from "../components/ehlist-view";
 import { buildSortedFsearch, EHListExtendedItem } from "ehentai-parser";
-import { FavoritesTabOptions, FrontPageTabOptions, StatusTabOptions, WatchedTabOptions } from "../types";
+import { FavoritesTabOptions, FrontPageTabOptions, WatchedTabOptions } from "../types";
 import { api, downloaderManager } from "../utils/api";
 import { CustomSearchBar } from "../components/custom-searchbar";
 import { getSearchOptions } from "./search-controller";
@@ -14,6 +14,7 @@ import { globalTimer } from "../utils/timer";
 import { EhlistTitleView } from "../components/ehlist-titleview";
 import { popoverForTitleView } from "../components/titleview-popover";
 import { ArchiveController } from "./archive-controller";
+import { updateLastAccess } from "../utils/tools";
 
 export class PushedSearchResultController extends BaseController {
   private _thumbnailAllLoaded: boolean = false; // 此标志用于在TabDownloader完成后，再进行一次刷新
@@ -145,18 +146,7 @@ export class PushedSearchResultController extends BaseController {
             showInManagerButton.tintColor = $color("systemLink");
             showInManagerButton.symbol = "rectangle.fill.on.rectangle.fill";
             // 更新上次浏览信息
-            const storedOptions: StatusTabOptions[] = [];
-            statusManager.tabIdsShownInManager.forEach((id) => {
-              const tab = statusManager.tabsMap.get(id);
-              if (!tab) throw new Error("标签页不存在");
-              if (tab.data.type !== "blank") {
-                storedOptions.push(clearExtraPropsForReload(tab.data));
-              }
-            });
-            configManager.lastAccessPageJson = JSON.stringify(storedOptions);
-            configManager.lastAccessTabIndex = statusManager.tabIdsShownInManager.findIndex(
-              (n) => n === statusManager.currentTabId
-            );
+            updateLastAccess();
           }
           (router.get("sidebarTabController") as SidebarTabController).refresh();
         },
@@ -555,6 +545,9 @@ export class PushedSearchResultController extends BaseController {
         : tab.isNextPageAvailable
         ? "上拉加载更多"
         : "没有更多了";
+
+    // 其他
+    updateLastAccess();
 
     this._thumbnailAllLoaded = false;
     (router.get("sidebarTabController") as SidebarTabController).refresh();

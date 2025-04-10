@@ -25,6 +25,7 @@ import { globalTimer } from "../utils/timer";
 import { EhlistTitleView } from "../components/ehlist-titleview";
 import { popoverForTitleView } from "../components/titleview-popover";
 import { ArchiveController } from "./archive-controller";
+import { updateLastAccess } from "../utils/tools";
 
 export class HomepageController extends BaseController {
   private _thumbnailAllLoaded: boolean = false; // 此标志用于在TabDownloader完成后，再进行一次刷新
@@ -699,20 +700,7 @@ export class HomepageController extends BaseController {
     this.cviews.list.footerText = footerText;
 
     // 其他
-    if (tab.data.type !== "blank") {
-      const storedOptions: StatusTabOptions[] = [];
-      statusManager.tabIdsShownInManager.forEach((id) => {
-        const tab = statusManager.tabsMap.get(id);
-        if (!tab) throw new Error("标签页不存在");
-        if (tab.data.type !== "blank") {
-          storedOptions.push(clearExtraPropsForReload(tab.data));
-        }
-      });
-      configManager.lastAccessPageJson = JSON.stringify(storedOptions);
-      configManager.lastAccessTabIndex = statusManager.tabIdsShownInManager.findIndex(
-        (n) => n === statusManager.currentTabId
-      );
-    }
+    updateLastAccess();
     this._thumbnailAllLoaded = false;
     (router.get("sidebarTabController") as SidebarTabController).refresh();
   }

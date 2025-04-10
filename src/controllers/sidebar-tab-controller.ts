@@ -15,6 +15,7 @@ import { StatusTabOptions } from "../types";
 import { HomepageController } from "./homepage-controller";
 import { _mapSearchTermsToRow } from "../components/searchterm-history-list";
 import { configManager } from "../utils/config";
+import { updateLastAccess } from "../utils/tools";
 
 class HeaderStackBlur extends Base<UIButtonView, UiTypes.ButtonOptions> {
   _defineView: () => UiTypes.ButtonOptions;
@@ -490,6 +491,9 @@ export class SidebarTabController extends BaseController {
                     home.triggerLoad(clearExtraPropsForReload(tab.data));
                   }
                 }
+
+                // 更新最后访问的标签页
+                updateLastAccess();
               }
             },
           },

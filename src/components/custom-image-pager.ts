@@ -15,6 +15,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
       type: "ai-translated" | "reloaded" | "normal";
     }[];
     page: number;
+    imageShareOnLongPressEnabled: boolean;
   };
   private _matrix: Matrix;
   private _pageLoadRecorder: { [key: number]: boolean };
@@ -43,6 +44,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
         type: "ai-translated" | "reloaded" | "normal";
       }[];
       page?: number;
+      imageShareOnLongPressEnabled?: boolean;
     };
     layout: (make: MASConstraintMaker, view: UIView) => void;
     events: {
@@ -54,6 +56,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
     this._props = {
       srcs: [],
       page: 0,
+      imageShareOnLongPressEnabled: true,
       ...props,
     };
     this._pageLoadRecorder = {};
@@ -177,6 +180,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
           this.loadsrc(this.page - 1, true);
         },
         didLongPress: (sender, indexPath, data) => {
+          if (!this._props.imageShareOnLongPressEnabled) return;
           const path = this._props.srcs[indexPath.item].path;
           if (path) {
             const img = $file.read(path)?.image;

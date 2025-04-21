@@ -1081,6 +1081,7 @@ export class ReaderController extends BaseController {
               props: {
                 srcs: this._generateSrcs(),
                 page: footerThumbnailView.index,
+                imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
               },
               layout: $layout.fillSafeArea,
               // 点击模式保持和横向滑动模式相同的方案，不过它可以改成$layout.fill，那样的话可以缩放全屏
@@ -1099,6 +1100,7 @@ export class ReaderController extends BaseController {
               props: {
                 srcs: this._generateSrcs(),
                 page: footerThumbnailView.index,
+                imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
               },
               layout: (make, view) => {
                 make.left.right.equalTo(view.super.safeArea);
@@ -1132,6 +1134,7 @@ export class ReaderController extends BaseController {
               props: {
                 srcs: this._generateSrcs(),
                 page: footerThumbnailView.index,
+                imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
               },
               layout: $layout.fillSafeArea,
               // 横向滑动模式必须限制在安全区域内，否则会出现切页时图片随机上下浮动一点点的问题（猜测和状态栏有关？）

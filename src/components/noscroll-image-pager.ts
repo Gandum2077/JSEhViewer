@@ -14,6 +14,7 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
       type: "ai-translated" | "reloaded" | "normal";
     }[];
     page: number;
+    imageShareOnLongPressEnabled: boolean;
   };
   _defineView: () => UiTypes.ViewOptions;
 
@@ -40,6 +41,7 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
         type: "ai-translated" | "reloaded" | "normal";
       }[];
       page?: number;
+      imageShareOnLongPressEnabled?: boolean;
     };
     layout: (make: MASConstraintMaker, view: UIView) => void;
     events: {
@@ -51,6 +53,7 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
     this._props = {
       srcs: [],
       page: 0,
+      imageShareOnLongPressEnabled: true,
       ...props,
     };
     this._defineView = () => {
@@ -156,6 +159,7 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
               //   sender.zoomScale = 0;
               // },
               longPressed: () => {
+                if (!this._props.imageShareOnLongPressEnabled) return;
                 const path = this._props.srcs[this._props.page].path;
                 if (path) {
                   const img = $file.read(path).image;

@@ -64,6 +64,7 @@ export class GeneralSettingsController extends BaseController {
           alwaysShowWebDAVWidget: boolean;
           defaultFavcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
           autoCacheWhenReading: boolean;
+          imageShareOnLongPressEnabled: boolean;
           pageTurnMethod: 0 | 1 | 2;
           autoClearCache: boolean;
           resumeIncompleteDownloadsOnStart: boolean;
@@ -115,6 +116,7 @@ export class GeneralSettingsController extends BaseController {
           const alwaysShowWebDAVWidget = values.alwaysShowWebDAVWidget;
           const defaultFavcat = values.defaultFavcat;
           const autoCacheWhenReading = values.autoCacheWhenReading;
+          const imageShareOnLongPressEnabled = values.imageShareOnLongPressEnabled;
           const pageTurnMethod =
             values.pageTurnMethod === 0 ? "click_and_swipe" : values.pageTurnMethod === 1 ? "click" : "swipe";
           const autoClearCache = values.autoClearCache;
@@ -188,6 +190,9 @@ export class GeneralSettingsController extends BaseController {
           }
           if (autoCacheWhenReading !== configManager.autoCacheWhenReading) {
             configManager.autoCacheWhenReading = autoCacheWhenReading;
+          }
+          if (imageShareOnLongPressEnabled !== configManager.imageShareOnLongPressEnabled) {
+            configManager.imageShareOnLongPressEnabled = imageShareOnLongPressEnabled;
           }
           if (pageTurnMethod !== configManager.pageTurnMethod) {
             configManager.pageTurnMethod = pageTurnMethod;
@@ -396,6 +401,12 @@ export class GeneralSettingsController extends BaseController {
             title: "阅读时自动缓存",
             key: "autoCacheWhenReading",
             value: configManager.autoCacheWhenReading,
+          },
+          {
+            type: "boolean",
+            title: "长按图片分享",
+            key: "imageShareOnLongPressEnabled",
+            value: configManager.imageShareOnLongPressEnabled,
           },
           {
             type: "list",

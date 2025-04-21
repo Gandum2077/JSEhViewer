@@ -14,6 +14,7 @@ export class VerticalImagePager extends Base<UIListView, UiTypes.ListOptions> {
       type: "ai-translated" | "reloaded" | "normal";
     }[];
     page: number;
+    imageShareOnLongPressEnabled: boolean;
   };
   private _heights: number[];
   private _initialLayoutFinished: boolean = false;
@@ -43,6 +44,7 @@ export class VerticalImagePager extends Base<UIListView, UiTypes.ListOptions> {
         type: "ai-translated" | "reloaded" | "normal";
       }[];
       page?: number;
+      imageShareOnLongPressEnabled?: boolean;
     };
     layout: (make: MASConstraintMaker, view: UIListView) => void;
     events: {
@@ -55,6 +57,7 @@ export class VerticalImagePager extends Base<UIListView, UiTypes.ListOptions> {
     this._props = {
       srcs: [],
       page: 0,
+      imageShareOnLongPressEnabled: true,
       ...props,
     };
     this._heights = this._props.srcs.map(() => 0);
@@ -165,6 +168,7 @@ export class VerticalImagePager extends Base<UIListView, UiTypes.ListOptions> {
             // 此处不能填0或者很小的数字，否则的话所有的图片会全部挤在一起，把内存挤爆
           },
           didLongPress: (sender, indexPath, data) => {
+            if (!this._props.imageShareOnLongPressEnabled) return;
             const path = this._props.srcs[indexPath.item].path;
             if (path) {
               const img = $file.read(path)?.image;

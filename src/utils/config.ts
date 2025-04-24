@@ -36,7 +36,14 @@ interface Config {
   autoClearCache: boolean; // 是否在关闭时自动清除缓存
   autoCacheWhenReading: boolean; // 阅读时是否自动缓存整个图库
   imageShareOnLongPressEnabled: boolean; // 长按图片分享
-  pageTurnMethod: "click_and_swipe" | "click" | "swipe" | "vertical"; // 翻页方式
+
+  // 翻页方式
+  pageDirection: "left_to_right" | "right_to_left" | "vertical"; // 翻页方向
+  spreadModeEnabled: boolean; // 双页模式
+  skipFirstPageInSpread: boolean; // 双页模式中跳过首页
+  skipLandscapePagesInSpread: boolean; // 双页模式中跳过横图
+  pagingGesture: "tap_and_swipe" | "swipe" | "tap"; // 翻页手势
+
   startPageType: "blank_page" | "last_access" | "specific_page" | "specific_searchterms"; // 起始页面类型
   lastAccessPageJson: string; // 上次访问页面, 以json格式存储的StatusTabOptions
   lastAccessTabIndex: number; // 上次访问页面的index
@@ -78,7 +85,11 @@ const defaultConfig: Config = {
   autoClearCache: false,
   autoCacheWhenReading: true,
   imageShareOnLongPressEnabled: true,
-  pageTurnMethod: "click_and_swipe",
+  pageDirection: "left_to_right",
+  spreadModeEnabled: false,
+  skipFirstPageInSpread: true,
+  skipLandscapePagesInSpread: true,
+  pagingGesture: "tap_and_swipe",
   startPageType: "blank_page",
   lastAccessPageJson: "",
   lastAccessTabIndex: 0,
@@ -373,12 +384,44 @@ class ConfigManager {
     this._setConfig("imageShareOnLongPressEnabled", value);
   }
 
-  get pageTurnMethod() {
-    return this._config.pageTurnMethod;
+  get pageDirection() {
+    return this._config.pageDirection;
   }
 
-  set pageTurnMethod(value: "click_and_swipe" | "click" | "swipe" | "vertical") {
-    this._setConfig("pageTurnMethod", value);
+  set pageDirection(value: "vertical" | "left_to_right" | "right_to_left") {
+    this._setConfig("pageDirection", value);
+  }
+
+  get spreadModeEnabled() {
+    return this._config.spreadModeEnabled;
+  }
+
+  set spreadModeEnabled(value: boolean) {
+    this._setConfig("spreadModeEnabled", value);
+  }
+
+  get skipFirstPageInSpread() {
+    return this._config.skipFirstPageInSpread;
+  }
+
+  set skipFirstPageInSpread(value: boolean) {
+    this._setConfig("skipFirstPageInSpread", value);
+  }
+
+  get skipLandscapePagesInSpread() {
+    return this._config.skipLandscapePagesInSpread;
+  }
+
+  set skipLandscapePagesInSpread(value: boolean) {
+    this._setConfig("skipLandscapePagesInSpread", value);
+  }
+
+  get pagingGesture() {
+    return this._config.pagingGesture;
+  }
+
+  set pagingGesture(value: "tap" | "swipe" | "tap_and_swipe") {
+    this._setConfig("pagingGesture", value);
   }
 
   get startPageType() {

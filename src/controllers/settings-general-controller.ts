@@ -65,7 +65,11 @@ export class GeneralSettingsController extends BaseController {
           defaultFavcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
           autoCacheWhenReading: boolean;
           imageShareOnLongPressEnabled: boolean;
-          pageTurnMethod: 0 | 1 | 2;
+          pageDirection: 0 | 1 | 2;
+          spreadModeEnabled?: boolean;
+          skipFirstPageInSpread?: boolean;
+          skipLandscapePagesInSpread?: boolean;
+          pagingGesture?: 0 | 1 | 2;
           autoClearCache: boolean;
           resumeIncompleteDownloadsOnStart: boolean;
         }) => {
@@ -117,8 +121,22 @@ export class GeneralSettingsController extends BaseController {
           const defaultFavcat = values.defaultFavcat;
           const autoCacheWhenReading = values.autoCacheWhenReading;
           const imageShareOnLongPressEnabled = values.imageShareOnLongPressEnabled;
-          const pageTurnMethod =
-            values.pageTurnMethod === 0 ? "click_and_swipe" : values.pageTurnMethod === 1 ? "click" : "swipe";
+
+          const pageDirection =
+            values.pageDirection === 0 ? "left_to_right" : values.pageDirection === 1 ? "right_to_left" : "vertical";
+          const spreadModeEnabled = values.spreadModeEnabled ?? configManager.spreadModeEnabled;
+          const skipFirstPageInSpread = values.skipFirstPageInSpread ?? configManager.skipFirstPageInSpread;
+          const skipLandscapePagesInSpread =
+            values.skipLandscapePagesInSpread ?? configManager.skipLandscapePagesInSpread;
+          const pagingGesture =
+            values.pagingGesture === undefined
+              ? configManager.pagingGesture
+              : values.pagingGesture === 0
+              ? "tap_and_swipe"
+              : values.pagingGesture === 1
+              ? "swipe"
+              : "tap";
+
           const autoClearCache = values.autoClearCache;
           const resumeIncompleteDownloadsOnStart =
             values.resumeIncompleteDownloadsOnStart ?? configManager.resumeIncompleteDownloadsOnStart;
@@ -194,9 +212,25 @@ export class GeneralSettingsController extends BaseController {
           if (imageShareOnLongPressEnabled !== configManager.imageShareOnLongPressEnabled) {
             configManager.imageShareOnLongPressEnabled = imageShareOnLongPressEnabled;
           }
-          if (pageTurnMethod !== configManager.pageTurnMethod) {
-            configManager.pageTurnMethod = pageTurnMethod;
+          if (pageDirection !== configManager.pageDirection) {
+            configManager.pageDirection = pageDirection;
+            this.cviews.list.sections = this.getCurrentSections();
           }
+          if (spreadModeEnabled !== configManager.spreadModeEnabled) {
+            configManager.spreadModeEnabled = spreadModeEnabled;
+            this.cviews.list.sections = this.getCurrentSections();
+          }
+
+          if (skipFirstPageInSpread !== configManager.skipFirstPageInSpread) {
+            configManager.skipFirstPageInSpread = skipFirstPageInSpread;
+          }
+          if (skipLandscapePagesInSpread !== configManager.skipLandscapePagesInSpread) {
+            configManager.skipLandscapePagesInSpread = skipLandscapePagesInSpread;
+          }
+          if (pagingGesture !== configManager.pagingGesture) {
+            configManager.pagingGesture = pagingGesture;
+          }
+
           if (autoClearCache !== configManager.autoClearCache) {
             configManager.autoClearCache = autoClearCache;
           }
@@ -384,17 +418,17 @@ export class GeneralSettingsController extends BaseController {
         title: "图库与阅读",
         rows: [
           {
-            type: "boolean",
-            title: "始终显示WebDAV组件",
-            key: "alwaysShowWebDAVWidget",
-            value: configManager.alwaysShowWebDAVWidget,
-          },
-          {
             type: "list",
             title: "默认收藏到",
             items: configManager.favcatTitles,
             key: "defaultFavcat",
             value: configManager.defaultFavcat,
+          },
+          {
+            type: "boolean",
+            title: "始终显示WebDAV组件",
+            key: "alwaysShowWebDAVWidget",
+            value: configManager.alwaysShowWebDAVWidget,
           },
           {
             type: "boolean",
@@ -408,13 +442,22 @@ export class GeneralSettingsController extends BaseController {
             key: "imageShareOnLongPressEnabled",
             value: configManager.imageShareOnLongPressEnabled,
           },
+        ],
+      },
+      {
+        title: "翻页",
+        rows: [
           {
             type: "list",
-            title: "翻页方式",
-            items: ["点击和横向滑动", "仅点击", "横向滑动", "纵向滑动"],
-            key: "pageTurnMethod",
+            title: "翻页方向",
+            items: ["从左往右", "从右往左", "纵向"],
+            key: "pageDirection",
             value:
-              configManager.pageTurnMethod === "click_and_swipe" ? 0 : configManager.pageTurnMethod === "click" ? 1 : 2,
+              configManager.pageDirection === "left_to_right"
+                ? 0
+                : configManager.pageDirection === "right_to_left"
+                ? 1
+                : 2,
           },
         ],
       },
@@ -609,6 +652,36 @@ export class GeneralSettingsController extends BaseController {
         value:
           configManager.specificSearchtermsOnStart &&
           assembleSearchTerms(JSON.parse(configManager.specificSearchtermsOnStart)),
+      });
+    }
+
+    if (configManager.pageDirection !== "vertical") {
+      sections[6].rows.push({
+        type: "boolean",
+        title: "双页模式",
+        key: "spreadModeEnabled",
+        value: configManager.spreadModeEnabled,
+      });
+      if (configManager.spreadModeEnabled) {
+        sections[6].rows.push({
+          type: "boolean",
+          title: "双页模式中跳过首页",
+          key: "skipFirstPageInSpread",
+          value: configManager.skipFirstPageInSpread,
+        });
+        sections[6].rows.push({
+          type: "boolean",
+          title: "双页模式中跳过横图",
+          key: "skipLandscapePagesInSpread",
+          value: configManager.skipLandscapePagesInSpread,
+        });
+      }
+      sections[6].rows.push({
+        type: "list",
+        title: "翻页手势",
+        items: ["滑动和点击", "仅滑动", "仅点击"],
+        key: "pagingGesture",
+        value: configManager.pagingGesture === "tap_and_swipe" ? 0 : configManager.pagingGesture === "swipe" ? 1 : 2,
       });
     }
     return sections;

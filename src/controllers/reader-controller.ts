@@ -1,4 +1,15 @@
-import { Base, BaseController, Blur, ContentView, cvid, Label, Matrix, Slider, SymbolButton } from "jsbox-cview";
+import {
+  Base,
+  BaseController,
+  Blur,
+  ContentView,
+  cvid,
+  DynamicPreferenceListView,
+  Label,
+  PreferenceSection,
+  sliderMaxColor,
+  SymbolButton,
+} from "jsbox-cview";
 import { CustomImagePager } from "../components/custom-image-pager";
 import { downloaderManager } from "../utils/api";
 import { statusManager } from "../utils/status";
@@ -38,420 +49,113 @@ function define(view: any, handler: (location: JBPoint) => void) {
   return r;
 }
 
-class RightSymbolButtonWarpper extends Base<UIView, UiTypes.ViewOptions> {
-  _defineView: () => UiTypes.ViewOptions;
+class ReversableSlider extends Base<UISliderView, UiTypes.SliderOptions> {
+  private _reversed: boolean;
+  _defineView: () => UiTypes.SliderOptions;
   constructor({
-    loadOrginalHandler,
-    reloadPagerHandler,
-    checkVerticalAllowed,
+    props,
+    layout,
+    events,
   }: {
-    loadOrginalHandler: () => void;
-    reloadPagerHandler: () => void;
-    checkVerticalAllowed: () => boolean;
+    props: {
+      value: number;
+      min: number;
+      max: number;
+      reversed: boolean;
+    };
+    layout: (make: MASConstraintMaker, view: UISliderView) => void;
+    events: {
+      changed: (value: number) => void;
+      touchesEnded: (value: number) => void;
+    };
   }) {
     super();
-    const button1 = new SymbolButton({
-      props: {
-        hidden: configManager.pageTurnMethod !== "click_and_swipe",
-        symbol: "ellipsis",
-        menu: {
-          pullDown: true,
-          asPrimary: true,
-          items: [
-            {
-              title: "加载原图",
-              symbol: "arrow.down.backward.and.arrow.up.forward.square",
-              handler: (sender) => {
-                loadOrginalHandler();
-              },
-            },
-            {
-              title: "AI翻译设置",
-              symbol: "globe",
-              handler: async (sender) => {
-                await setAITranslationConfig();
-              },
-            },
-            {
-              title: "翻页方式",
-              inline: true,
-              items: [
-                {
-                  title: "点击和横向滑动",
-                  symbol: "checkmark",
-                  handler: () => {},
-                },
-                {
-                  title: "仅点击",
-                  handler: () => {
-                    configManager.pageTurnMethod = "click";
-                    button1.view.hidden = true;
-                    button2.view.hidden = false;
-                    button3.view.hidden = true;
-                    button4.view.hidden = true;
-                    reloadPagerHandler();
-                  },
-                },
-                {
-                  title: "横向滑动",
-                  handler: () => {
-                    configManager.pageTurnMethod = "swipe";
-                    button1.view.hidden = true;
-                    button2.view.hidden = true;
-                    button3.view.hidden = false;
-                    button4.view.hidden = true;
-                    reloadPagerHandler();
-                  },
-                },
-                {
-                  title: "纵向滑动",
-                  handler: () => {
-                    if (!checkVerticalAllowed()) {
-                      vertialNotAllowedAlert();
-                      return;
-                    }
-                    configManager.pageTurnMethod = "vertical";
-                    button1.view.hidden = true;
-                    button2.view.hidden = true;
-                    button3.view.hidden = true;
-                    button4.view.hidden = false;
-                    reloadPagerHandler();
-                  },
-                },
-              ],
-            },
-          ],
-        },
-      },
-      layout: $layout.fill,
-    });
-    const button2 = new SymbolButton({
-      props: {
-        hidden: configManager.pageTurnMethod !== "click",
-        symbol: "ellipsis",
-        menu: {
-          pullDown: true,
-          asPrimary: true,
-          items: [
-            {
-              title: "加载原图",
-              symbol: "arrow.down.backward.and.arrow.up.forward.square",
-              handler: (sender) => {
-                loadOrginalHandler();
-              },
-            },
-            {
-              title: "AI翻译设置",
-              symbol: "globe",
-              handler: async (sender) => {
-                await setAITranslationConfig();
-              },
-            },
-            {
-              title: "翻页方式",
-              inline: true,
-              items: [
-                {
-                  title: "点击和横向滑动",
-                  handler: () => {
-                    configManager.pageTurnMethod = "click_and_swipe";
-                    button1.view.hidden = false;
-                    button2.view.hidden = true;
-                    button3.view.hidden = true;
-                    button4.view.hidden = true;
-                    reloadPagerHandler();
-                  },
-                },
-                {
-                  title: "仅点击",
-                  symbol: "checkmark",
-                  handler: () => {},
-                },
-                {
-                  title: "横向滑动",
-                  handler: () => {
-                    configManager.pageTurnMethod = "swipe";
-                    button1.view.hidden = true;
-                    button2.view.hidden = true;
-                    button3.view.hidden = false;
-                    button4.view.hidden = true;
-                    reloadPagerHandler();
-                  },
-                },
-                {
-                  title: "纵向滑动",
-                  handler: () => {
-                    if (!checkVerticalAllowed()) {
-                      vertialNotAllowedAlert();
-                      return;
-                    }
-                    configManager.pageTurnMethod = "vertical";
-                    button1.view.hidden = true;
-                    button2.view.hidden = true;
-                    button3.view.hidden = true;
-                    button4.view.hidden = false;
-                    reloadPagerHandler();
-                  },
-                },
-              ],
-            },
-          ],
-        },
-      },
-      layout: $layout.fill,
-    });
-    const button3 = new SymbolButton({
-      props: {
-        hidden: configManager.pageTurnMethod !== "swipe",
-        symbol: "ellipsis",
-        menu: {
-          pullDown: true,
-          asPrimary: true,
-          items: [
-            {
-              title: "加载原图",
-              symbol: "arrow.down.backward.and.arrow.up.forward.square",
-              handler: (sender) => {
-                loadOrginalHandler();
-              },
-            },
-            {
-              title: "AI翻译设置",
-              symbol: "globe",
-              handler: async (sender) => {
-                await setAITranslationConfig();
-              },
-            },
-            {
-              title: "翻页方式",
-              inline: true,
-              items: [
-                {
-                  title: "点击和横向滑动",
-                  handler: () => {
-                    configManager.pageTurnMethod = "click_and_swipe";
-                    button1.view.hidden = false;
-                    button2.view.hidden = true;
-                    button3.view.hidden = true;
-                    button4.view.hidden = true;
-                    reloadPagerHandler();
-                  },
-                },
-                {
-                  title: "仅点击",
-                  handler: () => {
-                    configManager.pageTurnMethod = "click";
-                    button1.view.hidden = true;
-                    button2.view.hidden = false;
-                    button3.view.hidden = true;
-                    button4.view.hidden = true;
-                    reloadPagerHandler();
-                  },
-                },
-                {
-                  title: "横向滑动",
-                  symbol: "checkmark",
-                  handler: () => {},
-                },
-                {
-                  title: "纵向滑动",
-                  handler: () => {
-                    if (!checkVerticalAllowed()) {
-                      vertialNotAllowedAlert();
-                      return;
-                    }
-                    configManager.pageTurnMethod = "vertical";
-                    button1.view.hidden = true;
-                    button2.view.hidden = true;
-                    button3.view.hidden = true;
-                    button4.view.hidden = false;
-                    reloadPagerHandler();
-                  },
-                },
-              ],
-            },
-          ],
-        },
-      },
-      layout: $layout.fill,
-    });
-    const button4 = new SymbolButton({
-      props: {
-        hidden: configManager.pageTurnMethod !== "vertical",
-        symbol: "ellipsis",
-        menu: {
-          pullDown: true,
-          asPrimary: true,
-          items: [
-            {
-              title: "加载原图",
-              symbol: "arrow.down.backward.and.arrow.up.forward.square",
-              handler: (sender) => {
-                loadOrginalHandler();
-              },
-            },
-            {
-              title: "AI翻译设置",
-              symbol: "globe",
-              handler: async (sender) => {
-                await setAITranslationConfig();
-              },
-            },
-            {
-              title: "翻页方式",
-              inline: true,
-              items: [
-                {
-                  title: "点击和横向滑动",
-                  handler: () => {
-                    configManager.pageTurnMethod = "click_and_swipe";
-                    button1.view.hidden = false;
-                    button2.view.hidden = true;
-                    button3.view.hidden = true;
-                    button4.view.hidden = true;
-                    reloadPagerHandler();
-                  },
-                },
-                {
-                  title: "仅点击",
-                  handler: () => {
-                    configManager.pageTurnMethod = "click";
-                    button1.view.hidden = true;
-                    button2.view.hidden = false;
-                    button3.view.hidden = true;
-                    button4.view.hidden = true;
-                    reloadPagerHandler();
-                  },
-                },
-                {
-                  title: "横向滑动",
-                  handler: () => {
-                    configManager.pageTurnMethod = "swipe";
-                    button1.view.hidden = true;
-                    button2.view.hidden = true;
-                    button3.view.hidden = false;
-                    button4.view.hidden = true;
-                    reloadPagerHandler();
-                  },
-                },
-                {
-                  title: "纵向滑动",
-                  symbol: "checkmark",
-                  handler: () => {},
-                },
-              ],
-            },
-          ],
-        },
-      },
-      layout: $layout.fill,
-    });
+    this._reversed = props.reversed;
     this._defineView = () => {
       return {
-        type: "view",
+        type: "slider",
         props: {
           id: this.id,
+          value: this._reversed ? props.max - props.value : props.value,
+          min: props.min,
+          max: props.max,
+          continuous: true,
+          minColor: this._reversed ? sliderMaxColor : $color("systemLink"),
+          maxColor: this._reversed ? $color("systemLink") : sliderMaxColor,
         },
-        layout: (make, view) => {
-          make.right.top.bottom.inset(0);
-          make.width.equalTo(50);
+        layout,
+        events: {
+          changed: (sender) => {
+            const value = this._reversed ? Math.floor(props.max - sender.value) : Math.floor(sender.value);
+            events.changed(value);
+          },
+          touchesEnded: (sender) => {
+            const value = this._reversed ? Math.floor(props.max - sender.value) : Math.floor(sender.value);
+            events.touchesEnded(value);
+          },
         },
-        views: [button1.definition, button2.definition, button3.definition, button4.definition],
       };
     };
   }
+
+  set reversed(reversed: boolean) {
+    if (reversed === this._reversed) return;
+    const oldValue = this._reversed ? Math.floor(this.view.max - this.view.value) : Math.floor(this.view.value);
+
+    this._reversed = reversed;
+    this.view.minColor = this._reversed ? sliderMaxColor : $color("systemLink");
+    this.view.maxColor = this._reversed ? $color("systemLink") : sliderMaxColor;
+    this.view.value = this._reversed ? this.view.max - oldValue : oldValue;
+  }
+
+  get value() {
+    return this._reversed ? Math.floor(this.view.max - this.view.value) : Math.floor(this.view.value);
+  }
+
+  set value(value: number) {
+    if (this.value === value) return;
+    this.view.value = this._reversed ? this.view.max - value : value;
+  }
 }
 
-class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
-  _defineView: () => UiTypes.ViewOptions;
-  private _index: number; // 滑动结束后的index，用于外部更新
-  private _innerIndex: number; // 随着滑动而变化的index，用于内部更新
-  private _width: number; // 整体宽度
+class ReversableMatrix extends Base<UIMatrixView, UiTypes.MatrixOptions> {
+  private _width: number = 0;
+  private _index: number;
   private _length: number;
   private _thumbnailItems: { path?: string; error: boolean }[];
-  private _thumbnailItemsFinished: boolean = false; // 缩略图是否全部加载完成
-  cviews: { thumbnailMatrix: Matrix; sliderLeftLabel: Label; slider: Slider };
-  constructor(options: {
+  private _reversed: boolean;
+  _defineView: () => UiTypes.MatrixOptions;
+  constructor({
+    props,
+    events,
+  }: {
     props: {
       index: number;
       length: number;
       thumbnailItems: { path?: string; error: boolean }[];
+      reversed: boolean;
     };
     events: {
       changed: (index: number) => void;
     };
   }) {
     super();
-    this._index = options.props.index;
-    this._innerIndex = this._index;
-    this._width = 0;
-    this._length = options.props.length;
-    this._thumbnailItems = options.props.thumbnailItems;
-    this._thumbnailItemsFinished = this._thumbnailItems.every((item) => item.path);
-    this.cviews = {} as {
-      thumbnailMatrix: Matrix;
-      sliderLeftLabel: Label;
-      slider: Slider;
-    };
-    this.cviews.sliderLeftLabel = new Label({
+    this._reversed = props.reversed;
+    this._index = props.index;
+    this._length = props.length;
+    this._thumbnailItems = props.thumbnailItems;
+
+    this._defineView = () => ({
+      type: "matrix",
       props: {
-        text: (this._index + 1).toString(),
-        textColor: $color("primaryText"),
-        font: $font(16),
-        align: $align.center,
-      },
-      layout: (make, view) => {
-        make.left.top.bottom.inset(0);
-        make.width.equalTo(45);
-      },
-    });
-    const sliderRightLabel = new Label({
-      props: {
-        text: this._length.toString(),
-        textColor: $color("primaryText"),
-        font: $font(16),
-        align: $align.center,
-      },
-      layout: (make, view) => {
-        make.right.top.bottom.inset(0);
-        make.width.equalTo(45);
-      },
-    });
-    this.cviews.slider = new Slider({
-      props: {
-        value: this._index,
-        min: 0,
-        max: this._length - 1,
-        continuous: true,
-        minColor: $color("systemLink"),
-      },
-      layout: (make, view) => {
-        make.left.equalTo(view.prev.prev.right).inset(5);
-        make.right.equalTo(view.prev.left).inset(5);
-        make.top.bottom.inset(0);
-      },
-      events: {
-        changed: (sender) => {
-          this.innerIndex = Math.floor(sender.value);
-        },
-        touchesEnded: (sender) => {
-          const i = Math.floor(sender.value);
-          if (this._index !== i) {
-            this.index = Math.floor(sender.value);
-            options.events.changed(i);
-          }
-        },
-      },
-    });
-    this.cviews.thumbnailMatrix = new Matrix({
-      props: {
+        id: this.id,
         bgcolor: $color("clear"),
         direction: $scrollDirection.horizontal,
         itemSize: $size(80, 80),
         spacing: 5,
         showsHorizontalIndicator: false,
         scrollEnabled: false,
-        data: this._mapData(this._index),
+        data: this._mapData(),
         template: {
           views: [
             {
@@ -488,15 +192,178 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
       },
       events: {
         didSelect: (sender, indexPath) => {
-          if (indexPath.item === this.index) return;
-          this.index = indexPath.item;
-          options.events.changed(indexPath.item);
+          const index = this._reversed ? this._length - 1 - indexPath.item : indexPath.item;
+          if (this._index === index) return;
+          events.changed(index);
         },
         ready: (sender) => {
-          this.updateFooter(this.index, false);
+          this._updateContentOffset();
+        },
+        layoutSubviews: (sender) => {
+          this._updateContentOffset();
         },
       },
     });
+  }
+
+  _mapData() {
+    const items = this._reversed ? this._thumbnailItems.toReversed() : this._thumbnailItems;
+    return items.map((item, i) => ({
+      error: { hidden: !item.error },
+      image: {
+        src: item.path || "",
+        borderWidth: i === (this._reversed ? this._length - 1 - this._index : this._index) ? 2 : 0,
+      },
+    }));
+  }
+
+  set reversed(reversed: boolean) {
+    this._reversed = reversed;
+    this.update();
+  }
+
+  set width(width: number) {
+    this._width = width;
+  }
+
+  get index() {
+    return this._index;
+  }
+
+  update({ thumbnailItems, index }: { index?: number; thumbnailItems?: { path?: string; error: boolean }[] } = {}) {
+    if (index !== undefined && (index < 0 || index >= this._length)) return;
+    if (thumbnailItems) this._thumbnailItems = thumbnailItems;
+    if (index !== undefined) this._index = index;
+    this.view.data = this._mapData();
+    this._updateContentOffset();
+  }
+
+  private _updateContentOffset() {
+    if (this._reversed) {
+      if (this._width === 0) {
+        this.view.contentOffset = $point(0, 0);
+      } else if (this._index === 0 || this.view.contentSize.width <= this._width) {
+        this.view.contentOffset = $point(this.view.contentSize.width - this._width - 5, 0);
+      } else if (this.view.contentSize.width - (this._index * 85 - 85) < this._width) {
+        this.view.contentOffset = $point(0, 0);
+      } else {
+        this.view.contentOffset = $point(85 * (this._length - 1 - this._index + 2) - this._width, 0);
+      }
+    } else {
+      if (this._width === 0 || this._index === 0 || this.view.contentSize.width <= this._width) {
+        this.view.contentOffset = $point(0, 0);
+      } else if (this.view.contentSize.width - (this._index * 85 - 85) < this._width) {
+        this.view.contentOffset = $point(this.view.contentSize.width - this._width, 0);
+      } else {
+        this.view.contentOffset = $point(85 * this._index - 85, 0);
+      }
+    }
+  }
+}
+
+class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
+  _defineView: () => UiTypes.ViewOptions;
+  private _reversed: boolean;
+  private _index: number; // 滑动结束后的index，用于外部更新
+  private _innerIndex: number; // 随着滑动而变化的index，用于内部更新
+  private _width: number; // 整体宽度
+  private _length: number;
+  private _thumbnailItems: { path?: string; error: boolean }[];
+  private _thumbnailItemsFinished: boolean = false; // 缩略图是否全部加载完成
+  cviews: {
+    thumbnailMatrix: ReversableMatrix;
+    sliderLeftLabel: Label;
+    sliderRightLabel: Label;
+    slider: ReversableSlider;
+  };
+  constructor(options: {
+    props: {
+      index: number;
+      length: number;
+      thumbnailItems: { path?: string; error: boolean }[];
+      reversed: boolean;
+    };
+    events: {
+      changed: (index: number) => void;
+    };
+  }) {
+    super();
+    this._reversed = options.props.reversed;
+    this._index = options.props.index;
+    this._innerIndex = this._index;
+    this._width = 0;
+    this._length = options.props.length;
+    this._thumbnailItems = options.props.thumbnailItems;
+    this._thumbnailItemsFinished = this._thumbnailItems.every((item) => item.path);
+    this.cviews = {} as {
+      thumbnailMatrix: ReversableMatrix;
+      sliderLeftLabel: Label;
+      sliderRightLabel: Label;
+      slider: ReversableSlider;
+    };
+    this.cviews.sliderLeftLabel = new Label({
+      props: {
+        text: this._reversed ? this._length.toString() : (this._index + 1).toString(),
+        textColor: $color("primaryText"),
+        font: $font(16),
+        align: $align.center,
+      },
+      layout: (make, view) => {
+        make.left.top.bottom.inset(0);
+        make.width.equalTo(45);
+      },
+    });
+    this.cviews.sliderRightLabel = new Label({
+      props: {
+        text: this._reversed ? (this._index + 1).toString() : this._length.toString(),
+        textColor: $color("primaryText"),
+        font: $font(16),
+        align: $align.center,
+      },
+      layout: (make, view) => {
+        make.right.top.bottom.inset(0);
+        make.width.equalTo(45);
+      },
+    });
+    this.cviews.slider = new ReversableSlider({
+      props: {
+        value: this._index,
+        min: 0,
+        max: this._length - 1,
+        reversed: this._reversed,
+      },
+      layout: (make, view) => {
+        make.left.equalTo(view.prev.prev.right).inset(5);
+        make.right.equalTo(view.prev.left).inset(5);
+        make.top.bottom.inset(0);
+      },
+      events: {
+        changed: (value) => {
+          this.innerIndex = value;
+        },
+        touchesEnded: (value) => {
+          if (this._index !== value) {
+            this.index = value;
+            options.events.changed(value);
+          }
+        },
+      },
+    });
+    this.cviews.thumbnailMatrix = new ReversableMatrix({
+      props: {
+        index: this._index,
+        length: this._length,
+        thumbnailItems: this._thumbnailItems,
+        reversed: this._reversed,
+      },
+      events: {
+        changed: (index) => {
+          this.index = index;
+          options.events.changed(index);
+        },
+      },
+    });
+
     this._defineView = () => {
       return {
         type: "view",
@@ -512,13 +379,18 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
               make.top.equalTo(view.prev.bottom);
               make.height.equalTo(50);
             },
-            views: [this.cviews.sliderLeftLabel.definition, sliderRightLabel.definition, this.cviews.slider.definition],
+            views: [
+              this.cviews.sliderLeftLabel.definition,
+              this.cviews.sliderRightLabel.definition,
+              this.cviews.slider.definition,
+            ],
           },
         ],
         events: {
           layoutSubviews: (sender) => {
             if (sender.frame.width <= 0 || sender.frame.height <= 0) return;
             this._width = sender.frame.width;
+            this.cviews.thumbnailMatrix.width = this._width;
           },
         },
       };
@@ -536,28 +408,15 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
     if (this._thumbnailItemsFinished) return;
     this._thumbnailItems = thumbnailItems;
     this._thumbnailItemsFinished = this._thumbnailItems.every((item) => item.path);
-    this.cviews.thumbnailMatrix.view.data = this._mapData(this.index);
+    this.cviews.thumbnailMatrix.update({ thumbnailItems, index: this._index });
   }
 
-  updateFooter(index: number, sliderOnGoing: boolean) {
-    if (index < 0 || index >= this._length) return;
-    if (index === 0 || this.cviews.thumbnailMatrix.view.contentSize.width <= this._width) {
-      this.cviews.thumbnailMatrix.view.contentOffset = $point(0, 0);
-    } else if (
-      this._width !== 0 &&
-      this.cviews.thumbnailMatrix.view.contentSize.width - (index * 85 - 85) < this._width
-    ) {
-      this.cviews.thumbnailMatrix.view.contentOffset = $point(
-        this.cviews.thumbnailMatrix.view.contentSize.width - this._width,
-        0
-      );
-    } else {
-      this.cviews.thumbnailMatrix.view.contentOffset = $point(85 * index - 85, 0);
-    }
-    this.cviews.thumbnailMatrix.view.data = this._mapData(index);
-    this.cviews.sliderLeftLabel.view.text = (index + 1).toString();
+  updateFooter(sliderOnGoing: boolean) {
+    this.cviews.thumbnailMatrix.update({ index: this._index });
+    this.cviews.sliderLeftLabel.view.text = this._reversed ? this._length.toString() : (this._index + 1).toString();
+    this.cviews.sliderRightLabel.view.text = this._reversed ? (this._index + 1).toString() : this._length.toString();
     if (!sliderOnGoing) {
-      this.cviews.slider.view.value = index;
+      this.cviews.slider.value = this._index;
     }
   }
 
@@ -569,7 +428,7 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
     if (this._index === index) return;
     this._index = index;
     this._innerIndex = index;
-    this.updateFooter(index, false);
+    this.updateFooter(false);
   }
 
   get innerIndex() {
@@ -579,7 +438,322 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
   set innerIndex(index: number) {
     if (this._innerIndex === index) return;
     this._innerIndex = index;
-    this.updateFooter(index, true);
+    this.updateFooter(true);
+  }
+
+  set reversed(reversed: boolean) {
+    if (this._reversed === reversed) return;
+    this._reversed = reversed;
+    this.cviews.slider.reversed = reversed;
+    this.cviews.thumbnailMatrix.reversed = reversed;
+    this.cviews.sliderLeftLabel.view.text = this._reversed ? this._length.toString() : (this._index + 1).toString();
+    this.cviews.sliderRightLabel.view.text = this._reversed ? (this._index + 1).toString() : this._length.toString();
+  }
+}
+
+class SettingView extends Base<UIView, UiTypes.ViewOptions> {
+  private _loadOrginalHandler: () => void;
+  private _reloadPagerHandler: () => void;
+  private _checkVerticalAllowed: () => boolean;
+  private _settingCache: {
+    pageDirection: "left_to_right" | "right_to_left" | "vertical"; // 翻页方向
+    spreadModeEnabled: boolean; // 双页模式
+    skipFirstPageInSpread: boolean; // 双页模式中跳过首页
+    skipLandscapePagesInSpread: boolean; // 双页模式中跳过横图
+    pagingGesture: "tap_and_swipe" | "swipe" | "tap"; // 翻页手势
+  };
+  cviews: {
+    list: DynamicPreferenceListView;
+  };
+  _defineView: () => UiTypes.ViewOptions;
+  constructor({
+    loadOrginalHandler,
+    reloadPagerHandler,
+    checkVerticalAllowed,
+  }: {
+    loadOrginalHandler: () => void;
+    reloadPagerHandler: () => void;
+    checkVerticalAllowed: () => boolean;
+  }) {
+    super();
+    this._loadOrginalHandler = loadOrginalHandler;
+    this._reloadPagerHandler = reloadPagerHandler;
+    this._checkVerticalAllowed = checkVerticalAllowed;
+    this._settingCache = {
+      pageDirection: configManager.pageDirection,
+      spreadModeEnabled: configManager.spreadModeEnabled,
+      skipFirstPageInSpread: configManager.skipFirstPageInSpread,
+      skipLandscapePagesInSpread: configManager.skipLandscapePagesInSpread,
+      pagingGesture: configManager.pagingGesture,
+    };
+    const list = new DynamicPreferenceListView({
+      sections: this._getCurrentSections(),
+      props: {
+        style: 1,
+        bgcolor: $color($rgba(242, 242, 242, 0.95), $rgba(0, 0, 0, 0.9)),
+        header: {
+          type: "view",
+          props: {
+            height: 25,
+          },
+        },
+      },
+      layout: (make, view) => {
+        make.width.equalTo(230);
+        make.right.equalTo(view.super.safeAreaRight);
+        make.top.bottom.inset(0);
+      },
+      events: {
+        changed: (values: {
+          spreadModeEnabled?: boolean;
+          skipFirstPageInSpread?: boolean;
+          skipLandscapePagesInSpread?: boolean;
+        }) => {
+          const spreadModeEnabled = values.spreadModeEnabled ?? configManager.spreadModeEnabled;
+          const skipFirstPageInSpread = values.skipFirstPageInSpread ?? configManager.skipFirstPageInSpread;
+          const skipLandscapePagesInSpread =
+            values.skipLandscapePagesInSpread ?? configManager.skipLandscapePagesInSpread;
+
+          if (spreadModeEnabled !== configManager.spreadModeEnabled) {
+            if (spreadModeEnabled && !this._checkVerticalAllowed()) {
+              pagingModeNotAllowedAlert();
+              this._refresh();
+              return;
+            }
+            configManager.spreadModeEnabled = spreadModeEnabled;
+          }
+          if (skipFirstPageInSpread !== configManager.skipFirstPageInSpread) {
+            configManager.skipFirstPageInSpread = skipFirstPageInSpread;
+          }
+          if (skipLandscapePagesInSpread !== configManager.skipLandscapePagesInSpread) {
+            configManager.skipLandscapePagesInSpread = skipLandscapePagesInSpread;
+          }
+          this._refresh();
+        },
+      },
+    });
+    this.cviews = {
+      list,
+    };
+    this._defineView = () => ({
+      type: "view",
+      props: {
+        id: this.id,
+        hidden: true,
+      },
+      layout: (make, view) => {
+        make.left.right.bottom.inset(0);
+        make.top.equalTo(view.prev.prev.bottom);
+      },
+      views: [
+        {
+          type: "view",
+          props: {
+            userInteractionEnabled: true,
+            bgcolor: $color($rgba(242, 242, 242, 0.2), $rgba(0, 0, 0, 0.2)),
+          },
+          layout: $layout.fill,
+          events: {
+            tapped: (sender) => {
+              this.hidden = true;
+            },
+          },
+        },
+        list.definition,
+      ],
+    });
+  }
+
+  private _getCurrentSections(): PreferenceSection[] {
+    const sections: PreferenceSection[] = [
+      {
+        title: "",
+        rows: [
+          {
+            type: "symbol-action",
+            title: "加载原图",
+            symbol: "arrow.down.backward.and.arrow.up.forward.square",
+            value: () => {
+              this.hidden = true;
+              this._loadOrginalHandler();
+            },
+          },
+          {
+            type: "symbol-action",
+            title: "AI翻译设置",
+            symbol: "globe",
+            value: async () => {
+              this.hidden = true;
+              await setAITranslationConfig();
+            },
+          },
+        ],
+      },
+      {
+        title: "翻页方向",
+        rows: [
+          {
+            type: "symbol-action",
+            title: "从左往右",
+            symbol: "arrow.right.square",
+            titleColor: configManager.pageDirection === "left_to_right" ? $color("systemLink") : undefined,
+            tintColor: configManager.pageDirection === "left_to_right" ? $color("systemLink") : undefined,
+            value: () => {
+              if (configManager.pageDirection !== "left_to_right") {
+                configManager.pageDirection = "left_to_right";
+                this._refresh();
+              }
+            },
+          },
+          {
+            type: "symbol-action",
+            title: "从右往左",
+            symbol: "arrow.left.square",
+            titleColor: configManager.pageDirection === "right_to_left" ? $color("systemLink") : undefined,
+            tintColor: configManager.pageDirection === "right_to_left" ? $color("systemLink") : undefined,
+            value: () => {
+              if (configManager.pageDirection !== "right_to_left") {
+                configManager.pageDirection = "right_to_left";
+                this._refresh();
+              }
+            },
+          },
+          {
+            type: "symbol-action",
+            title: "纵向",
+            symbol: "arrow.down.square",
+            titleColor: configManager.pageDirection === "vertical" ? $color("systemLink") : undefined,
+            tintColor: configManager.pageDirection === "vertical" ? $color("systemLink") : undefined,
+            value: () => {
+              if (configManager.pageDirection !== "vertical") {
+                if (!this._checkVerticalAllowed()) {
+                  pagingModeNotAllowedAlert();
+                  return;
+                }
+                configManager.pageDirection = "vertical";
+                this._refresh();
+              }
+            },
+          },
+        ],
+      },
+    ];
+
+    const sectionSpreadMode: PreferenceSection = {
+      title: "双页模式",
+      rows: [
+        {
+          type: "boolean",
+          title: "开启",
+          key: "spreadModeEnabled",
+          value: configManager.spreadModeEnabled,
+        },
+      ],
+    };
+    if (configManager.spreadModeEnabled) {
+      sectionSpreadMode.rows.push({
+        type: "boolean",
+        title: "跳过首页",
+        key: "skipFirstPageInSpread",
+        value: configManager.skipFirstPageInSpread,
+      });
+      sectionSpreadMode.rows.push({
+        type: "boolean",
+        title: "跳过横图",
+        key: "skipLandscapePagesInSpread",
+        value: configManager.skipLandscapePagesInSpread,
+      });
+    }
+    const sectionPagingGesture: PreferenceSection = {
+      title: "翻页手势",
+      rows: [
+        {
+          type: "symbol-action",
+          title: "滑动和点击",
+          symbol: configManager.pagingGesture === "tap_and_swipe" ? "checkmark" : undefined,
+          titleColor: configManager.pagingGesture === "tap_and_swipe" ? $color("systemLink") : undefined,
+          tintColor: configManager.pagingGesture === "tap_and_swipe" ? $color("systemLink") : undefined,
+          value: () => {
+            if (configManager.pagingGesture !== "tap_and_swipe") {
+              configManager.pagingGesture = "tap_and_swipe";
+              this._refresh();
+            }
+          },
+        },
+        {
+          type: "symbol-action",
+          title: "仅滑动",
+          symbol: configManager.pagingGesture === "swipe" ? "checkmark" : undefined,
+          titleColor: configManager.pagingGesture === "swipe" ? $color("systemLink") : undefined,
+          tintColor: configManager.pagingGesture === "swipe" ? $color("systemLink") : undefined,
+          value: () => {
+            if (configManager.pagingGesture !== "swipe") {
+              configManager.pagingGesture = "swipe";
+              this._refresh();
+            }
+          },
+        },
+        {
+          type: "symbol-action",
+          title: "仅点击",
+          symbol: configManager.pagingGesture === "tap" ? "checkmark" : undefined,
+          titleColor: configManager.pagingGesture === "tap" ? $color("systemLink") : undefined,
+          tintColor: configManager.pagingGesture === "tap" ? $color("systemLink") : undefined,
+          value: () => {
+            if (configManager.pagingGesture !== "tap") {
+              configManager.pagingGesture = "tap";
+              this._refresh();
+            }
+          },
+        },
+      ],
+    };
+
+    if (configManager.pageDirection !== "vertical") {
+      sections.push(sectionSpreadMode);
+      sections.push(sectionPagingGesture);
+    }
+    return sections;
+  }
+
+  private _refresh() {
+    this.cviews.list.sections = this._getCurrentSections();
+  }
+
+  set hidden(value: boolean) {
+    if (!value) {
+      this._settingCache = {
+        pageDirection: configManager.pageDirection,
+        spreadModeEnabled: configManager.spreadModeEnabled,
+        skipFirstPageInSpread: configManager.skipFirstPageInSpread,
+        skipLandscapePagesInSpread: configManager.skipLandscapePagesInSpread,
+        pagingGesture: configManager.pagingGesture,
+      };
+      this._refresh();
+    }
+    this.view.hidden = value;
+    if (value) {
+      let flag = false;
+      if (this._settingCache.pageDirection !== configManager.pageDirection) {
+        flag = true;
+      } else if (configManager.pageDirection !== "vertical") {
+        if (this._settingCache.pagingGesture !== configManager.pagingGesture) flag = true;
+        if (this._settingCache.spreadModeEnabled !== configManager.spreadModeEnabled) {
+          flag = true;
+        } else if (configManager.spreadModeEnabled) {
+          if (this._settingCache.skipFirstPageInSpread !== configManager.skipFirstPageInSpread) flag = true;
+          if (this._settingCache.skipLandscapePagesInSpread !== configManager.skipLandscapePagesInSpread) flag = true;
+        }
+      }
+
+      if (flag) {
+        this._reloadPagerHandler();
+      }
+    }
+  }
+
+  get hidden() {
+    return this.view.hidden;
   }
 }
 
@@ -604,6 +778,7 @@ export class ReaderController extends BaseController {
     viewer: ContentView;
     footerThumbnailView: FooterThumbnailView;
     downloadButton: DownloadButtonForReader;
+    settingView: SettingView;
   };
 
   constructor({
@@ -692,17 +867,20 @@ export class ReaderController extends BaseController {
 
     // 检查纵向滑动是否可用：需要所有分页都下载完
     if (
-      configManager.pageTurnMethod === "vertical" &&
+      (configManager.pageDirection === "vertical" || configManager.spreadModeEnabled) && // TODO
       galleryDownloader.finishedOfHtmls !== galleryDownloader.infos.total_pages
     ) {
-      configManager.pageTurnMethod = "click_and_swipe";
-      vertialNotAllowedAlert();
+      const alertType = configManager.pageDirection === "vertical" ? "vertical" : "spread";
+      configManager.pageDirection = "left_to_right";
+      configManager.spreadModeEnabled = false;
+      pagingModeNotAllowedAlert(alertType);
     }
     const footerThumbnailView = new FooterThumbnailView({
       props: {
         index,
         length,
         thumbnailItems: galleryDownloader.result.thumbnails,
+        reversed: configManager.pageDirection === "right_to_left",
       },
       events: {
         changed: (index) => this.handleTurnPage(index),
@@ -721,36 +899,18 @@ export class ReaderController extends BaseController {
         make.top.bottom.inset(0);
       },
     });
-    const rightSymbolButton = new RightSymbolButtonWarpper({
-      loadOrginalHandler: () => {
-        const index = this.cviews.footerThumbnailView.index;
-        if (this.reloadedPageSet.has(index)) return; // 如果已经添加过，不再重复添加
-
-        this.reloadedPageSet.add(index);
-        // 查看本页面的info是否已经加载完成
-        const galleryDownloader = downloaderManager.get(this.gid);
-        if (!galleryDownloader) return;
-        const originalImage = galleryDownloader.result.originalImages[index];
-        // 如果已经下载好了，则立即刷新
-        // 这种情况只存在于下载器初始化时，已经下载好了原图
-        if (originalImage.path) {
-          this.refreshCurrentPage();
-        }
-        // 如果没有下载好，则选择此图片使下载器准备下载
-        originalImage.userSelected = true;
-        // 重新启动下载器
-        galleryDownloader.start();
-
-        // 刷新标题
-        this.cviews.titleLabel.view.text = this._generateTitle();
+    const rightSymbolButton = new SymbolButton({
+      props: {
+        symbol: "ellipsis",
       },
-      reloadPagerHandler: () => {
-        viewerLayoutSubviews(viewer.view);
+      layout: (make, view) => {
+        make.right.top.bottom.inset(0);
+        make.width.equalTo(50);
       },
-      checkVerticalAllowed: () => {
-        const d = downloaderManager.get(gid);
-        if (!d) throw new Error("galleryDownloader not found");
-        return d.finishedOfHtmls === d.infos.total_pages;
+      events: {
+        tapped: (sender) => {
+          this.cviews.settingView.hidden = !this.cviews.settingView.hidden;
+        },
       },
     });
     const header = new Blur({
@@ -1072,30 +1232,12 @@ export class ReaderController extends BaseController {
     let lastFrameWidth = 0;
     let lastFrameHeight = 0;
     const viewerLayoutSubviews = (sender: UIBaseView) => {
+      this.cviews.footerThumbnailView.reversed = configManager.pageDirection === "right_to_left";
       lastFrameWidth = sender.frame.width;
       lastFrameHeight = sender.frame.height;
       if (sender.views.length !== 0) sender.views[0].remove();
       this.imagePager =
-        configManager.pageTurnMethod === "click"
-          ? new NoscrollImagePager({
-              props: {
-                srcs: this._generateSrcs(),
-                page: footerThumbnailView.index,
-                imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
-              },
-              layout: $layout.fillSafeArea,
-              // 点击模式保持和横向滑动模式相同的方案，不过它可以改成$layout.fill，那样的话可以缩放全屏
-              events: {
-                changed: (page) => this.handleTurnPage(page),
-                reloadHandler: (page) => {
-                  galleryDownloader.result.images[page].error = false;
-                  galleryDownloader.result.images[page].started = false;
-                  downloaderManager.startOne(this.gid);
-                  this.refreshCurrentPage();
-                },
-              },
-            })
-          : configManager.pageTurnMethod === "vertical"
+        configManager.pageDirection === "vertical"
           ? new VerticalImagePager({
               props: {
                 srcs: this._generateSrcs(),
@@ -1130,11 +1272,31 @@ export class ReaderController extends BaseController {
                 },
               },
             })
+          : configManager.pagingGesture === "tap"
+          ? new NoscrollImagePager({
+              props: {
+                srcs: this._generateSrcs(),
+                page: footerThumbnailView.index,
+                imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
+              },
+              layout: $layout.fillSafeArea,
+              // 点击模式保持和横向滑动模式相同的方案，不过它可以改成$layout.fill，那样的话可以缩放全屏
+              events: {
+                changed: (page) => this.handleTurnPage(page),
+                reloadHandler: (page) => {
+                  galleryDownloader.result.images[page].error = false;
+                  galleryDownloader.result.images[page].started = false;
+                  downloaderManager.startOne(this.gid);
+                  this.refreshCurrentPage();
+                },
+              },
+            })
           : new CustomImagePager({
               props: {
                 srcs: this._generateSrcs(),
                 page: footerThumbnailView.index,
                 imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
+                reversed: configManager.pageDirection === "right_to_left",
               },
               layout: $layout.fillSafeArea,
               // 横向滑动模式必须限制在安全区域内，否则会出现切页时图片随机上下浮动一点点的问题（猜测和状态栏有关？）
@@ -1153,7 +1315,7 @@ export class ReaderController extends BaseController {
         if (!this.imagePager) return;
         define(this.imagePager.view.ocValue(), (location) => {
           if (!this.imagePager) return;
-          if (configManager.pageTurnMethod === "swipe" || configManager.pageTurnMethod === "vertical") {
+          if (configManager.pageDirection === "vertical" || configManager.pagingGesture === "swipe") {
             footer.view.hidden = !footer.view.hidden;
             header.view.hidden = !header.view.hidden;
             return;
@@ -1162,10 +1324,18 @@ export class ReaderController extends BaseController {
           const h = sender.frame.height;
           const x = location.x;
           const y = location.y;
-          if (y / h < 1 / 4 || (y / h >= 1 / 4 && y / h <= 3 / 4 && x / w < 1 / 3)) {
+          if (
+            y / h < 1 / 4 ||
+            (configManager.pageDirection === "left_to_right" && y / h >= 1 / 4 && y / h <= 3 / 4 && x / w < 1 / 3) ||
+            (configManager.pageDirection === "right_to_left" && y / h >= 1 / 4 && y / h <= 3 / 4 && x / w > 2 / 3)
+          ) {
             if (footerThumbnailView.index === 0) return;
             this.handleTurnPage(footerThumbnailView.index - 1);
-          } else if (y / h > 3 / 4 || (y / h >= 1 / 4 && y / h <= 3 / 4 && x / w > 2 / 3)) {
+          } else if (
+            y / h > 3 / 4 ||
+            (configManager.pageDirection === "left_to_right" && y / h >= 1 / 4 && y / h <= 3 / 4 && x / w > 2 / 3) ||
+            (configManager.pageDirection === "right_to_left" && y / h >= 1 / 4 && y / h <= 3 / 4 && x / w < 1 / 3)
+          ) {
             if (footerThumbnailView.index === this.imagePager.srcs.length - 1) return;
             this.handleTurnPage(footerThumbnailView.index + 1);
           } else {
@@ -1192,6 +1362,39 @@ export class ReaderController extends BaseController {
       },
     });
 
+    const settingView = new SettingView({
+      loadOrginalHandler: () => {
+        const index = this.cviews.footerThumbnailView.index;
+        if (this.reloadedPageSet.has(index)) return; // 如果已经添加过，不再重复添加
+
+        this.reloadedPageSet.add(index);
+        // 查看本页面的info是否已经加载完成
+        const galleryDownloader = downloaderManager.get(this.gid);
+        if (!galleryDownloader) return;
+        const originalImage = galleryDownloader.result.originalImages[index];
+        // 如果已经下载好了，则立即刷新
+        // 这种情况只存在于下载器初始化时，已经下载好了原图
+        if (originalImage.path) {
+          this.refreshCurrentPage();
+        }
+        // 如果没有下载好，则选择此图片使下载器准备下载
+        originalImage.userSelected = true;
+        // 重新启动下载器
+        galleryDownloader.start();
+
+        // 刷新标题
+        this.cviews.titleLabel.view.text = this._generateTitle();
+      },
+      reloadPagerHandler: () => {
+        viewerLayoutSubviews(viewer.view);
+      },
+      checkVerticalAllowed: () => {
+        const d = downloaderManager.get(gid);
+        if (!d) throw new Error("galleryDownloader not found");
+        return d.finishedOfHtmls === d.infos.total_pages;
+      },
+    });
+
     this.cviews = {
       titleLabel,
       aiTranslationButton,
@@ -1200,8 +1403,9 @@ export class ReaderController extends BaseController {
       viewer,
       footerThumbnailView,
       downloadButton,
+      settingView,
     };
-    this.rootView.views = [viewer, header, footer];
+    this.rootView.views = [viewer, header, footer, settingView];
   }
 
   refreshCurrentPage() {
@@ -1359,11 +1563,11 @@ export class ReaderController extends BaseController {
   }
 }
 
-function vertialNotAllowedAlert() {
+function pagingModeNotAllowedAlert(type: "vertical" | "spread" = "vertical") {
   $ui.alert({
-    title: "纵向滑动翻页暂不可用",
+    title: (type === "vertical" ? "纵向翻页" : "双页模式") + "暂不可用",
     message:
-      "纵向滑动翻页需要先获取图库中的所有分页，目前还没有完成此步骤。请稍后手动切换。\n" +
-      "附注：开通Hath Perk中的多页查看器可以快速完成此步骤，开通后需要在本应用中重新登录。",
+      "这需要先获取图库中的所有分页，目前还没有完成此步骤。请稍后手动切换。\n" +
+      "附注：开通 Hath Perk 中的 Multi-Page Viewer（多页查看器）权限可以快速完成此步骤，开通后需要在本应用中重新登录。",
   });
 }

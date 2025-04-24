@@ -7,6 +7,7 @@ import { Base, Matrix } from "jsbox-cview";
  *
  */
 export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
+  private _reversed: boolean;
   private _props: {
     srcs: {
       path?: string;
@@ -44,6 +45,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
         type: "ai-translated" | "reloaded" | "normal";
       }[];
       page?: number;
+      reversed?: boolean;
       imageShareOnLongPressEnabled?: boolean;
     };
     layout: (make: MASConstraintMaker, view: UIView) => void;
@@ -53,6 +55,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
     };
   }) {
     super();
+    this._reversed = props.reversed ?? false;
     this._props = {
       srcs: [],
       page: 0,
@@ -150,7 +153,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
             },
           ],
         },
-        data: this._props.srcs.map((n) => this._mapData(n)),
+        data: (this._reversed ? this._props.srcs.toReversed() : this._props.srcs).map((n) => this._mapData(n)),
       },
       layout: $layout.fill,
       events: {
@@ -171,7 +174,8 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
         },
         willEndDragging: (sender, velocity, target) => {
           const oldPage = this.page;
-          this._props.page = Math.round(target.x / sender.frame.width);
+          const realPage = Math.round(target.x / sender.frame.width);
+          this._props.page = this._realPageToPage(realPage);
           //this.loadsrc(this.page, true);
           if (oldPage !== this.page && events.changed) events.changed(this.page);
         },
@@ -181,7 +185,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
         },
         didLongPress: (sender, indexPath, data) => {
           if (!this._props.imageShareOnLongPressEnabled) return;
-          const path = this._props.srcs[indexPath.item].path;
+          const path = this._props.srcs[this._realPageToPage(indexPath.item)].path;
           if (path) {
             const img = $file.read(path)?.image;
             if (img) $share.universal(img);
@@ -214,14 +218,22 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
 
   private loadsrc(page: number, forced = false) {
     if (page < 0 || page >= this._props.srcs.length) return;
-    const cell = this._matrix.view.cell($indexPath(0, page));
+    const cell = this._matrix.view.cell($indexPath(0, this._PageToRealPage(page)));
     if (!cell) return;
     const image = cell.get("image") as UIImageView;
     if (forced || !image.image || !this._pageLoadRecorder[page]) {
       const scroll = cell.get("scroll") as UIScrollView;
-      scroll.zoomScale = 0;
+      if (scroll) scroll.zoomScale = 0;
       this._pageLoadRecorder[page] = true;
     }
+  }
+
+  private _PageToRealPage(page: number) {
+    return this._reversed ? this._props.srcs.length - page - 1 : page;
+  }
+
+  private _realPageToPage(realPage: number) {
+    return this._reversed ? this._props.srcs.length - realPage - 1 : realPage;
   }
 
   get srcs() {
@@ -237,7 +249,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
     }[]
   ) {
     this._props.srcs = srcs;
-    const data = srcs.map((n) => this._mapData(n));
+    const data = (this._reversed ? srcs.toReversed() : srcs).map((n) => this._mapData(n));
     this._matrix.view.data = data;
   }
 
@@ -280,7 +292,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
 
   set page(page) {
     this._matrix.view.scrollTo({
-      indexPath: $indexPath(0, page),
+      indexPath: $indexPath(0, this._PageToRealPage(page)),
       animated: false,
     });
     this._props.page = page;
@@ -288,7 +300,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
 
   scrollToPage(page: number) {
     this._matrix.view.scrollTo({
-      indexPath: $indexPath(0, page),
+      indexPath: $indexPath(0, this._PageToRealPage(page)),
       animated: true,
     });
     this._props.page = page;

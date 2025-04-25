@@ -411,12 +411,12 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
     this.cviews.thumbnailMatrix.update({ thumbnailItems, index: this._index });
   }
 
-  updateFooter(sliderOnGoing: boolean) {
-    this.cviews.thumbnailMatrix.update({ index: this._index });
-    this.cviews.sliderLeftLabel.view.text = this._reversed ? this._length.toString() : (this._index + 1).toString();
-    this.cviews.sliderRightLabel.view.text = this._reversed ? (this._index + 1).toString() : this._length.toString();
+  updateFooter(index: number, sliderOnGoing: boolean) {
+    this.cviews.thumbnailMatrix.update({ index });
+    this.cviews.sliderLeftLabel.view.text = this._reversed ? this._length.toString() : (index + 1).toString();
+    this.cviews.sliderRightLabel.view.text = this._reversed ? (index + 1).toString() : this._length.toString();
     if (!sliderOnGoing) {
-      this.cviews.slider.value = this._index;
+      this.cviews.slider.value = index;
     }
   }
 
@@ -428,7 +428,7 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
     if (this._index === index) return;
     this._index = index;
     this._innerIndex = index;
-    this.updateFooter(false);
+    this.updateFooter(index, false);
   }
 
   get innerIndex() {
@@ -438,7 +438,7 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
   set innerIndex(index: number) {
     if (this._innerIndex === index) return;
     this._innerIndex = index;
-    this.updateFooter(true);
+    this.updateFooter(index, true);
   }
 
   set reversed(reversed: boolean) {

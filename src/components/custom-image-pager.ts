@@ -16,8 +16,8 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
       type: "ai-translated" | "reloaded" | "normal";
     }[];
     page: number;
-    imageShareOnLongPressEnabled: boolean;
   };
+  private _imageShareOnLongPressEnabled: boolean;
   private _matrix: Matrix;
   private _pageLoadRecorder: { [key: number]: boolean };
   _defineView: () => UiTypes.ViewOptions;
@@ -57,11 +57,10 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
     super();
     this._reversed = props.reversed ?? false;
     this._props = {
-      srcs: [],
-      page: 0,
-      imageShareOnLongPressEnabled: true,
-      ...props,
+      srcs: props.srcs ?? [],
+      page: props.page ?? 0,
     };
+    this._imageShareOnLongPressEnabled = props.imageShareOnLongPressEnabled ?? true;
     this._pageLoadRecorder = {};
     this._matrix = new Matrix({
       props: {
@@ -184,7 +183,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
           this.loadsrc(this.page - 1, true);
         },
         didLongPress: (sender, indexPath, data) => {
-          if (!this._props.imageShareOnLongPressEnabled) return;
+          if (!this._imageShareOnLongPressEnabled) return;
           const path = this._props.srcs[this._realPageToPage(indexPath.item)].path;
           if (path) {
             const img = $file.read(path)?.image;
@@ -296,6 +295,29 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
       animated: false,
     });
     this._props.page = page;
+  }
+
+  get prevPage() {
+    if (this._props.page === 0) return;
+    return this._props.page - 1;
+  }
+
+  get nextPage() {
+    if (this._props.page >= this._props.srcs.length - 1) return;
+    return this._props.page + 1;
+  }
+
+  get currentPages() {
+    return [this._props.page];
+  }
+
+  get visiblePages() {
+    // 获取当前可见的页面（为兼容vertical-image-pager而保留）
+    return this.currentPages;
+  }
+
+  get isCurrentPagesAllLoaded() {
+    return Boolean(this._props.srcs[this._props.page].path);
   }
 
   scrollToPage(page: number) {

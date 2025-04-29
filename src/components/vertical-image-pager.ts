@@ -14,10 +14,13 @@ export class VerticalImagePager extends Base<UIListView, UiTypes.ListOptions> {
       type: "ai-translated" | "reloaded" | "normal";
     }[];
     page: number;
-    imageShareOnLongPressEnabled: boolean;
   };
+
+  private _imageShareOnLongPressEnabled: boolean;
+
   private _heights: number[];
   private _initialLayoutFinished: boolean = false;
+  private _visiblePages: number[] = [];
   _defineView: () => UiTypes.ListOptions;
 
   /**
@@ -55,11 +58,11 @@ export class VerticalImagePager extends Base<UIListView, UiTypes.ListOptions> {
   }) {
     super();
     this._props = {
-      srcs: [],
-      page: 0,
-      imageShareOnLongPressEnabled: true,
-      ...props,
+      srcs: props.srcs ?? [],
+      page: props.page ?? 0,
     };
+
+    this._imageShareOnLongPressEnabled = props.imageShareOnLongPressEnabled ?? true;
     this._heights = this._props.srcs.map(() => 0);
     this._defineView = () => {
       return {
@@ -168,7 +171,7 @@ export class VerticalImagePager extends Base<UIListView, UiTypes.ListOptions> {
             // 此处不能填0或者很小的数字，否则的话所有的图片会全部挤在一起，把内存挤爆
           },
           didLongPress: (sender, indexPath, data) => {
-            if (!this._props.imageShareOnLongPressEnabled) return;
+            if (!this._imageShareOnLongPressEnabled) return;
             const path = this._props.srcs[indexPath.item].path;
             if (path) {
               const img = $file.read(path)?.image;
@@ -178,15 +181,29 @@ export class VerticalImagePager extends Base<UIListView, UiTypes.ListOptions> {
           didScroll: (sender) => {
             if (!this._initialLayoutFinished) return;
             const offsetY = sender.contentOffset.y;
+            const frameHeight = sender.frame.height;
             let sum = 0;
             let page = 0;
+            let flagAssignment = false;
             for (let i = 0; i < this._heights.length; i++) {
               sum += this._heights[i];
               if (offsetY < sum) {
                 page = i;
+                flagAssignment = true;
                 break;
               }
             }
+            // 如果offsetY已经超过了全体高度，那么说明全部页面被滑动到可视范围外，此时依然设定为最后一页
+            if (!flagAssignment) page = this._heights.length - 1;
+            // 从当前页面开始往后，计算有多少页可见
+            this._visiblePages = [page];
+            for (let i = page + 1; i < this._heights.length; i++) {
+              if (sum < offsetY + frameHeight) {
+                this._visiblePages.push(i);
+                sum += this._heights[i];
+              }
+            }
+
             if (page !== this._props.page) {
               this._props.page = page;
               events.changed?.(page);
@@ -253,6 +270,42 @@ export class VerticalImagePager extends Base<UIListView, UiTypes.ListOptions> {
     const offsetY = this._heights.slice(0, page).reduce((prev, curr) => prev + curr, 0);
     this.view.contentOffset = $point(0, offsetY + 1);
     this._props.page = page;
+    this._visiblePages = [page];
+    const frameHeight = this.view.frame.height;
+    let sum = offsetY + 1 + this._heights[page];
+    // 从当前页面开始往后，计算有多少页可见
+    for (let i = page + 1; i < this._heights.length; i++) {
+      if (sum < offsetY + frameHeight) {
+        this._visiblePages.push(i);
+        sum += this._heights[i];
+      }
+    }
+  }
+
+  get prevPage() {
+    if (this._props.page === 0) return;
+    return this._props.page - 1;
+  }
+
+  get nextPage() {
+    if (this._props.page >= this._props.srcs.length - 1) return;
+    return this._props.page + 1;
+  }
+
+  get currentPages() {
+    return [this._props.page];
+  }
+
+  get visiblePages() {
+    if (this._visiblePages.length >= 1) {
+      return this._visiblePages;
+    } else {
+      return this.currentPages;
+    }
+  }
+
+  get isCurrentPagesAllLoaded() {
+    return Boolean(this._props.srcs[this._props.page].path);
   }
 
   scrollToPage(page: number) {

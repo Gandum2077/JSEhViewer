@@ -665,13 +665,13 @@ export class GeneralSettingsController extends BaseController {
       if (configManager.spreadModeEnabled) {
         sections[6].rows.push({
           type: "boolean",
-          title: "双页模式中跳过首页",
+          title: " - 跳过首页",
           key: "skipFirstPageInSpread",
           value: configManager.skipFirstPageInSpread,
         });
         sections[6].rows.push({
           type: "boolean",
-          title: "双页模式中跳过横图",
+          title: " - 跳过横图 & 条图",
           key: "skipLandscapePagesInSpread",
           value: configManager.skipLandscapePagesInSpread,
         });

@@ -21,6 +21,8 @@ import { NoscrollImagePager } from "../components/noscroll-image-pager";
 import { DownloadButtonForReader } from "../components/download-button-for-reader";
 import { GalleryController } from "./gallery-controller";
 import { VerticalImagePager } from "../components/vertical-image-pager";
+import { SpreadCustomImagePager } from "../components/spread-custom-image-pager";
+import { SpreadNoscrollImagePager } from "../components/spread-noscroll-image-pager";
 
 let lastUITapGestureRecognizer: any;
 
@@ -659,7 +661,7 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
       });
       sectionSpreadMode.rows.push({
         type: "boolean",
-        title: "跳过横图",
+        title: "跳过横图 & 条图",
         key: "skipLandscapePagesInSpread",
         value: configManager.skipLandscapePagesInSpread,
       });
@@ -759,7 +761,12 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
 
 export class ReaderController extends BaseController {
   private gid: number;
-  private imagePager?: CustomImagePager | NoscrollImagePager | VerticalImagePager;
+  private imagePager?:
+    | CustomImagePager
+    | NoscrollImagePager
+    | VerticalImagePager
+    | SpreadCustomImagePager
+    | SpreadNoscrollImagePager;
   private _autoPagerEnabled: boolean = false;
   private _autoPagerInterval: number = 1;
   private _autoPagerCountDown: number = 1;
@@ -814,16 +821,13 @@ export class ReaderController extends BaseController {
                 // 首先检测本页是否加载完成。如果没有加载完成，不翻页并且重制倒计时为翻页间隔
                 // 如果加载完成，倒计时减1，如果倒计时小于等于0，翻页并重制倒计时
                 // 另外，如果翻到最后一页，不再翻页
-                if (
-                  !this.imagePager.srcs[this.imagePager.page].path ||
-                  this.cviews.footerThumbnailView.index === this.imagePager.srcs.length - 1
-                ) {
+                if (!this.imagePager.isCurrentPagesAllLoaded || this.imagePager.nextPage === undefined) {
                   this._autoPagerCountDown = this._autoPagerInterval;
                   return;
                 } else {
                   this._autoPagerCountDown -= 1;
                   if (this._autoPagerCountDown <= 0) {
-                    this.handleTurnPage(this.cviews.footerThumbnailView.index + 1);
+                    this.handleTurnPage(this.imagePager.nextPage);
                   }
                 }
               }
@@ -1272,6 +1276,77 @@ export class ReaderController extends BaseController {
                 },
               },
             })
+          : configManager.spreadModeEnabled && configManager.pagingGesture === "tap"
+          ? new SpreadNoscrollImagePager({
+              props: {
+                srcs: this._generateSrcs(),
+                page: footerThumbnailView.index,
+                reversed: configManager.pageDirection === "right_to_left",
+                imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
+                skipFirstPage: configManager.skipFirstPageInSpread,
+                skipLandscapePages: configManager.skipLandscapePagesInSpread,
+              },
+              layout: $layout.fillSafeArea,
+              events: {
+                changed: (page) => this.handleTurnPage(page),
+                reloadHandler: (page) => {
+                  galleryDownloader.result.images[page].error = false;
+                  galleryDownloader.result.images[page].started = false;
+                  downloaderManager.startOne(this.gid);
+                  this.refreshCurrentPage();
+                },
+                getEstimatedAspectRatio: (page) => {
+                  const d = downloaderManager.get(this.gid);
+                  if (!d) return 0;
+                  const htmlPage = d.infos.num_of_images_on_each_page
+                    ? Math.floor(page / d.infos.num_of_images_on_each_page)
+                    : 0;
+                  if (htmlPage in d.infos.images) {
+                    const frame = d.infos.images[htmlPage].find((n) => n.page === page)?.frame;
+                    if (!frame) return 0;
+                    return frame.height / frame.width;
+                  } else {
+                    return 0;
+                  }
+                },
+              },
+            })
+          : configManager.spreadModeEnabled &&
+            (configManager.pagingGesture === "swipe" || configManager.pagingGesture === "tap_and_swipe")
+          ? new SpreadCustomImagePager({
+              props: {
+                srcs: this._generateSrcs(),
+                page: footerThumbnailView.index,
+                reversed: configManager.pageDirection === "right_to_left",
+                imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
+                skipFirstPage: configManager.skipFirstPageInSpread,
+                skipLandscapePages: configManager.skipLandscapePagesInSpread,
+              },
+              layout: $layout.fillSafeArea,
+              events: {
+                changed: (page) => this.handleTurnPage(page),
+                reloadHandler: (page) => {
+                  galleryDownloader.result.images[page].error = false;
+                  galleryDownloader.result.images[page].started = false;
+                  downloaderManager.startOne(this.gid);
+                  this.refreshCurrentPage();
+                },
+                getEstimatedAspectRatio: (page) => {
+                  const d = downloaderManager.get(this.gid);
+                  if (!d) return 0;
+                  const htmlPage = d.infos.num_of_images_on_each_page
+                    ? Math.floor(page / d.infos.num_of_images_on_each_page)
+                    : 0;
+                  if (htmlPage in d.infos.images) {
+                    const frame = d.infos.images[htmlPage].find((n) => n.page === page)?.frame;
+                    if (!frame) return 0;
+                    return frame.height / frame.width;
+                  } else {
+                    return 0;
+                  }
+                },
+              },
+            })
           : configManager.pagingGesture === "tap"
           ? new NoscrollImagePager({
               props: {
@@ -1329,15 +1404,15 @@ export class ReaderController extends BaseController {
             (configManager.pageDirection === "left_to_right" && y / h >= 1 / 4 && y / h <= 3 / 4 && x / w < 1 / 3) ||
             (configManager.pageDirection === "right_to_left" && y / h >= 1 / 4 && y / h <= 3 / 4 && x / w > 2 / 3)
           ) {
-            if (footerThumbnailView.index === 0) return;
-            this.handleTurnPage(footerThumbnailView.index - 1);
+            if (this.imagePager.prevPage === undefined) return;
+            this.handleTurnPage(this.imagePager.prevPage);
           } else if (
             y / h > 3 / 4 ||
             (configManager.pageDirection === "left_to_right" && y / h >= 1 / 4 && y / h <= 3 / 4 && x / w > 2 / 3) ||
             (configManager.pageDirection === "right_to_left" && y / h >= 1 / 4 && y / h <= 3 / 4 && x / w < 1 / 3)
           ) {
-            if (footerThumbnailView.index === this.imagePager.srcs.length - 1) return;
-            this.handleTurnPage(footerThumbnailView.index + 1);
+            if (this.imagePager.nextPage === undefined) return;
+            this.handleTurnPage(this.imagePager.nextPage);
           } else {
             footer.view.hidden = !footer.view.hidden;
             header.view.hidden = !header.view.hidden;
@@ -1411,8 +1486,15 @@ export class ReaderController extends BaseController {
   refreshCurrentPage() {
     if (!this.imagePager) return;
     const newSrcs = this._generateSrcs();
-    const current = this.imagePager.srcs[this.imagePager.page];
-    if (!current.path || current.type !== newSrcs[this.imagePager.page].type) {
+    const visiblePages = this.imagePager.visiblePages;
+    let flagShouldRefresh = false;
+    for (const page of visiblePages) {
+      const current = this.imagePager.srcs[page];
+      if (!current.path || current.type !== newSrcs[this.imagePager.page].type) {
+        flagShouldRefresh = true;
+      }
+    }
+    if (flagShouldRefresh) {
       this.imagePager.srcs = newSrcs;
     }
   }

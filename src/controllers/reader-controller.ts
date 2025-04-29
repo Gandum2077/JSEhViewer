@@ -1490,7 +1490,7 @@ export class ReaderController extends BaseController {
     let flagShouldRefresh = false;
     for (const page of visiblePages) {
       const current = this.imagePager.srcs[page];
-      if (!current.path || current.type !== newSrcs[this.imagePager.page].type) {
+      if (!current.path || current.type !== newSrcs[page].type) {
         flagShouldRefresh = true;
       }
     }

@@ -1650,6 +1650,6 @@ function pagingModeNotAllowedAlert(type: "vertical" | "spread" = "vertical") {
     title: (type === "vertical" ? "纵向翻页" : "双页模式") + "暂不可用",
     message:
       "这需要先获取图库中的所有分页，目前还没有完成此步骤。请稍后手动切换。\n" +
-      "附注：开通 Hath Perk 中的 Multi-Page Viewer（多页查看器）权限可以快速完成此步骤，开通后需要在本应用中重新登录。",
+      "附注：开通 Hath Perks 中的 Multi-Page Viewer（多页查看器）权限可以快速完成此步骤，开通后需要在本应用中重新登录。",
   });
 }

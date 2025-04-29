@@ -34,7 +34,7 @@ JSEhViewer 是运行在 iOS 平台 [JSBox](https://apps.apple.com/app/id13120144
 需要 iOS 版本 >= 17.0.0, JSBox 版本 >= 2.22.0  
 不需要 JSBox 2.0.0 版本之后的付费订阅功能
 
-[一键安装](https://xteko.com/redir?name=JSEhViewer&url=https%3A%2F%2Fgithub.com%2FGandum2077%2FJSEhViewer%2Freleases%2Fdownload%2F3.3.3%2FJSEhViewer.box)
+[一键安装](https://xteko.com/redir?name=JSEhViewer&url=https%3A%2F%2Fgithub.com%2FGandum2077%2FJSEhViewer%2Freleases%2Fdownload%2F3.4.0%2FJSEhViewer.box)
 
 [从 Release 下载](https://github.com/Gandum2077/JSEhViewer/releases)
 
@@ -90,11 +90,11 @@ hath.network
 
 #### 账号有里站权限，但是登录 ExHentai 失败
 
-说明你当前使用的 IP 无法获取里站的 Cookie，使用公共代理更容易出现此问题。请更换低风控值的 IP 再尝试。可以使用 [ping0.cc](https://ping0.cc/) 检查你的 IP 风控值。
+说明你当前使用的 IP 无法获取里站的 Cookie，使用公共代理更容易遇到此问题。请更换低风控值的 IP 再尝试。可以使用 [ping0.cc](https://ping0.cc/) 检查你的 IP 风控值。
 
 #### IP 封禁
 
-这将导致全站无法访问。一般是因为 IP 流量太大或者抓取页面过于频繁导致风控。如果你是非捐赠用户并且使用公共代理，可能会更频繁地出现此问题。
+这将导致全站无法访问。一般是因为 IP 流量太大或者抓取页面过于频繁导致风控。如果你是非捐赠用户并且使用公共代理，可能会更频繁地遇到此问题。
 
 试试这些方法：
 

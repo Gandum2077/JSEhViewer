@@ -53,7 +53,7 @@ export class GalleryController extends PageViewerController {
   constructor(gid: number, token: string) {
     const galleryInfoController = new GalleryInfoController(gid, (index) => this.readGallery(index));
     const galleryThumbnailController = new GalleryThumbnailController(gid, (index) => this.readGallery(index));
-    const galleryCommentController = new GalleryCommentController();
+    const galleryCommentController = new GalleryCommentController((index) => this.readGallery(index));
     const refreshButton = new RefreshButton({
       layout: $layout.fill,
       events: {

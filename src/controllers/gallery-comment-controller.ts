@@ -1,15 +1,19 @@
 import { BaseController, Web, Button, setLayer, layerCommonOptions, textDialog } from "jsbox-cview";
-import { EHGallery } from "ehentai-parser";
+import { EHGallery, EHSearchTerm } from "ehentai-parser";
 import { GalleryController } from "./gallery-controller";
 import { api } from "../utils/api";
-import { getUtf8Length } from "../utils/tools";
+import { getUtf8Length, safeParseFsearch } from "../utils/tools";
 import { galleryInfoPath } from "../utils/glv";
+import Url from "url-parse";
+import { PushedSearchResultController } from "./pushed-search-result-controller";
+import { FavoritesTabOptions, FrontPageTabOptions, WatchedTabOptions } from "../types";
+import { getSearchOptions } from "./search-controller";
 
 export class GalleryCommentController extends BaseController {
   private _infos?: EHGallery;
   private _sortType: "time" | "score" = "time";
   private _isRequestInProgress = false;
-  constructor() {
+  constructor(readHandler: (index: number) => void) {
     super({
       props: { bgcolor: $color("primarySurface") },
     });
@@ -104,32 +108,86 @@ export class GalleryCommentController extends BaseController {
         },
         decideNavigation: (sender, action) => {
           // 阻止不合规的请求
+          const alert = () => {
+            $ui.alert({
+              title: "跳转至浏览器",
+              message: action.requestURL,
+              actions: [
+                {
+                  title: "取消",
+                },
+                {
+                  title: "打开",
+                  handler: () => {
+                    $app.openURL(action.requestURL);
+                  },
+                },
+              ],
+            });
+          };
+          const handleSearchTerms = async (sts: EHSearchTerm[]) => {
+            const options = (await getSearchOptions(
+              {
+                type: "front_page",
+                options: {
+                  searchTerms: sts,
+                },
+              },
+              "showAllExceptArchive"
+            )) as FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions;
+            const controller = new PushedSearchResultController();
+            controller.uipush({
+              navBarHidden: true,
+              statusBarStyle: 0,
+            });
+            await $wait(0.3);
+            controller.triggerLoad(options);
+          };
           if (action.type === 0) {
-            const patt = /https:\/\/e[-x]hentai\.org\/\w+\/(\d+)\/(\w+)\/?/;
-            const r = patt.exec(action.requestURL);
-            if (!r || r.length < 3) {
-              $ui.alert({
-                title: "跳转至浏览器",
-                message: action.requestURL,
-                actions: [
-                  {
-                    title: "取消",
-                  },
-                  {
-                    title: "打开",
-                    handler: () => {
-                      $app.openURL(action.requestURL);
-                    },
-                  },
-                ],
-              });
-              return false;
-            } else {
-              const galleryController = new GalleryController(parseInt(r[1]), r[2]);
+            const pattToOtherGallery = /https:\/\/e[-x]hentai\.org\/\w+\/(\d+)\/(\w+)\/?/;
+            const pattToPage = /https:\/\/e[-x]hentai\.org\/s\/\w+\/(\d+)-(\d+)\/?/;
+            const pattSearch = /https:\/\/e[-x]hentai\.org\//;
+            const r1 = pattToOtherGallery.exec(action.requestURL);
+            const r2 = pattToPage.exec(action.requestURL);
+            const r3 = pattSearch.exec(action.requestURL);
+            if (r1 && r1.length >= 3) {
+              const gid = parseInt(r1[1]);
+              const token = r1[2];
+              if (gid === this._infos?.gid && token === this._infos?.token) {
+                return false;
+              }
+              const galleryController = new GalleryController(gid, token);
               galleryController.uipush({
                 navBarHidden: true,
                 statusBarStyle: 0,
               });
+            } else if (r2 && r2.length >= 3 && parseInt(r2[1]) === this._infos?.gid) {
+              let page = parseInt(r2[2]) - 1;
+              if (page < 0) page = 0;
+              if (this._infos && page >= this._infos.length) page = this._infos.length - 1;
+              readHandler(page);
+            } else if (r3) {
+              const u = new Url(action.requestURL, true);
+              const f_search = u.query?.f_search;
+              if (!f_search) {
+                alert();
+                return false;
+              }
+              let sts: EHSearchTerm[] | undefined;
+              try {
+                sts = safeParseFsearch(f_search);
+              } catch (e: any) {
+                alert();
+                return false;
+              }
+              if (!sts || sts.length === 0) {
+                alert();
+                return false;
+              } else {
+                handleSearchTerms(sts).then().catch();
+              }
+            } else {
+              alert();
             }
             return false;
           }

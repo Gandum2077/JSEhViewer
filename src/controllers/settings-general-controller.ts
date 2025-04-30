@@ -1,6 +1,6 @@
 import { BaseController, CustomNavigationBar, DynamicPreferenceListView, PreferenceSection, router } from "jsbox-cview";
 import { configManager } from "../utils/config";
-import { appLog, toLocalTimeString } from "../utils/tools";
+import { appLog, safeParseFsearch, toLocalTimeString } from "../utils/tools";
 import { ArchiveController } from "./archive-controller";
 import { clearExtraPropsForReload, statusManager } from "../utils/status";
 import { api } from "../utils/api";
@@ -155,7 +155,7 @@ export class GeneralSettingsController extends BaseController {
           if (specificSearchtermsOnStart !== configManager.specificSearchtermsOnStart) {
             let sts: EHSearchTerm[] | undefined;
             try {
-              sts = this.parse(specificSearchtermsOnStart);
+              sts = safeParseFsearch(specificSearchtermsOnStart);
             } catch (e: any) {
               $ui.alert({
                 title: "搜索词错误",
@@ -705,13 +705,5 @@ export class GeneralSettingsController extends BaseController {
     const funds = await api.getCreditsAndGpCount();
     this._imageLimit = imageLimit;
     this._funds = funds;
-  }
-
-  parse(fsearch: string) {
-    const searchTerms = fsearch ? parseFsearch(fsearch) : [];
-    if (searchTerms.some((st) => st.qualifier && st.tilde && st.qualifier !== "tag" && st.qualifier !== "weak")) {
-      throw new Error("~符号只能用于标签，其他修饰词均不支持~符号");
-    }
-    return searchTerms;
   }
 }

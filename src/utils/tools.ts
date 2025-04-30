@@ -1,4 +1,4 @@
-import { EHSearchTerm, TagNamespace, tagNamespaceMostUsedAlternateMap } from "ehentai-parser";
+import { EHSearchTerm, parseFsearch, TagNamespace, tagNamespaceMostUsedAlternateMap } from "ehentai-parser";
 import { appConfigPath, debugLogPath, globalLogLevel } from "./glv";
 import { configManager } from "./config";
 import { StatusTabOptions } from "../types";
@@ -263,4 +263,17 @@ export function updateLastAccess() {
     }
   });
   configManager.lastAccessPageJson = JSON.stringify(storedOptions);
+}
+
+/**
+ * 解析搜索字符串
+ * @param fsearch 搜索字符串
+ * @returns 
+ */
+export function safeParseFsearch(fsearch: string) {
+  const searchTerms = fsearch ? parseFsearch(fsearch) : [];
+  if (searchTerms.some((st) => st.qualifier && st.tilde && st.qualifier !== "tag" && st.qualifier !== "weak")) {
+    throw new Error("~符号只能用于标签，其他修饰词均不支持~符号");
+  }
+  return searchTerms;
 }

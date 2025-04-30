@@ -454,6 +454,8 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
 }
 
 class SettingView extends Base<UIView, UiTypes.ViewOptions> {
+  private _checkAiTranslated: () => boolean;
+  private _resetAiTranslationHandler: () => void;
   private _loadOrginalHandler: () => void;
   private _reloadPagerHandler: () => void;
   private _checkVerticalAllowed: () => boolean;
@@ -469,15 +471,21 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
   };
   _defineView: () => UiTypes.ViewOptions;
   constructor({
+    checkAiTranslated,
+    resetAiTranslationHandler,
     loadOrginalHandler,
     reloadPagerHandler,
     checkVerticalAllowed,
   }: {
+    checkAiTranslated: () => boolean;
+    resetAiTranslationHandler: () => void;
     loadOrginalHandler: () => void;
     reloadPagerHandler: () => void;
     checkVerticalAllowed: () => boolean;
   }) {
     super();
+    this._checkAiTranslated = checkAiTranslated;
+    this._resetAiTranslationHandler = resetAiTranslationHandler;
     this._loadOrginalHandler = loadOrginalHandler;
     this._reloadPagerHandler = reloadPagerHandler;
     this._checkVerticalAllowed = checkVerticalAllowed;
@@ -640,6 +648,18 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
         ],
       },
     ];
+
+    if (this._checkAiTranslated()) {
+      sections[0].rows.push({
+        type: "symbol-action",
+        title: "重置本页的AI翻译",
+        symbol: "delete.backward",
+        value: () => {
+          this.hidden = true;
+          this._resetAiTranslationHandler();
+        },
+      });
+    }
 
     const sectionSpreadMode: PreferenceSection = {
       title: "双页模式",
@@ -820,8 +840,12 @@ export class ReaderController extends BaseController {
                 // 自动翻页
                 // 首先检测本页是否加载完成。如果没有加载完成，不翻页并且重制倒计时为翻页间隔
                 // 如果加载完成，倒计时减1，如果倒计时小于等于0，翻页并重制倒计时
-                // 另外，如果翻到最后一页，不再翻页
-                if (!this.imagePager.isCurrentPagesAllLoaded || this.imagePager.nextPage === undefined) {
+                // 另外，如果翻到最后一页，不再翻页; 或者settingView没有隐藏，也不翻页
+                if (
+                  !this.imagePager.isCurrentPagesAllLoaded ||
+                  this.imagePager.nextPage === undefined ||
+                  this.cviews.settingView.hidden === false
+                ) {
                   this._autoPagerCountDown = this._autoPagerInterval;
                   return;
                 } else {
@@ -1438,6 +1462,30 @@ export class ReaderController extends BaseController {
     });
 
     const settingView = new SettingView({
+      checkAiTranslated: () => {
+        const index = footerThumbnailView.index;
+        const galleryDownloader = downloaderManager.get(this.gid);
+        if (!galleryDownloader) return false;
+        const aiTranslation = galleryDownloader.result.aiTranslations[index];
+        return Boolean(aiTranslation.path);
+      },
+      resetAiTranslationHandler: () => {
+        const index = footerThumbnailView.index;
+        const galleryDownloader = downloaderManager.get(this.gid);
+        if (!galleryDownloader) return;
+        const aiTranslation = galleryDownloader.result.aiTranslations[index];
+        const path = aiTranslation.path;
+        if (path) {
+          $file.delete(path);
+          aiTranslation.path = undefined;
+          aiTranslation.error = false;
+          aiTranslation.started = false;
+          aiTranslation.userSelected = false;
+          this.aiTranslatedPageSet.delete(index);
+          aiTranslationButton.status = "pending";
+          this.refreshCurrentPage();
+        }
+      },
       loadOrginalHandler: () => {
         const index = this.cviews.footerThumbnailView.index;
         if (this.reloadedPageSet.has(index)) return; // 如果已经添加过，不再重复添加

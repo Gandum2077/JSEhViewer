@@ -457,6 +457,7 @@ export class SidebarTabController extends BaseController {
           },
         },
         autoRowHeight: true,
+        showsVerticalIndicator: false,
         bgcolor: $color("clear"),
         actions: [
           {

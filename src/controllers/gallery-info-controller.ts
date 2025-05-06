@@ -627,6 +627,10 @@ class InfoHeaderView extends Base<UIView, UiTypes.ViewOptions> {
     this._updateTitleLayout($(this.id + "rightWrapper").frame);
   }
 
+  get titleLanguage() {
+    return this._titleLanguage;
+  }
+
   heightToWidth(width: number) {
     return Math.min(Math.max(170, Math.round((width / 3) * 1.414)), 300);
   }

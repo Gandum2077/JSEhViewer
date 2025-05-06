@@ -17,13 +17,16 @@ import { configManager } from "../utils/config";
 import { api, downloaderManager } from "../utils/api";
 import { ReaderController } from "./reader-controller";
 import { statusManager } from "../utils/status";
-import { appLog } from "../utils/tools";
+import { appLog, extractMainTitle } from "../utils/tools";
 import { WebDAVClient } from "../utils/webdav";
 import { setWebDAVConfig } from "./settings-webdav-controller";
 import { globalTimer } from "../utils/timer";
 import { defaultButtonColor, galleryInfoPath, imagePath, tempPath, tempZipPath } from "../utils/glv";
 import { FatalError } from "../utils/error";
 import { ArchiveController } from "./archive-controller";
+import { getSearchOptions } from "./search-controller";
+import { FavoritesTabOptions, FrontPageTabOptions, WatchedTabOptions } from "../types";
+import { PushedSearchResultController } from "./pushed-search-result-controller";
 
 export class GalleryController extends PageViewerController {
   private _infos?: EHGallery;
@@ -664,6 +667,39 @@ export class GalleryController extends PageViewerController {
             navBarHidden: true,
             statusBarStyle: 0,
           });
+        },
+      },
+      {
+        symbol: "text.magnifyingglass",
+        title: "搜索相似标题",
+        handler: async () => {
+          if (!this._infos) return;
+          const title = this._infos[this.subControllers.galleryInfoController.cviews.infoHeaderView.titleLanguage];
+          const term = extractMainTitle(title) || title;
+          const options = (await getSearchOptions(
+            {
+              type: "front_page",
+              options: {
+                searchTerms: [
+                  {
+                    qualifier: "title",
+                    term,
+                    dollar: false,
+                    subtract: false,
+                    tilde: false,
+                  },
+                ],
+              },
+            },
+            "showAllExceptArchive"
+          )) as FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions;
+          const controller = new PushedSearchResultController();
+          controller.uipush({
+            navBarHidden: true,
+            statusBarStyle: 0,
+          });
+          await $wait(0.3);
+          controller.triggerLoad(options);
         },
       },
       {

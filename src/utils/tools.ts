@@ -99,8 +99,9 @@ export function toLocalTimeString(time: string | Date | number): string {
  */
 export function extractMainTitle(title: string): string {
   return title
-    .replace(/\([^\(\)]+\)/g, "")
-    .replace(/\[[^\[\]]+\]/g, "")
+    .replace(/\([^\(\)]*\)/g, "")
+    .replace(/\[[^\[\]]*\]/g, "")
+    .replace(/【[^【】]*】/g, "")
     .trim();
 }
 
@@ -268,7 +269,7 @@ export function updateLastAccess() {
 /**
  * 解析搜索字符串
  * @param fsearch 搜索字符串
- * @returns 
+ * @returns
  */
 export function safeParseFsearch(fsearch: string) {
   const searchTerms = fsearch ? parseFsearch(fsearch) : [];

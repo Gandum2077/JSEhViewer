@@ -440,6 +440,7 @@ async function init(url?: string) {
       const image_path = imagePath + `${n.gid}`;
       if (!$file.exists(info_path)) return;
       if ($file.list(image_path)?.length === n.length) return;
+      if (!statusManager.getArchiveItem(n.gid)) return;
       const text = $file.read(info_path).string;
       if (!text) return;
       const infos = JSON.parse(text) as EHGallery;

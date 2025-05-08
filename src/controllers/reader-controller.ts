@@ -895,7 +895,7 @@ export class ReaderController extends BaseController {
 
     // 检查纵向滑动是否可用：需要所有分页都下载完
     if (
-      (configManager.pageDirection === "vertical" || configManager.spreadModeEnabled) && // TODO
+      (configManager.pageDirection === "vertical" || configManager.spreadModeEnabled) &&
       galleryDownloader.finishedOfHtmls !== galleryDownloader.infos.total_pages
     ) {
       const alertType = configManager.pageDirection === "vertical" ? "vertical" : "spread";

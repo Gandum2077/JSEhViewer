@@ -674,6 +674,7 @@ export class SidebarTabController extends BaseController {
         type === "toplist" ||
         type === "popular" ||
         type === "upload" ||
+        type === "image_lookup" ||
         ((type === "front_page" || type === "watched" || type === "favorites") &&
           (!tab.data.options.searchTerms || tab.data.options.searchTerms.length === 0))
       ) {

@@ -174,6 +174,11 @@ export const fixedTabSymbolTitle = {
     title: "我的上传",
     color: $color("#5AC8FA"),
   },
+  image_lookup: {
+    symbol: "photo.fill",
+    title: "图片搜索",
+    color: $color("systemLink"),
+  }
 };
 
 // 将语言依据 ISO 639-1 转换为二字母缩写

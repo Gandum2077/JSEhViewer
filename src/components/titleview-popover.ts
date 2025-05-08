@@ -64,6 +64,14 @@ type UploadPopoverOptions = {
   };
 };
 
+type ImageLookupPopoverOptions = {
+  type: "image_lookup";
+  count: {
+    loaded: number;
+    all: number;
+  };
+};
+
 type ArchivePopoverOptions = {
   type: "archive";
   archiveType: "readlater" | "downloaded" | "all";
@@ -81,6 +89,7 @@ export type PopoverOptions =
   | FavoritesPopoverOptions
   | ToplistPopoverOptions
   | UploadPopoverOptions
+  | ImageLookupPopoverOptions
   | ArchivePopoverOptions;
 
 // 定义类型映射
@@ -96,6 +105,8 @@ type PopoverOptionsToResult<T extends PopoverOptions> = T extends FrontPagePopov
   ? Omit<ToplistPopoverOptions, "count">
   : T extends UploadPopoverOptions
   ? Omit<UploadPopoverOptions, "count">
+  : T extends ImageLookupPopoverOptions
+  ? Omit<ImageLookupPopoverOptions, "count">
   : T extends ArchivePopoverOptions
   ? Omit<ArchivePopoverOptions, "count">
   : never;
@@ -218,7 +229,7 @@ class PopoverViewForTitleView<T extends PopoverOptions> extends Base<UIView, UiT
       });
       views.push(this.cviews.favoritesOrderMethodList.definition);
       views.push(countLabel.definition);
-    } else if (options.type === "toplist" || options.type === "upload") {
+    } else if (options.type === "toplist" || options.type === "upload" || options.type === "image_lookup") {
       views.push(countLabel.definition);
     } else {
       this._archiveType = options.archiveType;
@@ -353,7 +364,7 @@ class PopoverViewForTitleView<T extends PopoverOptions> extends Base<UIView, UiT
         type: this._options.type,
         favoritesOrderMethod: values.sort === 0 ? "published_time" : "favorited_time",
       } as PopoverOptionsToResult<T>;
-    } else if (this._options.type === "toplist" || this._options.type === "upload") {
+    } else if (this._options.type === "toplist" || this._options.type === "upload" || this._options.type === "image_lookup") {
       return {
         type: this._options.type,
       } as PopoverOptionsToResult<T>;
@@ -389,6 +400,9 @@ class PopoverViewForTitleView<T extends PopoverOptions> extends Base<UIView, UiT
         return 25 * 1 + 8;
       }
       case "upload": {
+        return 25 * 1 + 8;
+      }
+      case "image_lookup": {
         return 25 * 1 + 8;
       }
       case "archive": {

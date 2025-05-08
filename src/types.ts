@@ -5,6 +5,8 @@ import {
   EHFavoriteSearchOptions,
   EHFavoritesList,
   EHFrontPageList,
+  EHImageLookupList,
+  EHImageLookupOptions,
   EHListExtendedItem,
   EHPopularList,
   EHPopularSearchOptions,
@@ -107,7 +109,15 @@ export type ArchiveSearchOptions = {
   minimumRating?: number;
 };
 
-export type StatusTabType = "front_page" | "watched" | "popular" | "favorites" | "toplist" | "upload" | "archive";
+export type StatusTabType =
+  | "front_page"
+  | "watched"
+  | "popular"
+  | "favorites"
+  | "toplist"
+  | "upload"
+  | "image_lookup"
+  | "archive";
 
 export type StatusTabOptions =
   | FrontPageTabOptions
@@ -116,6 +126,7 @@ export type StatusTabOptions =
   | FavoritesTabOptions
   | ToplistTabOptions
   | UploadTabOptions
+  | ImageLookupTabOptions
   | ArchiveTabOptions;
 
 export type FrontPageTabOptions = {
@@ -147,6 +158,11 @@ export type UploadTabOptions = {
   type: "upload";
 };
 
+export type ImageLookupTabOptions = {
+  type: "image_lookup";
+  options: EHImageLookupOptions;
+};
+
 export type ArchiveTabOptions = {
   type: "archive";
   options: ArchiveSearchOptions;
@@ -160,7 +176,8 @@ export type StatusTab =
   | FavoritesTab
   | ToplistTab
   | UploadTab
-  | ArchiveTab;
+  | ImageLookupTab
+  | ArchiveTab
 
 export type BlankTab = {
   type: "blank";
@@ -205,6 +222,13 @@ export type UploadTab = {
   type: "upload";
   scrollState?: ScrollState;
   pages: EHUploadList[];
+};
+
+export type ImageLookupTab = {
+  type: "image_lookup";
+  options: EHImageLookupOptions;
+  scrollState?: ScrollState;
+  pages: EHImageLookupList[];
 };
 
 export type ArchiveList = {

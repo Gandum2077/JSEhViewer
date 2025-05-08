@@ -36,14 +36,18 @@ import {
   tagNamespaceAlternateMap,
   EHSearchOptions,
   EHFavoriteSearchOptions,
+  EHImageLookupOptions,
+  EHImageLookupList,
 } from "ehentai-parser";
 import {
   ArchiveSearchOptions,
   ArchiveTabOptions,
   FavoritesTabOptions,
   FrontPageTabOptions,
+  ImageLookupTabOptions,
   WatchedTabOptions,
 } from "../types";
+import { api } from "../utils/api";
 
 // 整体构造是上面一个自定义导航栏，下面是一个搜索选项列表
 // 下面一共有五个List叠放在一起，分别是：
@@ -53,7 +57,12 @@ import {
 // 4. 显示收藏的搜索选项
 // 5. 显示存档的搜索选项
 
-type MenuDisplayMode = "onlyShowFrontPage" | "onlyShowArchive" | "showAllExceptArchive" | "showAll";
+type MenuDisplayMode =
+  | "onlyShowFrontPage"
+  | "onlyShowArchive"
+  | "showAllExceptArchive"
+  | "showAllExceptArchiveWithImageLookup"
+  | "showAll";
 
 const TAG_FONT_SIZE = 15;
 
@@ -1053,7 +1062,411 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   }
 }
 
-type SearchArgs = FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ArchiveTabOptions;
+class ImageLookupView extends Base<UIListView, UiTypes.ListOptions> {
+  private _status: "pending" | "prepared" | "uploading" | "failed" = "pending";
+  private _similaritySwitch: boolean = true;
+  private _coverSwitch: boolean = true;
+  private _imageData?: NSData;
+  _defineView: () => UiTypes.ListOptions;
+  constructor({
+    uploadedHandler,
+    uploadingHandler,
+  }: {
+    uploadedHandler: (data: ImageLookupTabOptions) => void;
+    uploadingHandler: (uploading: boolean) => void;
+  }) {
+    super();
+    const similaritySwitchView = new ContentView({
+      props: {
+        bgcolor: $color("secondarySurface"),
+      },
+      layout: $layout.fill,
+      views: [
+        {
+          type: "label",
+          props: {
+            text: "使用相似性查询",
+            textColor: $color("primaryText"),
+            font: $font(17),
+            align: $align.left,
+          },
+          layout: (make, view) => {
+            make.top.bottom.right.inset(0);
+            make.left.inset(15);
+          },
+        },
+        {
+          type: "switch",
+          props: {
+            on: true,
+            onColor: $color("#34C85A"),
+          },
+          layout: (make, view) => {
+            make.centerY.equalTo(view.super);
+            make.right.inset(15);
+          },
+          events: {
+            changed: (sender) => {
+              this._similaritySwitch = sender.on;
+            },
+          },
+        },
+      ],
+    });
+    const coverSwitchView = new ContentView({
+      props: {
+        bgcolor: $color("secondarySurface"),
+      },
+      layout: $layout.fill,
+      views: [
+        {
+          type: "label",
+          props: {
+            text: "仅搜索封面",
+            textColor: $color("primaryText"),
+            font: $font(17),
+            align: $align.left,
+          },
+          layout: (make, view) => {
+            make.top.bottom.right.inset(0);
+            make.left.inset(15);
+          },
+        },
+        {
+          type: "switch",
+          props: {
+            on: true,
+            onColor: $color("#34C85A"),
+          },
+          layout: (make, view) => {
+            make.centerY.equalTo(view.super);
+            make.right.inset(15);
+          },
+          events: {
+            changed: (sender) => {
+              this._coverSwitch = sender.on;
+            },
+          },
+        },
+      ],
+    });
+    this._defineView = () => ({
+      type: "list",
+      props: {
+        id: this.id,
+        style: 2,
+        hidden: true,
+        data: [
+          {
+            title: "",
+            rows: [
+              {
+                type: "view",
+                props: {
+                  bgcolor: $color("secondarySurface"),
+                },
+                layout: $layout.fill,
+                views: [
+                  {
+                    type: "button",
+                    props: {
+                      id: this.id + "imageAddButton",
+                      bgcolor: $color("clear"),
+                      menu: {
+                        asPrimary: true,
+                        pullDown: true,
+                        items: [
+                          {
+                            title: "照片",
+                            symbol: "photo",
+                            handler: (sender: AllUIView) => {
+                              $photo.pick({
+                                format: "data",
+                                handler: (resp) => {
+                                  if (!resp || !resp.data || !resp.data.image) return;
+                                  this._imageData = resp.data;
+                                  this._status = "prepared";
+                                  this._updateStatus();
+                                },
+                              });
+                            },
+                          },
+                          {
+                            title: "文件",
+                            symbol: "folder",
+                            handler: (sender: AllUIView) => {
+                              $drive.open({
+                                types: ["public.image"],
+                                handler: (data) => {
+                                  if (!data || !data.image) return;
+                                  this._imageData = data;
+                                  this._status = "prepared";
+                                  this._updateStatus();
+                                },
+                              });
+                            },
+                          },
+                        ],
+                      },
+                    },
+                    layout: $layout.fill,
+                    views: [
+                      {
+                        type: "label",
+                        props: {
+                          text: "选择图片",
+                          textColor: $color("systemLink"),
+                          font: $font(17),
+                          align: $align.left,
+                        },
+                        layout: (make: MASConstraintMaker, view: UILabelView) => {
+                          make.top.bottom.right.inset(0);
+                          make.left.inset(15);
+                        },
+                      },
+                    ],
+                  },
+                  {
+                    type: "button",
+                    props: {
+                      id: this.id + "imageSearchButton",
+                      bgcolor: $color("clear"),
+                      hidden: true,
+                    },
+                    layout: $layout.fill,
+                    views: [
+                      {
+                        type: "label",
+                        props: {
+                          text: "上传并搜索",
+                          textColor: $color("systemLink"),
+                          font: $font(17),
+                          align: $align.left,
+                        },
+                        layout: (make: MASConstraintMaker, view: UILabelView) => {
+                          make.top.bottom.right.inset(0);
+                          make.left.inset(15);
+                        },
+                      },
+                    ],
+                    events: {
+                      tapped: async (sender: UIButtonView) => {
+                        if (this._status !== "prepared") return;
+                        if (!this._imageData) return;
+                        this._status = "uploading";
+                        this._updateStatus();
+                        uploadingHandler(true);
+                        try {
+                          const data = await api.uploadImageAndLookup({
+                            data: this._imageData,
+                            fs_similar: this._similaritySwitch,
+                            fs_covers: this._coverSwitch,
+                            progressHandler: (progress) => {
+                              const percentage = Math.floor(progress * 100);
+                              if (percentage === 100) {
+                                ($(this.id + "imageUploadProgressLabel") as UILabelView).text = "等待结果返回……";
+                              } else {
+                                ($(this.id + "imageUploadProgressLabel") as UILabelView).text =
+                                  "正在上传……" + percentage + "%";
+                              }
+                            },
+                          });
+                          uploadedHandler({
+                            type: "image_lookup",
+                            options: data.options
+                          });
+                        } catch (error: any) {
+                          this._status = "failed";
+                          this._updateStatus();
+                          uploadingHandler(false);
+                          $ui.alert({
+                            title: "上传失败",
+                            message: error?.message || error?.detail || "未知错误",
+                            actions: [
+                              {
+                                title: "确定",
+                                handler: () => {
+                                  this._status = "prepared";
+                                  this._updateStatus();
+                                },
+                              },
+                            ],
+                          });
+                        }
+                      },
+                    },
+                  },
+                  {
+                    type: "label",
+                    props: {
+                      id: this.id + "imageUploadProgressLabel",
+                      text: "正在上传……0%",
+                      textColor: $color("systemLink"),
+                      font: $font(17),
+                      hidden: true,
+                    },
+                    layout: (make: MASConstraintMaker, view: UILabelView) => {
+                      make.top.bottom.right.inset(0);
+                      make.left.inset(15);
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            title: "",
+            rows: [similaritySwitchView.definition, coverSwitchView.definition],
+          },
+          {
+            title: "",
+            rows: [
+              {
+                type: "button",
+                props: {
+                  id: this.id + "imagePreviewView",
+                  bgcolor: $color("secondarySurface"),
+                  menu: {
+                    asPrimary: true,
+                    pullDown: true,
+                    items: [
+                      {
+                        title: "照片",
+                        symbol: "photo",
+                        handler: (sender: AllUIView) => {
+                          $photo.pick({
+                            format: "data",
+                            handler: (resp) => {
+                              if (!resp || !resp.data || !resp.data.image) return;
+                              this._imageData = resp.data;
+                              this._status = "prepared";
+                              this._updateStatus();
+                            },
+                          });
+                        },
+                      },
+                      {
+                        title: "文件",
+                        symbol: "folder",
+                        handler: (sender: AllUIView) => {
+                          $drive.open({
+                            types: ["public.image"],
+                            handler: (data) => {
+                              if (!data || !data.image) return;
+                              this._imageData = data;
+                              this._status = "prepared";
+                              this._updateStatus();
+                            },
+                          });
+                        },
+                      },
+                    ],
+                  },
+                },
+                layout: $layout.fill,
+                views: [
+                  {
+                    type: "view",
+                    props: {
+                      id: this.id + "imagePreviewViewPlaceholder",
+                    },
+                    layout: $layout.fill,
+                    views: [
+                      {
+                        type: "image",
+                        props: {
+                          symbol: "photo.on.rectangle",
+                          tintColor: $color("lightGray"),
+                          contentMode: 1,
+                        },
+                        layout: (make: MASConstraintMaker, view: UIImageView) => {
+                          make.centerY.equalTo(view.super).offset(-20);
+                          make.centerX.equalTo(view.super);
+                          make.size.equalTo($size(150, 150));
+                        },
+                      },
+                      {
+                        type: "label",
+                        props: {
+                          text: "点击选择图片",
+                          textColor: $color("lightGray"),
+                          font: $font(14),
+                          align: $align.center,
+                        },
+                        layout: (make: MASConstraintMaker, view: UILabelView) => {
+                          make.top.equalTo(view.prev.bottom).inset(10);
+                          make.centerX.equalTo(view.super);
+                        },
+                      },
+                    ],
+                  },
+                  {
+                    type: "image",
+                    props: {
+                      id: this.id + "imagePreviewViewImage",
+                      hidden: true,
+                      contentMode: 1,
+                    },
+                    layout: $layout.fill,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      layout: $layout.fill,
+      events: {
+        rowHeight: (sender, indexPath) => {
+          if (indexPath.section === 2) {
+            return 300;
+          } else {
+            return 44;
+          }
+        },
+      },
+    });
+  }
+
+  private _updateStatus() {
+    if (this._status === "pending") {
+      $(this.id + "imageAddButton").hidden = false;
+      $(this.id + "imageSearchButton").hidden = true;
+      $(this.id + "imageUploadProgressLabel").hidden = true;
+      $(this.id + "imagePreviewViewImage").hidden = true;
+      $(this.id + "imagePreviewViewPlaceholder").hidden = false;
+      ($(this.id + "imagePreviewView") as UIButtonView).enabled = true;
+    } else if (this._status === "prepared") {
+      $(this.id + "imageAddButton").hidden = true;
+      $(this.id + "imageSearchButton").hidden = false;
+      $(this.id + "imageUploadProgressLabel").hidden = true;
+      $(this.id + "imagePreviewViewImage").hidden = false;
+      $(this.id + "imagePreviewViewPlaceholder").hidden = true;
+      ($(this.id + "imagePreviewView") as UIButtonView).enabled = true;
+      if (this._imageData?.image) {
+        ($(this.id + "imagePreviewViewImage") as UIImageView).image = this._imageData.image;
+      }
+      ($(this.id + "imageUploadProgressLabel") as UILabelView).text = "正在上传……0%";
+    } else if (this._status === "uploading") {
+      $(this.id + "imageAddButton").hidden = true;
+      $(this.id + "imageSearchButton").hidden = true;
+      $(this.id + "imageUploadProgressLabel").hidden = false;
+      ($(this.id + "imageUploadProgressLabel") as UILabelView).textColor = $color("systemLink");
+      $(this.id + "imagePreviewViewImage").hidden = false;
+      $(this.id + "imagePreviewViewPlaceholder").hidden = true;
+      ($(this.id + "imagePreviewView") as UIButtonView).enabled = false;
+    } else if (this._status === "failed") {
+      $(this.id + "imageAddButton").hidden = true;
+      $(this.id + "imageSearchButton").hidden = true;
+      $(this.id + "imageUploadProgressLabel").hidden = false;
+      ($(this.id + "imageUploadProgressLabel") as UILabelView).textColor = $color("red");
+      $(this.id + "imagePreviewViewImage").hidden = false;
+      $(this.id + "imagePreviewViewPlaceholder").hidden = true;
+      ($(this.id + "imagePreviewView") as UIButtonView).enabled = true;
+      ($(this.id + "imageUploadProgressLabel") as UILabelView).text = "上传失败";
+    }
+  }
+}
 
 class NavBar extends Base<UIBlurView, UiTypes.BlurOptions> {
   _defineView: () => UiTypes.BlurOptions;
@@ -1190,6 +1603,8 @@ class NavBar extends Base<UIBlurView, UiTypes.BlurOptions> {
         items:
           options.menuDisplayMode === "showAllExceptArchive"
             ? ["首页", "订阅", "收藏"]
+            : options.menuDisplayMode === "showAllExceptArchiveWithImageLookup"
+            ? ["首页", "订阅", "收藏", "搜图"]
             : ["首页", "订阅", "收藏", "存档"],
       },
       layout: (make, view) => {
@@ -1199,6 +1614,14 @@ class NavBar extends Base<UIBlurView, UiTypes.BlurOptions> {
       },
       events: {
         changed: (sender) => {
+          if (options.menuDisplayMode === "showAllExceptArchiveWithImageLookup") {
+            if (sender.index === 3) {
+              this.cviews.input.view.blur();
+              this.cviews.input.view.enabled = false;
+            } else {
+              this.cviews.input.view.enabled = true;
+            }
+          }
           options.tabChangedHandler();
         },
       },
@@ -1229,11 +1652,17 @@ class NavBar extends Base<UIBlurView, UiTypes.BlurOptions> {
         make.bottom
           .equalTo(view.super.safeAreaTop)
           .inset(
-            options.menuDisplayMode === "showAll" || options.menuDisplayMode === "showAllExceptArchive" ? -92 : -50
+            options.menuDisplayMode === "showAll" ||
+              options.menuDisplayMode === "showAllExceptArchive" ||
+              options.menuDisplayMode === "showAllExceptArchiveWithImageLookup"
+              ? -92
+              : -50
           );
       },
       views:
-        options.menuDisplayMode === "showAll" || options.menuDisplayMode === "showAllExceptArchive"
+        options.menuDisplayMode === "showAll" ||
+        options.menuDisplayMode === "showAllExceptArchive" ||
+        options.menuDisplayMode === "showAllExceptArchiveWithImageLookup"
           ? [mainView.definition, tab.definition, seprator]
           : [mainView.definition, seprator],
     });
@@ -1244,7 +1673,7 @@ class NavBar extends Base<UIBlurView, UiTypes.BlurOptions> {
   }
 
   get type() {
-    let type: "front_page" | "watched" | "favorites" | "archive";
+    let type: "front_page" | "watched" | "favorites" | "archive" | "image_lookup";
     if (this._menuDisplayMode === "onlyShowFrontPage") {
       type = "front_page";
     } else if (this._menuDisplayMode === "onlyShowArchive") {
@@ -1253,8 +1682,10 @@ class NavBar extends Base<UIBlurView, UiTypes.BlurOptions> {
       type = "watched";
     } else if (this.cviews.tab.view.index === 2) {
       type = "favorites";
-    } else if (this.cviews.tab.view.index === 3) {
+    } else if (this.cviews.tab.view.index === 3 && this._menuDisplayMode === "showAll") {
       type = "archive";
+    } else if (this.cviews.tab.view.index === 3 && this._menuDisplayMode === "showAllExceptArchiveWithImageLookup") {
+      type = "image_lookup";
     } else {
       type = "front_page";
     }
@@ -1497,8 +1928,15 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
     watchedOptionsView: FrontPageOptionsView;
     favoritesOptionsView: FavoritesOptionsView;
     archiveOptionsView: ArchiveOptionsView;
+    imageLookupView: ImageLookupView;
   };
-  constructor(args: SearchArgs, menuDisplayMode: MenuDisplayMode, resolveHandler: (args: SearchArgs) => void) {
+  constructor(
+    args: FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ArchiveTabOptions,
+    menuDisplayMode: MenuDisplayMode,
+    resolveHandler: (
+      args: FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ArchiveTabOptions | ImageLookupTabOptions
+    ) => void
+  ) {
     super();
     const navbar = new NavBar({
       type: args.type,
@@ -1622,6 +2060,19 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
     const watchedOptionsView = new FrontPageOptionsView(args.type === "watched" ? args.options : undefined);
     const favoritesOptionsView = new FavoritesOptionsView(args.type === "favorites" ? args.options : undefined);
     const archiveOptionsView = new ArchiveOptionsView(args.type === "archive" ? args.options : undefined);
+    const imageLookupView = new ImageLookupView({
+      uploadingHandler: (uploading) => {
+        if (uploading) {
+          this.cviews.navbar.cviews.tab.view.userInteractionEnabled = false;
+        } else {
+          this.cviews.navbar.cviews.tab.view.userInteractionEnabled = true;
+        }
+      },
+      uploadedHandler: (result) => {
+        resolveHandler(result);
+        $ui.pop();
+      },
+    });
     this.cviews = {
       navbar,
       searchSuggestionView,
@@ -1630,6 +2081,7 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
       watchedOptionsView,
       favoritesOptionsView,
       archiveOptionsView,
+      imageLookupView,
     };
     this._defineView = () => ({
       type: "view",
@@ -1655,6 +2107,7 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
             watchedOptionsView.definition,
             favoritesOptionsView.definition,
             archiveOptionsView.definition,
+            imageLookupView.definition,
           ],
         },
       ],
@@ -1664,9 +2117,20 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
   updateHiddenStatus() {
     const filterOn = this.cviews.navbar.filterOn;
     const type = this.cviews.navbar.type;
+    if (type === "image_lookup") {
+      this.cviews.searchSuggestionView.view.hidden = true;
+      this.cviews.searchHistoryView.view.hidden = true;
+      this.cviews.frontPageOptionsView.view.hidden = true;
+      this.cviews.watchedOptionsView.view.hidden = true;
+      this.cviews.favoritesOptionsView.view.hidden = true;
+      this.cviews.archiveOptionsView.view.hidden = true;
+      this.cviews.imageLookupView.view.hidden = false;
+      return;
+    }
     if (filterOn) {
       this.cviews.searchSuggestionView.view.hidden = true;
       this.cviews.searchHistoryView.view.hidden = true;
+      this.cviews.imageLookupView.view.hidden = true;
       if (type === "front_page") {
         this.cviews.frontPageOptionsView.view.hidden = false;
         this.cviews.watchedOptionsView.view.hidden = true;
@@ -1695,11 +2159,45 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
       this.cviews.watchedOptionsView.view.hidden = true;
       this.cviews.favoritesOptionsView.view.hidden = true;
       this.cviews.archiveOptionsView.view.hidden = true;
+      this.cviews.imageLookupView.view.hidden = true;
     }
   }
 }
 
-export function getSearchOptions(args: SearchArgs, menuDisplayMode: MenuDisplayMode): Promise<SearchArgs> {
+// 1. 只有首页
+export function getSearchOptions(
+  args: FrontPageTabOptions,
+  menuDisplayMode: "onlyShowFrontPage"
+): Promise<FrontPageTabOptions>;
+
+// 2. 只有归档
+export function getSearchOptions(
+  args: ArchiveTabOptions,
+  menuDisplayMode: "onlyShowArchive"
+): Promise<ArchiveTabOptions>;
+
+// 3. 除了归档以外都显示
+export function getSearchOptions(
+  args: FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions,
+  menuDisplayMode: "showAllExceptArchive"
+): Promise<FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions>;
+
+// 4. 除了归档以外 + 图片检索
+export function getSearchOptions(
+  args: FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions,
+  menuDisplayMode: "showAllExceptArchiveWithImageLookup"
+): Promise<FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ImageLookupTabOptions>;
+
+// 5. 全部都显示
+export function getSearchOptions(
+  args: FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ArchiveTabOptions,
+  menuDisplayMode: "showAll"
+): Promise<FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ArchiveTabOptions>;
+
+export function getSearchOptions(
+  args: FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ArchiveTabOptions,
+  menuDisplayMode: MenuDisplayMode
+): Promise<FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ArchiveTabOptions | ImageLookupTabOptions> {
   return new Promise((resolve, reject) => {
     const contentView = new SearchContentView(args, menuDisplayMode, (n) => {
       resolve(n);

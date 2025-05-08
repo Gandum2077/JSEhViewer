@@ -4,6 +4,7 @@ import {
   EHFrontPageList,
   EHGallery,
   EHIgneousExpiredError,
+  EHImageLookupList,
   EHIPBannedError,
   EHListCompactItem,
   EHListExtendedItem,
@@ -23,6 +24,7 @@ import {
   DBArchiveItem,
   FavoritesTabOptions,
   FrontPageTabOptions,
+  ImageLookupTabOptions,
   PopularTabOptions,
   ScrollState,
   StatusTab,
@@ -331,6 +333,8 @@ type InferTabOptions<T> = T extends { type: "front_page" }
   ? ToplistTabOptions
   : T extends { type: "upload" }
   ? UploadTabOptions
+  : T extends { type: "image_lookup" }
+  ? ImageLookupTabOptions
   : T extends { type: "archive" }
   ? ArchiveTabOptions
   : never;
@@ -400,6 +404,18 @@ export function clearExtraPropsForReload<T extends StatusTabOptions>(oldOptions:
     case "upload": {
       return {
         type: "upload",
+      } as InferTabOptions<T>;
+    }
+    case "image_lookup": {
+      return {
+        type: "image_lookup",
+        options: {
+          ...oldOptions.options,
+          jump: undefined,
+          seek: undefined,
+          minimumGid: undefined,
+          maximumGid: undefined,
+        },
       } as InferTabOptions<T>;
     }
     case "archive": {
@@ -494,6 +510,12 @@ export class VirtualTab {
         type: "upload",
         pages: [],
       };
+    } else if (initalTabOptions.type === "image_lookup") {
+      this.data = {
+        type: "image_lookup",
+        options: clearExtraPropsForReload(initalTabOptions).options,
+        pages: [],
+      };
     } else {
       this.data = {
         type: "archive",
@@ -515,7 +537,12 @@ export class VirtualTab {
       this.data.pages.length === 0
     ) {
       return false;
-    } else if (this.data.type === "front_page" || this.data.type === "watched" || this.data.type === "favorites") {
+    } else if (
+      this.data.type === "front_page" ||
+      this.data.type === "watched" ||
+      this.data.type === "favorites" ||
+      this.data.type === "image_lookup"
+    ) {
       const lastPage = this.data.pages[this.data.pages.length - 1];
       return lastPage.next_page_available;
     } else if (this.data.type === "toplist") {
@@ -707,6 +734,33 @@ export class VirtualTab {
         }
         break;
       }
+      case "image_lookup": {
+        this.data = {
+          type: "image_lookup",
+          options: tabOptions.options,
+          pages: reload && this.data.type === "image_lookup" ? this.data.pages : [],
+        };
+        let page: EHImageLookupList | undefined;
+        try {
+          page = await api.getImageLookupInfo(tabOptions.options);
+        } catch (e: any) {
+          this._fateErrorAlert(e);
+          this._status = "error";
+          this.errorMessage = e.message;
+          loadedHandler(this, false);
+        }
+        if (page) {
+          if (page.items.length && page.display_mode !== "extended") {
+            throw new FatalError("列表的显示模式不为扩展，您可能在网页端或其他App中更改了设置");
+          }
+          if (this._loadingId === cachedLoadingId) {
+            this._status = "loaded";
+            this.data.pages = [page];
+            loadedHandler(this, true);
+          }
+        }
+        break;
+      }
       case "archive": {
         this.data = {
           type: "archive",
@@ -853,6 +907,37 @@ export class VirtualTab {
           loadedHandler(this, false);
         }
         if (page) {
+          if (this._loadingId === cachedLoadingId) {
+            this._status = "loaded";
+            this.data.pages.push(page);
+            loadedHandler(this, true);
+          }
+        }
+        break;
+      }
+      case "image_lookup": {
+        const lastPage = this.data.pages[this.data.pages.length - 1];
+        const maximumGid = lastPage.items[lastPage.items.length - 1].gid;
+        this.data.options = {
+          ...this.data.options,
+          jump: undefined,
+          seek: undefined,
+          minimumGid: undefined,
+          maximumGid,
+        };
+        let page: EHImageLookupList | undefined;
+        try {
+          page = await api.getImageLookupInfo(this.data.options);
+        } catch (e: any) {
+          this._fateErrorAlert(e);
+          this._status = "error";
+          this.errorMessage = e.message;
+          loadedHandler(this, false);
+        }
+        if (page) {
+          if (page.items.length && page.display_mode !== "extended") {
+            throw new FatalError("列表的显示模式不为扩展，您可能在网页端或其他App中更改了设置");
+          }
           if (this._loadingId === cachedLoadingId) {
             this._status = "loaded";
             this.data.pages.push(page);

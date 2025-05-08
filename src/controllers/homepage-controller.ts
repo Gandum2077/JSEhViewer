@@ -315,6 +315,20 @@ export class HomepageController extends BaseController {
             });
             break;
           }
+          case "image_lookup": {
+            popoverForTitleView({
+              sourceView: sender,
+              sourceRect: sender.bounds,
+              popoverOptions: {
+                type: tab.data.type,
+                count: {
+                  loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr, 0),
+                  all: tab.data.pages.at(0)?.total_item_count ?? 0,
+                },
+              },
+            });
+            break;
+          }
           default:
             break;
         }
@@ -341,6 +355,7 @@ export class HomepageController extends BaseController {
           {
             symbol: "arrow.left.arrow.right.circle",
             handler: async () => {
+              // TODO: image_lookup 的翻页
               const tab = statusManager.currentTab;
               if (tab.data.type === "archive") throw new Error("invalid tab type");
               if (tab.data.type === "blank" || tab.data.type === "upload" || tab.data.type === "popular") {
@@ -433,7 +448,7 @@ export class HomepageController extends BaseController {
             type = tab.data.type;
             options = tab.data.options;
           }
-          const args = await getSearchOptions({ type, options }, "showAllExceptArchive");
+          const args = await getSearchOptions({ type, options }, "showAllExceptArchiveWithImageLookup");
           this.triggerLoad(args);
         },
       },
@@ -494,7 +509,7 @@ export class HomepageController extends BaseController {
             type = tab.data.type;
             options = tab.data.options;
           }
-          const args = await getSearchOptions({ type, options }, "showAllExceptArchive");
+          const args = await getSearchOptions({ type, options }, "showAllExceptArchiveWithImageLookup");
           this.triggerLoad(args);
         },
       },
@@ -669,6 +684,8 @@ export class HomepageController extends BaseController {
         ? "总排行"
         : tab.data.type === "upload"
         ? "我的上传"
+        : tab.data.type === "image_lookup"
+        ? "图片搜索"
         : "";
 
     // 更新列表

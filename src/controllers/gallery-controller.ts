@@ -1,4 +1,4 @@
-import { PageViewerController, RefreshButton, router } from "jsbox-cview";
+import { Base, PageViewerController, RefreshButton, router } from "jsbox-cview";
 import { GalleryInfoController } from "./gallery-info-controller";
 import { GalleryThumbnailController } from "./gallery-thumbnail-controller";
 import { GalleryCommentController } from "./gallery-comment-controller";
@@ -11,7 +11,6 @@ import {
   EHIgneousExpiredError,
   EHIPBannedError,
 } from "ehentai-parser";
-import { popoverWithSymbol } from "../components/popover-with-symbol";
 import { GalleryDetailedInfoController } from "./gallery-detailed-info-controller";
 import { configManager } from "../utils/config";
 import { api, downloaderManager } from "../utils/api";
@@ -28,11 +27,86 @@ import { getSearchOptions } from "./search-controller";
 import { FavoritesTabOptions, FrontPageTabOptions, WatchedTabOptions } from "../types";
 import { PushedSearchResultController } from "./pushed-search-result-controller";
 
+class DynamicContextMenuButton extends Base<UIView, UiTypes.ViewOptions> {
+  private buttonId: number = 0;
+  private _enabled: boolean = true;
+  private _generateContextMenuItems: () => { title: string; symbol: string; handler: () => void }[];
+  _defineView: () => UiTypes.ViewOptions;
+  constructor({
+    generateContextMenuItems,
+  }: {
+    generateContextMenuItems: () => { title: string; symbol: string; handler: () => void }[];
+  }) {
+    super();
+    this._generateContextMenuItems = generateContextMenuItems;
+    this._layout = $layout.fill;
+    this._defineView = () => ({
+      type: "view",
+      props: {
+        id: this.id,
+      },
+      layout: this._layout,
+      views: [
+        {
+          type: "image",
+          props: {
+            symbol: "ellipsis",
+            tintColor: $color("primaryText"),
+            contentMode: 1,
+          },
+          layout: (make, view) => {
+            make.edges.insets($insets(12.5, 12.5, 12.5, 12.5));
+            make.center.equalTo(view.super);
+          },
+        },
+        {
+          type: "button",
+          props: {
+            id: this.id + "button" + this.buttonId,
+            bgcolor: $color("clear"),
+            enabled: this._enabled,
+          },
+          layout: $layout.fill,
+        },
+      ],
+    });
+  }
+
+  resetContextMenuItems() {
+    $(this.id + "button" + this.buttonId).remove();
+    this.buttonId++;
+    this.view.add({
+      type: "button",
+      props: {
+        id: this.id + "button" + this.buttonId,
+        bgcolor: $color("clear"),
+        menu: {
+          asPrimary: true,
+          pullDown: true,
+          items: this._generateContextMenuItems(),
+        },
+        enabled: this._enabled,
+      },
+      layout: $layout.fill,
+    });
+  }
+
+  get enabled() {
+    return this._enabled;
+  }
+
+  set enabled(value: boolean) {
+    ($(this.id + "button" + this.buttonId) as UIButtonView).enabled = value;
+    this._enabled = value;
+  }
+}
+
 export class GalleryController extends PageViewerController {
   private _infos?: EHGallery;
   private _gid: number;
   private _token: string;
-  private refreshButton: RefreshButton;
+  private _refreshButton: RefreshButton;
+  private _menuButton: DynamicContextMenuButton;
   autoCacheWhenReading: boolean;
   fatalErrorAlerted: boolean = false;
   private _webDAVClient?: WebDAVClient;
@@ -62,9 +136,16 @@ export class GalleryController extends PageViewerController {
       events: {
         tapped: async () => {
           refreshButton.loading = true;
+          menuButton.enabled = false;
           await this.refresh(this._gid, this._token);
           refreshButton.loading = false;
+          menuButton.enabled = true;
         },
+      },
+    });
+    const menuButton = new DynamicContextMenuButton({
+      generateContextMenuItems: () => {
+        return this.generateContextMenuItems();
       },
     });
     super({
@@ -80,17 +161,8 @@ export class GalleryController extends PageViewerController {
           tintColor: $color("primaryText"),
           rightBarButtonItems: [
             {
-              symbol: "ellipsis",
-              handler: async (sender) => {
-                if (!this._infos) return;
-                popoverWithSymbol({
-                  sourceView: sender,
-                  sourceRect: sender.bounds,
-                  directions: $popoverDirection.up,
-                  width: 200,
-                  items: this.generatePopoverItems(),
-                });
-              },
+              width: 50,
+              cview: menuButton,
             },
             {
               width: 50,
@@ -188,6 +260,9 @@ export class GalleryController extends PageViewerController {
             fininshed: downloaded && isFinishedOfImages,
           });
 
+          // 重置menuButton
+          menuButton.resetContextMenuItems();
+
           sender.rootView.view.alpha = 1;
 
           globalTimer.addTask({
@@ -283,7 +358,8 @@ export class GalleryController extends PageViewerController {
       galleryThumbnailController,
       galleryCommentController,
     };
-    this.refreshButton = refreshButton;
+    this._refreshButton = refreshButton;
+    this._menuButton = menuButton;
   }
 
   readGallery(index: number) {
@@ -415,6 +491,9 @@ export class GalleryController extends PageViewerController {
     this.subControllers.galleryInfoController.resetDownloadButton({
       fininshed: downloaded && isFinishedOfImages,
     });
+
+    // 重置menuButton
+    this._menuButton.resetContextMenuItems();
 
     globalTimer.addTask({
       id: this._gid.toString(),
@@ -551,7 +630,7 @@ export class GalleryController extends PageViewerController {
     }
   }
 
-  generatePopoverItems() {
+  generateContextMenuItems() {
     if (!this._infos) return [];
     const fixed = [
       {
@@ -559,7 +638,7 @@ export class GalleryController extends PageViewerController {
         title: "导入压缩包",
         handler: async () => {
           if (!this._infos) return;
-          if (this.refreshButton.loading) return;
+          if (this._refreshButton.loading) return;
 
           if (!configManager.importingArchiverIntroductionRead) {
             const r1 = await $ui.alert({
@@ -577,7 +656,8 @@ export class GalleryController extends PageViewerController {
             }
           }
 
-          await $wait(1); // 必须等待至少0.7秒，否则文件选择器会弹不出来
+          //await $wait(1); // 必须等待至少0.7秒，否则文件选择器会弹不出来
+          // 改为使用ContextMenu后不再需要等待
 
           const data = await $drive.open({ types: ["public.zip-archive"] });
           const r2 = await $ui.alert({
@@ -715,7 +795,6 @@ export class GalleryController extends PageViewerController {
       {
         symbol: "square.and.arrow.up",
         title: "分享链接",
-        autoDismiss: false,
         handler: () => {
           if (!this._infos) return;
           $share.sheet(
@@ -730,10 +809,12 @@ export class GalleryController extends PageViewerController {
       handler: async () => {
         if (!this._infos) return;
         if (!this._infos.parent_gid || !this._infos.parent_token) return;
-        if (this.refreshButton.loading) return;
-        this.refreshButton.loading = true;
+        if (this._refreshButton.loading) return;
+        this._refreshButton.loading = true;
+        this._menuButton.enabled = false;
         await this.refresh(this._infos.parent_gid, this._infos.parent_token);
-        this.refreshButton.loading = false;
+        this._refreshButton.loading = false;
+        this._menuButton.enabled = true;
       },
     };
     const update = {
@@ -742,11 +823,13 @@ export class GalleryController extends PageViewerController {
       handler: async () => {
         if (!this._infos) return;
         if (!this._infos.newer_versions.length) return;
-        if (this.refreshButton.loading) return;
+        if (this._refreshButton.loading) return;
         const newerVersion = this._infos.newer_versions[this._infos.newer_versions.length - 1];
-        this.refreshButton.loading = true;
+        this._refreshButton.loading = true;
+        this._menuButton.enabled = false;
         await this.refresh(newerVersion.gid, newerVersion.token);
-        this.refreshButton.loading = false;
+        this._refreshButton.loading = false;
+        this._menuButton.enabled = true;
       },
     };
     // 判断是否有旧版本

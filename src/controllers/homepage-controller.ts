@@ -355,7 +355,6 @@ export class HomepageController extends BaseController {
           {
             symbol: "arrow.left.arrow.right.circle",
             handler: async () => {
-              // TODO: image_lookup 的翻页
               const tab = statusManager.currentTab;
               if (tab.data.type === "archive") throw new Error("invalid tab type");
               if (tab.data.type === "blank" || tab.data.type === "upload" || tab.data.type === "popular") {
@@ -418,6 +417,33 @@ export class HomepageController extends BaseController {
                     minimumFavoritedTimestamp: result.minimumFavoritedTimestamp,
                     maximumGid: result.maximumGid,
                     maximumFavoritedTimestamp: result.maximumFavoritedTimestamp,
+                    jump: result.jump,
+                    seek: result.seek,
+                  },
+                });
+              } else if (type === "image_lookup") {
+                const firstPage = tab.data.pages.at(0);
+                const lastPage = tab.data.pages.at(-1);
+                if (!firstPage || !lastPage || firstPage.items.length === 0 || lastPage.items.length === 0) {
+                  $ui.toast("目前无法翻页");
+                  return;
+                }
+                if (firstPage.prev_page_available === false && lastPage.next_page_available === false) {
+                  $ui.toast("全部内容已加载");
+                  return;
+                }
+                const result = await getJumpRangeDialogForFavorites({
+                  minimumGid: firstPage.items[0].gid,
+                  maximumGid: lastPage.items[lastPage.items.length - 1].gid,
+                  prev_page_available: firstPage.prev_page_available,
+                  next_page_available: lastPage.next_page_available,
+                });
+                this.triggerLoad({
+                  type,
+                  options: {
+                    ...tab.data.options,
+                    minimumGid: result.minimumGid,
+                    maximumGid: result.maximumGid,
                     jump: result.jump,
                     seek: result.seek,
                   },

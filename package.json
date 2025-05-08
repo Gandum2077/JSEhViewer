@@ -18,14 +18,14 @@
   "dependencies": {
     "cheerio": "^1.0.0",
     "ehentai-parser": "^1.14.1",
-    "jsbox-cview": "^1.5.28",
+    "jsbox-cview": "^1.5.30",
     "url-parse": "^1.5.10"
   },
   "devDependencies": {
     "@types/cheerio": "^0.22.35",
     "@types/node": "^20.11.25",
     "@types/url-parse": "^1.4.11",
-    "jsbox-types": "^1.0.44",
+    "jsbox-types": "^1.0.46",
     "webpack": "^5.98.0",
     "webpack-cli": "^5.1.4"
   }

@@ -3,6 +3,7 @@ import { globalTimer } from "../utils/timer";
 import { downloaderManager } from "../utils/api";
 import { defaultButtonColor, thumbnailPath } from "../utils/glv";
 import { GalleryController } from "./gallery-controller";
+import { statusManager } from "../utils/status";
 
 type DownloadingItemData = {
   type: "download";
@@ -56,6 +57,25 @@ class DownloadList extends Base<UIListView, UiTypes.ListOptions> {
           id: this.id,
           style: 2,
           rowHeight: 85,
+          menu: {
+            items: [
+              {
+                title: "删除该任务",
+                handler: (sender, indexPath) => {
+                  const data = this.view.object(indexPath);
+                  const info = data.info as DownloadingItemData | UploadingItemData;
+                  const gid = info.gid;
+                  if (info.type === "download") {
+                    downloaderManager.remove(gid);
+                    statusManager.updateArchiveItem(gid, { downloaded: false });
+                  } else {
+                    downloaderManager.removeGalleryWebDAVUploader(gid);
+                  }
+                  refreshHandler();
+                },
+              },
+            ],
+          },
           template: {
             props: {
               bgcolor: $color("tertiarySurface"),

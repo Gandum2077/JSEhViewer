@@ -382,7 +382,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
     super();
     this._layoutMode = layoutMode;
     this._contentOffsetChanged = contentOffsetChanged;
-    const menuItems: UiTypes.ContextMenuSubItem[] = [];
+    const menuItems: UiTypes.ContextMenuSubItem<UIMatrixView>[] = [];
     if (readlaterHandler) {
       menuItems.push({
         title: "稍后阅读",
@@ -1152,7 +1152,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
       );
       this._itemSizeWidth = itemSizeWidth;
       this._itemSizeHeight = minimalLayoutItemHeight(this._itemSizeWidth);
-    } 
+    }
     this.matrix.view.reload();
   }
 

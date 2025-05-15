@@ -30,12 +30,12 @@ import { PushedSearchResultController } from "./pushed-search-result-controller"
 class DynamicContextMenuButton extends Base<UIView, UiTypes.ViewOptions> {
   private buttonId: number = 0;
   private _enabled: boolean = true;
-  private _generateContextMenuItems: () => { title: string; symbol: string; handler: () => void }[];
+  private _generateContextMenuItems: () => UiTypes.ContextMenuOptions<UIButtonView>;
   _defineView: () => UiTypes.ViewOptions;
   constructor({
     generateContextMenuItems,
   }: {
-    generateContextMenuItems: () => { title: string; symbol: string; handler: () => void }[];
+    generateContextMenuItems: () => UiTypes.ContextMenuOptions<UIButtonView>;
   }) {
     super();
     this._generateContextMenuItems = generateContextMenuItems;
@@ -83,7 +83,7 @@ class DynamicContextMenuButton extends Base<UIView, UiTypes.ViewOptions> {
         menu: {
           asPrimary: true,
           pullDown: true,
-          items: this._generateContextMenuItems(),
+          items: this._generateContextMenuItems().items,
         },
         enabled: this._enabled,
       },
@@ -340,6 +340,7 @@ export class GalleryController extends PageViewerController {
         didAppear: () => {
           galleryInfoController.currentReadPage = statusManager.getLastReadPage(this._gid);
           globalTimer.resumeTask(this._gid.toString());
+          downloaderManager.startOne(this._gid);
         },
         didDisappear: () => {
           globalTimer.pauseTask(this._gid.toString());
@@ -630,9 +631,9 @@ export class GalleryController extends PageViewerController {
     }
   }
 
-  generateContextMenuItems() {
-    if (!this._infos) return [];
-    const fixed = [
+  generateContextMenuItems(): UiTypes.ContextMenuOptions<UIButtonView> {
+    if (!this._infos) return { items: [] };
+    const fixed: UiTypes.ContextMenuSubItem<UIButtonView>[] = [
       {
         symbol: "square.and.arrow.down",
         title: "导入压缩包",
@@ -738,6 +739,26 @@ export class GalleryController extends PageViewerController {
         },
       },
       {
+        symbol: "xmark.bin",
+        title: "删除本图库的图片",
+        destructive: true,
+        handler: () => {
+          if (!this._infos) return;
+          const d = downloaderManager.get(this._gid);
+          if (!d) return;
+          d.completeStopped = true;
+          const oldBackground = d.background;
+          downloaderManager.remove(this._gid);
+          $file.delete(imagePath + this._gid);
+          downloaderManager.add(this._gid, this._infos);
+          downloaderManager.get(this._gid)!.background = oldBackground;
+          downloaderManager.get(this._gid)!.backgroundPaused = false;
+          downloaderManager.startOne(this._gid);
+          this.subControllers.galleryInfoController.resetDownloadButton({ fininshed: false });
+          $ui.success("已删除本地缓存");
+        },
+      },
+      {
         symbol: "info.circle",
         title: "详细信息",
         handler: () => {
@@ -837,13 +858,13 @@ export class GalleryController extends PageViewerController {
     // 判断是否有新版本
     const hasNewVersion = Boolean(this._infos.newer_versions.length);
     if (hasOldVersion && hasNewVersion) {
-      return [update, rollback, ...fixed];
+      return { items: [update, rollback, ...fixed] };
     } else if (hasOldVersion) {
-      return [rollback, ...fixed];
+      return { items: [rollback, ...fixed] };
     } else if (hasNewVersion) {
-      return [update, ...fixed];
+      return { items: [update, ...fixed] };
     } else {
-      return fixed;
+      return { items: fixed };
     }
   }
 }

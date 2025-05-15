@@ -1061,10 +1061,12 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           let extname = result.data.info.mimeType.split("/")[1];
           if (extname === "jpeg") extname = "jpg";
           const path = imagePath + `${this.gid}/${index + 1}.${extname}`;
-          $file.write({
-            data: result.data,
-            path,
-          });
+          if (!this.completeStopped) {
+            $file.write({
+              data: result.data,
+              path,
+            });
+          }
           this.result.images[index].path = path;
         } else {
           this.result.images[index].error = true;

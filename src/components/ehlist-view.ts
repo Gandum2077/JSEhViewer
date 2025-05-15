@@ -373,7 +373,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
     searchBar: Base<any, any>;
     readlaterHandler?: (item: EHListExtendedItem | EHListCompactItem) => Promise<void> | void;
     removeFromArchiveHandler?: (item: EHListExtendedItem | EHListCompactItem) => Promise<void> | void;
-    pulled: () => Promise<void> | void;
+    pulled?: () => Promise<void> | void;
     didSelect: (sender: EHlistView, indexPath: NSIndexPath, item: Items[0]) => Promise<void> | void;
     didReachBottom: () => Promise<void> | void;
     contentOffsetChanged?: (scrollState: ScrollState) => void;
@@ -403,706 +403,712 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
         },
       });
     }
-    this.matrix = new Matrix({
-      props: {
-        bgcolor: $color("clear"),
-        data: [],
-        spacing: 4,
-        header: {
-          type: "view",
-          props: {
-            height: 41,
-          },
-          views: [searchBar.definition],
+    const matrixProps: UiTypes.MatrixProps = {
+      bgcolor: $color("clear"),
+      keyboardDismissMode: 1,
+      data: [],
+      spacing: 4,
+      header: {
+        type: "view",
+        props: {
+          height: 41,
         },
-        footer: {
-          type: "label",
-          props: {
-            id: this.id + "matrix-footer",
-            height: 25,
-            text: "",
-            align: $align.center,
-            font: $font(12),
-            lines: 2,
-          },
-        },
-        menu: {
-          items: menuItems,
-        },
-        template: {
-          props: {
-            cornerRadius: 5,
-            smoothCorners: true,
-          },
-          views: [
-            {
-              type: "view",
-              props: {
-                bgcolor: $color("primarySurface", "tertiarySurface"),
-                id: "large",
-              },
-              layout: $layout.fill,
-              views: [
-                {
-                  // 右边部分
-                  type: "view",
-                  props: {},
-                  layout: (make, view) => {
-                    make.top.right.bottom.inset(0);
-                    make.width.greaterThanOrEqualTo(223).priority(1000);
-                    make.width.equalTo(view.super.width).offset(-142).priority(999);
-                  },
-                  views: [
-                    {
-                      // 标题
-                      type: "label",
-                      props: {
-                        id: "title_large",
-                        font: $font(14),
-                        lines: 3,
-                        align: $align.left,
-                      },
-                      layout: (make, view) => {
-                        make.top.left.right.inset(2);
-                        make.height.equalTo(51);
-                      },
-                    },
-                    {
-                      // 上传者和上传时间
-                      type: "view",
-                      props: {},
-                      layout: (make, view) => {
-                        make.left.right.inset(0);
-                        make.top.equalTo(view.prev.bottom);
-                        make.height.equalTo(20);
-                      },
-                      views: [
-                        {
-                          // 发布时间
-                          type: "view",
-                          props: {
-                            id: "favorite_large",
-                          },
-                          layout: (make, view) => {
-                            make.right.inset(5);
-                            make.width.equalTo(111);
-                            make.height.equalTo(17);
-                            make.centerY.equalTo(view.super);
-                          },
-                          views: [
-                            {
-                              type: "label",
-                              props: {
-                                id: "posted_time_large",
-                                textColor: $color("primaryText"),
-                                align: $align.center,
-                                font: $font(12),
-                                bgcolor: $color("primarySurface", "tertiarySurface"),
-                              },
-                              layout: (make, view) => {
-                                make.edges.insets($insets(1, 1, 1, 1));
-                                make.centerY.equalTo(view.super);
-                              },
-                            },
-                            {
-                              type: "view",
-                              props: {
-                                id: "delete_line_large",
-                                bgcolor: $color("red"),
-                                alpha: 0.8,
-                              },
-                              layout: (make, view) => {
-                                make.left.right.inset(0);
-                                make.centerY.equalTo(view.super);
-                                make.height.equalTo(1);
-                              },
-                            },
-                          ],
-                        },
-                        {
-                          // 上传者
-                          type: "label",
-                          props: {
-                            id: "uploader_large",
-                            font: $font(12),
-                            textColor: $color("secondaryText"),
-                          },
-                          layout: (make, view) => {
-                            make.left.inset(2);
-                            make.centerY.equalTo(view.super);
-                            make.right.equalTo(view.prev.left);
-                          },
-                        },
-                      ],
-                    },
-                    {
-                      // 标签
-                      type: "text",
-                      props: {
-                        id: "tags_large",
-                        bgcolor: $color("clear"),
-                        editable: false,
-                        selectable: false,
-                      },
-                      layout: (make, view) => {
-                        make.left.right.inset(0);
-                        make.top.equalTo(view.prev.bottom);
-                        make.bottom.inset(20);
-                      },
-                    },
-                    {
-                      // 底栏
-                      type: "view",
-                      props: {},
-                      layout: (make, view) => {
-                        make.left.right.bottom.inset(0);
-                        make.height.equalTo(20);
-                      },
-                      views: [
-                        {
-                          // 分类
-                          type: "label",
-                          props: {
-                            id: "category_large",
-                            textColor: $color("white"),
-                            align: $align.center,
-                            font: $font("bold", 12),
-                            smoothCorners: true,
-                            cornerRadius: 4,
-                          },
-                          layout: (make, view) => {
-                            make.left.inset(2);
-                            make.centerY.equalTo(view.super);
-                            make.height.equalTo(18);
-                            make.width.equalTo(80);
-                          },
-                        },
-                        {
-                          // 星级
-                          type: "view",
-                          props: {},
-                          layout: (make, view) => {
-                            make.centerY.equalTo(view.super);
-                            make.centerX.equalTo(view.super).offset(13);
-                            make.width.equalTo(75);
-                            make.height.equalTo(20);
-                          },
-                          views: [
-                            {
-                              type: "stack",
-                              props: {
-                                axis: $stackViewAxis.horizontal,
-                                distribution: $stackViewDistribution.fillEqually,
-                                stack: {
-                                  views: [
-                                    {
-                                      type: "image",
-                                      props: {
-                                        id: "star1_large",
-                                        contentMode: 1,
-                                      },
-                                    },
-                                    {
-                                      type: "image",
-                                      props: {
-                                        id: "star2_large",
-                                        contentMode: 1,
-                                      },
-                                    },
-                                    {
-                                      type: "image",
-                                      props: {
-                                        id: "star3_large",
-                                        contentMode: 1,
-                                      },
-                                    },
-                                    {
-                                      type: "image",
-                                      props: {
-                                        id: "star4_large",
-                                        contentMode: 1,
-                                      },
-                                    },
-                                    {
-                                      type: "image",
-                                      props: {
-                                        id: "star5_large",
-                                        contentMode: 1,
-                                      },
-                                    },
-                                  ],
-                                },
-                              },
-                              layout: (make, view) => {
-                                make.size.equalTo($size(75, 15));
-                                make.center.equalTo(view.super);
-                              },
-                            },
-                          ],
-                        },
-                        {
-                          // 页数
-                          type: "view",
-                          props: {},
-                          layout: (make, view) => {
-                            make.right.inset(4);
-                            make.centerY.equalTo(view.super);
-                            make.width.equalTo(51);
-                            make.height.equalTo(17);
-                          },
-                          views: [
-                            {
-                              type: "image",
-                              props: {
-                                symbol: "photo",
-                                tintColor: $color("systemLink"),
-                              },
-                              layout: (make, view) => {
-                                make.left.inset(0);
-                                make.size.equalTo($size(16, 16));
-                                make.centerY.equalTo(view.super);
-                              },
-                            },
-                            {
-                              type: "label",
-                              props: {
-                                id: "length_large",
-                                align: $align.left,
-                                font: $font(12),
-                                smoothCorners: true,
-                                cornerRadius: 4,
-                              },
-                              layout: (make, view) => {
-                                make.width.equalTo(30);
-                                make.right.inset(0);
-                                make.centerY.equalTo(view.super);
-                              },
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                  ],
-                },
-                {
-                  // 缩略图
-                  type: "image",
-                  props: {
-                    id: "thumbnail_large",
-                    contentMode: 1,
-                  },
-                  layout: (make, view) => {
-                    make.top.bottom.left.inset(0);
-                    make.right.equalTo(view.prev.left);
-                  },
-                },
-              ],
-            },
-            {
-              type: "view",
-              props: {
-                bgcolor: $color("primarySurface", "tertiarySurface"),
-                id: "normal",
-              },
-              layout: $layout.fill,
-              views: [
-                {
-                  // 顶部标题
-                  type: "label",
-                  props: {
-                    id: "title_normal",
-                    textColor: $color("primaryText"),
-                    align: $align.center,
-                    lines: 3,
-                    font: $font(14),
-                  },
-                  layout: (make, view) => {
-                    make.top.left.right.inset(2);
-                    make.height.equalTo(51);
-                  },
-                },
-                {
-                  // 分类
-                  type: "view",
-                  props: {},
-                  layout: (make, view) => {
-                    make.left.bottom.inset(0);
-                    make.width.equalTo(view.super).dividedBy(2).offset(-15);
-                    make.height.equalTo(20);
-                  },
-                  views: [
-                    {
-                      type: "label",
-                      props: {
-                        id: "category_normal",
-                        textColor: $color("white"),
-                        align: $align.center,
-                        font: $font("bold", 12),
-                        smoothCorners: true,
-                        cornerRadius: 4,
-                      },
-                      layout: (make, view) => {
-                        make.center.equalTo(view.super);
-                        make.height.equalTo(18);
-                        make.width.equalTo(70);
-                      },
-                    },
-                  ],
-                },
-                {
-                  // 星级
-                  type: "view",
-                  props: {},
-                  layout: (make, view) => {
-                    make.bottom.inset(0);
-                    make.right.inset(25);
-                    make.width.equalTo(view.super).dividedBy(2).offset(-10);
-                    make.height.equalTo(20);
-                  },
-                  views: [
-                    {
-                      type: "stack",
-                      props: {
-                        axis: $stackViewAxis.horizontal,
-                        distribution: $stackViewDistribution.fillEqually,
-                        stack: {
-                          views: [
-                            {
-                              type: "image",
-                              props: {
-                                id: "star1_normal",
-                                contentMode: 1,
-                              },
-                            },
-                            {
-                              type: "image",
-                              props: {
-                                id: "star2_normal",
-                                contentMode: 1,
-                              },
-                            },
-                            {
-                              type: "image",
-                              props: {
-                                id: "star3_normal",
-                                contentMode: 1,
-                              },
-                            },
-                            {
-                              type: "image",
-                              props: {
-                                id: "star4_normal",
-                                contentMode: 1,
-                              },
-                            },
-                            {
-                              type: "image",
-                              props: {
-                                id: "star5_normal",
-                                contentMode: 1,
-                              },
-                            },
-                          ],
-                        },
-                      },
-                      layout: (make, view) => {
-                        make.size.equalTo($size(75, 15));
-                        make.center.equalTo(view.super);
-                      },
-                    },
-                  ],
-                },
-                {
-                  type: "view",
-                  props: {
-                    id: "language_normal",
-                  },
-                  layout: (make, view) => {
-                    make.bottom.inset(0);
-                    make.width.equalTo(16);
-                    make.right.inset(5);
-                    make.height.equalTo(20);
-                  },
-                  views: [
-                    {
-                      type: "view",
-                      props: {
-                        id: "language_bgview_normal",
-                        cornerRadius: 8,
-                        smoothCorners: true,
-                      },
-                      layout: (make, view) => {
-                        make.center.equalTo(view.super);
-                        make.width.height.equalTo(16);
-                      },
-                    },
-                    {
-                      type: "label",
-                      props: {
-                        id: "language_label_normal",
-                        align: $align.center,
-                        textColor: $color("white"),
-                        font: $font("bold", 9),
-                      },
-                      layout: $layout.center,
-                    },
-                  ],
-                },
-                {
-                  // 发布时间
-                  type: "view",
-                  props: {
-                    id: "favorite_normal",
-                  },
-                  layout: (make, view) => {
-                    make.left.inset(5);
-                    make.width.equalTo(111);
-                    make.height.equalTo(17);
-                    make.bottom.inset(21);
-                  },
-                  views: [
-                    {
-                      type: "label",
-                      props: {
-                        id: "posted_time_normal",
-                        textColor: $color("primaryText"),
-                        align: $align.center,
-                        font: $font(12),
-                        bgcolor: $color("primarySurface", "tertiarySurface"),
-                      },
-                      layout: (make, view) => {
-                        make.edges.insets($insets(1, 1, 1, 1));
-                        make.centerY.equalTo(view.super);
-                      },
-                    },
-                    {
-                      type: "view",
-                      props: {
-                        id: "delete_line_normal",
-                        bgcolor: $color("red"),
-                        alpha: 0.8,
-                      },
-                      layout: (make, view) => {
-                        make.left.right.inset(0);
-                        make.centerY.equalTo(view.super);
-                        make.height.equalTo(1);
-                      },
-                    },
-                  ],
-                },
-                {
-                  // 页数
-                  type: "view",
-                  props: {},
-                  layout: (make, view) => {
-                    make.right.inset(4);
-                    make.width.equalTo(51);
-                    make.height.equalTo(17);
-                    make.bottom.inset(21);
-                  },
-                  views: [
-                    {
-                      type: "image",
-                      props: {
-                        symbol: "photo",
-                        tintColor: $color("systemLink"),
-                      },
-                      layout: (make, view) => {
-                        make.left.inset(0);
-                        make.size.equalTo($size(16, 16));
-                        make.centerY.equalTo(view.super);
-                      },
-                    },
-                    {
-                      type: "label",
-                      props: {
-                        id: "length_normal",
-                        align: $align.left,
-                        font: $font(12),
-                        smoothCorners: true,
-                        cornerRadius: 4,
-                      },
-                      layout: (make, view) => {
-                        make.width.equalTo(30);
-                        make.right.inset(0);
-                        make.centerY.equalTo(view.super);
-                      },
-                    },
-                  ],
-                },
-                {
-                  type: "image",
-                  props: {
-                    id: "thumbnail_normal",
-                    contentMode: 1,
-                  },
-                  layout: (make, view) => {
-                    make.left.right.inset(0);
-                    make.top.inset(52);
-                    make.bottom.inset(40);
-                  },
-                },
-              ],
-            },
-            {
-              type: "view",
-              props: {
-                bgcolor: $color("primarySurface", "tertiarySurface"),
-                id: "minimal",
-              },
-              layout: $layout.fill,
-              views: [
-                {
-                  type: "image",
-                  props: {
-                    id: "thumbnail_minimal",
-                    contentMode: 2,
-                  },
-                  layout: $layout.fill,
-                },
-                {
-                  type: "label",
-                  props: {
-                    id: "category_minimal",
-                    textColor: $color("white"),
-                    align: $align.center,
-                    font: $font("bold", 10),
-                    smoothCorners: true,
-                    cornerRadius: 4,
-                  },
-                  layout: (make, view) => {
-                    make.left.bottom.inset(2);
-                    make.height.equalTo(14);
-                    make.width.equalTo(49);
-                  },
-                },
-                {
-                  type: "blur",
-                  props: {
-                    style: 7,
-                    smoothCorners: true,
-                    cornerRadius: 4,
-                  },
-                  layout: (make, view) => {
-                    make.left.equalTo(view.prev.right).inset(4);
-                    make.bottom.inset(2);
-                    make.height.equalTo(14);
-                    make.width.equalTo(44);
-                  },
-                  views: [
-                    {
-                      type: "image",
-                      props: {
-                        symbol: "photo",
-                        tintColor: $color("systemLink"),
-                        contentMode: 1,
-                      },
-                      layout: (make, view) => {
-                        make.left.inset(3);
-                        make.size.equalTo($size(13, 13));
-                        make.centerY.equalTo(view.super);
-                      },
-                    },
-                    {
-                      type: "label",
-                      props: {
-                        id: "length_minimal",
-                        align: $align.center,
-                        font: $font(10),
-                      },
-                      layout: (make, view) => {
-                        make.width.equalTo(26);
-                        make.right.inset(2);
-                        make.centerY.equalTo(view.super);
-                      },
-                    },
-                  ],
-                },
-                {
-                  type: "view",
-                  props: {
-                    id: "language_minimal",
-                  },
-                  layout: (make, view) => {
-                    make.bottom.inset(2);
-                    make.left.equalTo(view.prev.right).inset(4);
-                    make.width.equalTo(14);
-                    make.height.equalTo(14);
-                  },
-                  views: [
-                    {
-                      type: "view",
-                      props: {
-                        id: "language_bgview_minimal",
-                        cornerRadius: 7,
-                        smoothCorners: true,
-                      },
-                      layout: $layout.fill,
-                    },
-                    {
-                      type: "label",
-                      props: {
-                        id: "language_label_minimal",
-                        align: $align.center,
-                        textColor: $color("white"),
-                        font: $font("bold", 8),
-                      },
-                      layout: $layout.center,
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
+        views: [searchBar.definition],
+      },
+      footer: {
+        type: "label",
+        props: {
+          id: this.id + "matrix-footer",
+          height: 25,
+          text: "",
+          align: $align.center,
+          font: $font(12),
+          lines: 2,
         },
       },
-      layout: $layout.fill,
-      events: {
-        didScroll: (sender) => {
-          const offsetY = sender.contentOffset.y;
-          const spacing = 4;
-          // 根据 spacing, _itemSizeWidth, _itemSizeHeight, _totalWidth
-          // 计算目前最左上方的是第几个item
-          const columns = Math.floor((this._totalWidth + spacing) / (this._itemSizeWidth + spacing));
-          const row = Math.floor(offsetY / (this._itemSizeHeight + spacing));
+      template: {
+        props: {
+          cornerRadius: 5,
+          smoothCorners: true,
+        },
+        views: [
+          {
+            type: "view",
+            props: {
+              bgcolor: $color("primarySurface", "tertiarySurface"),
+              id: "large",
+            },
+            layout: $layout.fill,
+            views: [
+              {
+                // 右边部分
+                type: "view",
+                props: {},
+                layout: (make, view) => {
+                  make.top.right.bottom.inset(0);
+                  make.width.greaterThanOrEqualTo(223).priority(1000);
+                  make.width.equalTo(view.super.width).offset(-142).priority(999);
+                },
+                views: [
+                  {
+                    // 标题
+                    type: "label",
+                    props: {
+                      id: "title_large",
+                      font: $font(14),
+                      lines: 3,
+                      align: $align.left,
+                    },
+                    layout: (make, view) => {
+                      make.top.left.right.inset(2);
+                      make.height.equalTo(51);
+                    },
+                  },
+                  {
+                    // 上传者和上传时间
+                    type: "view",
+                    props: {},
+                    layout: (make, view) => {
+                      make.left.right.inset(0);
+                      make.top.equalTo(view.prev.bottom);
+                      make.height.equalTo(20);
+                    },
+                    views: [
+                      {
+                        // 发布时间
+                        type: "view",
+                        props: {
+                          id: "favorite_large",
+                        },
+                        layout: (make, view) => {
+                          make.right.inset(5);
+                          make.width.equalTo(111);
+                          make.height.equalTo(17);
+                          make.centerY.equalTo(view.super);
+                        },
+                        views: [
+                          {
+                            type: "label",
+                            props: {
+                              id: "posted_time_large",
+                              textColor: $color("primaryText"),
+                              align: $align.center,
+                              font: $font(12),
+                              bgcolor: $color("primarySurface", "tertiarySurface"),
+                            },
+                            layout: (make, view) => {
+                              make.edges.insets($insets(1, 1, 1, 1));
+                              make.centerY.equalTo(view.super);
+                            },
+                          },
+                          {
+                            type: "view",
+                            props: {
+                              id: "delete_line_large",
+                              bgcolor: $color("red"),
+                              alpha: 0.8,
+                            },
+                            layout: (make, view) => {
+                              make.left.right.inset(0);
+                              make.centerY.equalTo(view.super);
+                              make.height.equalTo(1);
+                            },
+                          },
+                        ],
+                      },
+                      {
+                        // 上传者
+                        type: "label",
+                        props: {
+                          id: "uploader_large",
+                          font: $font(12),
+                          textColor: $color("secondaryText"),
+                        },
+                        layout: (make, view) => {
+                          make.left.inset(2);
+                          make.centerY.equalTo(view.super);
+                          make.right.equalTo(view.prev.left);
+                        },
+                      },
+                    ],
+                  },
+                  {
+                    // 标签
+                    type: "text",
+                    props: {
+                      id: "tags_large",
+                      bgcolor: $color("clear"),
+                      editable: false,
+                      selectable: false,
+                    },
+                    layout: (make, view) => {
+                      make.left.right.inset(0);
+                      make.top.equalTo(view.prev.bottom);
+                      make.bottom.inset(20);
+                    },
+                  },
+                  {
+                    // 底栏
+                    type: "view",
+                    props: {},
+                    layout: (make, view) => {
+                      make.left.right.bottom.inset(0);
+                      make.height.equalTo(20);
+                    },
+                    views: [
+                      {
+                        // 分类
+                        type: "label",
+                        props: {
+                          id: "category_large",
+                          textColor: $color("white"),
+                          align: $align.center,
+                          font: $font("bold", 12),
+                          smoothCorners: true,
+                          cornerRadius: 4,
+                        },
+                        layout: (make, view) => {
+                          make.left.inset(2);
+                          make.centerY.equalTo(view.super);
+                          make.height.equalTo(18);
+                          make.width.equalTo(80);
+                        },
+                      },
+                      {
+                        // 星级
+                        type: "view",
+                        props: {},
+                        layout: (make, view) => {
+                          make.centerY.equalTo(view.super);
+                          make.centerX.equalTo(view.super).offset(13);
+                          make.width.equalTo(75);
+                          make.height.equalTo(20);
+                        },
+                        views: [
+                          {
+                            type: "stack",
+                            props: {
+                              axis: $stackViewAxis.horizontal,
+                              distribution: $stackViewDistribution.fillEqually,
+                              stack: {
+                                views: [
+                                  {
+                                    type: "image",
+                                    props: {
+                                      id: "star1_large",
+                                      contentMode: 1,
+                                    },
+                                  },
+                                  {
+                                    type: "image",
+                                    props: {
+                                      id: "star2_large",
+                                      contentMode: 1,
+                                    },
+                                  },
+                                  {
+                                    type: "image",
+                                    props: {
+                                      id: "star3_large",
+                                      contentMode: 1,
+                                    },
+                                  },
+                                  {
+                                    type: "image",
+                                    props: {
+                                      id: "star4_large",
+                                      contentMode: 1,
+                                    },
+                                  },
+                                  {
+                                    type: "image",
+                                    props: {
+                                      id: "star5_large",
+                                      contentMode: 1,
+                                    },
+                                  },
+                                ],
+                              },
+                            },
+                            layout: (make, view) => {
+                              make.size.equalTo($size(75, 15));
+                              make.center.equalTo(view.super);
+                            },
+                          },
+                        ],
+                      },
+                      {
+                        // 页数
+                        type: "view",
+                        props: {},
+                        layout: (make, view) => {
+                          make.right.inset(4);
+                          make.centerY.equalTo(view.super);
+                          make.width.equalTo(51);
+                          make.height.equalTo(17);
+                        },
+                        views: [
+                          {
+                            type: "image",
+                            props: {
+                              symbol: "photo",
+                              tintColor: $color("systemLink"),
+                            },
+                            layout: (make, view) => {
+                              make.left.inset(0);
+                              make.size.equalTo($size(16, 16));
+                              make.centerY.equalTo(view.super);
+                            },
+                          },
+                          {
+                            type: "label",
+                            props: {
+                              id: "length_large",
+                              align: $align.left,
+                              font: $font(12),
+                              smoothCorners: true,
+                              cornerRadius: 4,
+                            },
+                            layout: (make, view) => {
+                              make.width.equalTo(30);
+                              make.right.inset(0);
+                              make.centerY.equalTo(view.super);
+                            },
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                // 缩略图
+                type: "image",
+                props: {
+                  id: "thumbnail_large",
+                  contentMode: 1,
+                },
+                layout: (make, view) => {
+                  make.top.bottom.left.inset(0);
+                  make.right.equalTo(view.prev.left);
+                },
+              },
+            ],
+          },
+          {
+            type: "view",
+            props: {
+              bgcolor: $color("primarySurface", "tertiarySurface"),
+              id: "normal",
+            },
+            layout: $layout.fill,
+            views: [
+              {
+                // 顶部标题
+                type: "label",
+                props: {
+                  id: "title_normal",
+                  textColor: $color("primaryText"),
+                  align: $align.center,
+                  lines: 3,
+                  font: $font(14),
+                },
+                layout: (make, view) => {
+                  make.top.left.right.inset(2);
+                  make.height.equalTo(51);
+                },
+              },
+              {
+                // 分类
+                type: "view",
+                props: {},
+                layout: (make, view) => {
+                  make.left.bottom.inset(0);
+                  make.width.equalTo(view.super).dividedBy(2).offset(-15);
+                  make.height.equalTo(20);
+                },
+                views: [
+                  {
+                    type: "label",
+                    props: {
+                      id: "category_normal",
+                      textColor: $color("white"),
+                      align: $align.center,
+                      font: $font("bold", 12),
+                      smoothCorners: true,
+                      cornerRadius: 4,
+                    },
+                    layout: (make, view) => {
+                      make.center.equalTo(view.super);
+                      make.height.equalTo(18);
+                      make.width.equalTo(70);
+                    },
+                  },
+                ],
+              },
+              {
+                // 星级
+                type: "view",
+                props: {},
+                layout: (make, view) => {
+                  make.bottom.inset(0);
+                  make.right.inset(25);
+                  make.width.equalTo(view.super).dividedBy(2).offset(-10);
+                  make.height.equalTo(20);
+                },
+                views: [
+                  {
+                    type: "stack",
+                    props: {
+                      axis: $stackViewAxis.horizontal,
+                      distribution: $stackViewDistribution.fillEqually,
+                      stack: {
+                        views: [
+                          {
+                            type: "image",
+                            props: {
+                              id: "star1_normal",
+                              contentMode: 1,
+                            },
+                          },
+                          {
+                            type: "image",
+                            props: {
+                              id: "star2_normal",
+                              contentMode: 1,
+                            },
+                          },
+                          {
+                            type: "image",
+                            props: {
+                              id: "star3_normal",
+                              contentMode: 1,
+                            },
+                          },
+                          {
+                            type: "image",
+                            props: {
+                              id: "star4_normal",
+                              contentMode: 1,
+                            },
+                          },
+                          {
+                            type: "image",
+                            props: {
+                              id: "star5_normal",
+                              contentMode: 1,
+                            },
+                          },
+                        ],
+                      },
+                    },
+                    layout: (make, view) => {
+                      make.size.equalTo($size(75, 15));
+                      make.center.equalTo(view.super);
+                    },
+                  },
+                ],
+              },
+              {
+                type: "view",
+                props: {
+                  id: "language_normal",
+                },
+                layout: (make, view) => {
+                  make.bottom.inset(0);
+                  make.width.equalTo(16);
+                  make.right.inset(5);
+                  make.height.equalTo(20);
+                },
+                views: [
+                  {
+                    type: "view",
+                    props: {
+                      id: "language_bgview_normal",
+                      cornerRadius: 8,
+                      smoothCorners: true,
+                    },
+                    layout: (make, view) => {
+                      make.center.equalTo(view.super);
+                      make.width.height.equalTo(16);
+                    },
+                  },
+                  {
+                    type: "label",
+                    props: {
+                      id: "language_label_normal",
+                      align: $align.center,
+                      textColor: $color("white"),
+                      font: $font("bold", 9),
+                    },
+                    layout: $layout.center,
+                  },
+                ],
+              },
+              {
+                // 发布时间
+                type: "view",
+                props: {
+                  id: "favorite_normal",
+                },
+                layout: (make, view) => {
+                  make.left.inset(5);
+                  make.width.equalTo(111);
+                  make.height.equalTo(17);
+                  make.bottom.inset(21);
+                },
+                views: [
+                  {
+                    type: "label",
+                    props: {
+                      id: "posted_time_normal",
+                      textColor: $color("primaryText"),
+                      align: $align.center,
+                      font: $font(12),
+                      bgcolor: $color("primarySurface", "tertiarySurface"),
+                    },
+                    layout: (make, view) => {
+                      make.edges.insets($insets(1, 1, 1, 1));
+                      make.centerY.equalTo(view.super);
+                    },
+                  },
+                  {
+                    type: "view",
+                    props: {
+                      id: "delete_line_normal",
+                      bgcolor: $color("red"),
+                      alpha: 0.8,
+                    },
+                    layout: (make, view) => {
+                      make.left.right.inset(0);
+                      make.centerY.equalTo(view.super);
+                      make.height.equalTo(1);
+                    },
+                  },
+                ],
+              },
+              {
+                // 页数
+                type: "view",
+                props: {},
+                layout: (make, view) => {
+                  make.right.inset(4);
+                  make.width.equalTo(51);
+                  make.height.equalTo(17);
+                  make.bottom.inset(21);
+                },
+                views: [
+                  {
+                    type: "image",
+                    props: {
+                      symbol: "photo",
+                      tintColor: $color("systemLink"),
+                    },
+                    layout: (make, view) => {
+                      make.left.inset(0);
+                      make.size.equalTo($size(16, 16));
+                      make.centerY.equalTo(view.super);
+                    },
+                  },
+                  {
+                    type: "label",
+                    props: {
+                      id: "length_normal",
+                      align: $align.left,
+                      font: $font(12),
+                      smoothCorners: true,
+                      cornerRadius: 4,
+                    },
+                    layout: (make, view) => {
+                      make.width.equalTo(30);
+                      make.right.inset(0);
+                      make.centerY.equalTo(view.super);
+                    },
+                  },
+                ],
+              },
+              {
+                type: "image",
+                props: {
+                  id: "thumbnail_normal",
+                  contentMode: 1,
+                },
+                layout: (make, view) => {
+                  make.left.right.inset(0);
+                  make.top.inset(52);
+                  make.bottom.inset(40);
+                },
+              },
+            ],
+          },
+          {
+            type: "view",
+            props: {
+              bgcolor: $color("primarySurface", "tertiarySurface"),
+              id: "minimal",
+            },
+            layout: $layout.fill,
+            views: [
+              {
+                type: "image",
+                props: {
+                  id: "thumbnail_minimal",
+                  contentMode: 2,
+                },
+                layout: $layout.fill,
+              },
+              {
+                type: "label",
+                props: {
+                  id: "category_minimal",
+                  textColor: $color("white"),
+                  align: $align.center,
+                  font: $font("bold", 10),
+                  smoothCorners: true,
+                  cornerRadius: 4,
+                },
+                layout: (make, view) => {
+                  make.left.bottom.inset(2);
+                  make.height.equalTo(14);
+                  make.width.equalTo(49);
+                },
+              },
+              {
+                type: "blur",
+                props: {
+                  style: 7,
+                  smoothCorners: true,
+                  cornerRadius: 4,
+                },
+                layout: (make, view) => {
+                  make.left.equalTo(view.prev.right).inset(4);
+                  make.bottom.inset(2);
+                  make.height.equalTo(14);
+                  make.width.equalTo(44);
+                },
+                views: [
+                  {
+                    type: "image",
+                    props: {
+                      symbol: "photo",
+                      tintColor: $color("systemLink"),
+                      contentMode: 1,
+                    },
+                    layout: (make, view) => {
+                      make.left.inset(3);
+                      make.size.equalTo($size(13, 13));
+                      make.centerY.equalTo(view.super);
+                    },
+                  },
+                  {
+                    type: "label",
+                    props: {
+                      id: "length_minimal",
+                      align: $align.center,
+                      font: $font(10),
+                    },
+                    layout: (make, view) => {
+                      make.width.equalTo(26);
+                      make.right.inset(2);
+                      make.centerY.equalTo(view.super);
+                    },
+                  },
+                ],
+              },
+              {
+                type: "view",
+                props: {
+                  id: "language_minimal",
+                },
+                layout: (make, view) => {
+                  make.bottom.inset(2);
+                  make.left.equalTo(view.prev.right).inset(4);
+                  make.width.equalTo(14);
+                  make.height.equalTo(14);
+                },
+                views: [
+                  {
+                    type: "view",
+                    props: {
+                      id: "language_bgview_minimal",
+                      cornerRadius: 7,
+                      smoothCorners: true,
+                    },
+                    layout: $layout.fill,
+                  },
+                  {
+                    type: "label",
+                    props: {
+                      id: "language_label_minimal",
+                      align: $align.center,
+                      textColor: $color("white"),
+                      font: $font("bold", 8),
+                    },
+                    layout: $layout.center,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    };
+    if (menuItems.length) {
+      matrixProps.menu = { items: menuItems };
+    }
+    const matrixEvents: UiTypes.MatrixEvents = {
+      didScroll: (sender) => {
+        if (!this._contentOffsetChanged) return;
+        const offsetY = sender.contentOffset.y;
+        const spacing = 4;
+        // 根据 spacing, _itemSizeWidth, _itemSizeHeight, _totalWidth
+        // 计算目前最左上方的是第几个item
+        const columns = Math.floor((this._totalWidth + spacing) / (this._itemSizeWidth + spacing));
+        const row = Math.floor(offsetY / (this._itemSizeHeight + spacing));
 
-          const index = row * columns;
-          this._contentOffsetChanged?.({
-            layout: this._layoutMode,
-            totalWidth: this._totalWidth,
-            firstVisibleItemIndex: index,
-            offsetY,
-          });
-        },
-        itemSize: (sender, indexPath) => {
-          return $size(this._itemSizeWidth, this._itemSizeHeight);
-        },
-        pulled: async (sender) => {
-          if (this._isPulling || this._isReachingBottom) return;
-          sender.beginRefreshing();
-          this._isPulling = true;
-          await pulled();
-          if (this._isPulling) {
-            sender.endRefreshing();
-            this._isPulling = false;
-          }
-        },
-        didReachBottom: async (sender) => {
-          if (this._isReachingBottom || this._isPulling) {
-            sender.endFetchingMore();
-            return;
-          }
-          this._isReachingBottom = true;
-          await didReachBottom();
-          if (this._isReachingBottom) {
-            sender.endFetchingMore();
-            this._isReachingBottom = false;
-          }
-        },
-        didSelect: async (sender, indexPath, data) => {
-          await didSelect(this, indexPath, this._items[indexPath.item]);
-        },
+        const index = row * columns;
+        this._contentOffsetChanged?.({
+          layout: this._layoutMode,
+          totalWidth: this._totalWidth,
+          firstVisibleItemIndex: index,
+          offsetY,
+        });
       },
+      itemSize: (sender, indexPath) => {
+        return $size(this._itemSizeWidth, this._itemSizeHeight);
+      },
+      didReachBottom: async (sender) => {
+        if (this._isReachingBottom || this._isPulling) {
+          sender.endFetchingMore();
+          return;
+        }
+        this._isReachingBottom = true;
+        await didReachBottom();
+        if (this._isReachingBottom) {
+          sender.endFetchingMore();
+          this._isReachingBottom = false;
+        }
+      },
+      didSelect: async (sender, indexPath, data) => {
+        await didSelect(this, indexPath, this._items[indexPath.item]);
+      },
+    };
+    if (pulled) {
+      matrixEvents.pulled = async (sender) => {
+        if (this._isPulling || this._isReachingBottom) return;
+        sender.beginRefreshing();
+        this._isPulling = true;
+        await pulled();
+        if (this._isPulling) {
+          sender.endRefreshing();
+          this._isPulling = false;
+        }
+      };
+    }
+    this.matrix = new Matrix({
+      props: matrixProps,
+      layout: $layout.fill,
+      events: matrixEvents,
     });
     this._defineView = () => {
       return {

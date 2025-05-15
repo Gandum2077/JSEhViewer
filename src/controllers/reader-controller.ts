@@ -454,6 +454,8 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
 }
 
 class SettingView extends Base<UIView, UiTypes.ViewOptions> {
+  private _checkImageDownloaded: () => boolean;
+  private _resetImageDownloadHandler: () => void;
   private _checkAiTranslated: () => boolean;
   private _resetAiTranslationHandler: () => void;
   private _loadOrginalHandler: () => void;
@@ -471,12 +473,16 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
   };
   _defineView: () => UiTypes.ViewOptions;
   constructor({
+    checkImageDownloaded,
+    resetImageDownloadHandler,
     checkAiTranslated,
     resetAiTranslationHandler,
     loadOrginalHandler,
     reloadPagerHandler,
     checkVerticalAllowed,
   }: {
+    checkImageDownloaded: () => boolean;
+    resetImageDownloadHandler: () => void;
     checkAiTranslated: () => boolean;
     resetAiTranslationHandler: () => void;
     loadOrginalHandler: () => void;
@@ -484,6 +490,8 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
     checkVerticalAllowed: () => boolean;
   }) {
     super();
+    this._checkImageDownloaded = checkImageDownloaded;
+    this._resetImageDownloadHandler = resetImageDownloadHandler;
     this._checkAiTranslated = checkAiTranslated;
     this._resetAiTranslationHandler = resetAiTranslationHandler;
     this._loadOrginalHandler = loadOrginalHandler;
@@ -649,11 +657,21 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
       },
     ];
 
+    if (this._checkImageDownloaded()) {
+      sections[0].rows.push({
+        type: "symbol-action",
+        title: "重新下载本页图片",
+        value: () => {
+          this.hidden = true;
+          this._resetImageDownloadHandler();
+        },
+      });
+    }
+
     if (this._checkAiTranslated()) {
       sections[0].rows.push({
         type: "symbol-action",
         title: "重置本页的AI翻译",
-        symbol: "delete.backward",
         value: () => {
           this.hidden = true;
           this._resetAiTranslationHandler();
@@ -1462,6 +1480,29 @@ export class ReaderController extends BaseController {
     });
 
     const settingView = new SettingView({
+      checkImageDownloaded: () => {
+        const index = footerThumbnailView.index;
+        const galleryDownloader = downloaderManager.get(this.gid);
+        if (!galleryDownloader) return false;
+        const image = galleryDownloader.result.images[index];
+        return Boolean(image.path);
+      },
+      resetImageDownloadHandler: () => {
+        const index = footerThumbnailView.index;
+        const galleryDownloader = downloaderManager.get(this.gid);
+        if (!galleryDownloader) return;
+        const image = galleryDownloader.result.images[index];
+
+        const path = image.path;
+        if (path) {
+          $file.delete(path);
+          image.path = undefined;
+          image.error = false;
+          image.started = false;
+          this.refreshCurrentPage(true);
+          downloaderManager.startOne(this.gid);
+        }
+      },
       checkAiTranslated: () => {
         const index = footerThumbnailView.index;
         const galleryDownloader = downloaderManager.get(this.gid);
@@ -1483,7 +1524,7 @@ export class ReaderController extends BaseController {
           aiTranslation.userSelected = false;
           this.aiTranslatedPageSet.delete(index);
           aiTranslationButton.status = "pending";
-          this.refreshCurrentPage();
+          this.refreshCurrentPage(true);
         }
       },
       loadOrginalHandler: () => {
@@ -1531,7 +1572,7 @@ export class ReaderController extends BaseController {
     this.rootView.views = [viewer, header, footer, settingView];
   }
 
-  refreshCurrentPage() {
+  refreshCurrentPage(forced: boolean = false) {
     if (!this.imagePager) return;
     const newSrcs = this._generateSrcs();
     const visiblePages = this.imagePager.visiblePages;
@@ -1542,7 +1583,7 @@ export class ReaderController extends BaseController {
         flagShouldRefresh = true;
       }
     }
-    if (flagShouldRefresh) {
+    if (flagShouldRefresh || forced) {
       this.imagePager.srcs = newSrcs;
     }
   }

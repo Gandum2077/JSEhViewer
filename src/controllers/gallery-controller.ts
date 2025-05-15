@@ -742,8 +742,13 @@ export class GalleryController extends PageViewerController {
         symbol: "xmark.bin",
         title: "删除本图库的图片",
         destructive: true,
-        handler: () => {
+        handler: async () => {
           if (!this._infos) return;
+          const r = await $ui.alert({
+            title: "是否清除缓存",
+            actions: [{ title: "取消", style: $alertActionType.cancel }, { title: "确认" }],
+          });
+          if (r.index === 0) return;
           const d = downloaderManager.get(this._gid);
           if (!d) return;
           d.completeStopped = true;
@@ -752,7 +757,7 @@ export class GalleryController extends PageViewerController {
           $file.delete(imagePath + this._gid);
           downloaderManager.add(this._gid, this._infos);
           downloaderManager.get(this._gid)!.background = oldBackground;
-          downloaderManager.get(this._gid)!.backgroundPaused = false;
+          downloaderManager.get(this._gid)!.backgroundPaused = true;
           downloaderManager.startOne(this._gid);
           this.subControllers.galleryInfoController.resetDownloadButton({ fininshed: false });
           $ui.success("已删除本地缓存");

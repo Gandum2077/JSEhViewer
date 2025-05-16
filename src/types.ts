@@ -177,7 +177,7 @@ export type StatusTab =
   | ToplistTab
   | UploadTab
   | ImageLookupTab
-  | ArchiveTab
+  | ArchiveTab;
 
 export type BlankTab = {
   type: "blank";

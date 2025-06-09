@@ -239,18 +239,22 @@ export async function getCookie(exhentai = true): Promise<ParsedCookie[]> {
       },
       timeout: 30,
     });
-    if (resp.error || resp.response.statusCode !== 200 || !(resp.data as string).startsWith("<!DOCTYPE html>")) {
+    if (resp.error) {
       appLog(resp, "error");
-      throw new Error("登录Exhentai失败：未知原因（可能是账号没有里站权限）");
+      throw new Error("网络错误: " + resp.error.localizedDescription);
+    } else if (resp.response.statusCode !== 200) {
+      appLog(resp, "error");
+      throw new Error("登录里站失败: 状态码" + resp.response.statusCode);
+    } else if (!(resp.data as string).startsWith("<!DOCTYPE html>")) {
+      appLog(resp, "error");
+      throw new Error("访问里站未返回内容。如果你确定账号有里站权限，可能是因为当前IP地址被风控，请更换IP再尝试。");
     }
     const setCookies = parseSetCookieString(resp.response.headers["Set-Cookie"]);
     // 此处应该是必然有igneous的，否则登录失败，这应该是能否访问Exhentai的标志
     const cookie_igneous = setCookies.find((n) => n.name === "igneous");
     if (!cookie_igneous || cookie_igneous.value.length !== 17) {
       appLog(resp, "error");
-      throw new Error(
-        "登录Exhentai失败：无法获取里站Cookie。如果你确定账号有里站权限，那可能是因为当前IP地址存在问题，请更换IP再尝试。"
-      );
+      throw new Error("无法获取里站Cookie。如果你确定账号有里站权限，可能是因为当前IP地址被风控，请更换IP再尝试。");
     }
     const resp2 = await $http.get({
       url: "https://exhentai.org/uconfig.php",
@@ -267,7 +271,7 @@ export async function getCookie(exhentai = true): Promise<ParsedCookie[]> {
     });
     if (resp2.error || resp2.response.statusCode !== 200) {
       appLog(resp, "error");
-      throw new Error("获取Exhentai设置失败");
+      throw new Error("获取网页端设置失败");
     }
     const setCookies2 = parseSetCookieString(resp2.response.headers["Set-Cookie"]);
     // 后面这些，只有sk是必然有的，其他的不一定有
@@ -312,7 +316,7 @@ export async function getCookie(exhentai = true): Promise<ParsedCookie[]> {
     });
     if (resp.error || resp.response.statusCode !== 200) {
       appLog(resp, "error");
-      throw new Error("获取E-hentai设置失败");
+      throw new Error("获取网页端设置失败");
     }
     const setCookie = parseSetCookieString(resp.response.headers["Set-Cookie"]);
     // 后面这些，只有sk是必然有的，其他的不一定有

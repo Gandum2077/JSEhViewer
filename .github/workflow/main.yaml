@@ -1,0 +1,49 @@
+name: Build and Release
+
+# 当推送到 main 分支时触发
+on:
+  workflow_dispatch:
+
+jobs:
+  build_and_release:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 检出仓库代码
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2. 设置 Node.js 环境（这里以 16.x 为例，可根据项目实际需求调整）
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "22"
+
+      # 3. 安装依赖
+      - name: Install dependencies
+        run: npm install
+
+      # 4. 执行打包构建，项目会生成 JSEhViewer.box 文件
+      - name: Build project
+        run: npm run build
+
+      # 5. 读取 package.json 中的 version 字段，写入到一个输出变量 VERSION
+      - name: Get version from package.json
+        id: get_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      # 6. 创建 GitHub Release，并上传 JSEhViewer.box
+      #    使用 ncipollo/release-action@v1 插件
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          # 使用刚才读取到的 version 作为 tag 和 release 名称
+          tag: ${{ steps.get_version.outputs.VERSION }}
+          name: ${{ steps.get_version.outputs.VERSION }}
+          # 可以根据需要设置 release 的说明（body）
+          body: "Release version ${{ steps.get_version.outputs.VERSION }}"
+          draft: true
+          # 直接指定要上传的文件
+          files: JSEhViewer.box

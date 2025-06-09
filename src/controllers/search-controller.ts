@@ -1273,7 +1273,7 @@ class ImageLookupView extends Base<UIListView, UiTypes.ListOptions> {
                           });
                           uploadedHandler({
                             type: "image_lookup",
-                            options: data.options
+                            options: data.options,
                           });
                         } catch (error: any) {
                           this._status = "failed";
@@ -1473,6 +1473,7 @@ class NavBar extends Base<UIBlurView, UiTypes.BlurOptions> {
   cviews: {
     tab: Tab;
     input: Input;
+    filterButton: SymbolButton;
   };
   private _menuDisplayMode: MenuDisplayMode;
   private _filterSwitch: boolean = false;
@@ -1520,10 +1521,8 @@ class NavBar extends Base<UIBlurView, UiTypes.BlurOptions> {
         tapped: (sender) => {
           if (this._filterSwitch) {
             this._filterSwitch = false;
-            filterButton.tintColor = $color("primaryText");
           } else {
             this._filterSwitch = true;
-            filterButton.tintColor = $color("systemLink");
           }
 
           options.filterChangedHandler();
@@ -1640,6 +1639,7 @@ class NavBar extends Base<UIBlurView, UiTypes.BlurOptions> {
     this.cviews = {
       tab,
       input,
+      filterButton,
     };
     this._defineView = () => ({
       type: "blur",
@@ -2111,13 +2111,67 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
           ],
         },
       ],
+      events: {
+        ready: (sender) => {
+          this.updateHiddenStatus();
+        },
+      },
     });
+  }
+
+  _isCurrentOptionsNotEmpty() {
+    const type = this.cviews.navbar.type;
+    switch (type) {
+      case "image_lookup": {
+        return false;
+      }
+      case "front_page": {
+        const data = this.cviews.frontPageOptionsView.data;
+        if (data.excludedCategories.length || Object.values(data.options).some((n) => n !== undefined)) {
+          return true;
+        } else {
+          return false;
+        }
+      }
+      case "watched": {
+        const data = this.cviews.watchedOptionsView.data;
+        if (data.excludedCategories.length || Object.values(data.options).some((n) => n !== undefined)) {
+          return true;
+        } else {
+          return false;
+        }
+      }
+      case "favorites": {
+        const data = this.cviews.favoritesOptionsView.data;
+        if (data.selectedFavcat !== undefined) {
+          return true;
+        } else {
+          return false;
+        }
+      }
+      case "archive": {
+        const data = this.cviews.archiveOptionsView.data;
+        if (
+          data.excludedCategories.length ||
+          data.options.minimumPages !== undefined ||
+          data.options.maximumPages !== undefined ||
+          data.options.minimumRating !== undefined
+        ) {
+          return true;
+        } else {
+          return false;
+        }
+      }
+      default:
+        break;
+    }
   }
 
   updateHiddenStatus() {
     const filterOn = this.cviews.navbar.filterOn;
     const type = this.cviews.navbar.type;
     if (type === "image_lookup") {
+      this.cviews.navbar.cviews.filterButton.tintColor = $color("primaryText");
       this.cviews.searchSuggestionView.view.hidden = true;
       this.cviews.searchHistoryView.view.hidden = true;
       this.cviews.frontPageOptionsView.view.hidden = true;
@@ -2128,6 +2182,7 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
       return;
     }
     if (filterOn) {
+      this.cviews.navbar.cviews.filterButton.tintColor = $color("systemLink");
       this.cviews.searchSuggestionView.view.hidden = true;
       this.cviews.searchHistoryView.view.hidden = true;
       this.cviews.imageLookupView.view.hidden = true;
@@ -2153,6 +2208,9 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
         this.cviews.archiveOptionsView.view.hidden = false;
       }
     } else {
+      this.cviews.navbar.cviews.filterButton.tintColor = this._isCurrentOptionsNotEmpty()
+        ? $color("orange")
+        : $color("primaryText");
       this.cviews.searchSuggestionView.view.hidden = true;
       this.cviews.searchHistoryView.view.hidden = false;
       this.cviews.frontPageOptionsView.view.hidden = true;

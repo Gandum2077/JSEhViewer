@@ -2,6 +2,9 @@ name: Build and Release
 
 # 当推送到 main 分支时触发
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -47,3 +50,4 @@ jobs:
           draft: true
           # 直接指定要上传的文件
           artifacts: JSEhViewer.box
+          skipIfReleaseExists: true

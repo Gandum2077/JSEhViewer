@@ -46,4 +46,4 @@ jobs:
           body: "Release version ${{ steps.get_version.outputs.VERSION }}"
           draft: true
           # 直接指定要上传的文件
-          files: JSEhViewer.box
+          artifacts: JSEhViewer.box

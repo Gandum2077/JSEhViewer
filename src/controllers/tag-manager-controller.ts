@@ -158,7 +158,7 @@ export class TagManagerController extends BaseController {
     const markedButton = new SymbolButton({
       props: {
         symbol: configManager.tagManagerOnlyShowBookmarked ? "bookmark.fill" : "bookmark",
-        tintColor: configManager.tagManagerOnlyShowBookmarked ? $color("orange") : $color("primaryText"),
+        tintColor: configManager.tagManagerOnlyShowBookmarked ? tagColor.marked : $color("primaryText"),
       },
       layout: $layout.fill,
       events: {

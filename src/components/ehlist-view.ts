@@ -137,6 +137,7 @@ function _mapDataForLargeLayout(
     },
     tags_large: {
       styledText: taglistToStyledText(item.taglist as EHTagListItem[]),
+      info: { gid: item.gid, token: item.token },
     },
   };
 }
@@ -374,7 +375,11 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
     readlaterHandler?: (item: EHListExtendedItem | EHListCompactItem) => Promise<void> | void;
     removeFromArchiveHandler?: (item: EHListExtendedItem | EHListCompactItem) => Promise<void> | void;
     pulled?: () => Promise<void> | void;
-    didSelect: (sender: EHlistView, indexPath: NSIndexPath, item: Items[0]) => Promise<void> | void;
+    didSelect: (
+      sender: EHlistView,
+      indexPath: NSIndexPath,
+      item: { gid: number; token: string }
+    ) => Promise<void> | void;
     didReachBottom: () => Promise<void> | void;
     contentOffsetChanged?: (scrollState: ScrollState) => void;
     layout: (make: MASConstraintMaker, view: UIView) => void;
@@ -545,6 +550,12 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                       make.left.right.inset(0);
                       make.top.equalTo(view.prev.bottom);
                       make.bottom.inset(20);
+                    },
+                    events: {
+                      tapped: async (sender) => {
+                        const info = sender.info as { gid: number; token: string };
+                        await didSelect(this, $indexPath(0, 0), info);
+                      },
                     },
                   },
                   {

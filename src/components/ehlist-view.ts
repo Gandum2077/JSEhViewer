@@ -487,7 +487,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                         },
                         layout: (make, view) => {
                           make.right.inset(5);
-                          make.width.equalTo(111);
+                          make.width.equalTo(113);
                           make.height.equalTo(17);
                           make.centerY.equalTo(view.super);
                         },
@@ -864,7 +864,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                 },
                 layout: (make, view) => {
                   make.left.inset(5);
-                  make.width.equalTo(111);
+                  make.width.equalTo(113);
                   make.height.equalTo(17);
                   make.bottom.inset(21);
                 },

@@ -338,7 +338,7 @@ const minimalLayoutProps = {
 
 // normalLayout的item高度随宽度改变
 const normalLayoutItemHeight = (itemWidth: number) => {
-  return Math.round(itemWidth * 1.414) + 95;
+  return Math.round(itemWidth * 1.414) + 93;
 };
 
 // minimalLayout的item高度随宽度改变
@@ -946,7 +946,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                 },
                 layout: (make, view) => {
                   make.left.right.inset(0);
-                  make.top.inset(52);
+                  make.top.inset(53);
                   make.bottom.inset(40);
                 },
               },

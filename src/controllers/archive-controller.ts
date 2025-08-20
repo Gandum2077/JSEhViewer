@@ -58,8 +58,8 @@ export class ArchiveController extends BaseController {
           configManager.archiveManagerLayoutMode === "large"
             ? "list.bullet"
             : configManager.archiveManagerLayoutMode === "normal"
-            ? "square.grid.2x2.fill"
-            : "square.grid.3x3.fill",
+              ? "square.grid.2x2.fill"
+              : "square.grid.3x3.fill",
         menu: {
           title: "布局方式",
           pullDown: true,
@@ -213,7 +213,7 @@ export class ArchiveController extends BaseController {
         this.triggerLoad({ tabOptions: clearExtraPropsForReload(tab.data), reload: true });
       },
       didSelect: (sender, indexPath, item) => {
-        const galleryController = new GalleryController(item.gid, item.token);
+        const galleryController = new GalleryController(item.gid, item.token, item.title);
         galleryController.uipush({
           navBarHidden: true,
           statusBarStyle: 0,
@@ -345,10 +345,10 @@ export class ArchiveController extends BaseController {
       tab.status === "loading"
         ? "加载中……"
         : tab.status === "error"
-        ? "加载出现错误"
-        : tab.isNextPageAvailable
-        ? "上拉加载更多"
-        : "没有更多了";
+          ? "加载出现错误"
+          : tab.isNextPageAvailable
+            ? "上拉加载更多"
+            : "没有更多了";
 
     this._thumbnailAllLoaded = false;
   }

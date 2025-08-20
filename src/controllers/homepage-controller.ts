@@ -75,8 +75,8 @@ export class HomepageController extends BaseController {
           configManager.homepageManagerLayoutMode === "large"
             ? "list.bullet"
             : configManager.homepageManagerLayoutMode === "normal"
-            ? "square.grid.2x2.fill"
-            : "square.grid.3x3.fill",
+              ? "square.grid.2x2.fill"
+              : "square.grid.3x3.fill",
         menu: {
           title: "布局方式",
           pullDown: true,
@@ -502,7 +502,7 @@ export class HomepageController extends BaseController {
         }
       },
       didSelect: (sender, indexPath, item) => {
-        const galleryController = new GalleryController(item.gid, item.token);
+        const galleryController = new GalleryController(item.gid, item.token, item.title);
         galleryController.uipush({
           navBarHidden: true,
           statusBarStyle: 0,
@@ -549,7 +549,7 @@ export class HomepageController extends BaseController {
         }
       },
       didSelect: (sender, indexPath, item) => {
-        const galleryController = new GalleryController(item.gid, item.token);
+        const galleryController = new GalleryController(item.gid, item.token, item.title);
         galleryController.uipush({
           navBarHidden: true,
           statusBarStyle: 0,
@@ -691,28 +691,28 @@ export class HomepageController extends BaseController {
       tab.data.type === "blank"
         ? "空白页"
         : tab.data.type === "front_page"
-        ? "首页"
-        : tab.data.type === "watched"
-        ? "订阅"
-        : tab.data.type === "favorites" && typeof tab.data.options.favcat === "number"
-        ? configManager.favcatTitles[tab.data.options.favcat]
-        : tab.data.type === "favorites"
-        ? "收藏"
-        : tab.data.type === "popular"
-        ? "热门"
-        : tab.data.type === "toplist" && tab.data.options.timeRange === "yesterday"
-        ? "日排行"
-        : tab.data.type === "toplist" && tab.data.options.timeRange === "past_month"
-        ? "月排行"
-        : tab.data.type === "toplist" && tab.data.options.timeRange === "past_year"
-        ? "年排行"
-        : tab.data.type === "toplist" && tab.data.options.timeRange === "all"
-        ? "总排行"
-        : tab.data.type === "upload"
-        ? "我的上传"
-        : tab.data.type === "image_lookup"
-        ? "图片搜索"
-        : "";
+          ? "首页"
+          : tab.data.type === "watched"
+            ? "订阅"
+            : tab.data.type === "favorites" && typeof tab.data.options.favcat === "number"
+              ? configManager.favcatTitles[tab.data.options.favcat]
+              : tab.data.type === "favorites"
+                ? "收藏"
+                : tab.data.type === "popular"
+                  ? "热门"
+                  : tab.data.type === "toplist" && tab.data.options.timeRange === "yesterday"
+                    ? "日排行"
+                    : tab.data.type === "toplist" && tab.data.options.timeRange === "past_month"
+                      ? "月排行"
+                      : tab.data.type === "toplist" && tab.data.options.timeRange === "past_year"
+                        ? "年排行"
+                        : tab.data.type === "toplist" && tab.data.options.timeRange === "all"
+                          ? "总排行"
+                          : tab.data.type === "upload"
+                            ? "我的上传"
+                            : tab.data.type === "image_lookup"
+                              ? "图片搜索"
+                              : "";
 
     // 更新列表
     if (!reloading) {
@@ -733,12 +733,12 @@ export class HomepageController extends BaseController {
       tab.data.type === "blank" || tab.status === "pending"
         ? ""
         : tab.status === "loading"
-        ? "加载中……"
-        : tab.status === "error"
-        ? "加载出现错误"
-        : tab.isNextPageAvailable
-        ? "上拉加载更多"
-        : "没有更多了";
+          ? "加载中……"
+          : tab.status === "error"
+            ? "加载出现错误"
+            : tab.isNextPageAvailable
+              ? "上拉加载更多"
+              : "没有更多了";
     this.cviews.uploadList.footerText = footerText;
     this.cviews.list.footerText = footerText;
 

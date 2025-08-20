@@ -84,8 +84,8 @@ export class PushedSearchResultController extends BaseController {
           this.layoutMode === "large"
             ? "list.bullet"
             : this.layoutMode === "normal"
-            ? "square.grid.2x2.fill"
-            : "square.grid.3x3.fill",
+              ? "square.grid.2x2.fill"
+              : "square.grid.3x3.fill",
         menu: {
           title: "布局方式",
           pullDown: true,
@@ -391,7 +391,7 @@ export class PushedSearchResultController extends BaseController {
         await this.triggerLoadAsync(clearExtraPropsForReload(tab.data), true);
       },
       didSelect: (sender, indexPath, item) => {
-        const galleryController = new GalleryController(item.gid, item.token);
+        const galleryController = new GalleryController(item.gid, item.token, item.title);
         galleryController.uipush({
           navBarHidden: true,
           statusBarStyle: 0,
@@ -526,10 +526,10 @@ export class PushedSearchResultController extends BaseController {
       tab.data.type === "front_page"
         ? "搜索"
         : tab.data.type === "watched"
-        ? "订阅"
-        : tab.data.type === "favorites" && typeof tab.data.options.favcat === "number"
-        ? configManager.favcatTitles[tab.data.options.favcat]
-        : "收藏";
+          ? "订阅"
+          : tab.data.type === "favorites" && typeof tab.data.options.favcat === "number"
+            ? configManager.favcatTitles[tab.data.options.favcat]
+            : "收藏";
 
     // 更新列表
     if (!reloading) {
@@ -541,10 +541,10 @@ export class PushedSearchResultController extends BaseController {
       tab.status === "loading"
         ? "加载中……"
         : tab.status === "error"
-        ? "加载出现错误"
-        : tab.isNextPageAvailable
-        ? "上拉加载更多"
-        : "没有更多了";
+          ? "加载出现错误"
+          : tab.isNextPageAvailable
+            ? "上拉加载更多"
+            : "没有更多了";
 
     // 其他
     updateLastAccess();

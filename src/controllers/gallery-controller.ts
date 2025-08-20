@@ -115,9 +115,9 @@ export class GalleryController extends PageViewerController {
     filesOnServer: string[];
     errorMessage?: string;
   } = {
-    status: "loading",
-    filesOnServer: [],
-  };
+      status: "loading",
+      filesOnServer: [],
+    };
 
   subControllers: {
     galleryInfoController: GalleryInfoController;
@@ -127,7 +127,7 @@ export class GalleryController extends PageViewerController {
 
   timer?: TimerTypes.Timer;
 
-  constructor(gid: number, token: string) {
+  constructor(gid: number, token: string, title?: string) {
     const galleryInfoController = new GalleryInfoController(gid, (index) => this.readGallery(index));
     const galleryThumbnailController = new GalleryThumbnailController(gid, (index) => this.readGallery(index));
     const galleryCommentController = new GalleryCommentController((index) => this.readGallery(index));
@@ -183,7 +183,11 @@ export class GalleryController extends PageViewerController {
               textColor: $color("primaryText"),
               align: $align.center,
             },
-            layout: $layout.center,
+            layout: (make, view) => {
+              make.center.equalTo(view.super);
+              make.width.lessThanOrEqualTo(view.super).offset(-50).priority(1000);
+              make.width.equalTo(400).priority(999);
+            },
           });
           try {
             // 两种获取infos的方式：本地获取/在线获取
@@ -203,21 +207,36 @@ export class GalleryController extends PageViewerController {
             if (e instanceof EHIPBannedError) {
               throw new FatalError("你的IP地址可能被封禁");
             }
+            const label = (sender.rootView.view.super.get("loadingLabel") as UILabelView);
             if (e instanceof EHCopyrightError) {
-              (sender.rootView.view.super.get("loadingLabel") as UILabelView).text = `加载失败：版权问题`;
+              label.text = `加载失败：版权问题`;
             } else if (e instanceof EHServerError) {
-              (
-                sender.rootView.view.super.get("loadingLabel") as UILabelView
-              ).text = `加载失败：服务不可用(${e.statusCode})`;
+              label.text = `加载失败：服务不可用(${e.statusCode})`;
             } else if (e instanceof EHNetworkError && e.statusCode === 404) {
-              (
-                sender.rootView.view.super.get("loadingLabel") as UILabelView
-              ).text = `加载失败：图库不存在(${e.statusCode})`;
+              label.text = `加载失败：图库不存在(${e.statusCode})`;
             } else if (e instanceof EHTimeoutError) {
-              (sender.rootView.view.super.get("loadingLabel") as UILabelView).text = "加载失败: 超时";
+              label.text = "加载失败: 超时";
             } else {
-              (sender.rootView.view.super.get("loadingLabel") as UILabelView).text =
-                "加载失败: 未知原因" + (e.statusCode ? `(${e.statusCode})` : "");
+              label.text = "加载失败: 未知原因" + (e.statusCode ? `(${e.statusCode})` : "");
+            }
+            if (title) {
+              sender.rootView.view.super.add({
+                type: "text",
+                props: {
+                  text: title,
+                  editable: false,
+                  font: $font(14),
+                  textColor: $color("primaryText"),
+                  align: $align.center,
+                  scrollEnabled: false,
+                },
+                layout: (make, view) => {
+                  make.top.equalTo(label.bottom).offset(8);
+                  make.centerX.equalTo(view.super);
+                  make.width.equalTo(label);
+                  make.height.equalTo(150);
+                }
+              })
             }
             return;
           }
@@ -617,8 +636,8 @@ export class GalleryController extends PageViewerController {
           galleryStatusOnServer: isFileOnServerComplete
             ? "complete"
             : this._webDAVInfo.filesOnServer.length === 0
-            ? "none"
-            : "incomplete",
+              ? "none"
+              : "incomplete",
           galleryStatusOnLocal: isFileOnLocalComplete ? "complete" : "incomplete",
           uploadStatus: uploadStatus,
         });

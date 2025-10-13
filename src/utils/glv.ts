@@ -31,6 +31,8 @@ export const searchableCategories: EHSearchedCategory[] = [
   "Misc",
 ];
 
+export const allCategories: EHCategory[] = [...searchableCategories, "Private"];
+
 export const catTranslations: Record<EHCategory, string> = {
   Doujinshi: "同人志",
   Manga: "漫画",
@@ -181,7 +183,7 @@ export const fixedTabSymbolTitle = {
     symbol: "photo.fill",
     title: "图片搜索",
     color: $color("systemLink"),
-  }
+  },
 };
 
 // 将语言依据 ISO 639-1 转换为二字母缩写

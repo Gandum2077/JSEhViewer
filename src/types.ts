@@ -103,7 +103,7 @@ export type ArchiveSearchOptions = {
   type?: "readlater" | "downloaded" | "all";
   sort?: "first_access_time" | "last_access_time" | "posted_time";
   searchTerms?: EHSearchTerm[];
-  excludedCategories?: EHSearchedCategory[];
+  excludedCategories?: EHCategory[];
   minimumPages?: number;
   maximumPages?: number;
   minimumRating?: number;

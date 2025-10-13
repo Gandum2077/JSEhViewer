@@ -21,6 +21,7 @@ import {
   namespaceColor,
   namespaceOrderList,
   catTranslations,
+  allCategories,
 } from "../utils/glv";
 import { configManager } from "../utils/config";
 import {
@@ -38,6 +39,7 @@ import {
   EHFavoriteSearchOptions,
   EHImageLookupOptions,
   EHImageLookupList,
+  EHCategory,
 } from "ehentai-parser";
 import {
   ArchiveSearchOptions,
@@ -789,7 +791,7 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
 
 class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
-  private _excludedCategories: Set<EHSearchedCategory>;
+  private _excludedCategories: Set<EHCategory>;
   private _enablePageFilters: boolean = false;
   private _options: {
     type: "readlater" | "downloaded" | "all";
@@ -904,7 +906,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                       },
                       events: {
                         tapped: (sender) => {
-                          this._excludedCategories = new Set(searchableCategories);
+                          this._excludedCategories = new Set(allCategories);
                           catList.data = this.mapData();
                         },
                       },
@@ -920,7 +922,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
                       },
                       events: {
                         tapped: (sender) => {
-                          const reversed = searchableCategories.filter((cat) => !this._excludedCategories.has(cat));
+                          const reversed = allCategories.filter((cat) => !this._excludedCategories.has(cat));
                           this._excludedCategories = new Set(reversed);
                           catList.data = this.mapData();
                         },
@@ -953,7 +955,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
       events: {
         didSelect: (sender, indexPath, data) => {
           const index = indexPath.row;
-          const cat = searchableCategories[index];
+          const cat = allCategories[index];
           if (this._excludedCategories.has(cat)) {
             this._excludedCategories.delete(cat);
           } else {
@@ -983,7 +985,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   }
 
   mapData() {
-    return searchableCategories.map((cat) => ({
+    return allCategories.map((cat) => ({
       label: {
         text: catTranslations[cat],
         bgcolor: catColor[cat],

@@ -126,12 +126,12 @@ function buildArchiveSearchSQLQuery(
       switch (st.qualifier) {
         case "uploader": {
           if (st.subtract) {
-            const condition = `uploader <> ?`;
+            const condition = `uploader <> ? COLLATE NOCASE`;
             const arg = st.term;
             conditions.push(condition);
             args.push(arg);
           } else {
-            const condition = `uploader = ?`;
+            const condition = `uploader = ? COLLATE NOCASE`;
             const arg = st.term;
             conditions.push(condition);
             args.push(arg);

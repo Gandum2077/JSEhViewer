@@ -197,7 +197,7 @@ async function init(url?: string) {
         ],
       });
     } else if (e instanceof EHIgneousExpiredError) {
-      $ui.alert({
+      const { index } = await $ui.alert({
         title: "错误",
         message:
           "您的Cookie已过期。如果您是捐赠用户，" +
@@ -206,71 +206,64 @@ async function init(url?: string) {
         actions: [
           {
             title: "自动刷新Cookie",
-            handler: async () => {
-              const actionOnError = () => {
-                $ui.alert({
-                  title: "错误",
-                  message: "刷新失败Cookie",
-                  actions: [
-                    {
-                      title: "重新登录",
-                      handler: () => {
-                        configManager.cookie = "";
-                        $addin.restart();
-                      },
-                    },
-                    {
-                      title: "退出应用",
-                      style: $alertActionType.destructive,
-                      handler: () => {
-                        $app.close();
-                      },
-                    },
-                    {
-                      title: "忽略",
-                    },
-                  ],
-                });
-              };
-              $ui.toast("正在刷新Cookie，请稍后");
-              try {
-                await api.updateCookieIgneous();
-                $ui.alert({
-                  title: "成功",
-                  message: "刷新Cookie成功，请重启应用",
-                  actions: [
-                    {
-                      title: "重启应用",
-                      handler: () => {
-                        $addin.restart();
-                      },
-                    },
-                  ],
-                });
-              } catch (e) {
-                actionOnError();
-              }
-            },
           },
           {
             title: "重新登录",
-            handler: () => {
-              configManager.cookie = "";
-              $addin.restart();
-            },
           },
           {
             title: "退出应用",
             style: $alertActionType.destructive,
-            handler: () => {
-              $app.close();
-            },
           },
           {
             title: "忽略",
           },
         ],
       });
+
+      if (index === 0) {
+        $ui.toast("正在刷新Cookie，请稍后");
+        try {
+          await api.updateCookieIgneous();
+          await $ui.alert({
+            title: "成功",
+            message: "刷新Cookie成功，请重启应用",
+            actions: [
+              {
+                title: "重启应用",
+              },
+            ],
+          });
+          $addin.restart();
+        } catch (e) {
+          const { index: index2 } = await $ui.alert({
+            title: "错误",
+            message: "刷新失败Cookie",
+            actions: [
+              {
+                title: "重新登录",
+              },
+              {
+                title: "退出应用",
+                style: $alertActionType.destructive,
+              },
+              {
+                title: "忽略",
+              },
+            ],
+          });
+          if (index2 === 0) {
+            configManager.cookie = "";
+            $addin.restart();
+          } else if (index2 === 1) {
+            $app.close();
+          }
+        }
+      } else if (index === 1) {
+        configManager.cookie = "";
+        $addin.restart();
+      } else if (index === 2) {
+        $app.close();
+      }
     } else {
       $ui.alert({
         title: "更新配置失败",

@@ -10,6 +10,7 @@ import {
   PageViewer,
   ContentView,
   PageControl,
+  Button,
 } from "jsbox-cview";
 import { getCookie } from "../utils/get-cookie";
 import { defaultButtonColor } from "../utils/glv";
@@ -87,12 +88,80 @@ class WelcomeController extends PresentedPageController {
         bgcolor: $color("clear"),
       },
       layout: (make, view) => {
-        make.center.equalTo(view.super);
+        make.centerX.equalTo(view.super);
+        make.centerY.equalTo(view.super).offset(-50);
         make.height.equalTo(240);
         make.width.greaterThanOrEqualTo(300).priority(1000);
         make.width.lessThanOrEqualTo(600).priority(999);
         make.width.equalTo(view.super).offset(-75).priority(998);
       },
+    });
+    const tappedEvent = async (sender: UIButtonView, type: "cookie" | "web") => {
+      try {
+        const { exhentai, syncMyTags } = optionList.values as {
+          exhentai: boolean;
+          syncMyTags: boolean;
+        };
+        sender.title = "获取账号信息...";
+        cookieLoginButton.view.enabled = false;
+        webLoginButton.view.enabled = false;
+        const cookie = await getCookie({ exhentai, isManualCookieInput: type === "cookie" });
+        api.updateCookie(cookie);
+        api.exhentai = exhentai;
+        sender.title = "获取标签翻译...";
+        await configManager.updateTranslationData();
+        configManager.cookie = JSON.stringify(cookie);
+        configManager.exhentai = exhentai;
+        configManager.syncMyTags = syncMyTags;
+        // 检测是否有mpv
+        const hath_perks = cookie.find((n) => n.name === "hath_perks")?.value || "";
+        const hathPerkList = hath_perks.slice(0, hath_perks.indexOf("-")).split(".");
+        if (hathPerkList.includes("q")) {
+          configManager.mpvAvailable = true;
+        }
+        this.dismiss();
+        finishHandler();
+      } catch (e: any) {
+        if (e !== "cancel") {
+          console.error("登录失败");
+          console.error(e);
+          $ui.alert({
+            title: "登录失败",
+            message: e.message,
+          });
+        }
+        cookieLoginButton.view.title = "Cookie登录";
+        cookieLoginButton.view.enabled = true;
+        webLoginButton.view.title = "网页登录";
+        webLoginButton.view.enabled = true;
+      }
+    };
+    const cookieLoginButton = new Button({
+      props: {
+        title: "Cookie登录",
+        bgcolor: defaultButtonColor,
+      },
+      layout: (make, view) => {
+        make.centerX.equalTo(view.super);
+        make.top.greaterThanOrEqualTo(view.prev.bottom).offset(50).priority(1000);
+        make.centerY.equalTo(view.super).multipliedBy(1.7).priority(999);
+        make.height.equalTo(50);
+        make.width.equalTo(view.prev);
+      },
+      events: { tapped: (sender) => tappedEvent(sender, "cookie") },
+    });
+    const webLoginButton = new Button({
+      props: {
+        title: "网页登录",
+        bgcolor: defaultButtonColor,
+      },
+      layout: (make, view) => {
+        make.centerX.equalTo(view.super);
+        make.bottom.equalTo(view.prev.top).inset(20);
+        make.height.equalTo(50);
+        make.width.equalTo(view.prev);
+      },
+      events: { tapped: (sender) => tappedEvent(sender, "web") },
     });
     const gallery = new PageViewer({
       props: {
@@ -150,73 +219,7 @@ class WelcomeController extends PresentedPageController {
               bgcolor: $color("backgroundColor"),
             },
             layout: $layout.fill,
-            views: [
-              optionList.definition,
-              {
-                type: "button",
-                props: {
-                  title: "登录",
-                  bgcolor: defaultButtonColor,
-                },
-                layout: (make, view) => {
-                  make.centerX.equalTo(view.super);
-                  make.top.greaterThanOrEqualTo(view.prev.bottom).offset(50).priority(1000);
-                  make.centerY.equalTo(view.super).multipliedBy(1.7).priority(999);
-                  make.height.equalTo(50);
-                  make.width.equalTo(view.prev);
-                },
-                events: {
-                  tapped: async (sender) => {
-                    try {
-                      const { exhentai, syncMyTags } = optionList.values as {
-                        exhentai: boolean;
-                        syncMyTags: boolean;
-                      };
-                      sender.title = "获取账号信息...";
-                      sender.enabled = false;
-                      const cookie = await getCookie(exhentai);
-                      api.updateCookie(cookie);
-                      api.exhentai = exhentai;
-                      sender.title = "获取标签翻译...";
-                      await configManager.updateTranslationData();
-                      configManager.cookie = JSON.stringify(cookie);
-                      configManager.exhentai = exhentai;
-                      configManager.syncMyTags = syncMyTags;
-                      // 检测是否有mpv
-                      const hath_perks = cookie.find((n) => n.name === "hath_perks")?.value || "";
-                      const hathPerkList = hath_perks.slice(0, hath_perks.indexOf("-")).split(".");
-                      if (hathPerkList.includes("q")) {
-                        configManager.mpvAvailable = true;
-                      }
-                      this.dismiss();
-                      finishHandler();
-                    } catch (e: any) {
-                      $ui.alert({
-                        title: "登录失败",
-                        message: e.message,
-                      });
-                      sender.title = "登录";
-                      sender.enabled = true;
-                    }
-                  },
-                },
-              },
-              {
-                type: "label",
-                props: {
-                  text: "登录需要人机交互验证，将在网页中进行。\n如果没有账号，请先自行注册。",
-                  textColor: $color("secondaryText"),
-                  font: $font(12),
-                  align: $align.center,
-                  lines: 0,
-                },
-                layout: (make, view) => {
-                  make.centerX.equalTo(view.super);
-                  make.left.right.equalTo(view.prev);
-                  make.top.equalTo(view.prev.bottom).offset(5);
-                },
-              },
-            ],
+            views: [optionList.definition, cookieLoginButton.definition, webLoginButton.definition],
           }),
         ],
       },

@@ -2,7 +2,15 @@
 // 服务于: welcome.ts
 
 import { ParsedCookie } from "ehentai-parser";
-import { Web, ContentView, DialogSheet, SymbolButton } from "jsbox-cview";
+import {
+  Web,
+  ContentView,
+  DialogSheet,
+  SymbolButton,
+  DynamicPreferenceListView,
+  PreferenceSection,
+  formDialog,
+} from "jsbox-cview";
 import { appLog } from "./tools";
 
 const UA =
@@ -210,7 +218,6 @@ function presentSheet(url: string): Promise<ParsedCookie[]> {
 
   const sheet = new DialogSheet({
     title: "请稍等",
-    presentMode: 1,
     cview: view,
     doneHandler: () => getAllCookies(webView.view),
   });
@@ -220,41 +227,135 @@ function presentSheet(url: string): Promise<ParsedCookie[]> {
   });
 }
 
-export async function getCookie(exhentai = true): Promise<ParsedCookie[]> {
+/**
+ * 手动输入Cookie。探出一个Sheet让用户输入
+ * @param exhentai boolean
+ * @returns ParsedCookie[]
+ */
+async function manualSetCookie(exhentai: boolean): Promise<ParsedCookie[]> {
+  const sections: PreferenceSection[] = [
+    {
+      title: "",
+      rows: [
+        {
+          type: "string",
+          title: "ipb_member_id",
+          key: "ipb_member_id",
+          value: "",
+        },
+        {
+          type: "string",
+          title: "ipb_pass_hash",
+          key: "ipb_pass_hash",
+          value: "",
+        },
+      ],
+    },
+  ];
+  if (exhentai) {
+    sections[0].rows.push({
+      type: "string",
+      title: "igneous",
+      key: "igneous",
+      value: "",
+    });
+  }
+  const values = await formDialog({
+    sections,
+    title: "手动输入Cookie",
+    checkHandler: (values) => {
+      const ipb_member_id = values["ipb_member_id"] as string;
+      const ipb_pass_hash = values["ipb_pass_hash"] as string;
+      if (!ipb_member_id || !ipb_pass_hash || (exhentai && !values["igneous"])) {
+        $ui.alert({
+          title: "错误",
+          message: "请填写所有项目",
+        });
+        return false;
+      }
+      if (!ipb_member_id.match(/^\d+$/)) {
+        $ui.alert({
+          title: "错误",
+          message: "ipb_member_id格式不正确，应为纯数字",
+        });
+        return false;
+      }
+      if (!ipb_pass_hash.match(/^[a-f0-9]{32}$/)) {
+        $ui.alert({
+          title: "错误",
+          message: "ipb_pass_hash格式不正确，应为32位小写字母和数字的组合",
+        });
+        return false;
+      }
+      if (exhentai && !(values["igneous"] as string).match(/^[a-z0-9]{17}$/)) {
+        $ui.alert({
+          title: "错误",
+          message: "igneous格式不正确，应为17位小写字母和数字的组合",
+        });
+        return false;
+      }
+      return true;
+    },
+  });
+  const cookies: ParsedCookie[] = [
+    { name: "ipb_member_id", value: values["ipb_member_id"] as string },
+    { name: "ipb_pass_hash", value: values["ipb_pass_hash"] as string },
+  ];
+  if (exhentai) {
+    cookies.push({ name: "igneous", value: values["igneous"] as string });
+  }
+  return cookies;
+}
+
+export async function getCookie({
+  exhentai,
+  isManualCookieInput,
+}: {
+  exhentai: boolean;
+  isManualCookieInput: boolean;
+}): Promise<ParsedCookie[]> {
   const url = "https://e-hentai.org/home.php";
-  const cookies = await presentSheet(url);
+  const cookies = isManualCookieInput ? await manualSetCookie(exhentai) : await presentSheet(url);
   const cookie_ipb_member_id = cookies.find((cookie) => cookie.name === "ipb_member_id");
   const cookie_ipb_pass_hash = cookies.find((cookie) => cookie.name === "ipb_pass_hash");
   if (!cookie_ipb_member_id || !cookie_ipb_pass_hash) throw new Error("网页登录失败, 未能获取到必要的Cookie");
   if (exhentai) {
-    const resp = await $http.get({
-      url: "https://exhentai.org",
-      header: {
-        "User-Agent": UA,
-        Cookie: assembleCookieString([
-          { name: "ipb_member_id", value: cookie_ipb_member_id.value },
-          { name: "ipb_pass_hash", value: cookie_ipb_pass_hash.value },
-          { name: "yay", value: "louder" },
-        ]),
-      },
-      timeout: 30,
-    });
-    if (resp.error) {
-      appLog(resp, "error");
-      throw new Error("网络错误: " + resp.error.localizedDescription);
-    } else if (resp.response.statusCode !== 200) {
-      appLog(resp, "error");
-      throw new Error("登录里站失败: 状态码" + resp.response.statusCode);
-    } else if (!(resp.data as string).startsWith("<!DOCTYPE html>")) {
-      appLog(resp, "error");
-      throw new Error("访问里站未返回内容。如果你确定账号有里站权限，可能是因为当前IP地址被风控，请更换IP再尝试。");
+    let cookie_igneous: ParsedCookie | undefined;
+    if (isManualCookieInput) {
+      cookie_igneous = cookies.find((cookie) => cookie.name === "igneous");
+    } else {
+      const resp = await $http.get({
+        url: "https://exhentai.org",
+        header: {
+          "User-Agent": UA,
+          Cookie: assembleCookieString([
+            { name: "ipb_member_id", value: cookie_ipb_member_id.value },
+            { name: "ipb_pass_hash", value: cookie_ipb_pass_hash.value },
+            { name: "yay", value: "louder" },
+          ]),
+        },
+        timeout: 30,
+      });
+      if (resp.error) {
+        appLog(resp, "error");
+        throw new Error("网络错误: " + resp.error.localizedDescription);
+      } else if (resp.response.statusCode !== 200) {
+        appLog(resp, "error");
+        throw new Error("登录里站失败: 状态码" + resp.response.statusCode);
+      } else if (!(resp.data as string).startsWith("<!DOCTYPE html>")) {
+        appLog(resp, "error");
+        throw new Error("访问里站未返回内容。如果你确定账号有里站权限，可能是因为当前IP地址被风控，请更换IP再尝试。");
+      }
+      const setCookies = parseSetCookieString(resp.response.headers["Set-Cookie"]);
+      cookie_igneous = setCookies.find((n) => n.name === "igneous");
+      if (!cookie_igneous || cookie_igneous.value.length !== 17) {
+        appLog(resp, "error");
+        throw new Error("无法获取里站Cookie。如果你确定账号有里站权限，可能是因为当前IP地址被风控，请更换IP再尝试。");
+      }
     }
-    const setCookies = parseSetCookieString(resp.response.headers["Set-Cookie"]);
     // 此处应该是必然有igneous的，否则登录失败，这应该是能否访问Exhentai的标志
-    const cookie_igneous = setCookies.find((n) => n.name === "igneous");
-    if (!cookie_igneous || cookie_igneous.value.length !== 17) {
-      appLog(resp, "error");
-      throw new Error("无法获取里站Cookie。如果你确定账号有里站权限，可能是因为当前IP地址被风控，请更换IP再尝试。");
+    if (!cookie_igneous) {
+      throw new Error("登录失败, 未能获取到必要的Cookie");
     }
     const resp2 = await $http.get({
       url: "https://exhentai.org/uconfig.php",
@@ -270,7 +371,7 @@ export async function getCookie(exhentai = true): Promise<ParsedCookie[]> {
       timeout: 30,
     });
     if (resp2.error || resp2.response.statusCode !== 200) {
-      appLog(resp, "error");
+      appLog(resp2, "error");
       throw new Error("获取网页端设置失败");
     }
     const setCookies2 = parseSetCookieString(resp2.response.headers["Set-Cookie"]);

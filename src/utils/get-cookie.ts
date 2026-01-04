@@ -370,7 +370,7 @@ export async function getCookie({
       },
       timeout: 30,
     });
-    if (resp2.error || resp2.response.statusCode !== 200) {
+    if (resp2.error || resp2.response.statusCode !== 200 || resp2.response.url.indexOf("/uconfig.php") === -1) {
       appLog(resp2, "error");
       throw new Error("获取网页端设置失败");
     }
@@ -415,7 +415,7 @@ export async function getCookie({
       },
       timeout: 30,
     });
-    if (resp.error || resp.response.statusCode !== 200) {
+    if (resp.error || resp.response.statusCode !== 200 || resp.response.url.indexOf("/uconfig.php") === -1) {
       appLog(resp, "error");
       throw new Error("获取网页端设置失败");
     }

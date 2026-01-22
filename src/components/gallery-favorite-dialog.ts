@@ -111,7 +111,7 @@ class CustomText extends Base<UIView, UiTypes.ViewOptions> {
         type: "view",
         props: {
           id: this.id,
-          bgcolor: $color("backgroundColor"),
+          bgcolor: $color("clear"),
         },
         layout: $layout.fill,
         views: [
@@ -165,7 +165,7 @@ class CustomLabel extends Base<UIView, UiTypes.ViewOptions> {
         type: "view",
         props: {
           id: this.id,
-          bgcolor: $color("backgroundColor"),
+          bgcolor: $color("clear"),
         },
         layout: $layout.fill,
         views: [
@@ -229,7 +229,7 @@ class FooterLabel extends Base<UIView, UiTypes.ViewOptions> {
         type: "view",
         props: {
           id: this.id,
-          bgcolor: $color("backgroundColor"),
+          bgcolor: $color("clear"),
         },
         layout: $layout.fill,
         views: [

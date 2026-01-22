@@ -2,27 +2,12 @@
 // 服务于: welcome.ts
 
 import { ParsedCookie } from "ehentai-parser";
-import {
-  Web,
-  ContentView,
-  DialogSheet,
-  SymbolButton,
-  DynamicPreferenceListView,
-  PreferenceSection,
-  formDialog,
-} from "jsbox-cview";
+import { ContentView, DialogSheet, SymbolButton, PreferenceSection, formDialog, OCWebView } from "jsbox-cview";
 import { appLog } from "./tools";
 
-const UA =
-  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3.1 Mobile/15E148 Safari/604.1";
-
-function getAllCookies(webView: UIWebView): Promise<ParsedCookie[]> {
+function getAllCookies(webView: any): Promise<ParsedCookie[]> {
   return new Promise((resolve, reject) => {
-    const httpCookieStore = webView
-      .ocValue()
-      .invoke("configuration")
-      .invoke("websiteDataStore")
-      .invoke("httpCookieStore");
+    const httpCookieStore = webView.invoke("configuration").invoke("websiteDataStore").invoke("httpCookieStore");
     const handler = $block("void, NSArray *", function (array: any) {
       const list = [];
       const length = array.$count();
@@ -70,6 +55,7 @@ function getAllCookies(webView: UIWebView): Promise<ParsedCookie[]> {
 
 function presentSheet(url: string): Promise<ParsedCookie[]> {
   let flagLoading = false;
+  let cookies: ParsedCookie[] = [];
   const chevronLeftButton = new SymbolButton({
     props: {
       symbol: "chevron.left",
@@ -77,7 +63,7 @@ function presentSheet(url: string): Promise<ParsedCookie[]> {
       tintColor: $color("systemGray5"),
     },
     events: {
-      tapped: (sender) => webView.view.goBack(),
+      tapped: (sender) => webView.goBack(),
     },
   });
   const chevronRightButton = new SymbolButton({
@@ -87,7 +73,7 @@ function presentSheet(url: string): Promise<ParsedCookie[]> {
       tintColor: $color("systemGray5"),
     },
     events: {
-      tapped: (sender) => webView.view.goForward(),
+      tapped: (sender) => webView.goForward(),
     },
   });
   const loadButton = new SymbolButton({
@@ -96,8 +82,8 @@ function presentSheet(url: string): Promise<ParsedCookie[]> {
     },
     events: {
       tapped: (sender) => {
-        if (flagLoading) webView.view.stopLoading();
-        else webView.view.reload();
+        if (flagLoading) webView.stopLoading();
+        else webView.reload();
       },
     },
   });
@@ -106,18 +92,18 @@ function presentSheet(url: string): Promise<ParsedCookie[]> {
       symbol: "square.and.arrow.up",
     },
     events: {
-      tapped: (sender) => $share.sheet(webView.view.url),
+      tapped: (sender) => $share.sheet(webView.url),
     },
   });
   const startLoading = () => {
-    if (webView.view.canGoBack) {
+    if (webView.canGoBack) {
       chevronLeftButton.view.enabled = true;
       chevronLeftButton.tintColor = $color("primaryText");
     } else {
       chevronLeftButton.view.enabled = false;
       chevronLeftButton.tintColor = $color("systemGray5");
     }
-    if (webView.view.canGoForward) {
+    if (webView.canGoForward) {
       chevronRightButton.view.enabled = true;
       chevronRightButton.tintColor = $color("primaryText");
     } else {
@@ -128,14 +114,14 @@ function presentSheet(url: string): Promise<ParsedCookie[]> {
     loadButton.symbol = "xmark";
   };
   const stopLoading = () => {
-    if (webView.view.canGoBack) {
+    if (webView.canGoBack) {
       chevronLeftButton.view.enabled = true;
       chevronLeftButton.tintColor = $color("primaryText");
     } else {
       chevronLeftButton.view.enabled = false;
       chevronLeftButton.tintColor = $color("systemGray5");
     }
-    if (webView.view.canGoForward) {
+    if (webView.canGoForward) {
       chevronRightButton.view.enabled = true;
       chevronRightButton.tintColor = $color("primaryText");
     } else {
@@ -168,35 +154,36 @@ function presentSheet(url: string): Promise<ParsedCookie[]> {
             ],
           },
         },
-        layout: $layout.fillSafeArea,
+        layout: (make, view) => {
+          make.top.bottom.equalTo(view.super.safeArea);
+          make.left.right.equalTo(view.super.safeArea).inset(25);
+        },
+      },
+      {
+        type: "view",
+        props: {
+          bgcolor: $color("separator"),
+        },
+        layout: (make, view) => {
+          make.height.equalTo(1 / $device.info.screen.scale);
+          make.top.left.right.inset(0);
+        },
       },
     ],
   });
-  const webView = new Web({
+  const webView = new OCWebView({
     props: {
       url,
     },
     layout: (make, view) => {
-      make.bottom.equalTo(footerbar.view.top);
+      make.bottom.equalTo(view.prev.top);
       make.top.left.right.equalTo(view.super.safeArea);
     },
     events: {
-      decideNavigation: (sender, action) => {
-        if (action.type === 0) {
-          sender.url = action.requestURL;
-          return false;
-        }
-        return true;
-      },
-      didReceiveServerRedirect: (sender, navigation) => {
-        if (sender.url === "https://e-hentai.org/bounce_login.php?b=d&bt=1-1" || sender.url.includes("&act=Login")) {
-          sheet.title = "请登录";
-        }
-      },
-      didStart: (sender, navigation) => startLoading(),
-      didFinish: async (sender, navigation) => {
+      didStart: () => startLoading(),
+      didFinish: async (sender) => {
         stopLoading();
-        const cookies = await getAllCookies(sender);
+        cookies = await getAllCookies(sender);
         if (
           cookies.find((cookie) => cookie.name === "ipb_member_id") &&
           cookies.find((cookie) => cookie.name === "ipb_pass_hash")
@@ -205,21 +192,23 @@ function presentSheet(url: string): Promise<ParsedCookie[]> {
           $delay(1.5, () => sheet.done());
         }
       },
-      didFail: (sender, navigation, error) => stopLoading(),
+      didFail: () => stopLoading(),
     },
   });
 
   const view = new ContentView({
     props: {
-      bgcolor: $color("secondarySurface"),
+      bgcolor: $color("tertiarySurface"),
     },
     views: [footerbar.definition, webView.definition],
   });
 
   const sheet = new DialogSheet({
-    title: "请稍等",
+    title: "请登录",
     cview: view,
-    doneHandler: () => getAllCookies(webView.view),
+    doneHandler: () => {
+      return cookies;
+    },
   });
   return new Promise((resolve, reject) => {
     sheet.promisify(resolve, reject);
@@ -327,7 +316,6 @@ export async function getCookie({
       const resp = await $http.get({
         url: "https://exhentai.org",
         header: {
-          "User-Agent": UA,
           Cookie: assembleCookieString([
             { name: "ipb_member_id", value: cookie_ipb_member_id.value },
             { name: "ipb_pass_hash", value: cookie_ipb_pass_hash.value },
@@ -360,7 +348,6 @@ export async function getCookie({
     const resp2 = await $http.get({
       url: "https://exhentai.org/uconfig.php",
       header: {
-        "User-Agent": UA,
         Cookie: assembleCookieString([
           { name: "ipb_member_id", value: cookie_ipb_member_id.value },
           { name: "ipb_pass_hash", value: cookie_ipb_pass_hash.value },
@@ -407,7 +394,6 @@ export async function getCookie({
     const resp = await $http.get({
       url: "https://e-hentai.org/uconfig.php",
       header: {
-        "User-Agent": UA,
         Cookie: assembleCookieString([
           { name: "ipb_member_id", value: cookie_ipb_member_id.value },
           { name: "ipb_pass_hash", value: cookie_ipb_pass_hash.value },

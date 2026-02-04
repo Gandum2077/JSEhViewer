@@ -34,7 +34,7 @@ JSEhViewer 是运行在 iOS 平台 [JSBox](https://apps.apple.com/app/id13120144
 需要 iOS 版本 >= 17.0.0, JSBox 版本 >= 2.22.0  
 不需要 JSBox 2.0.0 版本之后的付费订阅功能
 
-[一键安装](https://xteko.com/redir?name=JSEhViewer&url=https%3A%2F%2Fgithub.com%2FGandum2077%2FJSEhViewer%2Freleases%2Fdownload%2F3.5.12%2FJSEhViewer.box)
+[一键安装](https://xteko.com/redir?name=JSEhViewer&url=https%3A%2F%2Fgithub.com%2FGandum2077%2FJSEhViewer%2Freleases%2Fdownload%2F3.6.0%2FJSEhViewer.box)
 
 [从 Release 下载](https://github.com/Gandum2077/JSEhViewer/releases)
 

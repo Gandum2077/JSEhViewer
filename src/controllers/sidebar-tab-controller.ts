@@ -289,6 +289,7 @@ export class SidebarTabController extends BaseController {
                                 timeRange: "yesterday",
                                 page: 0,
                               },
+                              enableTagFilter: configManager.toplistTagFilterDefaultEnabled,
                             });
                             (router.get("splitViewController") as SplitViewController).sideBarShown = false;
                             (router.get("primaryViewController") as TabBarController).index = 0;
@@ -303,6 +304,7 @@ export class SidebarTabController extends BaseController {
                                 timeRange: "past_month",
                                 page: 0,
                               },
+                              enableTagFilter: configManager.toplistTagFilterDefaultEnabled,
                             });
                             (router.get("splitViewController") as SplitViewController).sideBarShown = false;
                             (router.get("primaryViewController") as TabBarController).index = 0;
@@ -317,6 +319,7 @@ export class SidebarTabController extends BaseController {
                                 timeRange: "past_year",
                                 page: 0,
                               },
+                              enableTagFilter: configManager.toplistTagFilterDefaultEnabled,
                             });
                             (router.get("splitViewController") as SplitViewController).sideBarShown = false;
                             (router.get("primaryViewController") as TabBarController).index = 0;
@@ -331,6 +334,7 @@ export class SidebarTabController extends BaseController {
                                 timeRange: "all",
                                 page: 0,
                               },
+                              enableTagFilter: configManager.toplistTagFilterDefaultEnabled,
                             });
                             (router.get("splitViewController") as SplitViewController).sideBarShown = false;
                             (router.get("primaryViewController") as TabBarController).index = 0;

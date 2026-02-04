@@ -161,7 +161,7 @@ async function init(url?: string) {
           sort: configManager.archiveManagerOrderMethod,
         },
       },
-    })
+    }),
   );
 
   // 检查配置
@@ -280,7 +280,7 @@ async function init(url?: string) {
     }
     // 同步被禁止的上传者
     if (config.xu) {
-      const bannedUploaders = config.xu.split("\n");
+      const bannedUploaders = config.xu.split("\n").filter((n) => n);
       configManager.updateAllBannedUploaders(bannedUploaders);
     }
     // 同步favcat
@@ -361,7 +361,7 @@ async function init(url?: string) {
           statusManager.addTab({
             showInManager: true,
             initalTabOptions: n,
-          })
+          }),
         );
         if (configManager.lastAccessTabIndex > 0 && configManager.lastAccessTabIndex < options.length) {
           statusManager.currentTabId = statusManager.tabIdsShownInManager[configManager.lastAccessTabIndex];
@@ -405,16 +405,32 @@ async function init(url?: string) {
           options = { type: "upload" };
           break;
         case "toplist-all":
-          options = { type: "toplist", options: { timeRange: "all" } };
+          options = {
+            type: "toplist",
+            options: { timeRange: "all" },
+            enableTagFilter: configManager.toplistTagFilterDefaultEnabled,
+          };
           break;
         case "toplist-past_year":
-          options = { type: "toplist", options: { timeRange: "past_year" } };
+          options = {
+            type: "toplist",
+            options: { timeRange: "past_year" },
+            enableTagFilter: configManager.toplistTagFilterDefaultEnabled,
+          };
           break;
         case "toplist-past_month":
-          options = { type: "toplist", options: { timeRange: "past_month" } };
+          options = {
+            type: "toplist",
+            options: { timeRange: "past_month" },
+            enableTagFilter: configManager.toplistTagFilterDefaultEnabled,
+          };
           break;
         case "toplist-yesterday":
-          options = { type: "toplist", options: { timeRange: "yesterday" } };
+          options = {
+            type: "toplist",
+            options: { timeRange: "yesterday" },
+            enableTagFilter: configManager.toplistTagFilterDefaultEnabled,
+          };
           break;
         default:
           break;

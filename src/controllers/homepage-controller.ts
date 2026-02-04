@@ -286,16 +286,25 @@ export class HomepageController extends BaseController {
             break;
           }
           case "toplist": {
-            popoverForTitleView({
+            const values = await popoverForTitleView({
               sourceView: sender,
               sourceRect: sender.bounds,
               popoverOptions: {
                 type: tab.data.type,
+                filterOptions: {
+                  disableTagFilters: !tab.data.enableTagFilter,
+                },
                 count: {
                   loaded: tab.data.pages.map((n) => n.items.length).reduce((prev, curr) => prev + curr, 0),
+                  filtered: tab.data.pages.map((n) => n.filtered_count).reduce((prev, curr) => prev + curr, 0),
                 },
               },
             });
+            if (tab.data.enableTagFilter !== !values.filterOptions.disableTagFilters) {
+              const newOptions = clearExtraPropsForReload(tab.data);
+              newOptions.enableTagFilter = !values.filterOptions.disableTagFilters;
+              this.triggerLoad(newOptions);
+            }
             break;
           }
           case "upload": {
@@ -452,6 +461,7 @@ export class HomepageController extends BaseController {
                 const result = await getJumpPageDialog(200);
                 this.triggerLoad({
                   type,
+                  enableTagFilter: tab.data.enableTagFilter,
                   options: {
                     ...tab.data.options,
                     ...result,

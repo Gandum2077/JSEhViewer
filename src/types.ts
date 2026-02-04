@@ -109,6 +109,10 @@ export type ArchiveSearchOptions = {
   minimumRating?: number;
 };
 
+export type TopListFiltered = EHTopList & {
+  filtered_count: number; // 当前页面被过滤的数量
+}
+
 export type StatusTabType =
   | "front_page"
   | "watched"
@@ -152,6 +156,7 @@ export type FavoritesTabOptions = {
 export type ToplistTabOptions = {
   type: "toplist";
   options: EHTopListSearchOptions;
+  enableTagFilter: boolean;
 };
 
 export type UploadTabOptions = {
@@ -214,8 +219,9 @@ export type FavoritesTab = {
 export type ToplistTab = {
   type: "toplist";
   options: EHTopListSearchOptions;
+  enableTagFilter: boolean;
   scrollState?: ScrollState;
-  pages: EHTopList[];
+  pages: TopListFiltered[];
 };
 
 export type UploadTab = {

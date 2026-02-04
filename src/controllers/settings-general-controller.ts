@@ -72,6 +72,7 @@ export class GeneralSettingsController extends BaseController {
           pagingGesture?: 0 | 1 | 2;
           autoClearCache: boolean;
           resumeIncompleteDownloadsOnStart: boolean;
+          toplistTagFilterDefaultEnabled: boolean;
         }) => {
           // 先把values中的值转换为configManager中的值的格式
           const startPageType =
@@ -140,6 +141,7 @@ export class GeneralSettingsController extends BaseController {
           const autoClearCache = values.autoClearCache;
           const resumeIncompleteDownloadsOnStart =
             values.resumeIncompleteDownloadsOnStart ?? configManager.resumeIncompleteDownloadsOnStart;
+          const toplistTagFilterDefaultEnabled = values.toplistTagFilterDefaultEnabled;
 
           // 再比较configManager中的值和values中的值是否相同，如果不同，则更新configManager中的值
           if (startPageType !== configManager.startPageType) {
@@ -236,6 +238,9 @@ export class GeneralSettingsController extends BaseController {
           }
           if (resumeIncompleteDownloadsOnStart !== configManager.resumeIncompleteDownloadsOnStart) {
             configManager.resumeIncompleteDownloadsOnStart = resumeIncompleteDownloadsOnStart;
+          }
+          if (toplistTagFilterDefaultEnabled !== configManager.toplistTagFilterDefaultEnabled) {
+            configManager.toplistTagFilterDefaultEnabled = toplistTagFilterDefaultEnabled;
           }
         },
       },
@@ -391,8 +396,14 @@ export class GeneralSettingsController extends BaseController {
         ],
       },
       {
-        title: "排序",
+        title: "浏览",
         rows: [
+          {
+            type: "boolean",
+            title: "排行页默认启用过滤器",
+            key: "toplistTagFilterDefaultEnabled",
+            value: configManager.toplistTagFilterDefaultEnabled,
+          },
           {
             type: "list",
             title: "收藏页排序",

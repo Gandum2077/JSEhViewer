@@ -52,8 +52,12 @@ type FavoritesPopoverOptions = {
 
 type ToplistPopoverOptions = {
   type: "toplist";
+  filterOptions: {
+    disableTagFilters: boolean;
+  };
   count: {
     loaded: number;
+    filtered: number;
   };
 };
 
@@ -118,6 +122,7 @@ class PopoverViewForTitleView<T extends PopoverOptions> extends Base<UIView, UiT
   cviews: {
     filtersList?: DynamicPreferenceListView;
     favoritesOrderMethodList?: DynamicPreferenceListView;
+    toplistTagFilterList?: DynamicPreferenceListView;
     archiveManagerOrderMethodList?: DynamicPreferenceListView;
     archiveMatrix?: Matrix;
   } = {};
@@ -229,7 +234,48 @@ class PopoverViewForTitleView<T extends PopoverOptions> extends Base<UIView, UiT
       });
       views.push(this.cviews.favoritesOrderMethodList.definition);
       views.push(countLabel.definition);
-    } else if (options.type === "toplist" || options.type === "upload" || options.type === "image_lookup") {
+    } else if (options.type === "toplist") {
+      views.push({
+        type: "label",
+        props: {
+          text: "启用的过滤器",
+          font: $font(12),
+          textColor: $color("secondaryText"),
+        },
+        layout: (make, view) => {
+          make.top.inset(10);
+          make.height.equalTo(20);
+          make.left.inset(15);
+        },
+      });
+      this.cviews.toplistTagFilterList = new DynamicPreferenceListView({
+        sections: [
+          {
+            title: "",
+            rows: [
+              {
+                type: "boolean",
+                title: "标签",
+                key: "enableTagFilters",
+                value: !options.filterOptions.disableTagFilters,
+              },
+            ],
+          },
+        ],
+        props: {
+          style: 1,
+          scrollEnabled: false,
+          bgcolor: $color("clear"),
+        },
+        layout: (make, view) => {
+          make.top.inset(35);
+          make.left.right.inset(0);
+          make.height.equalTo(44);
+        },
+      });
+      views.push(this.cviews.toplistTagFilterList.definition);
+      views.push(countLabel.definition);
+    } else if (options.type === "upload" || options.type === "image_lookup") {
       views.push(countLabel.definition);
     } else {
       this._archiveType = options.archiveType;
@@ -364,7 +410,17 @@ class PopoverViewForTitleView<T extends PopoverOptions> extends Base<UIView, UiT
         type: this._options.type,
         favoritesOrderMethod: values.sort === 0 ? "published_time" : "favorited_time",
       } as PopoverOptionsToResult<T>;
-    } else if (this._options.type === "toplist" || this._options.type === "upload" || this._options.type === "image_lookup") {
+    } else if (this._options.type === "toplist") {
+      const values = this.cviews.toplistTagFilterList!.values as {
+        enableTagFilters: boolean;
+      };
+      return {
+        type: this._options.type,
+        filterOptions: {
+          disableTagFilters: !values.enableTagFilters,
+        },
+      } as PopoverOptionsToResult<T>;
+    } else if (this._options.type === "upload" || this._options.type === "image_lookup") {
       return {
         type: this._options.type,
       } as PopoverOptionsToResult<T>;
@@ -397,7 +453,7 @@ class PopoverViewForTitleView<T extends PopoverOptions> extends Base<UIView, UiT
         return 10 + 44 + 25 + 8;
       }
       case "toplist": {
-        return 25 * 1 + 8;
+        return 35 + 44 + 25 * 2 + 8;
       }
       case "upload": {
         return 25 * 1 + 8;

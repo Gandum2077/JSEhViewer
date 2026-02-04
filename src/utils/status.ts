@@ -38,6 +38,20 @@ import { FatalError } from "./error";
 import { PushedSearchResultController } from "../controllers/pushed-search-result-controller";
 import { HomepageController } from "../controllers/homepage-controller";
 import { ArchiveController } from "../controllers/archive-controller";
+import { configManager } from "./config";
+
+function filterToplistItemsByLocalTagFilter(items: EHListCompactItem[]) {
+  return items.filter((item) => {
+    for (const { namespace, tags } of item.taglist) {
+      for (const tag of tags) {
+        if (configManager.getMarkedTag(namespace, tag)?.hidden) {
+          return false;
+        }
+      }
+    }
+    return true;
+  });
+}
 
 function buildArchiveSearchSQLQuery(
   options: ArchiveSearchOptions,
@@ -399,6 +413,7 @@ export function clearExtraPropsForReload<T extends StatusTabOptions>(oldOptions:
           ...oldOptions.options,
           page: 0,
         },
+        enableTagFilter: oldOptions.enableTagFilter,
       } as InferTabOptions<T>;
     }
     case "upload": {
@@ -503,6 +518,7 @@ export class VirtualTab {
       this.data = {
         type: "toplist",
         options: clearExtraPropsForReload(initalTabOptions).options,
+        enableTagFilter: initalTabOptions.enableTagFilter,
         pages: [],
       };
     } else if (initalTabOptions.type === "upload") {
@@ -691,11 +707,15 @@ export class VirtualTab {
         this.data = {
           type: "toplist",
           options: tabOptions.options,
+          enableTagFilter: tabOptions.enableTagFilter,
           pages: reload && this.data.type === "toplist" ? this.data.pages : [],
         };
         let page: EHTopList | undefined;
         try {
-          page = await api.getTopListInfo(tabOptions.options);
+          page = await api.getTopListInfo({
+            timeRange: tabOptions.options.timeRange,
+            page: tabOptions.options.page,
+          });
         } catch (e: any) {
           this._fateErrorAlert(e);
           this._status = "error";
@@ -703,9 +723,18 @@ export class VirtualTab {
           loadedHandler(this, false);
         }
         if (page) {
+          let filtered_count = 0;
+          if (tabOptions.enableTagFilter) {
+            const filteredItems = filterToplistItemsByLocalTagFilter(page.items);
+            filtered_count = page.items.length - filteredItems.length;
+            page.items = filteredItems;
+          }
           if (this._loadingId === cachedLoadingId) {
             this._status = "loaded";
-            this.data.pages = [page];
+            this.data.pages = [{
+              ...page,
+              filtered_count
+            }];
             loadedHandler(this, true);
           }
         }
@@ -899,7 +928,10 @@ export class VirtualTab {
         };
         let page: EHTopList | undefined;
         try {
-          page = await api.getTopListInfo(this.data.options);
+          page = await api.getTopListInfo({
+            timeRange: this.data.options.timeRange,
+            page: this.data.options.page,
+          });
         } catch (e: any) {
           this._fateErrorAlert(e);
           this._status = "error";
@@ -907,9 +939,18 @@ export class VirtualTab {
           loadedHandler(this, false);
         }
         if (page) {
+          let filtered_count = 0;
+          if (this.data.enableTagFilter) {
+            const filteredItems = filterToplistItemsByLocalTagFilter(page.items);
+            filtered_count = page.items.length - filteredItems.length;
+            page.items = filteredItems;
+          }
           if (this._loadingId === cachedLoadingId) {
             this._status = "loaded";
-            this.data.pages.push(page);
+            this.data.pages.push({
+              ...page,
+              filtered_count
+            });
             loadedHandler(this, true);
           }
         }

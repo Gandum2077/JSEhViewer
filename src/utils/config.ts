@@ -59,6 +59,7 @@ interface Config {
     | "upload"; // 指定页面
   specificSearchtermsOnStart: string; // 指定搜索词，以json格式存储的EHSearchTerm[]
   resumeIncompleteDownloadsOnStart: boolean; // 启动后继续未完成的下载任务
+  toplistTagFilterDefaultEnabled: boolean; // 是否启用排行页本地标签过滤功能，被设置页面的大开关控制
 }
 
 const defaultConfig: Config = {
@@ -96,6 +97,7 @@ const defaultConfig: Config = {
   specificPageTypeOnStart: "front_page",
   specificSearchtermsOnStart: "",
   resumeIncompleteDownloadsOnStart: false,
+  toplistTagFilterDefaultEnabled: false,
 };
 
 async function getEhTagTranslationText() {
@@ -167,8 +169,8 @@ class ConfigManager {
   private _searchBookmarks: DBSearchBookmarks;
   private _webDAVServices: WebDAVService[];
   pushedSearchResultControllerLayoutMode: "large" | "normal" | "minimal";
-  private _aiTranslationSavedConfig: Record<string, any>;
   // 用于控制搜索结果页面的布局模式，其初始值和homepageManagerLayoutMode相同，但后续可以被PushedSearchResultController组件修改
+  private _aiTranslationSavedConfig: Record<string, any>;
   constructor() {
     this._config = this._initConfig();
     this._markedTagDict = this._getMarkedTagsDict();
@@ -481,6 +483,14 @@ class ConfigManager {
 
   set resumeIncompleteDownloadsOnStart(value: boolean) {
     this._setConfig("resumeIncompleteDownloadsOnStart", value);
+  }
+
+  get toplistTagFilterDefaultEnabled() {
+    return this._config.toplistTagFilterDefaultEnabled;
+  }
+
+  set toplistTagFilterDefaultEnabled(value: boolean) {
+    this._setConfig("toplistTagFilterDefaultEnabled", value);
   }
 
   /***CONFIG END***/

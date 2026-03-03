@@ -29,7 +29,7 @@ const NAMESPACE_CHINESE_WIDTH =
       text: "啊啊啊",
       width: 1000,
       font: $font(TAG_FONT_SIZE),
-    }).width
+    }).width,
   ) + 15;
 
 /**
@@ -125,7 +125,7 @@ class TagView extends Base<UIView, UiTypes.ViewOptions> {
           text,
           width: 1000,
           font: $font(TAG_FONT_SIZE),
-        }).width
+        }).width,
       ) + 16;
     this._defineView = () => ({
       type: "view",
@@ -405,7 +405,7 @@ export class TagsFlowlayout extends Base<UIView, UiTypes.ViewOptions> {
     taglist: EHGallery["taglist"],
     handlers: {
       tapped: () => void;
-    }
+    },
   ) {
     super();
     this._width = 0;
@@ -421,7 +421,7 @@ export class TagsFlowlayout extends Base<UIView, UiTypes.ViewOptions> {
                   handlers.tapped();
                 },
               },
-            })
+            }),
         ),
       };
     });
@@ -454,17 +454,20 @@ export class TagsFlowlayout extends Base<UIView, UiTypes.ViewOptions> {
   }
 
   get selectedTags() {
-    return this.tagViews.reduce((acc, { tags }) => {
-      tags.forEach((tag) => {
-        if (tag.selected) {
-          acc.push({
-            namespace: tag.namespace,
-            name: tag.name,
-          });
-        }
-      });
-      return acc;
-    }, [] as { namespace: TagNamespace; name: string }[]);
+    return this.tagViews.reduce(
+      (acc, { tags }) => {
+        tags.forEach((tag) => {
+          if (tag.selected) {
+            acc.push({
+              namespace: tag.namespace,
+              name: tag.name,
+            });
+          }
+        });
+        return acc;
+      },
+      [] as { namespace: TagNamespace; name: string }[],
+    );
   }
 
   _layoutTags() {

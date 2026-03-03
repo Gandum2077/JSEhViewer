@@ -361,7 +361,7 @@ export class PushedSearchResultController extends BaseController {
           }
           const args = (await getSearchOptions(
             { type: tab.data.type, options: tab.data.options },
-            "showAllExceptArchive"
+            "showAllExceptArchive",
           )) as FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions;
           this.triggerLoad(args);
         },
@@ -448,7 +448,7 @@ export class PushedSearchResultController extends BaseController {
 
   private async triggerLoadAsync(
     tabOptions: FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions,
-    reload?: boolean
+    reload?: boolean,
   ) {
     const tab = statusManager.get(this.tabId);
     if (!tab || (tab.data.type !== "front_page" && tab.data.type !== "watched" && tab.data.type !== "favorites")) {
@@ -494,7 +494,7 @@ export class PushedSearchResultController extends BaseController {
           .map((item) => ({
             gid: item.gid,
             url: item.thumbnail_url,
-          }))
+          })),
       );
       downloaderManager.startTabDownloader(this.tabId);
     }

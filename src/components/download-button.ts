@@ -68,7 +68,7 @@ class ProgressArc extends Base<UIView, UiTypes.ViewOptions> {
             size.width / 2,
             -0.5 * Math.PI,
             (2 * this._progress - 0.5) * Math.PI,
-            false
+            false,
           );
           ctx.addLineToPoint(size.width / 2, size.height / 2);
           ctx.fillPath();

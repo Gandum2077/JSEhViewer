@@ -1,11 +1,8 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0" />
     <title>评论</title>
     <style>
       :root {
@@ -35,13 +32,24 @@
       body {
         background-color: transparent;
         color: var(--text-color);
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue",
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          Oxygen,
+          Ubuntu,
+          Cantarell,
+          "Open Sans",
+          "Helvetica Neue",
           sans-serif;
         margin: 0;
         font-size: 16px;
         padding: 10px 20px 10px 20px;
-        transition: background-color 0.3s, color 0.3s;
+        transition:
+          background-color 0.3s,
+          color 0.3s;
       }
 
       section {
@@ -115,20 +123,17 @@
         background: var(--segmented-controls-color);
         border-radius: 0.4275rem;
         border: 0.5px solid rgba(0, 0, 0, 0.04);
-        box-shadow: 0px 3px 1px rgba(0, 0, 0, 0.04),
+        box-shadow:
+          0px 3px 1px rgba(0, 0, 0, 0.04),
           0px 3px 8px rgba(0, 0, 0, 0.12);
       }
 
       /*Move paddle depending on which option is selected*/
-      .segmented-controls
-        input:nth-last-of-type(2):checked
-        ~ label:last-of-type::after {
+      .segmented-controls input:nth-last-of-type(2):checked ~ label:last-of-type::after {
         transform: translateX(-100%);
       }
 
-      .segmented-controls
-        input:nth-last-of-type(3):checked
-        ~ label:last-of-type::after {
+      .segmented-controls input:nth-last-of-type(3):checked ~ label:last-of-type::after {
         transform: translateX(-200%);
       }
 
@@ -278,16 +283,11 @@
         commentsList.innerHTML = "";
         comments.forEach((comment) => {
           // 将comment_div中的`https://s.exhentai.org/`替换为`https://ehgt.org/`
-          const fixedCommentDiv = comment.comment_div.replace(
-            /https:\/\/s\.exhentai\.org\//g,
-            "https://ehgt.org/"
-          );
+          const fixedCommentDiv = comment.comment_div.replace(/https:\/\/s\.exhentai\.org\//g, "https://ehgt.org/");
           const commentElement = document.createElement("div");
           commentElement.classList.add("comment");
           const voteupButton = `
-      <button class="vote-button upvote" onclick="vote('up', '${
-        comment.comment_id
-      }', this)">
+      <button class="vote-button upvote" onclick="vote('up', '${comment.comment_id}', this)">
         <svg class="icon" fill="none" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
           <path d="${
             comment.my_vote === 1 ? arrowUpFillSvg : arrowUpSvg
@@ -296,9 +296,7 @@
       </button>
       `;
           const votedownButton = `
-      <button class="vote-button downvote" onclick="vote('down', '${
-        comment.comment_id
-      }', this)">
+      <button class="vote-button downvote" onclick="vote('down', '${comment.comment_id}', this)">
         <svg class="icon" fill="none" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
           <path d="${
             comment.my_vote === -1 ? arrowDownFillSvg : arrowDownSvg
@@ -318,25 +316,13 @@
           <div>
               <div class="comment-header">
                   ${comment.commenter}
-                  ${
-                    comment.is_uploader
-                      ? '<span class="comment-identity identity-up">UP</span>'
-                      : ""
-                  }
-                  ${
-                    comment.is_my_comment
-                      ? '<span class="comment-identity identity-you">YOU</span>'
-                      : ""
-                  }
-                  <span class="comment-time">${formatTime(
-                    comment.posted_time
-                  )}</span>
+                  ${comment.is_uploader ? '<span class="comment-identity identity-up">UP</span>' : ""}
+                  ${comment.is_my_comment ? '<span class="comment-identity identity-you">YOU</span>' : ""}
+                  <span class="comment-time">${formatTime(comment.posted_time)}</span>
               </div>
               <div class="comment-body">${fixedCommentDiv}</div>
           </div>
-          <div class="comment-controls${
-            comment.is_uploader ? " uploader" : ""
-          }">
+          <div class="comment-controls${comment.is_uploader ? " uploader" : ""}">
             <div class="button-container"${
               comment.comment_id ? ' id="' + comment.comment_id + '"' : ""
             } data-value="${comment.my_vote || 0}">
@@ -423,9 +409,7 @@
           downSvg.setAttribute("d", arrowDownSvg);
           downSvg.setAttribute("fill", "currentColor");
         }
-        document.getElementById(
-          `score-${comment_id}`
-        ).innerText = `分数: ${comment_score}`;
+        document.getElementById(`score-${comment_id}`).innerText = `分数: ${comment_score}`;
       }
 
       function edit(comment_id, button) {
@@ -438,16 +422,12 @@
       }
 
       document.addEventListener("DOMContentLoaded", function () {
-        document
-          .getElementById("sort-1")
-          .addEventListener("change", function () {
-            if (this.checked) toggleSort("time");
-          });
-        document
-          .getElementById("sort-2")
-          .addEventListener("change", function () {
-            if (this.checked) toggleSort("score");
-          });
+        document.getElementById("sort-1").addEventListener("change", function () {
+          if (this.checked) toggleSort("time");
+        });
+        document.getElementById("sort-2").addEventListener("change", function () {
+          if (this.checked) toggleSort("score");
+        });
       });
     </script>
   </body>

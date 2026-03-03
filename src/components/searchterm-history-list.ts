@@ -164,7 +164,7 @@ export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions>
         history.searchTerms.some(
           (item) =>
             item.term.includes(filterText) ||
-            (item.namespace && configManager.translate(item.namespace, item.term)?.includes(filterText))
+            (item.namespace && configManager.translate(item.namespace, item.term)?.includes(filterText)),
         )
       )
         return true;

@@ -457,7 +457,7 @@ function _calFontSizeAndHeight(title: string, width: number, maxHeight: number):
         text: title,
         font: $font(i / factor),
         width: width,
-      }).height
+      }).height,
     );
     if (height <= maxHeight) {
       return { fontSize: i / factor, height };
@@ -600,7 +600,7 @@ class InfoHeaderView extends Base<UIView, UiTypes.ViewOptions> {
     const { fontSize, height: titleHeight } = _calFontSizeAndHeight(
       this._infos[this._titleLanguage],
       width - 13,
-      maxHeight
+      maxHeight,
     );
     ($(this.id + "title") as UILabelView).font = $font(fontSize);
     ($(this.id + "title") as UILabelView).updateLayout((make, view) => {
@@ -1446,7 +1446,7 @@ export class GalleryInfoController extends BaseController {
 
     const secondaryButtonsWrapper = new ButtonsWarpper(
       [readLaterButton, downloadButton, torrentButton, hathDownloadButton],
-      90
+      90,
     );
 
     const tagsFlowlayoutWrapper = new TagsFlowlayoutWrapper(() => {
@@ -1504,7 +1504,7 @@ export class GalleryInfoController extends BaseController {
                 searchTerms: sts,
               },
             },
-            "showAllExceptArchive"
+            "showAllExceptArchive",
           )) as FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions;
           const controller = new PushedSearchResultController();
           controller.uipush({

@@ -82,7 +82,7 @@ export class GalleryDetailedInfoController extends BaseController {
 
 function _mapData(
   infos: EHGallery,
-  exhentai: boolean = true
+  exhentai: boolean = true,
 ): { title: { text: string }; content: { text: string } }[] {
   const data: { title: { text: string }; content: { text: string } }[] = [];
   data.push({

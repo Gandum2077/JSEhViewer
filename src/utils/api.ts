@@ -35,7 +35,7 @@ class APIHandler extends EHAPIHandler {
 
   async getMPVInfoWithNoError(
     gid: number,
-    token: string
+    token: string,
   ): Promise<{ success: false; error: string } | { success: true; info: EHMPV }> {
     try {
       const info = await this.getMPVInfo(gid, token);
@@ -49,7 +49,7 @@ class APIHandler extends EHAPIHandler {
 
   async getMPVInfoWithTwoRetries(
     gid: number,
-    token: string
+    token: string,
   ): Promise<{ success: false; error: string } | { success: true; info: EHMPV }> {
     let result: { success: false; error: string } | { success: true; info: EHMPV } = {
       success: false,
@@ -65,7 +65,7 @@ class APIHandler extends EHAPIHandler {
   async getGalleryImagesWithNoError(
     gid: number,
     token: string,
-    page: number
+    page: number,
   ): Promise<{ success: false; error: string } | { success: true; images: EHGallery["images"]; info: EHGallery }> {
     try {
       const info = await this.getGalleryInfo(gid, token, false, page);
@@ -86,7 +86,7 @@ class APIHandler extends EHAPIHandler {
   async getGalleryImagesWithTwoRetries(
     gid: number,
     token: string,
-    page: number
+    page: number,
   ): Promise<{ success: false; error: string } | { success: true; images: EHGallery["images"]; info: EHGallery }> {
     let result: { success: false; error: string } | { success: true; images: EHGallery["images"]; info: EHGallery } = {
       success: false,
@@ -103,7 +103,7 @@ class APIHandler extends EHAPIHandler {
     gid: number,
     imgkey: string,
     page: number,
-    reloadKey?: string
+    reloadKey?: string,
   ): Promise<{ success: true; info: EHPage; data: NSData } | { success: false; info?: EHPage; error: string }> {
     let pageInfo: EHPage | undefined = undefined;
     try {
@@ -121,7 +121,7 @@ class APIHandler extends EHAPIHandler {
     gid: number,
     imgkey: string,
     page: number,
-    showkey: string
+    showkey: string,
   ): Promise<{ success: true; info: EHPage; data: NSData } | { success: false; info?: EHPage; error: string }> {
     let pageInfo: EHPage | undefined = undefined;
     try {
@@ -139,7 +139,7 @@ class APIHandler extends EHAPIHandler {
     gid: number,
     imgkey: string,
     page: number,
-    showkey?: string // 第一次获取，可以通过showkey进行，速度更快
+    showkey?: string, // 第一次获取，可以通过showkey进行，速度更快
   ) {
     let result: { success: true; info: EHPage; data: NSData } | { success: false; info?: EHPage; error: string } = {
       success: false,
@@ -166,7 +166,7 @@ class APIHandler extends EHAPIHandler {
     imgkey: string,
     mpvkey: string,
     page: number,
-    reloadKey?: string
+    reloadKey?: string,
   ): Promise<{ success: true; info: EHPage; data: NSData } | { success: false; info?: EHPage; error: string }> {
     let pageInfo;
     try {
@@ -184,7 +184,7 @@ class APIHandler extends EHAPIHandler {
     gid: number,
     imgkey: string,
     mpvkey: string,
-    page: number // 注意：这里的page是从1开始的
+    page: number, // 注意：这里的page是从1开始的
   ) {
     let result: { success: true; info: EHPage; data: NSData } | { success: false; info?: EHPage; error: string } = {
       success: false,
@@ -203,7 +203,7 @@ class APIHandler extends EHAPIHandler {
   }
 
   async downloadThumbnailNoError(
-    url: string
+    url: string,
   ): Promise<{ success: false; error: string } | { success: true; data: NSData }> {
     const ehgt = !this.exhentai;
     try {
@@ -216,7 +216,7 @@ class APIHandler extends EHAPIHandler {
   }
 
   async downloadThumbnailWithTwoRetries(
-    url: string
+    url: string,
   ): Promise<{ success: false; error: string } | { success: true; data: NSData }> {
     let result: { success: false; error: string } | { success: true; data: NSData } = {
       success: false,
@@ -232,7 +232,7 @@ class APIHandler extends EHAPIHandler {
   async downloadOriginalImageByPageInfoNoError(
     gid: number,
     imgkey: string,
-    page: number
+    page: number,
   ): Promise<{ success: false; error: string } | { success: true; data: NSData }> {
     try {
       const pageInfo = await this.getPageInfo(gid, imgkey, page);
@@ -251,7 +251,7 @@ class APIHandler extends EHAPIHandler {
   async downloadOriginalImageByPageInfoWithTwoRetries(
     gid: number,
     imgkey: string,
-    page: number
+    page: number,
   ): Promise<{ success: false; error: string } | { success: true; data: NSData }> {
     let result: { success: false; error: string } | { success: true; data: NSData } = {
       success: false,
@@ -347,7 +347,7 @@ export class TabThumbnailDownloader extends ConcurrentDownloaderBase {
   protected _getNextTask(): Task | undefined {
     // 查找未开始的缩略图，先从currentReadingIndex开始找
     let thumbnailItem = this._items.find(
-      (thumbnail) => thumbnail.index >= this.currentReadingIndex && !thumbnail.started
+      (thumbnail) => thumbnail.index >= this.currentReadingIndex && !thumbnail.started,
     );
     // 如果找不到，则从头开始查找
     if (!thumbnailItem) thumbnailItem = this._items.find((thumbnail) => !thumbnail.started);
@@ -669,7 +669,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
         const compoundThumbnailItem = compoundThumbnailsZero.find((n) =>
           this.result.thumbnails
             .filter((i) => i.index >= n.startIndex && i.index <= n.endIndex)
-            .some((i) => i.started === false)
+            .some((i) => i.started === false),
         );
         if (compoundThumbnailItem) {
           return this.createCompoundThumbnailTask(compoundThumbnailItem);
@@ -705,7 +705,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     if (aiTranslationItem) {
       return this.createAiTranslationTask(
         aiTranslationItem.index,
-        this.result.images[aiTranslationItem.index].path || ""
+        this.result.images[aiTranslationItem.index].path || "",
       );
     }
 
@@ -725,7 +725,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
         : 0;
       return this.createOriginalImageTask(
         originalImageItem.index,
-        this.infos.images[htmlPageOfFoundImageItem].find((image) => image.page === originalImageItem.index)!.imgkey
+        this.infos.images[htmlPageOfFoundImageItem].find((image) => image.page === originalImageItem.index)!.imgkey,
       );
     }
 
@@ -768,14 +768,14 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
         n.endIndex >= this.currentReadingIndex &&
         this.result.thumbnails
           .filter((i) => i.index >= n.startIndex && i.index <= n.endIndex)
-          .some((i) => i.started === false)
+          .some((i) => i.started === false),
     );
     // 4.2 如果找不到，则从头开始找
     if (!compoundThumbnailItem)
       compoundThumbnailItem = compoundThumbnails.find((n) =>
         this.result.thumbnails
           .filter((i) => i.index >= n.startIndex && i.index <= n.endIndex)
-          .some((i) => i.started === false)
+          .some((i) => i.started === false),
       );
 
     // 如果background为true且backgroundPaused为false，或者reading为true，则尝试进行图片任务
@@ -822,7 +822,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
             : 0;
           return this.createImageTask(
             imageItem.index,
-            this.infos.images[htmlPageOfFoundImageItem].find((image) => image.page === imageItemIndex)!.imgkey
+            this.infos.images[htmlPageOfFoundImageItem].find((image) => image.page === imageItemIndex)!.imgkey,
           );
         }
       } else if (compoundThumbnailItem) {
@@ -834,7 +834,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           : 0;
         return this.createImageTask(
           imageItem.index,
-          this.infos.images[htmlPageOfFoundImageItem].find((image) => image.page === imageItemIndex)!.imgkey
+          this.infos.images[htmlPageOfFoundImageItem].find((image) => image.page === imageItemIndex)!.imgkey,
         );
       }
     } else {
@@ -1002,7 +1002,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           const image = data.image;
           // 此处的读取image必须放在循环外面，以减少调用次数，否则会出现莫名其妙为空的情况
           const filtered = this.result.thumbnails.filter(
-            (thumbnail) => thumbnail.index >= startIndex && thumbnail.index <= endIndex
+            (thumbnail) => thumbnail.index >= startIndex && thumbnail.index <= endIndex,
           );
           for (let i = 0; i < filtered.length; i++) {
             const thumbnail = filtered[i];
@@ -1049,8 +1049,8 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           | { success: false; error: string; info?: EHPage } = this.webDAVConfig.enabled
           ? await this.webDAVConfig.client.downloadNoError(this.webDAVConfig.filesOnWebDAV[index])
           : this.mpvAvailable && this.mpvkey
-          ? await api.downloadImageByMpvWithThreeRetries(this.gid, imgkey, this.mpvkey, index)
-          : await api.downloadImageByPageInfoWithThreeRetries(this.gid, imgkey, index, this.showkey);
+            ? await api.downloadImageByMpvWithThreeRetries(this.gid, imgkey, this.mpvkey, index)
+            : await api.downloadImageByPageInfoWithThreeRetries(this.gid, imgkey, index, this.showkey);
 
         if (!this.showkey && result.info?.showkey) {
           this.showkey = result.info.showkey;
@@ -1142,7 +1142,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     dbManager.update(
       `INSERT INTO download_records (gid, length, finished) VALUES (?,?,?) 
       ON CONFLICT(gid) DO NOTHING`,
-      [this.gid, this.infos.length, false]
+      [this.gid, this.infos.length, false],
     );
     this._background = value;
   }
@@ -1191,7 +1191,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     const topThumbnailFinishedDespiteError = this.result.topThumbnail.path || this.result.topThumbnail.error;
     const finishedOfHtmlsDespiteError = this.result.htmls.filter((html) => html.success || html.error).length;
     const finishedOfThumbnailsDespiteError = this.result.thumbnails.filter(
-      (thumbnail) => thumbnail.path || thumbnail.error
+      (thumbnail) => thumbnail.path || thumbnail.error,
     ).length;
     const finishedOfImagesDespiteError = this.result.images.filter((image) => image.path || image.error).length;
     return (

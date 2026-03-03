@@ -69,7 +69,7 @@ export class GalleryThumbnailController extends BaseController {
           const currentReadingRow = Math.floor(sender.contentOffset.y / (matrix.itemSize.height + 5));
           const currentReadingIndex = Math.min(
             Math.max(currentReadingRow * matrix.columns, 0),
-            d.result.thumbnails.length - 1
+            d.result.thumbnails.length - 1,
           );
           d.currentReadingIndex = currentReadingIndex;
         },

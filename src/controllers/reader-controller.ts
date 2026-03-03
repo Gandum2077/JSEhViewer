@@ -1319,114 +1319,114 @@ export class ReaderController extends BaseController {
               },
             })
           : configManager.spreadModeEnabled && configManager.pagingGesture === "tap"
-          ? new SpreadNoscrollImagePager({
-              props: {
-                srcs: this._generateSrcs(),
-                page: footerThumbnailView.index,
-                reversed: configManager.pageDirection === "right_to_left",
-                imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
-                skipFirstPage: configManager.skipFirstPageInSpread,
-                skipLandscapePages: configManager.skipLandscapePagesInSpread,
-              },
-              layout: $layout.fillSafeArea,
-              events: {
-                changed: (page) => this.handleTurnPage(page),
-                reloadHandler: (page) => {
-                  galleryDownloader.result.images[page].error = false;
-                  galleryDownloader.result.images[page].started = false;
-                  downloaderManager.startOne(this.gid);
-                  this.refreshCurrentPage();
+            ? new SpreadNoscrollImagePager({
+                props: {
+                  srcs: this._generateSrcs(),
+                  page: footerThumbnailView.index,
+                  reversed: configManager.pageDirection === "right_to_left",
+                  imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
+                  skipFirstPage: configManager.skipFirstPageInSpread,
+                  skipLandscapePages: configManager.skipLandscapePagesInSpread,
                 },
-                getEstimatedAspectRatio: (page) => {
-                  const d = downloaderManager.get(this.gid);
-                  if (!d) return 0;
-                  const htmlPage = d.infos.num_of_images_on_each_page
-                    ? Math.floor(page / d.infos.num_of_images_on_each_page)
-                    : 0;
-                  if (htmlPage in d.infos.images) {
-                    const frame = d.infos.images[htmlPage].find((n) => n.page === page)?.frame;
-                    if (!frame) return 0;
-                    return frame.height / frame.width;
-                  } else {
-                    return 0;
-                  }
+                layout: $layout.fillSafeArea,
+                events: {
+                  changed: (page) => this.handleTurnPage(page),
+                  reloadHandler: (page) => {
+                    galleryDownloader.result.images[page].error = false;
+                    galleryDownloader.result.images[page].started = false;
+                    downloaderManager.startOne(this.gid);
+                    this.refreshCurrentPage();
+                  },
+                  getEstimatedAspectRatio: (page) => {
+                    const d = downloaderManager.get(this.gid);
+                    if (!d) return 0;
+                    const htmlPage = d.infos.num_of_images_on_each_page
+                      ? Math.floor(page / d.infos.num_of_images_on_each_page)
+                      : 0;
+                    if (htmlPage in d.infos.images) {
+                      const frame = d.infos.images[htmlPage].find((n) => n.page === page)?.frame;
+                      if (!frame) return 0;
+                      return frame.height / frame.width;
+                    } else {
+                      return 0;
+                    }
+                  },
                 },
-              },
-            })
-          : configManager.spreadModeEnabled &&
-            (configManager.pagingGesture === "swipe" || configManager.pagingGesture === "tap_and_swipe")
-          ? new SpreadCustomImagePager({
-              props: {
-                srcs: this._generateSrcs(),
-                page: footerThumbnailView.index,
-                reversed: configManager.pageDirection === "right_to_left",
-                imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
-                skipFirstPage: configManager.skipFirstPageInSpread,
-                skipLandscapePages: configManager.skipLandscapePagesInSpread,
-              },
-              layout: $layout.fillSafeArea,
-              events: {
-                changed: (page) => this.handleTurnPage(page),
-                reloadHandler: (page) => {
-                  galleryDownloader.result.images[page].error = false;
-                  galleryDownloader.result.images[page].started = false;
-                  downloaderManager.startOne(this.gid);
-                  this.refreshCurrentPage();
-                },
-                getEstimatedAspectRatio: (page) => {
-                  const d = downloaderManager.get(this.gid);
-                  if (!d) return 0;
-                  const htmlPage = d.infos.num_of_images_on_each_page
-                    ? Math.floor(page / d.infos.num_of_images_on_each_page)
-                    : 0;
-                  if (htmlPage in d.infos.images) {
-                    const frame = d.infos.images[htmlPage].find((n) => n.page === page)?.frame;
-                    if (!frame) return 0;
-                    return frame.height / frame.width;
-                  } else {
-                    return 0;
-                  }
-                },
-              },
-            })
-          : configManager.pagingGesture === "tap"
-          ? new NoscrollImagePager({
-              props: {
-                srcs: this._generateSrcs(),
-                page: footerThumbnailView.index,
-                imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
-              },
-              layout: $layout.fillSafeArea,
-              // 点击模式保持和横向滑动模式相同的方案，不过它可以改成$layout.fill，那样的话可以缩放全屏
-              events: {
-                changed: (page) => this.handleTurnPage(page),
-                reloadHandler: (page) => {
-                  galleryDownloader.result.images[page].error = false;
-                  galleryDownloader.result.images[page].started = false;
-                  downloaderManager.startOne(this.gid);
-                  this.refreshCurrentPage();
-                },
-              },
-            })
-          : new CustomImagePager({
-              props: {
-                srcs: this._generateSrcs(),
-                page: footerThumbnailView.index,
-                imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
-                reversed: configManager.pageDirection === "right_to_left",
-              },
-              layout: $layout.fillSafeArea,
-              // 横向滑动模式必须限制在安全区域内，否则会出现切页时图片随机上下浮动一点点的问题（猜测和状态栏有关？）
-              events: {
-                changed: (page) => this.handleTurnPage(page),
-                reloadHandler: (page) => {
-                  galleryDownloader.result.images[page].error = false;
-                  galleryDownloader.result.images[page].started = false;
-                  downloaderManager.startOne(this.gid);
-                  this.refreshCurrentPage();
-                },
-              },
-            });
+              })
+            : configManager.spreadModeEnabled &&
+                (configManager.pagingGesture === "swipe" || configManager.pagingGesture === "tap_and_swipe")
+              ? new SpreadCustomImagePager({
+                  props: {
+                    srcs: this._generateSrcs(),
+                    page: footerThumbnailView.index,
+                    reversed: configManager.pageDirection === "right_to_left",
+                    imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
+                    skipFirstPage: configManager.skipFirstPageInSpread,
+                    skipLandscapePages: configManager.skipLandscapePagesInSpread,
+                  },
+                  layout: $layout.fillSafeArea,
+                  events: {
+                    changed: (page) => this.handleTurnPage(page),
+                    reloadHandler: (page) => {
+                      galleryDownloader.result.images[page].error = false;
+                      galleryDownloader.result.images[page].started = false;
+                      downloaderManager.startOne(this.gid);
+                      this.refreshCurrentPage();
+                    },
+                    getEstimatedAspectRatio: (page) => {
+                      const d = downloaderManager.get(this.gid);
+                      if (!d) return 0;
+                      const htmlPage = d.infos.num_of_images_on_each_page
+                        ? Math.floor(page / d.infos.num_of_images_on_each_page)
+                        : 0;
+                      if (htmlPage in d.infos.images) {
+                        const frame = d.infos.images[htmlPage].find((n) => n.page === page)?.frame;
+                        if (!frame) return 0;
+                        return frame.height / frame.width;
+                      } else {
+                        return 0;
+                      }
+                    },
+                  },
+                })
+              : configManager.pagingGesture === "tap"
+                ? new NoscrollImagePager({
+                    props: {
+                      srcs: this._generateSrcs(),
+                      page: footerThumbnailView.index,
+                      imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
+                    },
+                    layout: $layout.fillSafeArea,
+                    // 点击模式保持和横向滑动模式相同的方案，不过它可以改成$layout.fill，那样的话可以缩放全屏
+                    events: {
+                      changed: (page) => this.handleTurnPage(page),
+                      reloadHandler: (page) => {
+                        galleryDownloader.result.images[page].error = false;
+                        galleryDownloader.result.images[page].started = false;
+                        downloaderManager.startOne(this.gid);
+                        this.refreshCurrentPage();
+                      },
+                    },
+                  })
+                : new CustomImagePager({
+                    props: {
+                      srcs: this._generateSrcs(),
+                      page: footerThumbnailView.index,
+                      imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
+                      reversed: configManager.pageDirection === "right_to_left",
+                    },
+                    layout: $layout.fillSafeArea,
+                    // 横向滑动模式必须限制在安全区域内，否则会出现切页时图片随机上下浮动一点点的问题（猜测和状态栏有关？）
+                    events: {
+                      changed: (page) => this.handleTurnPage(page),
+                      reloadHandler: (page) => {
+                        galleryDownloader.result.images[page].error = false;
+                        galleryDownloader.result.images[page].started = false;
+                        downloaderManager.startOne(this.gid);
+                        this.refreshCurrentPage();
+                      },
+                    },
+                  });
       sender.add(this.imagePager.definition);
       $delay(0.3, () => {
         if (!this.imagePager) return;

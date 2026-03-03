@@ -79,10 +79,10 @@ export class GeneralSettingsController extends BaseController {
             values.startPageType === 0
               ? "blank_page"
               : values.startPageType === 1
-              ? "last_access"
-              : values.startPageType === 2
-              ? "specific_page"
-              : "specific_searchterms";
+                ? "last_access"
+                : values.startPageType === 2
+                  ? "specific_page"
+                  : "specific_searchterms";
 
           const pageTypes: (
             | "front_page"
@@ -116,8 +116,8 @@ export class GeneralSettingsController extends BaseController {
             values.archiveManagerOrderMethod === 0
               ? "last_access_time"
               : values.archiveManagerOrderMethod === 1
-              ? "first_access_time"
-              : "posted_time";
+                ? "first_access_time"
+                : "posted_time";
           const alwaysShowWebDAVWidget = values.alwaysShowWebDAVWidget;
           const defaultFavcat = values.defaultFavcat;
           const autoCacheWhenReading = values.autoCacheWhenReading;
@@ -133,10 +133,10 @@ export class GeneralSettingsController extends BaseController {
             values.pagingGesture === undefined
               ? configManager.pagingGesture
               : values.pagingGesture === 0
-              ? "tap_and_swipe"
-              : values.pagingGesture === 1
-              ? "swipe"
-              : "tap";
+                ? "tap_and_swipe"
+                : values.pagingGesture === 1
+                  ? "swipe"
+                  : "tap";
 
           const autoClearCache = values.autoClearCache;
           const resumeIncompleteDownloadsOnStart =
@@ -305,8 +305,8 @@ export class GeneralSettingsController extends BaseController {
             value: this._fetchImageLimitAndFundsFailed
               ? "获取失败"
               : this._imageLimit
-              ? `${this._imageLimit.unlocked ? this._imageLimit.used + " / " + this._imageLimit.total : "未解锁"}`
-              : "正在获取…",
+                ? `${this._imageLimit.unlocked ? this._imageLimit.used + " / " + this._imageLimit.total : "未解锁"}`
+                : "正在获取…",
           },
           {
             type: "info",
@@ -314,8 +314,8 @@ export class GeneralSettingsController extends BaseController {
             value: this._fetchImageLimitAndFundsFailed
               ? "获取失败"
               : this._funds
-              ? this._funds.credits.toLocaleString("en-US")
-              : "正在获取…",
+                ? this._funds.credits.toLocaleString("en-US")
+                : "正在获取…",
           },
           {
             type: "info",
@@ -323,8 +323,8 @@ export class GeneralSettingsController extends BaseController {
             value: this._fetchImageLimitAndFundsFailed
               ? "获取失败"
               : this._funds
-              ? this._funds.gp.toLocaleString("en-US")
-              : "正在获取…",
+                ? this._funds.gp.toLocaleString("en-US")
+                : "正在获取…",
           },
         ],
       },
@@ -388,10 +388,10 @@ export class GeneralSettingsController extends BaseController {
               configManager.startPageType === "blank_page"
                 ? 0
                 : configManager.startPageType === "last_access"
-                ? 1
-                : configManager.startPageType === "specific_page"
-                ? 2
-                : 3,
+                  ? 1
+                  : configManager.startPageType === "specific_page"
+                    ? 2
+                    : 3,
           },
         ],
       },
@@ -420,8 +420,8 @@ export class GeneralSettingsController extends BaseController {
               configManager.archiveManagerOrderMethod === "last_access_time"
                 ? 0
                 : configManager.archiveManagerOrderMethod === "first_access_time"
-                ? 1
-                : 2,
+                  ? 1
+                  : 2,
           },
         ],
       },
@@ -467,8 +467,8 @@ export class GeneralSettingsController extends BaseController {
               configManager.pageDirection === "left_to_right"
                 ? 0
                 : configManager.pageDirection === "right_to_left"
-                ? 1
-                : 2,
+                  ? 1
+                  : 2,
           },
         ],
       },

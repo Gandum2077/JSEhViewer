@@ -133,7 +133,7 @@ export class GalleryCommentController extends BaseController {
                   searchTerms: sts,
                 },
               },
-              "showAllExceptArchive"
+              "showAllExceptArchive",
             )) as FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions;
             const controller = new PushedSearchResultController();
             controller.uipush({
@@ -235,7 +235,7 @@ export class GalleryCommentController extends BaseController {
                   this._infos.token,
                   this._infos.apikey,
                   this._infos.apiuid,
-                  comment_id
+                  comment_id,
                 );
                 let newText = await textDialog({
                   title: "修改评论",
@@ -285,7 +285,7 @@ export class GalleryCommentController extends BaseController {
                   comment_id,
                   this._infos.apikey,
                   this._infos.apiuid,
-                  type === "up" ? 1 : -1
+                  type === "up" ? 1 : -1,
                 );
               } catch (e) {
                 this._isRequestInProgress = false;

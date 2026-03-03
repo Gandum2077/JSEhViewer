@@ -138,7 +138,7 @@ class SearchSuggestionView extends Base<UIListView, UiTypes.ListOptions> {
       name: string;
       translation: string;
       remaining: string;
-    }[]
+    }[],
   ) {
     this.currentSuggestions = suggestions;
     this.view.data = this.mapData(suggestions);
@@ -149,7 +149,7 @@ class SearchSuggestionView extends Base<UIListView, UiTypes.ListOptions> {
       namespace: TagNamespace;
       name: string;
       translation: string;
-    }[]
+    }[],
   ) {
     return raw.map((item) => ({
       content: {
@@ -249,7 +249,7 @@ class HistoryMatrixItem extends Base<UILabelView, UiTypes.LabelOptions> {
           text: this._text,
           width: 1000,
           font: $font(TAG_FONT_SIZE),
-        }).width
+        }).width,
       ) + 16
     );
   }
@@ -1605,8 +1605,8 @@ class NavBar extends Base<UIBlurView, UiTypes.BlurOptions> {
           options.menuDisplayMode === "showAllExceptArchive"
             ? ["首页", "订阅", "收藏"]
             : options.menuDisplayMode === "showAllExceptArchiveWithImageLookup"
-            ? ["首页", "订阅", "收藏", "搜图"]
-            : ["首页", "订阅", "收藏", "存档"],
+              ? ["首页", "订阅", "收藏", "搜图"]
+              : ["首页", "订阅", "收藏", "存档"],
       },
       layout: (make, view) => {
         make.left.right.equalTo(view.super.safeArea).inset(50);
@@ -1658,7 +1658,7 @@ class NavBar extends Base<UIBlurView, UiTypes.BlurOptions> {
               options.menuDisplayMode === "showAllExceptArchive" ||
               options.menuDisplayMode === "showAllExceptArchiveWithImageLookup"
               ? -92
-              : -50
+              : -50,
           );
       },
       views:
@@ -1730,7 +1730,7 @@ function _disassembleFsearch(fsearch: string) {
 }
 
 function _getSearchTermsForSuggestion(
-  fsearch: string
+  fsearch: string,
 ): { namespace?: TagNamespace; term: string; remaining: string }[] {
   // 1. 拆分fsearch
   const parts = _disassembleFsearch(fsearch);
@@ -1812,7 +1812,7 @@ function _getScoreByMatchingDegree(
     namespace: TagNamespace;
     name: string;
     translation: string;
-  }
+  },
 ) {
   if (text === tag.name || text === tag.translation) {
     return 0;
@@ -1849,7 +1849,7 @@ function getSuggestions(
     namespace?: TagNamespace;
     term: string;
     remaining: string;
-  }[]
+  }[],
 ): {
   namespace: TagNamespace;
   name: string;
@@ -1864,7 +1864,7 @@ function getSuggestions(
       .filter(
         (n) =>
           (!term.namespace || n.namespace === term.namespace) &&
-          (n.name.toLowerCase().includes(term.term) || n.translation.toLowerCase().includes(term.term))
+          (n.name.toLowerCase().includes(term.term) || n.translation.toLowerCase().includes(term.term)),
       )
       .sort((a, b) => {
         const primaryScoreA = _getScoreByMatchingDegree(term.term, a);
@@ -1936,8 +1936,8 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
     args: FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ArchiveTabOptions,
     menuDisplayMode: MenuDisplayMode,
     resolveHandler: (
-      args: FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ArchiveTabOptions | ImageLookupTabOptions
-    ) => void
+      args: FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ArchiveTabOptions | ImageLookupTabOptions,
+    ) => void,
   ) {
     super();
     const navbar = new NavBar({
@@ -2227,36 +2227,36 @@ class SearchContentView extends Base<UIView, UiTypes.ViewOptions> {
 // 1. 只有首页
 export function getSearchOptions(
   args: FrontPageTabOptions,
-  menuDisplayMode: "onlyShowFrontPage"
+  menuDisplayMode: "onlyShowFrontPage",
 ): Promise<FrontPageTabOptions>;
 
 // 2. 只有归档
 export function getSearchOptions(
   args: ArchiveTabOptions,
-  menuDisplayMode: "onlyShowArchive"
+  menuDisplayMode: "onlyShowArchive",
 ): Promise<ArchiveTabOptions>;
 
 // 3. 除了归档以外都显示
 export function getSearchOptions(
   args: FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions,
-  menuDisplayMode: "showAllExceptArchive"
+  menuDisplayMode: "showAllExceptArchive",
 ): Promise<FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions>;
 
 // 4. 除了归档以外 + 图片检索
 export function getSearchOptions(
   args: FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions,
-  menuDisplayMode: "showAllExceptArchiveWithImageLookup"
+  menuDisplayMode: "showAllExceptArchiveWithImageLookup",
 ): Promise<FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ImageLookupTabOptions>;
 
 // 5. 全部都显示
 export function getSearchOptions(
   args: FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ArchiveTabOptions,
-  menuDisplayMode: "showAll"
+  menuDisplayMode: "showAll",
 ): Promise<FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ArchiveTabOptions>;
 
 export function getSearchOptions(
   args: FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ArchiveTabOptions,
-  menuDisplayMode: MenuDisplayMode
+  menuDisplayMode: MenuDisplayMode,
 ): Promise<FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions | ArchiveTabOptions | ImageLookupTabOptions> {
   return new Promise((resolve, reject) => {
     const contentView = new SearchContentView(args, menuDisplayMode, (n) => {

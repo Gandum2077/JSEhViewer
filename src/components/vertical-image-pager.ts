@@ -224,7 +224,7 @@ export class VerticalImagePager extends Base<UIListView, UiTypes.ListOptions> {
       error: boolean;
       errorName?: string;
       type: "ai-translated" | "reloaded" | "normal";
-    }[]
+    }[],
   ) {
     this._props.srcs = srcs;
     const data = srcs.map((n) => this._mapData(n));
@@ -247,8 +247,8 @@ export class VerticalImagePager extends Base<UIListView, UiTypes.ListOptions> {
             n.errorName === "EHBandwidthLimitExceededError"
               ? "509错误"
               : n.errorName === "EHServerError"
-              ? "服务器错误"
-              : "网络似乎不太给力◉_◉",
+                ? "服务器错误"
+                : "网络似乎不太给力◉_◉",
         },
         spinner: { loading: false, hidden: true },
       };

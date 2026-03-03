@@ -38,7 +38,7 @@ import { appLog, isNameMatchGid } from "./tools";
 // 定义一个有timeout的下载函数，通过Promise.race实现
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
   const timeoutPromise = new Promise<T>((_, reject) =>
-    setTimeout(() => reject(new WebDAVError({ message: "请求超时", type: "timeout" })), timeoutMs)
+    setTimeout(() => reject(new WebDAVError({ message: "请求超时", type: "timeout" })), timeoutMs),
   );
   return Promise.race([promise, timeoutPromise]);
 }
@@ -309,7 +309,7 @@ export class WebDAVClient {
   async uploadNoError(
     path: string,
     data: NSData,
-    contentType: string
+    contentType: string,
   ): Promise<
     | {
         success: true;

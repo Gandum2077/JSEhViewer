@@ -433,7 +433,7 @@ export function setAITranslationConfig() {
       },
       () => {
         reject("cancel");
-      }
+      },
     );
     controller.uipush({
       navBarHidden: true,

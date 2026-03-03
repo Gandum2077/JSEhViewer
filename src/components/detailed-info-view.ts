@@ -115,7 +115,7 @@ export function showDetailedInfoView(
   namespace: TagNamespace,
   name: string,
   translationData?: TranslationData[0],
-  markedTag?: MarkedTag
+  markedTag?: MarkedTag,
 ) {
   const cview = new DetailedInfoView({
     namespace: namespace,

@@ -190,8 +190,8 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
         n.errorName === "EHBandwidthLimitExceededError"
           ? "509错误"
           : n.errorName === "EHServerError"
-          ? "服务器错误"
-          : "网络似乎不太给力◉_◉";
+            ? "服务器错误"
+            : "网络似乎不太给力◉_◉";
     } else {
       $(this.id + "spinner").hidden = false;
       ($(this.id + "spinner") as UISpinnerView).loading = true;
@@ -210,7 +210,7 @@ export class NoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> {
       error: boolean;
       errorName?: string;
       type: "ai-translated" | "reloaded" | "normal";
-    }[]
+    }[],
   ) {
     this._props.srcs = srcs;
     this._refreshData(this._props.srcs[this._props.page]);

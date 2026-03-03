@@ -81,7 +81,7 @@ function taglistToStyledText(taglist: EHTagListItem[]): UiTypes.StyledTextOption
 }
 
 function _mapDataForLargeLayout(
-  item: EHListExtendedItem | EHListCompactItem | EHListThumbnailItem | EHListMinimalItem
+  item: EHListExtendedItem | EHListCompactItem | EHListThumbnailItem | EHListMinimalItem,
 ) {
   const uploaderText = item.type !== "thumbnail" ? item.uploader : "";
   const disowned = item.type !== "thumbnail" ? item.disowned : false;
@@ -143,7 +143,7 @@ function _mapDataForLargeLayout(
 }
 
 function _mapDataForNormalLayout(
-  item: EHListExtendedItem | EHListCompactItem | EHListThumbnailItem | EHListMinimalItem
+  item: EHListExtendedItem | EHListCompactItem | EHListThumbnailItem | EHListMinimalItem,
 ) {
   const ratingArray = ratingToArray(item.estimated_display_rating);
 
@@ -222,7 +222,7 @@ function _mapDataForNormalLayout(
 }
 
 function _mapDataForMinimalLayout(
-  item: EHListExtendedItem | EHListCompactItem | EHListThumbnailItem | EHListMinimalItem
+  item: EHListExtendedItem | EHListCompactItem | EHListThumbnailItem | EHListMinimalItem,
 ) {
   let languageAbbr: string | undefined;
   let languageBgcolor: UIColor | undefined;
@@ -293,7 +293,7 @@ function _getColumnsAndItemSizeWidth(
   containerWidth: number,
   minItemWidth: number,
   maxColumns: number,
-  spacing: number
+  spacing: number,
 ) {
   // 如果最大只有一列
   // 或者如果最小宽度超过了容器宽度，只能一列
@@ -305,11 +305,11 @@ function _getColumnsAndItemSizeWidth(
   }
   const columns = Math.max(
     Math.min(Math.floor((containerWidth - spacing) / (minItemWidth + spacing)), maxColumns),
-    1 // 最少一列
+    1, // 最少一列
   );
   const itemSizeWidth = Math.max(
     Math.floor((containerWidth - spacing * (columns + 1)) / columns),
-    minItemWidth // 最小宽度
+    minItemWidth, // 最小宽度
   );
   return {
     columns,
@@ -378,7 +378,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
     didSelect: (
       sender: EHlistView,
       indexPath: NSIndexPath,
-      item: { gid: number; token: string; title: string }
+      item: { gid: number; token: string; title: string },
     ) => Promise<void> | void;
     didReachBottom: () => Promise<void> | void;
     contentOffsetChanged?: (scrollState: ScrollState) => void;
@@ -1147,7 +1147,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
         this._totalWidth,
         largeLayoutProps.minItemWidth,
         largeLayoutProps.maxColumns,
-        largeLayoutProps.spacing
+        largeLayoutProps.spacing,
       );
       this._itemSizeWidth = itemSizeWidth;
       this._itemSizeHeight = largeLayoutProps.fixedItemHeight;
@@ -1156,7 +1156,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
         this._totalWidth,
         normalLayoutProps.minItemWidth,
         normalLayoutProps.maxColumns,
-        normalLayoutProps.spacing
+        normalLayoutProps.spacing,
       );
       this._itemSizeWidth = itemSizeWidth;
       this._itemSizeHeight = normalLayoutItemHeight(this._itemSizeWidth);
@@ -1165,7 +1165,7 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
         this._totalWidth,
         minimalLayoutProps.minItemWidth,
         minimalLayoutProps.maxColumns,
-        minimalLayoutProps.spacing
+        minimalLayoutProps.spacing,
       );
       this._itemSizeWidth = itemSizeWidth;
       this._itemSizeHeight = minimalLayoutItemHeight(this._itemSizeWidth);

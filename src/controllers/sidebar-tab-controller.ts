@@ -691,10 +691,10 @@ export class SidebarTabController extends BaseController {
             tab.data.options.timeRange === "yesterday"
               ? "日排行"
               : tab.data.options.timeRange === "past_month"
-              ? "月排行"
-              : tab.data.options.timeRange === "past_year"
-              ? "年排行"
-              : "总排行";
+                ? "月排行"
+                : tab.data.options.timeRange === "past_year"
+                  ? "年排行"
+                  : "总排行";
         }
         return {
           image: {

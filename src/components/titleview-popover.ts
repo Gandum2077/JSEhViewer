@@ -100,20 +100,20 @@ export type PopoverOptions =
 type PopoverOptionsToResult<T extends PopoverOptions> = T extends FrontPagePopoverOptions
   ? Omit<FrontPagePopoverOptions, "count">
   : T extends WatchedPopoverOptions
-  ? Omit<WatchedPopoverOptions, "count">
-  : T extends PopularPopoverOptions
-  ? Omit<PopularPopoverOptions, "count">
-  : T extends FavoritesPopoverOptions
-  ? Omit<FavoritesPopoverOptions, "count">
-  : T extends ToplistPopoverOptions
-  ? Omit<ToplistPopoverOptions, "count">
-  : T extends UploadPopoverOptions
-  ? Omit<UploadPopoverOptions, "count">
-  : T extends ImageLookupPopoverOptions
-  ? Omit<ImageLookupPopoverOptions, "count">
-  : T extends ArchivePopoverOptions
-  ? Omit<ArchivePopoverOptions, "count">
-  : never;
+    ? Omit<WatchedPopoverOptions, "count">
+    : T extends PopularPopoverOptions
+      ? Omit<PopularPopoverOptions, "count">
+      : T extends FavoritesPopoverOptions
+        ? Omit<FavoritesPopoverOptions, "count">
+        : T extends ToplistPopoverOptions
+          ? Omit<ToplistPopoverOptions, "count">
+          : T extends UploadPopoverOptions
+            ? Omit<UploadPopoverOptions, "count">
+            : T extends ImageLookupPopoverOptions
+              ? Omit<ImageLookupPopoverOptions, "count">
+              : T extends ArchivePopoverOptions
+                ? Omit<ArchivePopoverOptions, "count">
+                : never;
 
 class PopoverViewForTitleView<T extends PopoverOptions> extends Base<UIView, UiTypes.ViewOptions> {
   private readonly _options: T;
@@ -332,8 +332,8 @@ class PopoverViewForTitleView<T extends PopoverOptions> extends Base<UIView, UiT
                   options.archiveManagerOrderMethod === "last_access_time"
                     ? 0
                     : options.archiveManagerOrderMethod === "first_access_time"
-                    ? 1
-                    : 2,
+                      ? 1
+                      : 2,
               },
             ],
           },

@@ -115,9 +115,9 @@ export class GalleryController extends PageViewerController {
     filesOnServer: string[];
     errorMessage?: string;
   } = {
-      status: "loading",
-      filesOnServer: [],
-    };
+    status: "loading",
+    filesOnServer: [],
+  };
 
   subControllers: {
     galleryInfoController: GalleryInfoController;
@@ -207,7 +207,7 @@ export class GalleryController extends PageViewerController {
             if (e instanceof EHIPBannedError) {
               throw new FatalError("你的IP地址可能被封禁");
             }
-            const label = (sender.rootView.view.super.get("loadingLabel") as UILabelView);
+            const label = sender.rootView.view.super.get("loadingLabel") as UILabelView;
             if (e instanceof EHCopyrightError) {
               label.text = `加载失败：版权问题`;
             } else if (e instanceof EHServerError) {
@@ -235,8 +235,8 @@ export class GalleryController extends PageViewerController {
                   make.centerX.equalTo(view.super);
                   make.width.equalTo(label);
                   make.height.equalTo(150);
-                }
-              })
+                },
+              });
             }
             return;
           }
@@ -816,7 +816,7 @@ export class GalleryController extends PageViewerController {
                 ],
               },
             },
-            "showAllExceptArchive"
+            "showAllExceptArchive",
           )) as FrontPageTabOptions | WatchedTabOptions | FavoritesTabOptions;
           const controller = new PushedSearchResultController();
           controller.uipush({
@@ -833,7 +833,7 @@ export class GalleryController extends PageViewerController {
         handler: () => {
           if (!this._infos) return;
           $app.openURL(
-            `https://e${configManager.exhentai ? "x" : "-"}hentai.org/g/` + `${this._infos.gid}/${this._infos.token}/`
+            `https://e${configManager.exhentai ? "x" : "-"}hentai.org/g/` + `${this._infos.gid}/${this._infos.token}/`,
           );
         },
       },
@@ -843,7 +843,7 @@ export class GalleryController extends PageViewerController {
         handler: () => {
           if (!this._infos) return;
           $share.sheet(
-            `https://e${configManager.exhentai ? "x" : "-"}hentai.org/g/` + `${this._infos.gid}/${this._infos.token}/`
+            `https://e${configManager.exhentai ? "x" : "-"}hentai.org/g/` + `${this._infos.gid}/${this._infos.token}/`,
           );
         },
       },

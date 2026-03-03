@@ -46,7 +46,7 @@ function getAllCookies(webView: any): Promise<ParsedCookie[]> {
             HttpOnly,
             Secure,
           };
-        })
+        }),
       );
     });
     httpCookieStore.$getAllCookies_(handler);

@@ -534,7 +534,7 @@ export class SpreadCustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
 
   private _mapData(
     left: { path?: string; error: boolean; errorName?: string },
-    right?: { path?: string; error: boolean; errorName?: string }
+    right?: { path?: string; error: boolean; errorName?: string },
   ) {
     if (right === undefined) {
       if (left.path) {
@@ -562,8 +562,8 @@ export class SpreadCustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
               left.errorName === "EHBandwidthLimitExceededError"
                 ? "509错误"
                 : left.errorName === "EHServerError"
-                ? "服务器错误"
-                : "网络似乎不太给力◉_◉",
+                  ? "服务器错误"
+                  : "网络似乎不太给力◉_◉",
           },
           spinner: { loading: false, hidden: true },
         };
@@ -608,8 +608,8 @@ export class SpreadCustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
           left.errorName === "EHBandwidthLimitExceededError"
             ? "509错误"
             : left.errorName === "EHServerError"
-            ? "服务器错误"
-            : "网络似乎不太给力◉_◉",
+              ? "服务器错误"
+              : "网络似乎不太给力◉_◉",
       };
       data.image_temp1 = { hidden: true };
     } else {
@@ -629,8 +629,8 @@ export class SpreadCustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
           right.errorName === "EHBandwidthLimitExceededError"
             ? "509错误"
             : right.errorName === "EHServerError"
-            ? "服务器错误"
-            : "网络似乎不太给力◉_◉",
+              ? "服务器错误"
+              : "网络似乎不太给力◉_◉",
       };
       data.image_temp2 = { hidden: true };
     } else {
@@ -675,7 +675,7 @@ export class SpreadCustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
       error: boolean;
       errorName?: string;
       type: "ai-translated" | "reloaded" | "normal";
-    }[]
+    }[],
   ) {
     this._props.srcs = srcs;
     this._resortedPages = this._resortPages();

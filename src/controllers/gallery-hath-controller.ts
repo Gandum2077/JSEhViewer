@@ -134,7 +134,7 @@ export class GalleryHathController extends PresentedPageController {
       const r = await api.startHathDownload(
         this._hathInfo.gid,
         this._hathInfo.token,
-        option.original ? "org" : option.solution
+        option.original ? "org" : option.solution,
       );
       if (r === "no-hath") {
         $ui.error("您必须拥有 H@H 客户端才能使用此功能");

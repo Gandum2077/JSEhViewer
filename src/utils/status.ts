@@ -55,7 +55,7 @@ function filterToplistItemsByLocalTagFilter(items: EHListCompactItem[]) {
 
 function buildArchiveSearchSQLQuery(
   options: ArchiveSearchOptions,
-  countOnly: boolean = false
+  countOnly: boolean = false,
 ): {
   sql: string;
   args: any[];
@@ -131,10 +131,10 @@ function buildArchiveSearchSQLQuery(
   if (searchTerms && searchTerms.length > 0) {
     const specialQualifiers: EHQualifier[] = ["uploader", "title", "gid", "comment"];
     const searchTermsWithSpecialConditions = searchTerms.filter(
-      (term) => term.qualifier && specialQualifiers.includes(term.qualifier)
+      (term) => term.qualifier && specialQualifiers.includes(term.qualifier),
     );
     const searchTermsWithOutSpecialConditions = searchTerms.filter(
-      (term) => !term.qualifier || !specialQualifiers.includes(term.qualifier)
+      (term) => !term.qualifier || !specialQualifiers.includes(term.qualifier),
     );
     for (const st of searchTermsWithSpecialConditions) {
       switch (st.qualifier) {
@@ -203,7 +203,7 @@ function buildArchiveSearchSQLQuery(
 
     // 查找没有修饰词也没有命名空间的term(不能有~符号)
     const searchTermsNoQualifierAndNamespace = searchTermsWithOutSpecialConditions.filter(
-      (term) => !term.qualifier && !term.namespace && !term.tilde
+      (term) => !term.qualifier && !term.namespace && !term.tilde,
     );
     for (const st of searchTermsNoQualifierAndNamespace) {
       const condition = `(title LIKE ? OR english_title LIKE ? OR japanese_title LIKE ? OR taglist LIKE ?)`;
@@ -235,7 +235,7 @@ function buildArchiveSearchSQLQuery(
 
     // 查找不含~符号的搜索词（此时qualifier只剩tag）
     const searchTermsTag = searchTermsWithOutSpecialConditions.filter(
-      (term) => (!term.tilde && term.qualifier === "tag") || term.namespace
+      (term) => (!term.tilde && term.qualifier === "tag") || term.namespace,
     );
     if (searchTermsTag.length > 0) {
       for (const st of searchTermsTag) {
@@ -338,20 +338,20 @@ function buildArchiveSearchSQLQuery(
 type InferTabOptions<T> = T extends { type: "front_page" }
   ? FrontPageTabOptions
   : T extends { type: "watched" }
-  ? WatchedTabOptions
-  : T extends { type: "popular" }
-  ? PopularTabOptions
-  : T extends { type: "favorites" }
-  ? FavoritesTabOptions
-  : T extends { type: "toplist" }
-  ? ToplistTabOptions
-  : T extends { type: "upload" }
-  ? UploadTabOptions
-  : T extends { type: "image_lookup" }
-  ? ImageLookupTabOptions
-  : T extends { type: "archive" }
-  ? ArchiveTabOptions
-  : never;
+    ? WatchedTabOptions
+    : T extends { type: "popular" }
+      ? PopularTabOptions
+      : T extends { type: "favorites" }
+        ? FavoritesTabOptions
+        : T extends { type: "toplist" }
+          ? ToplistTabOptions
+          : T extends { type: "upload" }
+            ? UploadTabOptions
+            : T extends { type: "image_lookup" }
+              ? ImageLookupTabOptions
+              : T extends { type: "archive" }
+                ? ArchiveTabOptions
+                : never;
 
 /**
  * 清除关于“定位”信息
@@ -731,10 +731,12 @@ export class VirtualTab {
           }
           if (this._loadingId === cachedLoadingId) {
             this._status = "loaded";
-            this.data.pages = [{
-              ...page,
-              filtered_count
-            }];
+            this.data.pages = [
+              {
+                ...page,
+                filtered_count,
+              },
+            ];
             loadedHandler(this, true);
           }
         }
@@ -949,7 +951,7 @@ export class VirtualTab {
             this._status = "loaded";
             this.data.pages.push({
               ...page,
-              filtered_count
+              filtered_count,
             });
             loadedHandler(this, true);
           }
@@ -1016,7 +1018,7 @@ export class VirtualTab {
     options: {
       my_rating?: number;
       favorite_info?: { favorited: false } | { favorited: true; favcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 };
-    }
+    },
   ) {
     if (
       this.data.type !== "blank" &&
@@ -1109,7 +1111,7 @@ class StatusManager {
     // 初始化
     this._tabsMap.set(
       "archive",
-      new VirtualTab({ id: "archive", initalTabOptions: { type: "archive", options: { fromPage: 0, toPage: 0 } } })
+      new VirtualTab({ id: "archive", initalTabOptions: { type: "archive", options: { fromPage: 0, toPage: 0 } } }),
     );
     const firstTabId = cvid.newId;
     this._tabsMap.set(firstTabId, new VirtualTab({ id: firstTabId }));
@@ -1178,7 +1180,7 @@ class StatusManager {
     options: {
       my_rating?: number;
       favorite_info?: { favorited: false } | { favorited: true; favcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 };
-    }
+    },
   ) {
     for (const c of this.tabsMap.values()) {
       if (c.id !== "archive") c.silentUpdateItem(gid, options);
@@ -1386,7 +1388,7 @@ class StatusManager {
       downloaded?: boolean;
       my_rating?: number;
       favorite_info?: { favorited: false } | { favorited: true; favcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 };
-    }
+    },
   ) {
     // 先查询是否存在
     const sql_query = `SELECT * FROM archives WHERE gid = ?;`;

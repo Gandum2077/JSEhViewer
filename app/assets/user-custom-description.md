@@ -29,23 +29,23 @@ async (imageData) => {
       {
         data: imageData,
         name: "file",
-        filename: "image." + ext
-      }
+        filename: "image." + ext,
+      },
     ],
     form: {
       target_language,
       detector,
       direction,
       translator,
-      size
-    }
+      size,
+    },
   });
   if (resp.error) throw new Error("Fail to upload image");
   const data = resp.data;
   if ("id" in data) {
     await $wait(15);
     const taskId = data.id;
-    const statusUrl = 'https://api.cotrans.touhou.ai/task/' + taskId + '/status/v1';
+    const statusUrl = "https://api.cotrans.touhou.ai/task/" + taskId + "/status/v1";
     for (let i = 0; i < 6; i++) {
       const statusResp = await $http.get({ url: statusUrl });
       if (statusResp.error) throw new Error("Fail to get task status");

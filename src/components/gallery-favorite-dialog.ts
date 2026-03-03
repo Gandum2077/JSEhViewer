@@ -210,9 +210,8 @@ class CustomLabel extends Base<UIView, UiTypes.ViewOptions> {
     num_of_favnote_slots: number;
     num_of_favnote_slots_used: number;
   }) {
-    (
-      this.view.get("slot") as UILabelView
-    ).text = `已使用${num_of_favnote_slots_used}个备注，共${num_of_favnote_slots}个`;
+    (this.view.get("slot") as UILabelView).text =
+      `已使用${num_of_favnote_slots_used}个备注，共${num_of_favnote_slots}个`;
   }
 
   heightToWidth(width: number) {

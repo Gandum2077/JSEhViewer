@@ -156,7 +156,7 @@ export function createDB() {
                 WHERE (SELECT COUNT(*) FROM webdav_services WHERE enabled = 1) >= 1;
             END;`);
   // 写入favcat_titles的初始值
-  const r = queryDB(db, "SELECT COUNT(*) as count FROM favcat_titles") as {count: number}[];
+  const r = queryDB(db, "SELECT COUNT(*) as count FROM favcat_titles") as { count: number }[];
   if (!r.at(0)?.count) {
     insertDBBatch(
       db,
@@ -164,7 +164,7 @@ export function createDB() {
       ["favcat", "title"],
       [...Array(10)].map((_, i) => {
         return [i, "Favorites " + i];
-      })
+      }),
     );
   }
 

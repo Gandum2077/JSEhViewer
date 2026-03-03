@@ -111,7 +111,7 @@ export type ArchiveSearchOptions = {
 
 export type TopListFiltered = EHTopList & {
   filtered_count: number; // 当前页面被过滤的数量
-}
+};
 
 export type StatusTabType =
   | "front_page"

@@ -238,7 +238,7 @@ class DownloadList extends Base<UIListView, UiTypes.ListOptions> {
             indexPath,
             data: {
               info: DownloadingItemData | UploadingItemData;
-            }
+            },
           ) => {
             const gid = data.info.gid;
             const token = data.info.token;
@@ -269,18 +269,18 @@ class DownloadList extends Base<UIListView, UiTypes.ListOptions> {
         n.status === "finished"
           ? colors.green
           : n.status === "error"
-          ? colors.red
-          : n.status === "paused"
-          ? colors.yellow
-          : colors.green;
+            ? colors.red
+            : n.status === "paused"
+              ? colors.yellow
+              : colors.green;
       const buttonSymbol =
         n.status === "finished"
           ? symbols.finished
           : n.status === "error"
-          ? symbols.refresh
-          : n.status === "paused"
-          ? symbols.resume
-          : symbols.pause;
+            ? symbols.refresh
+            : n.status === "paused"
+              ? symbols.resume
+              : symbols.pause;
       const buttonColor = n.status === "finished" ? colors.green : defaultButtonColor;
 
       return {
@@ -315,18 +315,18 @@ class DownloadList extends Base<UIListView, UiTypes.ListOptions> {
         n.status === "finished"
           ? colors.green
           : n.status === "error"
-          ? colors.red
-          : n.status === "paused"
-          ? colors.yellow
-          : colors.green;
+            ? colors.red
+            : n.status === "paused"
+              ? colors.yellow
+              : colors.green;
       const buttonSymbol =
         n.status === "finished"
           ? symbols.finished
           : n.status === "error"
-          ? symbols.refresh
-          : n.status === "paused"
-          ? symbols.resume
-          : symbols.pause;
+            ? symbols.refresh
+            : n.status === "paused"
+              ? symbols.resume
+              : symbols.pause;
       const buttonColor = n.status === "finished" ? colors.green : defaultButtonColor;
 
       return {
@@ -471,11 +471,11 @@ export class SettingsDownloadsController extends BaseController {
 
   resumeAll() {
     const downloading = [...downloaderManager.galleryDownloaders.values()].filter(
-      (n) => n.background && !n.isAllFinishedDespiteError
+      (n) => n.background && !n.isAllFinishedDespiteError,
     );
     downloading.forEach((n) => (n.backgroundPaused = false));
     const uploading = [...downloaderManager.galleryWebDAVUploaders.values()].filter(
-      (n) => !n.isAllFinishedDespiteError
+      (n) => !n.isAllFinishedDespiteError,
     );
     uploading.forEach((n) => (n.backgroundPaused = false));
     if (downloading.length) {

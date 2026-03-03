@@ -489,7 +489,7 @@ export class SpreadNoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> 
   // 刷新当前页面
   private _refreshData(
     left: { path?: string; error: boolean; errorName?: string },
-    right?: { path?: string; error: boolean; errorName?: string }
+    right?: { path?: string; error: boolean; errorName?: string },
   ) {
     if (right === undefined) {
       $(this.id + "section").hidden = false;
@@ -513,8 +513,8 @@ export class SpreadNoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> 
           left.errorName === "EHBandwidthLimitExceededError"
             ? "509错误"
             : left.errorName === "EHServerError"
-            ? "服务器错误"
-            : "网络似乎不太给力◉_◉";
+              ? "服务器错误"
+              : "网络似乎不太给力◉_◉";
       } else {
         $(this.id + "spinner").hidden = false;
         ($(this.id + "spinner") as UISpinnerView).loading = true;
@@ -553,8 +553,8 @@ export class SpreadNoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> 
         left.errorName === "EHBandwidthLimitExceededError"
           ? "509错误"
           : left.errorName === "EHServerError"
-          ? "服务器错误"
-          : "网络似乎不太给力◉_◉";
+            ? "服务器错误"
+            : "网络似乎不太给力◉_◉";
     } else {
       $(this.id + "spinner1").hidden = false;
       ($(this.id + "spinner1") as UISpinnerView).loading = true;
@@ -578,8 +578,8 @@ export class SpreadNoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> 
         right.errorName === "EHBandwidthLimitExceededError"
           ? "509错误"
           : right.errorName === "EHServerError"
-          ? "服务器错误"
-          : "网络似乎不太给力◉_◉";
+            ? "服务器错误"
+            : "网络似乎不太给力◉_◉";
     } else {
       $(this.id + "spinner2").hidden = false;
       ($(this.id + "spinner2") as UISpinnerView).loading = true;
@@ -599,7 +599,7 @@ export class SpreadNoscrollImagePager extends Base<UIView, UiTypes.ViewOptions> 
       error: boolean;
       errorName?: string;
       type: "ai-translated" | "reloaded" | "normal";
-    }[]
+    }[],
   ) {
     this._props.srcs = srcs;
     this._resortedPages = this._resortPages();

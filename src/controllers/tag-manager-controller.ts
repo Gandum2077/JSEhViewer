@@ -186,7 +186,7 @@ export class TagManagerController extends BaseController {
                 type: "front_page",
                 options: { searchTerms: this._selectedSearchTerms },
               },
-              "showAll"
+              "showAll",
             );
             if (options.type === "archive") {
               (router.get("archiveController") as ArchiveController).triggerLoad({ tabOptions: options });
@@ -342,7 +342,7 @@ export class TagManagerController extends BaseController {
                     type: "front_page",
                     options: { searchTerms: [searchTerm] },
                   },
-                  "showAll"
+                  "showAll",
                 );
                 if (options.type === "archive") {
                   (router.get("archiveController") as ArchiveController).triggerLoad({ tabOptions: options });
@@ -399,7 +399,7 @@ export class TagManagerController extends BaseController {
             color: $color("red"),
             handler: (sender, indexPath) => {
               configManager.deleteMarkedUploader(
-                sender.data[indexPath.section].rows[indexPath.row].infoButton.info.uploader
+                sender.data[indexPath.section].rows[indexPath.row].infoButton.info.uploader,
               );
               this.refresh();
             },

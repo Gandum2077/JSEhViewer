@@ -245,7 +245,7 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
       error: boolean;
       errorName?: string;
       type: "ai-translated" | "reloaded" | "normal";
-    }[]
+    }[],
   ) {
     this._props.srcs = srcs;
     const data = (this._reversed ? srcs.toReversed() : srcs).map((n) => this._mapData(n));
@@ -270,8 +270,8 @@ export class CustomImagePager extends Base<UIView, UiTypes.ViewOptions> {
             n.errorName === "EHBandwidthLimitExceededError"
               ? "509错误"
               : n.errorName === "EHServerError"
-              ? "服务器错误"
-              : "网络似乎不太给力◉_◉",
+                ? "服务器错误"
+                : "网络似乎不太给力◉_◉",
         },
         spinner: { loading: false, hidden: true },
       };

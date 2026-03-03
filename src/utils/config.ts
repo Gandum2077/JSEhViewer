@@ -123,7 +123,7 @@ async function getEhTagTranslationText() {
   if (resp2.response && resp2.response.statusCode > 300) {
     appLog(resp, "error");
     throw new Error(
-      `下载标签翻译数据失败，状态码: ${resp2.response.statusCode}，返回内容: ${JSON.stringify(resp2.data)}`
+      `下载标签翻译数据失败，状态码: ${resp2.response.statusCode}，返回内容: ${JSON.stringify(resp2.data)}`,
     );
   }
   return resp2.rawData.string || "";
@@ -190,7 +190,7 @@ class ConfigManager {
   private _initConfig() {
     dbManager.batchUpdate(
       `INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING;`,
-      Object.entries(defaultConfig).map(([key, value]) => [key, JSON.stringify(value)])
+      Object.entries(defaultConfig).map(([key, value]) => [key, JSON.stringify(value)]),
     );
     const existingConfig = dbManager.query("SELECT * FROM config").map(({ key, value }) => [key, JSON.parse(value)]);
     return Object.fromEntries(existingConfig) as Config;
@@ -464,7 +464,7 @@ class ConfigManager {
       | "toplist-past_month"
       | "toplist-past_year"
       | "toplist-all"
-      | "upload"
+      | "upload",
   ) {
     this._setConfig("specificPageTypeOnStart", value);
   }
@@ -550,7 +550,7 @@ class ConfigManager {
     dbManager.batchInsert(
       "marked_tags",
       ["tagid", "namespace", "name", "watched", "hidden", "color", "weight"],
-      markedTags.map((t) => [t.tagid, t.namespace, t.name, t.watched, t.hidden, t.color || "", t.weight])
+      markedTags.map((t) => [t.tagid, t.namespace, t.name, t.watched, t.hidden, t.color || "", t.weight]),
     );
     const result = new Map() as MarkedTagDict;
     for (const namespace of tagNamespaces) {
@@ -642,7 +642,7 @@ class ConfigManager {
     dbManager.batchInsert(
       "banned_uploaders",
       ["uploader"],
-      uploaders.map((u) => [u])
+      uploaders.map((u) => [u]),
     );
     dbManager.update(sql_remove_marked);
     this._bannedUploaders = uploaders;
@@ -667,7 +667,7 @@ class ConfigManager {
     dbManager.batchInsert(
       "favcat_titles",
       ["favcat", "title"],
-      titles.map((t, i) => [i, t])
+      titles.map((t, i) => [i, t]),
     );
     this._favcatTitles = titles;
   }
@@ -721,7 +721,7 @@ class ConfigManager {
     dbManager.batchInsert(
       "translation_data",
       ["namespace", "name", "translation", "intro", "links"],
-      translationData.map((d) => [d.namespace, d.name, d.translation, d.intro, d.links])
+      translationData.map((d) => [d.namespace, d.name, d.translation, d.intro, d.links]),
     );
     const r = this._queryTranslationDict();
     this._translationList = r.translationList;
@@ -935,7 +935,7 @@ GROUP BY
     const sql_update = "UPDATE search_bookmarks SET sort_order = ? WHERE id = ?";
     dbManager.batchUpdate(
       sql_update,
-      resorted_ids.map((id, index) => [index, id])
+      resorted_ids.map((id, index) => [index, id]),
     );
     this._searchBookmarks = this._querySearchBookmarks();
   }
@@ -961,7 +961,7 @@ DO UPDATE SET count = count + 1;
     // qualifier仅保留uploader
     dbManager.batchUpdate(
       sql,
-      tags.map((tag) => [tag.namespace || "", tag.qualifier || "", tag.term || ""])
+      tags.map((tag) => [tag.namespace || "", tag.qualifier || "", tag.term || ""]),
     );
   }
 
@@ -1055,7 +1055,7 @@ LIMIT 20;
         service.username,
         service.password,
         service.enabled,
-      ])
+      ]),
     );
     this._webDAVServices = services;
   }
@@ -1108,11 +1108,11 @@ LIMIT 20;
     const sql_delete_terms = "DELETE FROM search_history_search_terms WHERE search_history_id = ?";
     dbManager.batchUpdate(
       sql_delete_terms,
-      needDeleteIds.map((id) => [id])
+      needDeleteIds.map((id) => [id]),
     );
     dbManager.batchUpdate(
       sql_delete,
-      needDeleteIds.map((id) => [id])
+      needDeleteIds.map((id) => [id]),
     );
     this._searchHistory = this._querySearchHistory();
   }
@@ -1143,11 +1143,11 @@ LIMIT 20;
     const sql_delete_taglist = "DELETE FROM archive_taglist WHERE gid = ?";
     dbManager.batchUpdate(
       sql_delete,
-      needDeleteGids.map((gid) => [gid])
+      needDeleteGids.map((gid) => [gid]),
     );
     dbManager.batchUpdate(
       sql_delete_taglist,
-      needDeleteGids.map((gid) => [gid])
+      needDeleteGids.map((gid) => [gid]),
     );
   }
 

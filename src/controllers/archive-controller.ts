@@ -186,7 +186,7 @@ export class ArchiveController extends BaseController {
               type: "archive",
               options: tab.data.options,
             },
-            "onlyShowArchive"
+            "onlyShowArchive",
           )) as ArchiveTabOptions;
           this.triggerLoad({ tabOptions: newOptions });
         },
@@ -308,7 +308,7 @@ export class ArchiveController extends BaseController {
           .map((item) => ({
             gid: item.gid,
             url: item.thumbnail_url,
-          }))
+          })),
       );
       if (!ignoreThumbnailDownload) {
         downloaderManager.startTabDownloader("archive");

@@ -126,7 +126,7 @@ export async function translate(
     detection_size: number;
     direction: number;
   },
-  imageData: NSData
+  imageData: NSData,
 ): Promise<NSData> {
   const payload = {
     config: JSON.stringify({

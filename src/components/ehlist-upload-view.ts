@@ -64,7 +64,7 @@ const minimalLayoutItemHeight = (itemWidth: number, title: string) => {
         text: title,
         width: itemWidth - 10,
         font: $font(14),
-      }).height
+      }).height,
     ) + 30
   );
 };
@@ -402,7 +402,7 @@ export class EHlistUploadView extends Base<UIView, UiTypes.ViewOptions> {
   }
 
   private _findUploadFolders(
-    index: number
+    index: number,
   ): { type: "folder"; fid: number } | { type: "item"; item: EHListUploadItem } {
     let i = 0;
     for (const folder of this._uploadFolders) {

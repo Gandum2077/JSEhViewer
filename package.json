@@ -10,22 +10,24 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc && webpack && cd app && zip -q -r ../JSEhViewer.box . && rm main.js",
-    "test": "tsc && webpack --config webpack.config.test.js && cd app && zip -q -r ../JSEhViewer.box . && rm main.js"
+    "test": "tsc && webpack --config webpack.config.test.js && cd app && zip -q -r ../JSEhViewer.box . && rm main.js",
+    "format": "prettier --write ."
   },
   "keywords": [],
   "author": "Gandum2077",
   "license": "MIT",
   "dependencies": {
     "cheerio": "^1.0.0",
-    "ehentai-parser": "^1.14.3",
-    "jsbox-cview": "^1.6.1",
+    "ehentai-parser": "^1.14.5",
+    "jsbox-cview": "^1.6.2",
+    "prettier": "^3.8.1",
     "url-parse": "^1.5.10"
   },
   "devDependencies": {
     "@types/cheerio": "^0.22.35",
     "@types/node": "^20.11.25",
     "@types/url-parse": "^1.4.11",
-    "jsbox-types": "^1.0.46",
+    "jsbox-types": "^2.0.0",
     "webpack": "^5.104.1",
     "webpack-cli": "^5.1.4"
   }

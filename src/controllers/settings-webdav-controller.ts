@@ -502,7 +502,7 @@ export function setWebDAVConfig() {
       },
       () => {
         reject("cancel");
-      }
+      },
     );
     controller.uipush({
       navBarHidden: true,

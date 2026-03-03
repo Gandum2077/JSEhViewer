@@ -118,7 +118,7 @@ export async function translate(
     direction: number;
     translator: number;
   },
-  imageData: NSData
+  imageData: NSData,
 ) {
   const target_language = Array.from(langMap.keys())[config.target_language];
   const size = Array.from(detectionSizeMap.keys())[config.size];

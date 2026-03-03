@@ -49,7 +49,7 @@ export class HomepageController extends BaseController {
             paused: true,
             handler: () => {
               const finished = downloaderManager.getTabDownloader(
-                statusManager.currentTabId
+                statusManager.currentTabId,
               )!.isAllFinishedDespiteError;
               if (!finished || !this._thumbnailAllLoaded) {
                 this.cviews.list.reload();
@@ -657,7 +657,7 @@ export class HomepageController extends BaseController {
           .map((item) => ({
             gid: item.gid,
             url: item.thumbnail_url,
-          }))
+          })),
       );
       // 只有id一致时才开始下载
       if (vtab.id === statusManager.currentTabId) {

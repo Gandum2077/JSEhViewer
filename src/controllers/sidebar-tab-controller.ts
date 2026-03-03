@@ -1,8 +1,10 @@
 import {
   Base,
   BaseController,
+  ClearView,
   ContentView,
   CustomNavigationBar,
+  DialogSheet,
   gold,
   List,
   router,
@@ -16,6 +18,205 @@ import { HomepageController } from "./homepage-controller";
 import { _mapSearchTermsToRow } from "../components/searchterm-history-list";
 import { configManager } from "../utils/config";
 import { updateLastAccess } from "../utils/tools";
+
+function getTabInfoData() {
+  const data = statusManager.tabIdsShownInManager.map((id, index) => {
+    const tab = statusManager.tabsMap.get(id);
+    if (!tab) throw new Error("标签页不存在");
+    const type = tab.data.type;
+    if (type === "blank") {
+      return {
+        image: {
+          symbol: "rectangle.fill.on.rectangle.angled.fill",
+          tintColor: $color("systemLink"),
+        },
+        label: {
+          styledText: {
+            text: "新标签页\n",
+            font: $font(14),
+            styles: [
+              {
+                range: $range(0, 4),
+                font: $font("bold", 14),
+              },
+            ],
+          },
+        },
+        leftColumn: {
+          hidden: id !== statusManager.currentTabId,
+          bgcolor: $color("systemLink"),
+        },
+        rightColumn: {
+          hidden: id !== statusManager.currentTabId,
+          bgcolor: $color("systemLink"),
+        },
+        id,
+      };
+    } else if (
+      type === "toplist" ||
+      type === "popular" ||
+      type === "upload" ||
+      type === "image_lookup" ||
+      ((type === "front_page" || type === "watched" || type === "favorites") &&
+        (!tab.data.options.searchTerms || tab.data.options.searchTerms.length === 0))
+    ) {
+      let title = fixedTabSymbolTitle[type].title;
+      if (type === "favorites" && tab.data.options.favcat !== undefined) {
+        title = configManager.favcatTitles[tab.data.options.favcat];
+      }
+      if (type === "toplist") {
+        title =
+          tab.data.options.timeRange === "yesterday"
+            ? "日排行"
+            : tab.data.options.timeRange === "past_month"
+              ? "月排行"
+              : tab.data.options.timeRange === "past_year"
+                ? "年排行"
+                : "总排行";
+      }
+      return {
+        image: {
+          symbol: fixedTabSymbolTitle[tab.data.type].symbol,
+          tintColor: fixedTabSymbolTitle[tab.data.type].color,
+        },
+        label: {
+          styledText: {
+            text: title + "\n",
+            font: $font(14),
+            styles: [
+              {
+                range: $range(0, title.length),
+                font: $font("bold", 14),
+              },
+            ],
+          },
+        },
+        leftColumn: {
+          hidden: id !== statusManager.currentTabId,
+          bgcolor: fixedTabSymbolTitle[tab.data.type].color,
+        },
+        rightColumn: {
+          hidden: id !== statusManager.currentTabId,
+          bgcolor: fixedTabSymbolTitle[tab.data.type].color,
+        },
+        id,
+      };
+    } else if (
+      (type === "front_page" || type === "watched" || type === "favorites") &&
+      tab.data.options.searchTerms &&
+      tab.data.options.searchTerms.length
+    ) {
+      return {
+        image: {
+          symbol: fixedTabSymbolTitle[tab.data.type].symbol,
+          tintColor: fixedTabSymbolTitle[tab.data.type].color,
+        },
+        label: {
+          styledText: _mapSearchTermsToRow(tab.data.options.searchTerms, 0).label.styledText,
+        },
+        leftColumn: {
+          hidden: id !== statusManager.currentTabId,
+          bgcolor: fixedTabSymbolTitle[tab.data.type].color,
+        },
+        rightColumn: {
+          hidden: id !== statusManager.currentTabId,
+          bgcolor: fixedTabSymbolTitle[tab.data.type].color,
+        },
+        id,
+      };
+    } else {
+      throw new Error("错误的标签页类型");
+    }
+  });
+  return data;
+}
+
+function getReorderTabIds() {
+  const list = new List({
+    props: {
+      reorder: true,
+      autoRowHeight: true,
+      showsVerticalIndicator: false,
+      selectable: false,
+      bgcolor: $color("clear"),
+      data: getTabInfoData(),
+      template: {
+        props: {
+          bgcolor: $color("tertiarySurface"),
+        },
+        views: [
+          {
+            type: "label",
+            props: {
+              id: "label",
+              lines: 0,
+              lineSpacing: 22,
+            },
+            layout: (make, view) => {
+              make.left.inset(35);
+              make.right.inset(10);
+              make.top.inset(10);
+              make.bottom.inset(3);
+            },
+          },
+          {
+            type: "image",
+            props: {
+              id: "image",
+              contentMode: 1,
+            },
+            layout: (make, view) => {
+              make.centerY.equalTo(view.super);
+              make.left.inset(5);
+              make.size.equalTo($size(25, 25));
+            },
+          },
+          {
+            type: "view",
+            props: {
+              id: "leftColumn",
+            },
+            layout: (make, view) => {
+              make.left.top.bottom.inset(0);
+              make.width.equalTo(3);
+            },
+          },
+          {
+            type: "view",
+            props: {
+              id: "rightColumn",
+            },
+            layout: (make, view) => {
+              make.right.top.bottom.inset(0);
+              make.width.equalTo(3);
+            },
+          },
+        ],
+      },
+      header: {
+        type: "view",
+        props: { height: 35 },
+      },
+    },
+    layout: (make, view) => {
+      make.left.equalTo(view.super.safeArea).inset(16);
+      make.right.equalTo(view.super.safeArea).inset(16);
+      make.top.bottom.equalTo(view.super);
+    },
+  });
+  return new Promise<string[]>((resolve, reject) => {
+    const sheet = new DialogSheet({
+      title: "排序",
+      cview: new ClearView({ views: [list.definition] }),
+      bgcolor: $color("backgroundColor", "secondarySurface"),
+      doneHandler: () => {
+        return list.view.data.map((item) => item.id);
+      },
+    });
+    sheet.promisify(resolve, reject);
+    sheet.present();
+  });
+}
 
 class HeaderStackBlur extends Base<UIButtonView, UiTypes.ButtonOptions> {
   _defineView: () => UiTypes.ButtonOptions;
@@ -432,6 +633,27 @@ export class SidebarTabController extends BaseController {
                     tintColor: $color("systemLink"),
                     titleColor: $color("systemLink"),
                     bgcolor: $color("clear"),
+                    symbol: "arrow.up.and.down.text.horizontal",
+                  },
+                  layout: (make, view) => {
+                    make.right.inset(72);
+                    make.centerY.equalTo(view.super);
+                    make.size.equalTo($size(28, 28));
+                  },
+                  events: {
+                    tapped: async () => {
+                      const tabIds = await getReorderTabIds();
+                      statusManager.setReorderTabIdsShownInManager(tabIds);
+                      this.refresh();
+                    },
+                  },
+                },
+                {
+                  type: "button",
+                  props: {
+                    tintColor: $color("systemLink"),
+                    titleColor: $color("systemLink"),
+                    bgcolor: $color("clear"),
                     title: "新建",
                     symbol: "plus",
                     font: $font(16),
@@ -643,111 +865,7 @@ export class SidebarTabController extends BaseController {
 
   refresh() {
     // 刷新标签页列表，首先从statusManager中获取标签页列表，然后更新list的data
-    const data = statusManager.tabIdsShownInManager.map((id, index) => {
-      const tab = statusManager.tabsMap.get(id);
-      if (!tab) throw new Error("标签页不存在");
-      const type = tab.data.type;
-      if (type === "blank") {
-        return {
-          image: {
-            symbol: "rectangle.fill.on.rectangle.angled.fill",
-            tintColor: $color("systemLink"),
-          },
-          label: {
-            styledText: {
-              text: "新标签页\n",
-              font: $font(14),
-              styles: [
-                {
-                  range: $range(0, 4),
-                  font: $font("bold", 14),
-                },
-              ],
-            },
-          },
-          leftColumn: {
-            hidden: id !== statusManager.currentTabId,
-            bgcolor: $color("systemLink"),
-          },
-          rightColumn: {
-            hidden: id !== statusManager.currentTabId,
-            bgcolor: $color("systemLink"),
-          },
-        };
-      } else if (
-        type === "toplist" ||
-        type === "popular" ||
-        type === "upload" ||
-        type === "image_lookup" ||
-        ((type === "front_page" || type === "watched" || type === "favorites") &&
-          (!tab.data.options.searchTerms || tab.data.options.searchTerms.length === 0))
-      ) {
-        let title = fixedTabSymbolTitle[type].title;
-        if (type === "favorites" && tab.data.options.favcat !== undefined) {
-          title = configManager.favcatTitles[tab.data.options.favcat];
-        }
-        if (type === "toplist") {
-          title =
-            tab.data.options.timeRange === "yesterday"
-              ? "日排行"
-              : tab.data.options.timeRange === "past_month"
-                ? "月排行"
-                : tab.data.options.timeRange === "past_year"
-                  ? "年排行"
-                  : "总排行";
-        }
-        return {
-          image: {
-            symbol: fixedTabSymbolTitle[tab.data.type].symbol,
-            tintColor: fixedTabSymbolTitle[tab.data.type].color,
-          },
-          label: {
-            styledText: {
-              text: title + "\n",
-              font: $font(14),
-              styles: [
-                {
-                  range: $range(0, title.length),
-                  font: $font("bold", 14),
-                },
-              ],
-            },
-          },
-          leftColumn: {
-            hidden: id !== statusManager.currentTabId,
-            bgcolor: fixedTabSymbolTitle[tab.data.type].color,
-          },
-          rightColumn: {
-            hidden: id !== statusManager.currentTabId,
-            bgcolor: fixedTabSymbolTitle[tab.data.type].color,
-          },
-        };
-      } else if (
-        (type === "front_page" || type === "watched" || type === "favorites") &&
-        tab.data.options.searchTerms &&
-        tab.data.options.searchTerms.length
-      ) {
-        return {
-          image: {
-            symbol: fixedTabSymbolTitle[tab.data.type].symbol,
-            tintColor: fixedTabSymbolTitle[tab.data.type].color,
-          },
-          label: {
-            styledText: _mapSearchTermsToRow(tab.data.options.searchTerms, 0).label.styledText,
-          },
-          leftColumn: {
-            hidden: id !== statusManager.currentTabId,
-            bgcolor: fixedTabSymbolTitle[tab.data.type].color,
-          },
-          rightColumn: {
-            hidden: id !== statusManager.currentTabId,
-            bgcolor: fixedTabSymbolTitle[tab.data.type].color,
-          },
-        };
-      } else {
-        throw new Error("错误的标签页类型");
-      }
-    });
+    const data = getTabInfoData();
     this.cviews.list.view.data = data;
   }
 }

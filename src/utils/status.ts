@@ -1149,6 +1149,17 @@ class StatusManager {
     return this._tabIdsInManager;
   }
 
+  setReorderTabIdsShownInManager(tabIds: string[]) {
+    if (tabIds.length !== this._tabIdsInManager.length) throw new Error("Invalid tab ids");
+    if (
+      tabIds.some((tabId) => !this._tabIdsInManager.includes(tabId)) ||
+      this._tabIdsInManager.some((tabId) => !tabIds.includes(tabId))
+    ) {
+      throw new Error("Invalid tab ids");
+    }
+    this._tabIdsInManager = [...tabIds];
+  }
+
   addTab({ showInManager, initalTabOptions }: { showInManager: boolean; initalTabOptions?: StatusTabOptions }) {
     const tabId = cvid.newId;
     this._tabsMap.set(tabId, new VirtualTab({ id: tabId, initalTabOptions }));

@@ -1097,6 +1097,50 @@ export class VirtualTab {
     }));
     return extendedItems;
   }
+
+  // 判断当前tab是否存在搜索参数（不包括搜索词和定位参数）
+  get hasSearchOptions() {
+    switch (this.data.type) {
+      case "blank":
+      case "favorites":
+      case "upload":
+      case "image_lookup":
+      case "archive": {
+        return false;
+      }
+      case "front_page":
+      case "watched": {
+        const options = this.data.options;
+        return Boolean(
+          options.excludedCategories?.length ||
+          options.browseExpungedGalleries ||
+          options.requireGalleryTorrent ||
+          options.minimumPages ||
+          options.maximumPages ||
+          options.minimumRating ||
+          options.disableLanguageFilters ||
+          options.disableTagFilters ||
+          options.disableUploaderFilters,
+        );
+      }
+      case "popular": {
+        return Boolean(
+          this.data.options.disableLanguageFilters ||
+          this.data.options.disableTagFilters ||
+          this.data.options.disableUploaderFilters,
+        );
+      }
+      case "toplist": {
+        return (
+          (configManager.toplistTagFilterDefaultEnabled && !this.data.enableTagFilter) ||
+          (!configManager.toplistTagFilterDefaultEnabled && this.data.enableTagFilter)
+        );
+      }
+      default: {
+        return false;
+      }
+    }
+  }
 }
 
 /**

@@ -11,13 +11,80 @@ import {
   SplitViewController,
   TabBarController,
 } from "jsbox-cview";
-import { logoColorHex, fixedTabSymbolTitle } from "../utils/glv";
+import { logoColorHex, fixedTabSymbolTitle, favcatColor } from "../utils/glv";
 import { clearExtraPropsForReload, statusManager } from "../utils/status";
 import { StatusTabOptions } from "../types";
 import { HomepageController } from "./homepage-controller";
 import { _mapSearchTermsToRow } from "../components/searchterm-history-list";
 import { configManager } from "../utils/config";
 import { updateLastAccess } from "../utils/tools";
+
+const TabListTemplate: UiTypes.ListProps["template"] = {
+  props: {
+    bgcolor: $color("tertiarySurface"),
+  },
+  views: [
+    {
+      type: "label",
+      props: {
+        id: "label",
+        lines: 0,
+        lineSpacing: 22,
+      },
+      layout: (make, view) => {
+        make.left.inset(35);
+        make.right.inset(10);
+        make.top.inset(10);
+        make.bottom.inset(3);
+      },
+    },
+    {
+      type: "image",
+      props: {
+        id: "image",
+        contentMode: 1,
+      },
+      layout: (make, view) => {
+        make.centerY.equalTo(view.super);
+        make.left.inset(5);
+        make.size.equalTo($size(25, 25));
+      },
+    },
+    {
+      type: "view",
+      props: {
+        id: "searchOptionsIndicator",
+        cornerRadius: 1.5,
+        smoothCorners: true,
+      },
+      layout: (make, view) => {
+        make.centerX.equalTo(view.prev);
+        make.top.equalTo(view.prev.bottom).inset(1);
+        make.size.equalTo($size(3, 3));
+      },
+    },
+    {
+      type: "view",
+      props: {
+        id: "leftColumn",
+      },
+      layout: (make, view) => {
+        make.left.top.bottom.inset(0);
+        make.width.equalTo(3);
+      },
+    },
+    {
+      type: "view",
+      props: {
+        id: "rightColumn",
+      },
+      layout: (make, view) => {
+        make.right.top.bottom.inset(0);
+        make.width.equalTo(3);
+      },
+    },
+  ],
+};
 
 function getTabInfoData() {
   const data = statusManager.tabIdsShownInManager.map((id, index) => {
@@ -42,6 +109,9 @@ function getTabInfoData() {
             ],
           },
         },
+        searchOptionsIndicator: {
+          hidden: true,
+        },
         leftColumn: {
           hidden: id !== statusManager.currentTabId,
           bgcolor: $color("systemLink"),
@@ -60,6 +130,10 @@ function getTabInfoData() {
       ((type === "front_page" || type === "watched" || type === "favorites") &&
         (!tab.data.options.searchTerms || tab.data.options.searchTerms.length === 0))
     ) {
+      const tintColor =
+        type === "favorites" && tab.data.options.favcat !== undefined
+          ? favcatColor[tab.data.options.favcat]
+          : fixedTabSymbolTitle[tab.data.type].color;
       let title = fixedTabSymbolTitle[type].title;
       if (type === "favorites" && tab.data.options.favcat !== undefined) {
         title = configManager.favcatTitles[tab.data.options.favcat];
@@ -77,7 +151,7 @@ function getTabInfoData() {
       return {
         image: {
           symbol: fixedTabSymbolTitle[tab.data.type].symbol,
-          tintColor: fixedTabSymbolTitle[tab.data.type].color,
+          tintColor,
         },
         label: {
           styledText: {
@@ -91,13 +165,17 @@ function getTabInfoData() {
             ],
           },
         },
+        searchOptionsIndicator: {
+          hidden: !tab.hasSearchOptions,
+          bgcolor: tintColor,
+        },
         leftColumn: {
           hidden: id !== statusManager.currentTabId,
-          bgcolor: fixedTabSymbolTitle[tab.data.type].color,
+          bgcolor: tintColor,
         },
         rightColumn: {
           hidden: id !== statusManager.currentTabId,
-          bgcolor: fixedTabSymbolTitle[tab.data.type].color,
+          bgcolor: tintColor,
         },
         id,
       };
@@ -106,21 +184,29 @@ function getTabInfoData() {
       tab.data.options.searchTerms &&
       tab.data.options.searchTerms.length
     ) {
+      const tintColor =
+        type === "favorites" && tab.data.options.favcat !== undefined
+          ? favcatColor[tab.data.options.favcat]
+          : fixedTabSymbolTitle[tab.data.type].color;
       return {
         image: {
           symbol: fixedTabSymbolTitle[tab.data.type].symbol,
-          tintColor: fixedTabSymbolTitle[tab.data.type].color,
+          tintColor,
         },
         label: {
           styledText: _mapSearchTermsToRow(tab.data.options.searchTerms, 0).label.styledText,
         },
+        searchOptionsIndicator: {
+          hidden: !tab.hasSearchOptions,
+          bgcolor: tintColor,
+        },
         leftColumn: {
           hidden: id !== statusManager.currentTabId,
-          bgcolor: fixedTabSymbolTitle[tab.data.type].color,
+          bgcolor: tintColor,
         },
         rightColumn: {
           hidden: id !== statusManager.currentTabId,
-          bgcolor: fixedTabSymbolTitle[tab.data.type].color,
+          bgcolor: tintColor,
         },
         id,
       };
@@ -140,59 +226,7 @@ function getReorderTabIds() {
       selectable: false,
       bgcolor: $color("clear"),
       data: getTabInfoData(),
-      template: {
-        props: {
-          bgcolor: $color("tertiarySurface"),
-        },
-        views: [
-          {
-            type: "label",
-            props: {
-              id: "label",
-              lines: 0,
-              lineSpacing: 22,
-            },
-            layout: (make, view) => {
-              make.left.inset(35);
-              make.right.inset(10);
-              make.top.inset(10);
-              make.bottom.inset(3);
-            },
-          },
-          {
-            type: "image",
-            props: {
-              id: "image",
-              contentMode: 1,
-            },
-            layout: (make, view) => {
-              make.centerY.equalTo(view.super);
-              make.left.inset(5);
-              make.size.equalTo($size(25, 25));
-            },
-          },
-          {
-            type: "view",
-            props: {
-              id: "leftColumn",
-            },
-            layout: (make, view) => {
-              make.left.top.bottom.inset(0);
-              make.width.equalTo(3);
-            },
-          },
-          {
-            type: "view",
-            props: {
-              id: "rightColumn",
-            },
-            layout: (make, view) => {
-              make.right.top.bottom.inset(0);
-              make.width.equalTo(3);
-            },
-          },
-        ],
-      },
+      template: TabListTemplate,
       header: {
         type: "view",
         props: { height: 35 },
@@ -725,59 +759,7 @@ export class SidebarTabController extends BaseController {
             },
           },
         ],
-        template: {
-          props: {
-            bgcolor: $color("tertiarySurface"),
-          },
-          views: [
-            {
-              type: "label",
-              props: {
-                id: "label",
-                lines: 0,
-                lineSpacing: 22,
-              },
-              layout: (make, view) => {
-                make.left.inset(35);
-                make.right.inset(10);
-                make.top.inset(10);
-                make.bottom.inset(3);
-              },
-            },
-            {
-              type: "image",
-              props: {
-                id: "image",
-                contentMode: 1,
-              },
-              layout: (make, view) => {
-                make.centerY.equalTo(view.super);
-                make.left.inset(5);
-                make.size.equalTo($size(25, 25));
-              },
-            },
-            {
-              type: "view",
-              props: {
-                id: "leftColumn",
-              },
-              layout: (make, view) => {
-                make.left.top.bottom.inset(0);
-                make.width.equalTo(3);
-              },
-            },
-            {
-              type: "view",
-              props: {
-                id: "rightColumn",
-              },
-              layout: (make, view) => {
-                make.right.top.bottom.inset(0);
-                make.width.equalTo(3);
-              },
-            },
-          ],
-        },
+        template: TabListTemplate,
         data: [
           {
             image: {

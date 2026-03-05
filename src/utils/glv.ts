@@ -112,8 +112,8 @@ export const catColor = {
 export const favcatColor = {
   "0": $color("#5F5F5F"),
   "1": $color("#DE1C31"),
-  "2": $color("#F97D1C"),
-  "3": $color("#F8B500"),
+  "2": $color("#F8B500"),
+  "3": $color("#DDDD00"), 
   "4": $color("#2BAE85"),
   "5": $color("#5BAE23"),
   "6": $color("#22A2C3"),

@@ -7,6 +7,8 @@ import {
   WebDAVService,
   DBSearchHistory,
   DBSearchBookmarks,
+  AITranslationService,
+  AITranslationConfigFormItem,
 } from "../types";
 import { dbManager } from "./database";
 import { aiTranslationPath, imagePath, originalImagePath, thumbnailPath } from "./glv";
@@ -31,8 +33,10 @@ interface Config {
   defaultFavcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9; // 默认收藏到
   mytagsApiuid: number;
   mytagsApikey: string;
-  selectedAiTranslationService: string; // 选择的AI翻译服务
-  aiTranslationSavedConfigText: string; // AI翻译配置
+  // Deprecated: 已迁移到 ai_translation_services 表
+  // selectedAiTranslationService: string;
+  // Deprecated: 已迁移到 ai_translation_services 表
+  // aiTranslationSavedConfigText: string;
   autoClearCache: boolean; // 是否在关闭时自动清除缓存
   autoCacheWhenReading: boolean; // 阅读时是否自动缓存整个图库
   imageShareOnLongPressEnabled: boolean; // 长按图片分享
@@ -81,8 +85,10 @@ const defaultConfig: Config = {
   defaultFavcat: 0,
   mytagsApiuid: 0,
   mytagsApikey: "",
-  selectedAiTranslationService: "",
-  aiTranslationSavedConfigText: "{}",
+  // Deprecated: 仅用于兼容旧版本数据库中的 config 表字段
+  // selectedAiTranslationService: "",
+  // Deprecated: 仅用于兼容旧版本数据库中的 config 表字段
+  // aiTranslationSavedConfigText: "{}",
   autoClearCache: false,
   autoCacheWhenReading: true,
   imageShareOnLongPressEnabled: true,
@@ -168,9 +174,9 @@ class ConfigManager {
   private _searchHistory: DBSearchHistory;
   private _searchBookmarks: DBSearchBookmarks;
   private _webDAVServices: WebDAVService[];
+  private _aiTranslationServices: AITranslationService[];
   pushedSearchResultControllerLayoutMode: "large" | "normal" | "minimal";
   // 用于控制搜索结果页面的布局模式，其初始值和homepageManagerLayoutMode相同，但后续可以被PushedSearchResultController组件修改
-  private _aiTranslationSavedConfig: Record<string, any>;
   constructor() {
     this._config = this._initConfig();
     this._markedTagDict = this._getMarkedTagsDict();
@@ -183,8 +189,8 @@ class ConfigManager {
     this._searchHistory = this._querySearchHistory();
     this._searchBookmarks = this._querySearchBookmarks();
     this._webDAVServices = this._queryWebDAVServices();
+    this._aiTranslationServices = this._queryAITranslationServices();
     this.pushedSearchResultControllerLayoutMode = this.homepageManagerLayoutMode;
-    this._aiTranslationSavedConfig = JSON.parse(this.aiTranslationSavedConfigText);
   }
 
   private _initConfig() {
@@ -346,21 +352,41 @@ class ConfigManager {
     this._setConfig("mytagsApikey", value);
   }
 
-  get selectedAiTranslationService() {
-    return this._config.selectedAiTranslationService;
+  get selectedAiTranslationServiceName() {
+    return this._aiTranslationServices.find((service) => service.selected)?.name;
   }
 
-  set selectedAiTranslationService(value: string) {
-    this._setConfig("selectedAiTranslationService", value);
+  set selectedAiTranslationServiceName(value: string | undefined) {
+    if (value) {
+      dbManager.transactionUpdate([
+        {
+          sql: "UPDATE ai_translation_services SET selected = 0 WHERE selected = 1",
+        },
+        {
+          sql: "UPDATE ai_translation_services SET selected = 1 WHERE name = ?",
+          args: [value],
+        },
+      ]);
+    } else {
+      dbManager.update("UPDATE ai_translation_services SET selected = 0 WHERE selected = 1");
+    }
+    this._aiTranslationServices = this._queryAITranslationServices();
   }
 
+  /* Deprecated: 已迁移到 ai_translation_services 表
   get aiTranslationSavedConfigText() {
-    return this._config.aiTranslationSavedConfigText;
+    return JSON.stringify(this.aiTranslationServiceConfig);
   }
 
   set aiTranslationSavedConfigText(value: string) {
-    this._setConfig("aiTranslationSavedConfigText", value);
-  }
+    let config: Record<string, any> = {};
+    try {
+      config = JSON.parse(value);
+    } catch {
+      config = {};
+    }
+    this.saveAiTranslationServiceConfig(config);
+  } */
 
   get autoClearCache() {
     return this._config.autoClearCache;
@@ -1073,13 +1099,97 @@ LIMIT 20;
     return this._webDAVServices.find((service) => service.enabled);
   }
 
-  get aiTranslationServiceConfig() {
-    return this._aiTranslationSavedConfig;
+  private _queryAITranslationServices(): AITranslationService[] {
+    const sql = "SELECT id, name, selected, script_text, config_form, config FROM ai_translation_services";
+    const rows = dbManager.query(sql) as {
+      id: number;
+      name: string;
+      selected: 0 | 1;
+      script_text: string;
+      config_form: string | null;
+      config: string | null;
+    }[];
+    return rows.map((row) => {
+      return {
+        id: row.id,
+        name: row.name,
+        selected: Boolean(row.selected),
+        scriptText: row.script_text,
+        configForm: row.config_form ? (JSON.parse(row.config_form) as AITranslationConfigFormItem[]) : undefined,
+        config: row.config ? (JSON.parse(row.config) as Record<string, any>) : undefined,
+      };
+    });
   }
 
-  saveAiTranslationServiceConfig(config: Record<string, any>) {
-    this._aiTranslationSavedConfig = config;
-    this.aiTranslationSavedConfigText = JSON.stringify(config);
+  addAITranslationService(service: AITranslationService) {
+    if (service.id !== undefined) {
+      throw new Error("addAITranslationService 只能用于新增服务");
+    }
+
+    const statements: { sql: string; args?: (string | number | boolean | null | undefined)[] }[] = [];
+
+    if (service.selected) {
+      statements.push({
+        sql: "UPDATE ai_translation_services SET selected = 0 WHERE selected = 1",
+      });
+    }
+
+    statements.push({
+      sql: `INSERT INTO ai_translation_services (name, selected, script_text, config_form, config) VALUES (?, ?, ?, ?, ?)`,
+      args: [
+        service.name,
+        Number(service.selected),
+        service.scriptText,
+        service.configForm ? JSON.stringify(service.configForm) : undefined,
+        service.config ? JSON.stringify(service.config) : undefined,
+      ],
+    });
+
+    dbManager.transactionUpdate(statements);
+
+    this._aiTranslationServices = this._queryAITranslationServices();
+  }
+
+  editAITranslationService(service: AITranslationService) {
+    if (service.id === undefined) {
+      throw new Error("editAITranslationService 只能用于编辑已有服务");
+    }
+
+    const statements: { sql: string; args?: (string | number | boolean | null | undefined)[] }[] = [];
+
+    if (service.selected) {
+      statements.push({
+        sql: "UPDATE ai_translation_services SET selected = 0 WHERE selected = 1 AND id != ?",
+        args: [service.id],
+      });
+    }
+
+    statements.push({
+      sql: `UPDATE ai_translation_services
+            SET name = ?, selected = ?, script_text = ?, config_form = ?, config = ?
+            WHERE id = ?`,
+      args: [
+        service.name,
+        Number(service.selected),
+        service.scriptText,
+        service.configForm ? JSON.stringify(service.configForm) : undefined,
+        service.config ? JSON.stringify(service.config) : undefined,
+        service.id,
+      ],
+    });
+
+    dbManager.transactionUpdate(statements);
+
+    this._aiTranslationServices = this._queryAITranslationServices();
+  }
+
+  deleteAITranslationService(name: string) {
+    dbManager.update("DELETE FROM ai_translation_services WHERE name = ?", [name]);
+    this._aiTranslationServices = this._queryAITranslationServices();
+  }
+
+  get aiTranslationServices() {
+    return this._aiTranslationServices;
   }
 
   /**

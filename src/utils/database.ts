@@ -1,9 +1,17 @@
+import {
+  DEFAULT_CUSTOM_AI_TRANSLATION_SCRIPT,
+  MANGA_IMAGE_TRANSLATOR_PRESET_CONFIG,
+  MANGA_IMAGE_TRANSLATOR_PRESET_CONFIG_FORM,
+  MANGA_IMAGE_TRANSLATOR_PRESET_SCRIPT,
+  OLD_CUSTOM_AI_TRANSLATION_SCRIPT,
+} from "../ai-translations/preset";
+import { validateUserCustomScriptText } from "../ai-translations/user-custom-validation";
 import { databasePath } from "./glv";
 
 // 当前数据库版本，写在数据库文件中
 // 当出现不兼容更新时，更新数据库版本，并且提供对应的升级方案
 // 如果是兼容更新，不升级数据库版本
-const CURRENT_USER_VERSION = 0;
+const CURRENT_USER_VERSION = 1;
 
 // 创建数据库
 export function createDB() {
@@ -47,6 +55,18 @@ export function createDB() {
             key TEXT PRIMARY KEY,
             value TEXT
             )`);
+  // AI翻译服务配置表
+  db.update(`CREATE TABLE IF NOT EXISTS ai_translation_services (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            selected INTEGER NOT NULL DEFAULT 0 CHECK (selected IN (0, 1)),
+            script_text TEXT NOT NULL,
+            config_form TEXT,
+            config TEXT
+            )`);
+  db.update(`CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_translation_services_single_selected
+            ON ai_translation_services(selected)
+            WHERE selected = 1;`);
   // webdavServices
   db.update(`CREATE TABLE IF NOT EXISTS webdav_services (
             name TEXT,
@@ -215,6 +235,23 @@ function updateDBBatch(db: SqliteTypes.SqliteInstance, sql: string, manyArgs: an
   db.commit();
 }
 
+function transactionUpdateDB(
+  db: SqliteTypes.SqliteInstance,
+  statements: { sql: string; args?: (string | number | boolean | null | undefined)[] }[],
+) {
+  db.beginTransaction();
+  try {
+    for (const statement of statements) {
+      const options = statement.args ? { sql: statement.sql, args: statement.args } : statement.sql;
+      db.update(options);
+    }
+    db.commit();
+  } catch (error) {
+    db.rollback();
+    throw error;
+  }
+}
+
 /**
  * 大规模插入数据(只能执行基本的插入操作)
  * @param db 数据库实例
@@ -249,9 +286,77 @@ class DBManager {
   }
 
   checkDBUpdate() {
-    const user_version = (this.query("PRAGMA user_version;") as [{ user_version: number }])[0].user_version;
+    let user_version = (this.query("PRAGMA user_version;") as [{ user_version: number }])[0].user_version;
     if (user_version === CURRENT_USER_VERSION) return;
     // 按照顺序依次提升版本
+    if (user_version === 0) {
+      this.upgradeUserVersionFrom0To1();
+      user_version = 1;
+    }
+    if (user_version !== CURRENT_USER_VERSION) {
+      throw new Error(`未找到从数据库版本 ${user_version} 到 ${CURRENT_USER_VERSION} 的升级方案`);
+    }
+  }
+
+  private upgradeUserVersionFrom0To1() {
+    const r0 = this.query("SELECT value FROM config WHERE key = ?", ["selectedAiTranslationService"]) as {
+      value: string;
+    }[];
+    const r1 = this.query("SELECT value FROM config WHERE key = ?", ["aiTranslationSavedConfigText"]) as {
+      value: string;
+    }[];
+    const selectedService = r0[0]?.value || "";
+    const savedConfigText = r1[0]?.value || "{}";
+
+    let savedConfig: Record<string, any> = {};
+    try {
+      savedConfig = JSON.parse(savedConfigText);
+    } catch {
+      savedConfig = {};
+    }
+
+    const mangaImageTranslatorConfig = savedConfig["manga-image-translator"] ?? MANGA_IMAGE_TRANSLATOR_PRESET_CONFIG;
+    const userCustomConfig = savedConfig["user-custom"] ?? {};
+    const isScriptTextValid =
+      typeof userCustomConfig.scriptText === "string" &&
+      userCustomConfig.scriptText.trim() &&
+      userCustomConfig.scriptText.trim() !== OLD_CUSTOM_AI_TRANSLATION_SCRIPT &&
+      validateUserCustomScriptText(userCustomConfig.scriptText.trim()).ok;
+    const userCustomScriptText = isScriptTextValid ? userCustomConfig.scriptText : DEFAULT_CUSTOM_AI_TRANSLATION_SCRIPT;
+
+    this._db.beginTransaction();
+    try {
+      const services = [
+        {
+          name: "manga-image-translator",
+          selected: Number(selectedService === "manga-image-translator"),
+          script_text: MANGA_IMAGE_TRANSLATOR_PRESET_SCRIPT,
+          config_form: MANGA_IMAGE_TRANSLATOR_PRESET_CONFIG_FORM,
+          config: JSON.stringify(mangaImageTranslatorConfig),
+        },
+        {
+          name: "自定义脚本",
+          selected: Number(selectedService === "user-custom" && isScriptTextValid),
+          script_text: userCustomScriptText,
+          config_form: null,
+          config: null,
+        },
+      ];
+
+      for (const service of services) {
+        this._db.update({
+          sql: `INSERT INTO ai_translation_services (name, selected, script_text, config_form, config)
+                VALUES (?, ?, ?, ?, ?)`,
+          args: [service.name, service.selected, service.script_text, service.config_form, service.config],
+        });
+      }
+
+      this._db.update("PRAGMA user_version = 1;");
+      this._db.commit();
+    } catch (error) {
+      this._db.rollback();
+      throw error;
+    }
   }
 
   query(sql: string, args?: any[]) {
@@ -264,6 +369,10 @@ class DBManager {
 
   batchUpdate(sql: string, manyArgs: (string | number | boolean | null | undefined)[][]) {
     return updateDBBatch(this._db, sql, manyArgs);
+  }
+
+  transactionUpdate(statements: { sql: string; args?: (string | number | boolean | null | undefined)[] }[]) {
+    return transactionUpdateDB(this._db, statements);
   }
 
   batchInsert(tableName: string, columns: string[], manyArgs: (string | number | boolean | null | undefined)[][]) {

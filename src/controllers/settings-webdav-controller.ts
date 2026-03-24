@@ -11,6 +11,7 @@ import {
 import { webdavIntroductionPath } from "../utils/glv";
 import { configManager } from "../utils/config";
 import { WebDAVService } from "../types";
+import { showIntroductionSheet } from "../components/show-introduction-sheet";
 
 class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
   private _services: WebDAVService[];
@@ -145,7 +146,7 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
           },
           didSelect: async (sender, indexPath, data) => {
             if (indexPath.section === 0 && indexPath.row === 0) {
-              showWebdavIntroduction();
+              showIntroductionSheet(webdavIntroductionPath, "WebDAV 使用指南");
             } else if (
               (this._services.length === 0 && indexPath.section === 1) ||
               (this._services.length > 0 && indexPath.section === 2)
@@ -298,45 +299,6 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
   }
 }
 
-function showWebdavIntroduction() {
-  const text = $file.read(webdavIntroductionPath).string || "";
-  const navbar = new CustomNavigationBar({
-    props: {
-      title: "WebDAV 使用指南",
-      rightBarButtonItems: [
-        {
-          cview: new SymbolButton({
-            props: {
-              symbol: "xmark",
-            },
-            events: {
-              tapped: () => {
-                sheet.dismiss();
-              },
-            },
-          }),
-        },
-      ],
-    },
-  });
-  const markdown = new Markdown({
-    props: {
-      content: text,
-    },
-    layout: (make, view) => {
-      make.top.equalTo(view.prev.bottom);
-      make.left.right.bottom.equalTo(view.super.safeArea);
-    },
-  });
-  const sheet = new Sheet<ContentView, UIView, UiTypes.ViewOptions>({
-    cview: new ContentView({
-      layout: $layout.fill,
-      views: [navbar.definition, markdown.definition],
-    }),
-  });
-  sheet.present();
-}
-
 function isValidIPAddress(ip: string) {
   const ipv4Pattern = /^(\d{1,3}\.){3}\d{1,3}$/;
   const ipv6Pattern = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
@@ -455,7 +417,7 @@ class WebDAVSettingsController extends BaseController {
       events: {
         didAppear: () => {
           if (!configManager.webdavIntroductionFirstRead) {
-            showWebdavIntroduction();
+            showIntroductionSheet(webdavIntroductionPath, "WebDAV 使用指南");
             configManager.webdavIntroductionFirstRead = true;
           }
         },

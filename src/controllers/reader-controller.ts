@@ -13,7 +13,7 @@ import {
 import { CustomImagePager } from "../components/custom-image-pager";
 import { downloaderManager } from "../utils/api";
 import { statusManager } from "../utils/status";
-import { setAITranslationConfig } from "./settings-translation-controller";
+import { AITranslationConfigPickerController } from "./settings-translation-controller";
 import { AiTranslationButton } from "../components/ai-translation-button";
 import { configManager } from "../utils/config";
 import { globalTimer } from "../utils/timer";
@@ -600,9 +600,13 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
             type: "symbol-action",
             title: "AI翻译设置",
             symbol: "globe",
-            value: async () => {
+            value: () => {
               this.hidden = true;
-              await setAITranslationConfig();
+              const controller = new AITranslationConfigPickerController();
+              controller.uipush({
+                navBarHidden: true,
+                statusBarStyle: 0,
+              });
             },
           },
         ],
@@ -1132,7 +1136,7 @@ export class ReaderController extends BaseController {
           if (!galleryDownloader) return;
 
           // 如果没有设置AI翻译，提示设置
-          if (!configManager.selectedAiTranslationService) {
+          if (!configManager.selectedAiTranslationServiceName) {
             $ui.alert({
               title: "未设置AI翻译",
               message: "是否立即设置？",
@@ -1143,8 +1147,12 @@ export class ReaderController extends BaseController {
                 },
                 {
                   title: "确定",
-                  handler: async () => {
-                    await setAITranslationConfig();
+                  handler: () => {
+                    const controller = new AITranslationConfigPickerController();
+                    controller.uipush({
+                      navBarHidden: true,
+                      statusBarStyle: 0,
+                    });
                   },
                 },
               ],

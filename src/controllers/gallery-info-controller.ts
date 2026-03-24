@@ -36,37 +36,7 @@ import { PushedSearchResultController } from "./pushed-search-result-controller"
 import { WebDAVStatus, WebDAVWidget } from "../components/webdav-widget";
 import { FavoritesTabOptions, FrontPageTabOptions, WatchedTabOptions } from "../types";
 import { ArchiveController } from "./archive-controller";
-
-class BlankView extends Base<UIView, UiTypes.ViewOptions> {
-  _defineView: () => UiTypes.ViewOptions;
-  private _height: number;
-  constructor(height: number) {
-    super();
-    this._height = height;
-    this._defineView = () => {
-      return {
-        type: "view",
-        props: {
-          id: this.id,
-          bgcolor: $color("clear"),
-        },
-        layout: $layout.fill,
-      };
-    };
-  }
-
-  get height() {
-    return this._height;
-  }
-
-  set height(height: number) {
-    this._height = height;
-  }
-
-  heightToWidth(width: number) {
-    return this._height;
-  }
-}
+import { BlankView } from "../components/blank-view-for-dynamic-rowheight-list";
 
 class UploaderView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;

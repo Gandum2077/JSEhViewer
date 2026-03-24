@@ -1,443 +1,334 @@
-import {
-  Base,
-  BaseController,
-  ContentView,
-  CustomNavigationBar,
-  DynamicPreferenceListView,
-  DynamicRowHeightList,
-  Markdown,
-  PreferenceSection,
-  Sheet,
-  SymbolButton,
-} from "jsbox-cview";
-import * as MangaImageTranslator from "../ai-translations/manga-image-translator";
-import * as CotransTouhouAi from "../ai-translations/cotrans-touhou-ai";
-import * as UserCustom from "../ai-translations/user-custom";
+import { BaseController, CustomNavigationBar, DynamicItemSizeMatrix, setLayer } from "jsbox-cview";
 import { configManager } from "../utils/config";
+import { editAITranslationService } from "./settings-translation-editor-controller";
+import { showIntroductionSheet } from "../components/show-introduction-sheet";
+import { aiTranslationIntroductionPath } from "../utils/glv";
+import { DEFAULT_CUSTOM_AI_TRANSLATION_SCRIPT } from "../ai-translations/preset";
 
-const serviceTitles = [MangaImageTranslator, CotransTouhouAi, UserCustom].map((service) => service.config.title);
-
-const serviceNames = [MangaImageTranslator, CotransTouhouAi, UserCustom].map((service) => service.config.name);
-
-function getDefaultConfig(serviceName: string) {
-  switch (serviceName) {
-    case "manga-image-translator":
-      return MangaImageTranslator.config;
-    case "cotrans.touhou.ai":
-      return CotransTouhouAi.config;
-    case "user-custom":
-      return UserCustom.config;
-    default:
-      throw new Error("service not found");
+function getNextCustomScriptName(names: string[]): string {
+  let index = 1;
+  while (true) {
+    const candidate = index === 1 ? "自定义脚本" : `自定义脚本${index}`;
+    if (!names.includes(candidate)) {
+      return candidate;
+    }
+    index += 1;
   }
 }
 
-/**
- * 为DynamicPreferenceListView添加一个heightToWidth方法，前提是section没有title
- */
-class DynamicPreferenceListViewWithoutSectionTitle extends DynamicPreferenceListView {
-  constructor({
-    sections,
-    props,
-    layout,
-    events,
-  }: {
-    sections: PreferenceSection[];
-    props: UiTypes.ListProps;
-    layout?: (make: MASConstraintMaker, view: UIListView) => void;
-    events?: {
-      changed?: (values: any) => void;
-    };
-  }) {
-    super({
-      sections,
-      props: {
-        ...props,
-        style: 2,
-        rowHeight: 44,
-        scrollEnabled: false,
-      },
-      layout,
-      events,
-    });
-  }
-
-  heightToWidth(width: number): number {
-    const rowCounts = this.sections.reduce((prev, curr) => prev + curr.rows.length, 0);
-    return this.sections.length * 35 + 35 + 44 * rowCounts;
-  }
-}
-
-class CustomText extends Base<UIView, UiTypes.ViewOptions> {
-  private _visible: boolean;
-  _defineView: () => UiTypes.ViewOptions;
-  constructor({
-    text,
-    visible,
-    didBeginEditingHandler,
-  }: {
-    text: string;
-    visible: boolean;
-    didBeginEditingHandler: (sender: UICodeView) => void;
-  }) {
-    super();
-    this._visible = visible;
-    this._defineView = () => {
-      return {
-        type: "view",
-        props: {
-          id: this.id,
-          bgcolor: $color("clear"),
-        },
-        layout: $layout.fill,
-        views: [
-          {
-            type: "code",
-            props: {
-              id: this.id + "text",
-              smoothCorners: true,
-              cornerRadius: 12,
-              hidden: !visible,
-              text,
-            },
-            layout: (make, view) => {
-              make.left.right.inset(16);
-              make.top.bottom.inset(0);
-            },
-            events: {
-              didBeginEditing: (sender) => {
-                didBeginEditingHandler(sender);
-              },
-            },
-          },
-        ],
-      };
-    };
-  }
-
-  get visible() {
-    return this._visible;
-  }
-
-  set visible(visible: boolean) {
-    this._visible = visible;
-    ($(this.id + "text") as UITextView).blur();
-    ($(this.id + "text") as UITextView).hidden = !visible;
-  }
-
-  set text(text: string) {
-    ($(this.id + "text") as UITextView).text = text;
-  }
-
-  get text() {
-    return ($(this.id + "text") as UITextView).text;
-  }
-
-  heightToWidth(width: number) {
-    return this._visible ? 300 : 1;
-  }
-}
-
-class CustomBlankView extends Base<UIView, UiTypes.ViewOptions> {
-  private _visible: boolean;
-  _defineView: () => UiTypes.ViewOptions;
-  constructor({ visible }: { visible: boolean }) {
-    super();
-    this._visible = visible;
-    this._defineView = () => {
-      return {
-        type: "view",
-        props: {
-          id: this.id,
-          bgcolor: $color("clear"),
-        },
-        layout: $layout.fill,
-        views: [],
-      };
-    };
-  }
-
-  get visible() {
-    return this._visible;
-  }
-
-  set visible(visible: boolean) {
-    this._visible = visible;
-  }
-
-  heightToWidth(width: number) {
-    return this._visible ? 350 : 0.1;
-  }
-}
-
-class AITranslationConfigController extends BaseController {
-  private _selectedService: string;
+export class AITranslationConfigPickerController extends BaseController {
   cviews: {
     navbar: CustomNavigationBar;
-    dynamicPreferenceListView: DynamicPreferenceListViewWithoutSectionTitle;
-    textView: CustomText;
-    list: DynamicRowHeightList;
+    matrix: DynamicItemSizeMatrix;
   };
-  constructor(resolveHandler: () => void, rejectHandler: () => void) {
+
+  constructor() {
     super({
-      props: { bgcolor: $color("insetGroupedBackground") },
-      events: {
-        didRemove: () => {
-          rejectHandler();
-        },
+      props: {
+        bgcolor: $color("insetGroupedBackground"),
       },
     });
-    // 获取用户选择的AI翻译服务, 默认为用户自定义
-    this._selectedService = configManager.selectedAiTranslationService || UserCustom.config.name;
-    if (!serviceNames.includes(this._selectedService)) {
-      this._selectedService = UserCustom.config.name;
-    }
 
     const navbar = new CustomNavigationBar({
       props: {
         title: "AI翻译设置",
         popButtonEnabled: true,
-        rightBarButtonItems: [
-          {
-            title: "保存",
-            handler: () => {
-              resolveHandler();
-              $ui.pop();
-            },
+      },
+    });
+
+    const matrix = new DynamicItemSizeMatrix({
+      props: {
+        spacing: 20,
+        maxColumns: 3,
+        minItemWidth: 320,
+        fixedItemHeight: 16 + 34 + 4 + 20 + 16 + 22 + 22 + 31,
+        bgcolor: $color("clear"),
+        header: {
+          type: "view",
+          props: {
+            height: 96,
+            bgcolor: $color("clear"),
           },
-        ],
-      },
-    });
-
-    const dynamicPreferenceListView = new DynamicPreferenceListViewWithoutSectionTitle({
-      sections: this._generateSections(),
-      props: {
-        bgcolor: $color("clear"),
-      },
-      layout: $layout.fill,
-      events: {
-        changed: (values) => {
-          const selectedService = serviceNames[values.selectedAiTranslationService];
-          if (this._selectedService !== selectedService) {
-            this._selectedService = selectedService;
-            dynamicPreferenceListView.sections = this._generateSections();
-            textView.visible = this._selectedService === "user-custom";
-            blankView.visible = this._selectedService === "user-custom";
-            list.view.reload();
-          }
+          views: [
+            {
+              type: "button",
+              props: {
+                title: "查看说明",
+                titleColor: $color("primaryText"),
+                bgcolor: $color("primarySurface", "tertiarySurface"),
+                font: $font("bold", 18),
+              },
+              layout: (make, view) => {
+                make.right.equalTo(view.super.centerX).offset(-10);
+                make.left.greaterThanOrEqualTo(view.super.left).inset(20).priority(1000);
+                make.width.equalTo(250).priority(999);
+                make.top.inset(30);
+                make.height.equalTo(56);
+              },
+              events: {
+                tapped: () => {
+                  showIntroductionSheet(aiTranslationIntroductionPath, "自定义 AI 翻译");
+                },
+              },
+            },
+            {
+              type: "button",
+              props: {
+                title: "新增服务",
+                titleColor: $color("white"),
+                bgcolor: $color("#c1522b"),
+                font: $font("bold", 18),
+              },
+              layout: (make, view) => {
+                make.left.equalTo(view.super.centerX).offset(10);
+                make.right.lessThanOrEqualTo(view.super.right).inset(20).priority(1000);
+                make.width.equalTo(250).priority(999);
+                make.top.inset(30);
+                make.height.equalTo(56);
+              },
+              events: {
+                tapped: async () => {
+                  const name = getNextCustomScriptName(
+                    configManager.aiTranslationServices.map((service) => service.name),
+                  );
+                  const service = await editAITranslationService({
+                    name,
+                    selected: false,
+                    scriptText: DEFAULT_CUSTOM_AI_TRANSLATION_SCRIPT,
+                  });
+                  configManager.addAITranslationService(service);
+                  this.refresh();
+                },
+              },
+            },
+          ],
         },
-      },
-    });
-
-    const textView = new CustomText({
-      text: this._generateDefaultScriptText(),
-      visible: this._selectedService === "user-custom",
-      didBeginEditingHandler: (s) => {
-        list.view.scrollToOffset($point(0, 44 * 2 + 35 * 2));
-      },
-    });
-
-    const blankView = new CustomBlankView({
-      visible: this._selectedService === "user-custom",
-    });
-
-    const list = new DynamicRowHeightList({
-      rows: [dynamicPreferenceListView, textView, blankView],
-      props: {
-        separatorHidden: true,
-        bgcolor: $color("clear"),
+        template: {
+          props: {
+            bgcolor: $color("clear"),
+          },
+          views: [
+            {
+              type: "view",
+              props: {
+                bgcolor: $color("clear"),
+              },
+              layout: (make, view) => {
+                setLayer(view, {
+                  cornerRadius: 15,
+                  shadowRadius: 10,
+                  shadowOpacity: 0.1,
+                  shadowOffset: $size(2, 5),
+                  shadowColor: $color("#222"),
+                });
+                make.left.right.top.bottom.inset(0);
+              },
+              views: [
+                {
+                  type: "view",
+                  props: {
+                    id: "bgview",
+                    smoothCorners: true,
+                    cornerRadius: 22,
+                    bgcolor: $color("primarySurface", "tertiarySurface"),
+                  },
+                  layout: $layout.fill,
+                },
+                {
+                  // 上半部分
+                  type: "view",
+                  props: {},
+                  layout: (make) => {
+                    make.left.right.inset(22);
+                    make.top.inset(16);
+                    make.height.equalTo(34 + 4 + 20);
+                  },
+                  views: [
+                    {
+                      type: "label",
+                      props: {
+                        id: "title",
+                        font: $font("bold", 20),
+                        textColor: $color("primaryText"),
+                      },
+                      layout: (make, view) => {
+                        make.left.right.top.inset(0);
+                        make.height.equalTo(34);
+                      },
+                    },
+                    {
+                      type: "label",
+                      props: {
+                        id: "summary",
+                        font: $font(14),
+                        textColor: $color("secondaryText"),
+                      },
+                      layout: (make, view) => {
+                        make.left.right.inset(0);
+                        make.top.equalTo(view.prev.bottom).offset(4);
+                        make.height.equalTo(20);
+                      },
+                    },
+                  ],
+                },
+                {
+                  // separator line
+                  type: "view",
+                  props: {
+                    bgcolor: $color("separator"),
+                  },
+                  layout: (make, view) => {
+                    make.left.right.inset(22);
+                    make.bottom.inset(31 + 22 + 22);
+                    make.height.equalTo(1 / $device.info.screen.scale);
+                  },
+                },
+                {
+                  // 下半部分
+                  type: "view",
+                  props: {},
+                  layout: (make, view) => {
+                    make.left.right.inset(22);
+                    make.height.equalTo(31);
+                    make.bottom.inset(22);
+                  },
+                  views: [
+                    {
+                      type: "switch",
+                      props: {
+                        id: "switch",
+                        onColor: $color("#34C85A"),
+                      },
+                      layout: (make, view) => {
+                        make.centerY.equalTo(view.super);
+                        make.height.equalTo(view.super);
+                        make.right.inset(0);
+                      },
+                      events: {
+                        changed: (sender) => {
+                          const index = sender.info.index as number;
+                          const service = configManager.aiTranslationServices[index];
+                          const on = sender.on;
+                          if (on) {
+                            configManager.selectedAiTranslationServiceName = service.name;
+                          } else {
+                            configManager.selectedAiTranslationServiceName = undefined;
+                          }
+                          this.refresh();
+                        },
+                      },
+                    },
+                    {
+                      type: "button",
+                      props: {
+                        id: "editButton",
+                        font: $font("bold", 14),
+                        title: "编辑",
+                        titleColor: $color("white"),
+                        smoothCorners: true,
+                        cornerRadius: 10,
+                        bgcolor: $color("#777"),
+                      },
+                      layout: (make, view) => {
+                        make.centerY.equalTo(view.super);
+                        make.height.equalTo(view.super);
+                        make.left.inset(0);
+                        make.width.equalTo(70);
+                      },
+                      events: {
+                        tapped: async (sender) => {
+                          const index = sender.info.index as number;
+                          const service = configManager.aiTranslationServices[index];
+                          const newService = await editAITranslationService(service);
+                          configManager.editAITranslationService(newService);
+                          this.refresh();
+                        },
+                      },
+                    },
+                    {
+                      type: "button",
+                      props: {
+                        id: "deleteButton",
+                        font: $font("bold", 14),
+                        title: "删除",
+                        titleColor: $color("white"),
+                        smoothCorners: true,
+                        cornerRadius: 10,
+                        bgcolor: $rgba(255, 0, 0, 0.6),
+                      },
+                      layout: (make, view) => {
+                        make.centerY.equalTo(view.super);
+                        make.height.equalTo(view.super);
+                        make.left.equalTo(view.prev.right).inset(12);
+                        make.width.equalTo(70);
+                      },
+                      events: {
+                        tapped: (sender) => {
+                          $ui.alert({
+                            title: "确认删除吗？",
+                            actions: [
+                              {
+                                title: "取消",
+                                handler: () => {},
+                              },
+                              {
+                                title: "删除",
+                                handler: () => {
+                                  const index = sender.info.index as number;
+                                  const service = configManager.aiTranslationServices[index];
+                                  configManager.deleteAITranslationService(service.name);
+                                  this.refresh();
+                                },
+                              },
+                            ],
+                          });
+                        },
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        data: this._map(),
       },
       layout: (make, view) => {
         make.top.equalTo(view.prev.bottom);
         make.left.right.bottom.inset(0);
       },
-      events: {},
+      events: {
+        highlighted: (sender) => {
+          return;
+        },
+      },
     });
+
     this.cviews = {
       navbar,
-      dynamicPreferenceListView,
-      textView,
-      list,
+      matrix,
     };
-    this.rootView.views = [navbar, list];
+    this.rootView.views = [navbar, matrix];
   }
 
-  private _showIntroduction() {
-    const config = getDefaultConfig(this._selectedService);
-    showIntroduction(config.description, config.title);
-  }
-
-  private _generateDefaultScriptText() {
-    const defaultText = `async (imageData) => {
-  // 在此处编写自定义翻译的逻辑
-  // 此函数将使用eval()直接运行，请只修改函数内的部分
-  return newImageData;
-}`;
-    const userConfig = configManager.aiTranslationServiceConfig;
-    if (!userConfig || !("user-custom" in userConfig)) {
-      return defaultText;
-    }
-    const userConfigForService = userConfig["user-custom"];
-    if (userConfigForService.scriptText) {
-      return userConfigForService.scriptText;
-    } else {
-      return defaultText;
-    }
-  }
-
-  private _mergeConfigWithDefaults() {
-    // 先获取默认配置
-    const defaultRows = getDefaultConfig(this._selectedService).rows;
-    // 获取用户配置
-    const userConfig = configManager.aiTranslationServiceConfig;
-    if (!userConfig || !(this._selectedService in userConfig)) {
-      return defaultRows;
-    }
-    const userConfigForService = userConfig[this._selectedService];
-    // 合并配置
-    // 1. 拷贝默认配置
-    const newRows = defaultRows.map((row) => ({ ...row }));
-    // 2. 替换默认配置
-    for (const row of newRows) {
-      if (row.key && row.key in userConfigForService) {
-        row.value = userConfigForService[row.key];
-      }
-    }
-    return newRows;
-  }
-
-  private _generateSections(): PreferenceSection[] {
-    if (this._selectedService === "user-custom") {
-      return [
-        {
-          title: "",
-          rows: [
-            {
-              type: "list",
-              title: "服务",
-              key: "selectedAiTranslationService",
-              items: serviceTitles,
-              value: serviceNames.indexOf(this._selectedService),
-            },
-            {
-              type: "action",
-              title: "查看指南",
-              value: () => {
-                this._showIntroduction();
-              },
-            },
-          ],
-        },
-      ];
-    } else {
-      const section0: PreferenceSection = {
-        title: "",
-        rows: [
-          {
-            type: "list",
-            title: "服务",
-            key: "selectedAiTranslationService",
-            items: serviceTitles,
-            value: serviceNames.indexOf(this._selectedService),
-          },
-          {
-            type: "link",
-            title: "链接",
-            value: getDefaultConfig(this._selectedService).link,
-          },
-          {
-            type: "action",
-            title: "查看指南",
-            value: () => {
-              this._showIntroduction();
-            },
-          },
-        ],
-      };
-
-      const section1: PreferenceSection = {
-        title: "",
-        rows: this._mergeConfigWithDefaults(),
-      };
-
-      return [section0, section1];
-    }
-  }
-
-  getValues() {
-    // 从当前页面中获取用户设置的值
-    const values = this.cviews.dynamicPreferenceListView.values;
-    // 如果是用户自定义，还需要获取用户自定义的脚本
-    if (this._selectedService === "user-custom") {
-      values.scriptText = this.cviews.textView.text;
-    }
-    // 删除selectedAiTranslationService
-    delete values.selectedAiTranslationService;
-    return values;
-  }
-
-  get selectedService() {
-    return this._selectedService;
-  }
-}
-
-function showIntroduction(text: string, title: string) {
-  const navbar = new CustomNavigationBar({
-    props: {
-      title,
-      rightBarButtonItems: [
-        {
-          cview: new SymbolButton({
-            props: {
-              symbol: "xmark",
-            },
-            events: {
-              tapped: () => {
-                sheet.dismiss();
-              },
-            },
-          }),
-        },
-      ],
-    },
-  });
-  const markdown = new Markdown({
-    props: {
-      content: text,
-    },
-    layout: (make, view) => {
-      make.top.equalTo(view.prev.bottom);
-      make.left.right.bottom.equalTo(view.super.safeArea);
-    },
-  });
-  const sheet = new Sheet<ContentView, UIView, UiTypes.ViewOptions>({
-    cview: new ContentView({
-      layout: $layout.fill,
-      views: [navbar.definition, markdown.definition],
-    }),
-  });
-  sheet.present();
-}
-
-export function setAITranslationConfig() {
-  return new Promise<boolean>((resolve, reject) => {
-    const controller = new AITranslationConfigController(
-      () => {
-        const selectedService = controller.selectedService;
-        const values = controller.getValues();
-        const config = configManager.aiTranslationServiceConfig || {};
-        config[selectedService] = values;
-        configManager.selectedAiTranslationService = selectedService;
-        configManager.saveAiTranslationServiceConfig(config);
-        resolve(true);
+  _map() {
+    return configManager.aiTranslationServices.map((service, index) => ({
+      title: { text: service.name },
+      summary: { text: "" },
+      switch: {
+        on: service.selected,
+        info: { index: index },
       },
-      () => {
-        reject("cancel");
+      editButton: {
+        info: { index: index },
       },
-    );
-    controller.uipush({
-      navBarHidden: true,
-      statusBarStyle: 0,
-    });
-  });
+      deleteButton: {
+        info: { index: index },
+      },
+    }));
+  }
+
+  refresh() {
+    this.cviews.matrix.data = this._map();
+  }
 }

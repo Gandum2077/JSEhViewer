@@ -5,6 +5,7 @@ const debugText = $file.read("assets/debug")?.string?.trim();
 export const globalLogLevel: "debug" | "info" | "warn" | "error" | "fatal" = debugText === "1" ? "debug" : "warn";
 
 export const webdavIntroductionPath = "assets/webdav-introduction.md";
+export const aiTranslationIntroductionPath = "assets/ai-translation-description.md";
 export const databasePath = "assets/database.db";
 export const imagePath = "assets/image/";
 export const thumbnailPath = "assets/thumbnail/";

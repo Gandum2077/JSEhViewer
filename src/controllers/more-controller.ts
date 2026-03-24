@@ -9,7 +9,7 @@ import {
 import { GeneralSettingsController } from "./settings-general-controller";
 import { SettingsDownloadsController } from "./settings-downloads-controller";
 import { setWebDAVConfig } from "./settings-webdav-controller";
-import { setAITranslationConfig } from "./settings-translation-controller";
+import { AITranslationConfigPickerController } from "./settings-translation-controller";
 import { configManager } from "../utils/config";
 import { downloaderManager } from "../utils/api";
 import { globalTimer } from "../utils/timer";
@@ -248,7 +248,11 @@ export class MoreController extends BaseController {
               configManager.updateAllWebDAVServices(values.services);
               break;
             case 4:
-              await setAITranslationConfig();
+              const controller = new AITranslationConfigPickerController();
+              controller.uipush({
+                navBarHidden: true,
+                statusBarStyle: 0,
+              });
               break;
             case 5:
               $app.openURL("https://e-hentai.org/mytags");
@@ -332,12 +336,10 @@ export class MoreController extends BaseController {
     }
     // 4. AI翻译的选项
     let aiTranslationServiceText = "";
-    if (configManager.selectedAiTranslationService === "") {
+    if (!configManager.selectedAiTranslationServiceName) {
       aiTranslationServiceText = "尚未设置AI翻译服务";
-    } else if (configManager.selectedAiTranslationService === "user-custom") {
-      aiTranslationServiceText = "当前服务: 用户自定义";
     } else {
-      aiTranslationServiceText = "当前服务: " + configManager.selectedAiTranslationService;
+      aiTranslationServiceText = "当前服务: " + configManager.selectedAiTranslationServiceName;
     }
     const data = [
       {

@@ -249,12 +249,42 @@ export type ArchiveTab = {
   pages: ArchiveList[];
 };
 
-export type AITranslationConfig = {
+export type AITranslationConfigFormItem =
+  | {
+      type: "string";
+      title: string;
+      key: string;
+      default: string;
+    }
+  | {
+      type: "integer";
+      title: string;
+      key: string;
+      min?: number;
+      max?: number;
+      default: number;
+    }
+  | {
+      type: "boolean";
+      title: string;
+      key: string;
+      default: boolean;
+    }
+  | {
+      type: "list";
+      title: string;
+      key: string;
+      items: string[];
+      default: number; // 对应items中的索引
+    };
+
+export type AITranslationService = {
+  id?: number;
   name: string;
-  title: string;
-  link: string;
-  description: string;
-  rows: PrefsRow[];
+  selected: boolean;
+  scriptText: string;
+  configForm?: AITranslationConfigFormItem[];
+  config?: Record<string, any>;
 };
 
 export type ScrollState = {

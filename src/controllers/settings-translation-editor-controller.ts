@@ -12,6 +12,7 @@ import { AITranslationService } from "../types";
 import { showIntroductionSheet } from "../components/show-introduction-sheet";
 import { aiTranslationIntroductionPath } from "../utils/glv";
 import { CONFIG_FORM_TEMPLATE, DEFAULT_CUSTOM_AI_TRANSLATION_SCRIPT } from "../ai-translations/preset";
+import { buildAITranslationConfig, getAITranslationConfigValue } from "../ai-translations/config-form-utils";
 import {
   validateUserCustomConfigFormText,
   validateUserCustomScriptText,
@@ -28,17 +29,13 @@ const DESCRIPTION = `在本页面你可以设置自定义 AI 翻译服务。你�
 
 function mapTranslationConfigRows(service: Pick<AITranslationService, "configForm" | "config">): PrefsRow[] {
   return (service.configForm ?? []).map((item) => {
-    const value = Object.prototype.hasOwnProperty.call(service.config ?? {}, item.key)
-      ? service.config?.[item.key]
-      : item.default;
-
     switch (item.type) {
       case "string":
         return {
           type: "string",
           title: item.title,
           key: item.key,
-          value,
+          value: getAITranslationConfigValue(item, service.config),
         };
       case "integer":
         return {
@@ -47,14 +44,14 @@ function mapTranslationConfigRows(service: Pick<AITranslationService, "configFor
           key: item.key,
           min: item.min,
           max: item.max,
-          value,
+          value: getAITranslationConfigValue(item, service.config),
         };
       case "boolean":
         return {
           type: "boolean",
           title: item.title,
           key: item.key,
-          value,
+          value: getAITranslationConfigValue(item, service.config),
         };
       case "list":
         return {
@@ -62,7 +59,7 @@ function mapTranslationConfigRows(service: Pick<AITranslationService, "configFor
           title: item.title,
           key: item.key,
           items: item.items,
-          value,
+          value: getAITranslationConfigValue(item, service.config),
         };
     }
   });
@@ -527,7 +524,7 @@ class AITranslationConfigEditorController extends BaseController {
                 selected: service.selected,
                 scriptText: scriptValidation.normalizedScriptText || "",
                 configForm: schemaValidation.configForm,
-                config: schemaValidation.configForm?.length ? values : undefined,
+                config: buildAITranslationConfig(schemaValidation.configForm, values),
               });
               $ui.pop();
             },
@@ -571,9 +568,15 @@ class AITranslationConfigEditorController extends BaseController {
       type: "schema",
       checkButtonTitle: "应用",
       checkHandler: () => {
+        const validationInfo = this.cviews.schemaEditor.validationInfo;
+        const nextConfig = buildAITranslationConfig(
+          validationInfo.configForm,
+          this.cviews.infoList.values as Record<string, any>,
+        );
         this.cviews.infoList.sections = this._map({
           name: this._serviceName,
-          configForm: this.cviews.schemaEditor.validationInfo.configForm,
+          configForm: validationInfo.configForm,
+          config: nextConfig,
         });
       },
     });

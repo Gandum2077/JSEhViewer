@@ -49,6 +49,7 @@ async (imageData, config) => {
 
 - `integer` 类型还可以包含 `min` 和 `max`，用于限制输入范围。
 - `list` 类型必须包含 `items`，用于描述可选项列表。
+- 所有类型都可以额外包含 `summary`，它是一个可选布尔值。设为 `true` 后，该配置项会显示在 “AI翻译设置” 页的服务卡片摘要中，方便快速查看当前配置。可以同时标记多个配置项。
 
 每种类型的 `default` 需要与类型匹配：
 
@@ -65,6 +66,7 @@ async (imageData, config) => {
     "type": "string",
     "title": "HOST",
     "key": "host",
+    "summary": true,
     "default": "192.168.1.1"
   },
   {
@@ -85,6 +87,7 @@ async (imageData, config) => {
     "type": "list",
     "title": "列表",
     "key": "list",
+    "summary": true,
     "items": ["列表项1", "列表项2", "列表项3"],
     "default": 0
   }
@@ -98,7 +101,7 @@ async (imageData, config) => {
   host: "192.168.1.1",
   port: 5003,
   https: false,
-  translator: 2
+  list: 2
 }
 ```
 
@@ -200,6 +203,7 @@ async (imageData, config) => {
     "type": "string",
     "title": "HOST",
     "key": "host",
+    "summary": true,
     "default": "192.168.1.1"
   },
   {
@@ -208,6 +212,7 @@ async (imageData, config) => {
     "key": "port",
     "min": 1,
     "max": 65535,
+    "summary": true,
     "default": 5003
   },
   {

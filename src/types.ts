@@ -10,7 +10,6 @@ import {
   EHListExtendedItem,
   EHPopularList,
   EHPopularSearchOptions,
-  EHSearchedCategory,
   EHSearchOptions,
   EHSearchTerm,
   EHTagListItem,
@@ -20,7 +19,6 @@ import {
   EHWatchedList,
   TagNamespace,
 } from "ehentai-parser";
-import { PrefsRow } from "jsbox-cview";
 
 export type TranslationData = {
   namespace: TagNamespace;
@@ -249,34 +247,32 @@ export type ArchiveTab = {
   pages: ArchiveList[];
 };
 
+type AITranslationConfigFormItemBase = {
+  title: string;
+  key: string;
+  summary?: boolean;
+};
+
 export type AITranslationConfigFormItem =
-  | {
+  | (AITranslationConfigFormItemBase & {
       type: "string";
-      title: string;
-      key: string;
       default: string;
-    }
-  | {
+    })
+  | (AITranslationConfigFormItemBase & {
       type: "integer";
-      title: string;
-      key: string;
       min?: number;
       max?: number;
       default: number;
-    }
-  | {
+    })
+  | (AITranslationConfigFormItemBase & {
       type: "boolean";
-      title: string;
-      key: string;
       default: boolean;
-    }
-  | {
+    })
+  | (AITranslationConfigFormItemBase & {
       type: "list";
-      title: string;
-      key: string;
       items: string[];
       default: number; // 对应items中的索引
-    };
+    });
 
 export type AITranslationService = {
   id?: number;

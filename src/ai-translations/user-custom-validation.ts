@@ -166,6 +166,7 @@ export function validateUserCustomConfigFormText(configFormText: string): UserCu
     const rawType = row.type;
     const rawTitle = row.title;
     const rawKey = row.key;
+    const rawSummary = row.summary;
     if (!rawType) {
       issues.push(
         createIssue("configForm", "每个表单项都必须包含 `type` 类型。", {
@@ -220,6 +221,7 @@ export function validateUserCustomConfigFormText(configFormText: string): UserCu
     const rowType = rawType as UserCustomFormItemType;
     const title = rawTitle.trim();
     const key = rawKey.trim();
+    const summary = typeof rawSummary === "boolean" ? rawSummary : undefined;
 
     if (!allowedFormItemTypes.includes(rowType)) {
       issues.push(
@@ -247,6 +249,16 @@ export function validateUserCustomConfigFormText(configFormText: string): UserCu
       rowHasError = true;
     } else {
       keys.add(key);
+    }
+
+    if ("summary" in row && typeof rawSummary !== "boolean") {
+      issues.push(
+        createIssue("configForm", "`summary` 必须是布尔值。", {
+          rowIndex: index,
+          key,
+        }),
+      );
+      rowHasError = true;
     }
 
     if (!("default" in row)) {
@@ -395,6 +407,7 @@ export function validateUserCustomConfigFormText(configFormText: string): UserCu
             type: rowType,
             title,
             key,
+            summary,
             default: row.default,
           });
           break;
@@ -403,6 +416,7 @@ export function validateUserCustomConfigFormText(configFormText: string): UserCu
             type: rowType,
             title,
             key,
+            summary,
             default: row.default,
             min: row.min,
             max: row.max,
@@ -413,6 +427,7 @@ export function validateUserCustomConfigFormText(configFormText: string): UserCu
             type: rowType,
             title,
             key,
+            summary,
             default: row.default,
           });
           break;
@@ -421,6 +436,7 @@ export function validateUserCustomConfigFormText(configFormText: string): UserCu
             type: rowType,
             title,
             key,
+            summary,
             default: row.default,
             items: row.items,
           });

@@ -15,6 +15,7 @@ export const MANGA_IMAGE_TRANSLATOR_PRESET_CONFIG_FORM = `[
     "type": "string",
     "title": "HOST",
     "key": "host",
+    "summary": true,
     "default": "192.168.1.1"
   },
   {
@@ -204,6 +205,7 @@ export const CONFIG_FORM_TEMPLATE = `[
     "type": "string",
     "title": "HOST",
     "key": "host",
+    "summary": true,
     "default": "192.168.1.1"
   },
   {
@@ -224,6 +226,7 @@ export const CONFIG_FORM_TEMPLATE = `[
     "type": "list",
     "title": "列表",
     "key": "list",
+    "summary": true,
     "items": ["列表项1", "列表项2", "列表项3"],
     "default": 0
   }

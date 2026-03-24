@@ -4,6 +4,7 @@ import { editAITranslationService } from "./settings-translation-editor-controll
 import { showIntroductionSheet } from "../components/show-introduction-sheet";
 import { aiTranslationIntroductionPath } from "../utils/glv";
 import { DEFAULT_CUSTOM_AI_TRANSLATION_SCRIPT } from "../ai-translations/preset";
+import { buildAITranslationSummary } from "../ai-translations/config-form-utils";
 
 function getNextCustomScriptName(names: string[]): string {
   let index = 1;
@@ -41,7 +42,7 @@ export class AITranslationConfigPickerController extends BaseController {
         spacing: 20,
         maxColumns: 3,
         minItemWidth: 320,
-        fixedItemHeight: 16 + 34 + 4 + 20 + 16 + 22 + 22 + 31,
+        fixedItemHeight: 16 + 34 + 4 + 38 + 16 + 22 + 22 + 31,
         bgcolor: $color("clear"),
         header: {
           type: "view",
@@ -141,7 +142,7 @@ export class AITranslationConfigPickerController extends BaseController {
                   layout: (make) => {
                     make.left.right.inset(22);
                     make.top.inset(16);
-                    make.height.equalTo(34 + 4 + 20);
+                    make.height.equalTo(34 + 4 + 38);
                   },
                   views: [
                     {
@@ -162,11 +163,12 @@ export class AITranslationConfigPickerController extends BaseController {
                         id: "summary",
                         font: $font(14),
                         textColor: $color("secondaryText"),
+                        lines: 2,
                       },
                       layout: (make, view) => {
                         make.left.right.inset(0);
                         make.top.equalTo(view.prev.bottom).offset(4);
-                        make.height.equalTo(20);
+                        make.height.equalTo(38);
                       },
                     },
                   ],
@@ -314,7 +316,7 @@ export class AITranslationConfigPickerController extends BaseController {
   _map() {
     return configManager.aiTranslationServices.map((service, index) => ({
       title: { text: service.name },
-      summary: { text: "" },
+      summary: { text: buildAITranslationSummary(service) },
       switch: {
         on: service.selected,
         info: { index: index },

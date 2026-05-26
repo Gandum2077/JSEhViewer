@@ -461,230 +461,237 @@ export class EHlistView extends Base<UIView, UiTypes.ViewOptions> {
                     props: {
                       id: "title_large",
                       font: $font(14),
-                      lines: 3,
-                      align: $align.left,
+                      lines: 4,
                     },
                     layout: (make, view) => {
                       make.top.left.right.inset(2);
-                      make.height.equalTo(51);
                     },
                   },
                   {
-                    // 上传者和上传时间
-                    type: "view",
-                    props: {},
-                    layout: (make, view) => {
-                      make.left.right.inset(0);
-                      make.top.equalTo(view.prev.bottom);
-                      make.height.equalTo(20);
-                    },
-                    views: [
-                      {
-                        // 发布时间
-                        type: "view",
-                        props: {
-                          id: "favorite_large",
-                        },
-                        layout: (make, view) => {
-                          make.right.inset(5);
-                          make.width.equalTo(113);
-                          make.height.equalTo(17);
-                          make.centerY.equalTo(view.super);
-                        },
-                        views: [
-                          {
-                            type: "label",
-                            props: {
-                              id: "posted_time_large",
-                              textColor: $color("primaryText"),
-                              align: $align.center,
-                              font: $font(12),
-                              bgcolor: $color("primarySurface", "tertiarySurface"),
-                            },
-                            layout: (make, view) => {
-                              make.edges.insets($insets(1, 1, 1, 1));
-                              make.centerY.equalTo(view.super);
-                            },
-                          },
-                          {
-                            type: "view",
-                            props: {
-                              id: "delete_line_large",
-                              bgcolor: $color("red"),
-                              alpha: 0.8,
-                            },
-                            layout: (make, view) => {
-                              make.left.right.inset(0);
-                              make.centerY.equalTo(view.super);
-                              make.height.equalTo(1);
-                            },
-                          },
-                        ],
-                      },
-                      {
-                        // 上传者
-                        type: "label",
-                        props: {
-                          id: "uploader_large",
-                          font: $font(12),
-                          textColor: $color("secondaryText"),
-                        },
-                        layout: (make, view) => {
-                          make.left.inset(2);
-                          make.centerY.equalTo(view.super);
-                          make.right.equalTo(view.prev.left);
-                        },
-                      },
-                    ],
-                  },
-                  {
-                    // 标签
-                    type: "text",
-                    props: {
-                      id: "tags_large",
-                      bgcolor: $color("clear"),
-                      editable: false,
-                      selectable: false,
-                    },
-                    layout: (make, view) => {
-                      make.left.right.inset(0);
-                      make.top.equalTo(view.prev.bottom);
-                      make.bottom.inset(20);
-                    },
-                    events: {
-                      tapped: async (sender) => {
-                        const info = sender.info as { gid: number; token: string; title: string };
-                        await didSelect(this, $indexPath(0, 0), info);
-                      },
-                    },
-                  },
-                  {
-                    // 底栏
                     type: "view",
                     props: {},
                     layout: (make, view) => {
                       make.left.right.bottom.inset(0);
-                      make.height.equalTo(20);
+                      make.top.equalTo(view.prev.bottom);
                     },
                     views: [
                       {
-                        // 分类
-                        type: "label",
-                        props: {
-                          id: "category_large",
-                          textColor: $color("white"),
-                          align: $align.center,
-                          font: $font("bold", 12),
-                          smoothCorners: true,
-                          cornerRadius: 4,
-                        },
-                        layout: (make, view) => {
-                          make.left.inset(2);
-                          make.centerY.equalTo(view.super);
-                          make.height.equalTo(18);
-                          make.width.equalTo(80);
-                        },
-                      },
-                      {
-                        // 星级
+                        // 上传者和上传时间
                         type: "view",
                         props: {},
                         layout: (make, view) => {
-                          make.centerY.equalTo(view.super);
-                          make.centerX.equalTo(view.super).offset(13);
-                          make.width.equalTo(75);
+                          make.top.left.right.inset(0);
                           make.height.equalTo(20);
                         },
                         views: [
                           {
-                            type: "stack",
+                            // 发布时间
+                            type: "view",
                             props: {
-                              axis: $stackViewAxis.horizontal,
-                              distribution: $stackViewDistribution.fillEqually,
-                              stack: {
-                                views: [
-                                  {
-                                    type: "image",
-                                    props: {
-                                      id: "star1_large",
-                                      contentMode: 1,
-                                    },
-                                  },
-                                  {
-                                    type: "image",
-                                    props: {
-                                      id: "star2_large",
-                                      contentMode: 1,
-                                    },
-                                  },
-                                  {
-                                    type: "image",
-                                    props: {
-                                      id: "star3_large",
-                                      contentMode: 1,
-                                    },
-                                  },
-                                  {
-                                    type: "image",
-                                    props: {
-                                      id: "star4_large",
-                                      contentMode: 1,
-                                    },
-                                  },
-                                  {
-                                    type: "image",
-                                    props: {
-                                      id: "star5_large",
-                                      contentMode: 1,
-                                    },
-                                  },
-                                ],
-                              },
+                              id: "favorite_large",
                             },
                             layout: (make, view) => {
-                              make.size.equalTo($size(75, 15));
-                              make.center.equalTo(view.super);
+                              make.right.inset(5);
+                              make.width.equalTo(113);
+                              make.height.equalTo(17);
+                              make.centerY.equalTo(view.super);
+                            },
+                            views: [
+                              {
+                                type: "label",
+                                props: {
+                                  id: "posted_time_large",
+                                  textColor: $color("primaryText"),
+                                  align: $align.center,
+                                  font: $font(12),
+                                  bgcolor: $color("primarySurface", "tertiarySurface"),
+                                },
+                                layout: (make, view) => {
+                                  make.edges.insets($insets(1, 1, 1, 1));
+                                  make.centerY.equalTo(view.super);
+                                },
+                              },
+                              {
+                                type: "view",
+                                props: {
+                                  id: "delete_line_large",
+                                  bgcolor: $color("red"),
+                                  alpha: 0.8,
+                                },
+                                layout: (make, view) => {
+                                  make.left.right.inset(0);
+                                  make.centerY.equalTo(view.super);
+                                  make.height.equalTo(1);
+                                },
+                              },
+                            ],
+                          },
+                          {
+                            // 上传者
+                            type: "label",
+                            props: {
+                              id: "uploader_large",
+                              font: $font(12),
+                              textColor: $color("secondaryText"),
+                            },
+                            layout: (make, view) => {
+                              make.left.inset(2);
+                              make.centerY.equalTo(view.super);
+                              make.right.equalTo(view.prev.left);
                             },
                           },
                         ],
                       },
                       {
-                        // 页数
+                        // 标签
+                        type: "text",
+                        props: {
+                          id: "tags_large",
+                          bgcolor: $color("clear"),
+                          editable: false,
+                          selectable: false,
+                        },
+                        layout: (make, view) => {
+                          make.left.right.inset(0);
+                          make.top.equalTo(view.prev.bottom);
+                          make.bottom.inset(20);
+                        },
+                        events: {
+                          tapped: async (sender) => {
+                            const info = sender.info as { gid: number; token: string; title: string };
+                            await didSelect(this, $indexPath(0, 0), info);
+                          },
+                        },
+                      },
+                      {
+                        // 底栏
                         type: "view",
                         props: {},
                         layout: (make, view) => {
-                          make.right.inset(4);
-                          make.centerY.equalTo(view.super);
-                          make.width.equalTo(51);
-                          make.height.equalTo(17);
+                          make.left.right.bottom.inset(0);
+                          make.height.equalTo(20);
                         },
                         views: [
                           {
-                            type: "image",
-                            props: {
-                              symbol: "photo",
-                              tintColor: $color("systemLink"),
-                            },
-                            layout: (make, view) => {
-                              make.left.inset(0);
-                              make.size.equalTo($size(16, 16));
-                              make.centerY.equalTo(view.super);
-                            },
-                          },
-                          {
+                            // 分类
                             type: "label",
                             props: {
-                              id: "length_large",
-                              align: $align.left,
-                              font: $font(12),
+                              id: "category_large",
+                              textColor: $color("white"),
+                              align: $align.center,
+                              font: $font("bold", 12),
                               smoothCorners: true,
                               cornerRadius: 4,
                             },
                             layout: (make, view) => {
-                              make.width.equalTo(30);
-                              make.right.inset(0);
+                              make.left.inset(2);
                               make.centerY.equalTo(view.super);
+                              make.height.equalTo(18);
+                              make.width.equalTo(80);
                             },
+                          },
+                          {
+                            // 星级
+                            type: "view",
+                            props: {},
+                            layout: (make, view) => {
+                              make.centerY.equalTo(view.super);
+                              make.centerX.equalTo(view.super).offset(13);
+                              make.width.equalTo(75);
+                              make.height.equalTo(20);
+                            },
+                            views: [
+                              {
+                                type: "stack",
+                                props: {
+                                  axis: $stackViewAxis.horizontal,
+                                  distribution: $stackViewDistribution.fillEqually,
+                                  stack: {
+                                    views: [
+                                      {
+                                        type: "image",
+                                        props: {
+                                          id: "star1_large",
+                                          contentMode: 1,
+                                        },
+                                      },
+                                      {
+                                        type: "image",
+                                        props: {
+                                          id: "star2_large",
+                                          contentMode: 1,
+                                        },
+                                      },
+                                      {
+                                        type: "image",
+                                        props: {
+                                          id: "star3_large",
+                                          contentMode: 1,
+                                        },
+                                      },
+                                      {
+                                        type: "image",
+                                        props: {
+                                          id: "star4_large",
+                                          contentMode: 1,
+                                        },
+                                      },
+                                      {
+                                        type: "image",
+                                        props: {
+                                          id: "star5_large",
+                                          contentMode: 1,
+                                        },
+                                      },
+                                    ],
+                                  },
+                                },
+                                layout: (make, view) => {
+                                  make.size.equalTo($size(75, 15));
+                                  make.center.equalTo(view.super);
+                                },
+                              },
+                            ],
+                          },
+                          {
+                            // 页数
+                            type: "view",
+                            props: {},
+                            layout: (make, view) => {
+                              make.right.inset(4);
+                              make.centerY.equalTo(view.super);
+                              make.width.equalTo(51);
+                              make.height.equalTo(17);
+                            },
+                            views: [
+                              {
+                                type: "image",
+                                props: {
+                                  symbol: "photo",
+                                  tintColor: $color("systemLink"),
+                                },
+                                layout: (make, view) => {
+                                  make.left.inset(0);
+                                  make.size.equalTo($size(16, 16));
+                                  make.centerY.equalTo(view.super);
+                                },
+                              },
+                              {
+                                type: "label",
+                                props: {
+                                  id: "length_large",
+                                  align: $align.left,
+                                  font: $font(12),
+                                  smoothCorners: true,
+                                  cornerRadius: 4,
+                                },
+                                layout: (make, view) => {
+                                  make.width.equalTo(30);
+                                  make.right.inset(0);
+                                  make.centerY.equalTo(view.super);
+                                },
+                              },
+                            ],
                           },
                         ],
                       },

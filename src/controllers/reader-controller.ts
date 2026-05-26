@@ -23,6 +23,7 @@ import { GalleryController } from "./gallery-controller";
 import { VerticalImagePager } from "../components/vertical-image-pager";
 import { SpreadCustomImagePager } from "../components/spread-custom-image-pager";
 import { SpreadNoscrollImagePager } from "../components/spread-noscroll-image-pager";
+import { ReaderConfig } from "../types";
 
 let lastUITapGestureRecognizer: any;
 
@@ -453,57 +454,26 @@ class FooterThumbnailView extends Base<UIView, UiTypes.ViewOptions> {
   }
 }
 
+type SettingViewProps = {
+  readerConfig: ReaderConfig;
+  onlyForThisGallery: boolean;
+  imageDownloaded: boolean;
+  aiTranslated: boolean;
+  resetImageDownloadHandler: () => void;
+  resetAiTranslationHandler: () => void;
+  loadOrginalHandler: () => void;
+  closeHandler: (readerConfig: ReaderConfig, onlyForThisGallery: boolean) => void;
+  checkVerticalAllowed: () => boolean;
+};
+
 class SettingView extends Base<UIView, UiTypes.ViewOptions> {
-  private _checkImageDownloaded: () => boolean;
-  private _resetImageDownloadHandler: () => void;
-  private _checkAiTranslated: () => boolean;
-  private _resetAiTranslationHandler: () => void;
-  private _loadOrginalHandler: () => void;
-  private _reloadPagerHandler: () => void;
-  private _checkVerticalAllowed: () => boolean;
-  private _settingCache: {
-    pageDirection: "left_to_right" | "right_to_left" | "vertical"; // 翻页方向
-    spreadModeEnabled: boolean; // 双页模式
-    skipFirstPageInSpread: boolean; // 双页模式中跳过首页
-    skipLandscapePagesInSpread: boolean; // 双页模式中跳过横图
-    pagingGesture: "tap_and_swipe" | "swipe" | "tap"; // 翻页手势
-  };
-  cviews: {
-    list: DynamicPreferenceListView;
-  };
+  cviews: { list: DynamicPreferenceListView };
+  private _props: SettingViewProps;
   _defineView: () => UiTypes.ViewOptions;
-  constructor({
-    checkImageDownloaded,
-    resetImageDownloadHandler,
-    checkAiTranslated,
-    resetAiTranslationHandler,
-    loadOrginalHandler,
-    reloadPagerHandler,
-    checkVerticalAllowed,
-  }: {
-    checkImageDownloaded: () => boolean;
-    resetImageDownloadHandler: () => void;
-    checkAiTranslated: () => boolean;
-    resetAiTranslationHandler: () => void;
-    loadOrginalHandler: () => void;
-    reloadPagerHandler: () => void;
-    checkVerticalAllowed: () => boolean;
-  }) {
+  constructor(props: SettingViewProps) {
     super();
-    this._checkImageDownloaded = checkImageDownloaded;
-    this._resetImageDownloadHandler = resetImageDownloadHandler;
-    this._checkAiTranslated = checkAiTranslated;
-    this._resetAiTranslationHandler = resetAiTranslationHandler;
-    this._loadOrginalHandler = loadOrginalHandler;
-    this._reloadPagerHandler = reloadPagerHandler;
-    this._checkVerticalAllowed = checkVerticalAllowed;
-    this._settingCache = {
-      pageDirection: configManager.pageDirection,
-      spreadModeEnabled: configManager.spreadModeEnabled,
-      skipFirstPageInSpread: configManager.skipFirstPageInSpread,
-      skipLandscapePagesInSpread: configManager.skipLandscapePagesInSpread,
-      pagingGesture: configManager.pagingGesture,
-    };
+    this._props = props;
+    this._props.readerConfig = { ...props.readerConfig };
     const list = new DynamicPreferenceListView({
       sections: this._getCurrentSections(),
       props: {
@@ -523,28 +493,33 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
       },
       events: {
         changed: (values: {
+          onlyForThisGallery: boolean;
           spreadModeEnabled?: boolean;
           skipFirstPageInSpread?: boolean;
           skipLandscapePagesInSpread?: boolean;
         }) => {
-          const spreadModeEnabled = values.spreadModeEnabled ?? configManager.spreadModeEnabled;
-          const skipFirstPageInSpread = values.skipFirstPageInSpread ?? configManager.skipFirstPageInSpread;
+          const onlyForThisGallery = values.onlyForThisGallery;
+          const spreadModeEnabled = values.spreadModeEnabled ?? this._props.readerConfig.spreadModeEnabled;
+          const skipFirstPageInSpread = values.skipFirstPageInSpread ?? this._props.readerConfig.skipFirstPageInSpread;
           const skipLandscapePagesInSpread =
-            values.skipLandscapePagesInSpread ?? configManager.skipLandscapePagesInSpread;
+            values.skipLandscapePagesInSpread ?? this._props.readerConfig.skipLandscapePagesInSpread;
 
-          if (spreadModeEnabled !== configManager.spreadModeEnabled) {
-            if (spreadModeEnabled && !this._checkVerticalAllowed()) {
+          if (spreadModeEnabled !== this._props.readerConfig.spreadModeEnabled) {
+            if (spreadModeEnabled && !this._props.checkVerticalAllowed()) {
               pagingModeNotAllowedAlert();
               this._refresh();
               return;
             }
-            configManager.spreadModeEnabled = spreadModeEnabled;
+            this._props.readerConfig.spreadModeEnabled = spreadModeEnabled;
           }
-          if (skipFirstPageInSpread !== configManager.skipFirstPageInSpread) {
-            configManager.skipFirstPageInSpread = skipFirstPageInSpread;
+          if (onlyForThisGallery !== this._props.onlyForThisGallery) {
+            this._props.onlyForThisGallery = onlyForThisGallery;
           }
-          if (skipLandscapePagesInSpread !== configManager.skipLandscapePagesInSpread) {
-            configManager.skipLandscapePagesInSpread = skipLandscapePagesInSpread;
+          if (skipFirstPageInSpread !== this._props.readerConfig.skipFirstPageInSpread) {
+            this._props.readerConfig.skipFirstPageInSpread = skipFirstPageInSpread;
+          }
+          if (skipLandscapePagesInSpread !== this._props.readerConfig.skipLandscapePagesInSpread) {
+            this._props.readerConfig.skipLandscapePagesInSpread = skipLandscapePagesInSpread;
           }
           this._refresh();
         },
@@ -557,7 +532,6 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
       type: "view",
       props: {
         id: this.id,
-        hidden: true,
       },
       layout: (make, view) => {
         make.left.right.bottom.inset(0);
@@ -573,7 +547,7 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
           layout: $layout.fill,
           events: {
             tapped: (sender) => {
-              this.hidden = true;
+              this.close();
             },
           },
         },
@@ -592,8 +566,8 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
             title: "加载原图",
             symbol: "arrow.down.backward.and.arrow.up.forward.square",
             value: () => {
-              this.hidden = true;
-              this._loadOrginalHandler();
+              this.close();
+              this._props.loadOrginalHandler();
             },
           },
           {
@@ -601,12 +575,43 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
             title: "AI翻译设置",
             symbol: "globe",
             value: () => {
-              this.hidden = true;
+              this.close();
               const controller = new AITranslationConfigPickerController();
               controller.uipush({
                 navBarHidden: true,
                 statusBarStyle: 0,
               });
+            },
+          },
+        ],
+      },
+      {
+        title: "下列配置生效范围",
+        rows: [
+          {
+            type: "symbol-action",
+            title: "本图库",
+            symbol: this._props.onlyForThisGallery ? "checkmark" : undefined,
+            titleColor: this._props.onlyForThisGallery ? $color("systemLink") : undefined,
+            tintColor: this._props.onlyForThisGallery ? $color("systemLink") : undefined,
+            value: () => {
+              if (!this._props.onlyForThisGallery) {
+                this._props.onlyForThisGallery = true;
+                this._refresh();
+              }
+            },
+          },
+          {
+            type: "symbol-action",
+            title: "所有图库",
+            symbol: !this._props.onlyForThisGallery ? "checkmark" : undefined,
+            titleColor: !this._props.onlyForThisGallery ? $color("systemLink") : undefined,
+            tintColor: !this._props.onlyForThisGallery ? $color("systemLink") : undefined,
+            value: () => {
+              if (this._props.onlyForThisGallery) {
+                this._props.onlyForThisGallery = false;
+                this._refresh();
+              }
             },
           },
         ],
@@ -618,11 +623,11 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
             type: "symbol-action",
             title: "从左往右",
             symbol: "arrow.right.square",
-            titleColor: configManager.pageDirection === "left_to_right" ? $color("systemLink") : undefined,
-            tintColor: configManager.pageDirection === "left_to_right" ? $color("systemLink") : undefined,
+            titleColor: this._props.readerConfig.pageDirection === "left_to_right" ? $color("systemLink") : undefined,
+            tintColor: this._props.readerConfig.pageDirection === "left_to_right" ? $color("systemLink") : undefined,
             value: () => {
-              if (configManager.pageDirection !== "left_to_right") {
-                configManager.pageDirection = "left_to_right";
+              if (this._props.readerConfig.pageDirection !== "left_to_right") {
+                this._props.readerConfig.pageDirection = "left_to_right";
                 this._refresh();
               }
             },
@@ -631,11 +636,11 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
             type: "symbol-action",
             title: "从右往左",
             symbol: "arrow.left.square",
-            titleColor: configManager.pageDirection === "right_to_left" ? $color("systemLink") : undefined,
-            tintColor: configManager.pageDirection === "right_to_left" ? $color("systemLink") : undefined,
+            titleColor: this._props.readerConfig.pageDirection === "right_to_left" ? $color("systemLink") : undefined,
+            tintColor: this._props.readerConfig.pageDirection === "right_to_left" ? $color("systemLink") : undefined,
             value: () => {
-              if (configManager.pageDirection !== "right_to_left") {
-                configManager.pageDirection = "right_to_left";
+              if (this._props.readerConfig.pageDirection !== "right_to_left") {
+                this._props.readerConfig.pageDirection = "right_to_left";
                 this._refresh();
               }
             },
@@ -644,15 +649,15 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
             type: "symbol-action",
             title: "纵向",
             symbol: "arrow.down.square",
-            titleColor: configManager.pageDirection === "vertical" ? $color("systemLink") : undefined,
-            tintColor: configManager.pageDirection === "vertical" ? $color("systemLink") : undefined,
+            titleColor: this._props.readerConfig.pageDirection === "vertical" ? $color("systemLink") : undefined,
+            tintColor: this._props.readerConfig.pageDirection === "vertical" ? $color("systemLink") : undefined,
             value: () => {
-              if (configManager.pageDirection !== "vertical") {
-                if (!this._checkVerticalAllowed()) {
+              if (this._props.readerConfig.pageDirection !== "vertical") {
+                if (!this._props.checkVerticalAllowed()) {
                   pagingModeNotAllowedAlert();
                   return;
                 }
-                configManager.pageDirection = "vertical";
+                this._props.readerConfig.pageDirection = "vertical";
                 this._refresh();
               }
             },
@@ -661,24 +666,24 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
       },
     ];
 
-    if (this._checkImageDownloaded()) {
+    if (this._props.imageDownloaded) {
       sections[0].rows.push({
         type: "symbol-action",
         title: "重新下载本页图片",
         value: () => {
-          this.hidden = true;
-          this._resetImageDownloadHandler();
+          this.close();
+          this._props.resetImageDownloadHandler();
         },
       });
     }
 
-    if (this._checkAiTranslated()) {
+    if (this._props.aiTranslated) {
       sections[0].rows.push({
         type: "symbol-action",
         title: "重置本页的AI翻译",
         value: () => {
-          this.hidden = true;
-          this._resetAiTranslationHandler();
+          this.close();
+          this._props.resetAiTranslationHandler();
         },
       });
     }
@@ -690,22 +695,22 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
           type: "boolean",
           title: "开启",
           key: "spreadModeEnabled",
-          value: configManager.spreadModeEnabled,
+          value: this._props.readerConfig.spreadModeEnabled,
         },
       ],
     };
-    if (configManager.spreadModeEnabled) {
+    if (this._props.readerConfig.spreadModeEnabled) {
       sectionSpreadMode.rows.push({
         type: "boolean",
         title: "跳过首页",
         key: "skipFirstPageInSpread",
-        value: configManager.skipFirstPageInSpread,
+        value: this._props.readerConfig.skipFirstPageInSpread,
       });
       sectionSpreadMode.rows.push({
         type: "boolean",
         title: "跳过横图 & 条图",
         key: "skipLandscapePagesInSpread",
-        value: configManager.skipLandscapePagesInSpread,
+        value: this._props.readerConfig.skipLandscapePagesInSpread,
       });
     }
     const sectionPagingGesture: PreferenceSection = {
@@ -714,12 +719,12 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
         {
           type: "symbol-action",
           title: "滑动和点击",
-          symbol: configManager.pagingGesture === "tap_and_swipe" ? "checkmark" : undefined,
-          titleColor: configManager.pagingGesture === "tap_and_swipe" ? $color("systemLink") : undefined,
-          tintColor: configManager.pagingGesture === "tap_and_swipe" ? $color("systemLink") : undefined,
+          symbol: this._props.readerConfig.pagingGesture === "tap_and_swipe" ? "checkmark" : undefined,
+          titleColor: this._props.readerConfig.pagingGesture === "tap_and_swipe" ? $color("systemLink") : undefined,
+          tintColor: this._props.readerConfig.pagingGesture === "tap_and_swipe" ? $color("systemLink") : undefined,
           value: () => {
-            if (configManager.pagingGesture !== "tap_and_swipe") {
-              configManager.pagingGesture = "tap_and_swipe";
+            if (this._props.readerConfig.pagingGesture !== "tap_and_swipe") {
+              this._props.readerConfig.pagingGesture = "tap_and_swipe";
               this._refresh();
             }
           },
@@ -727,12 +732,12 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
         {
           type: "symbol-action",
           title: "仅滑动",
-          symbol: configManager.pagingGesture === "swipe" ? "checkmark" : undefined,
-          titleColor: configManager.pagingGesture === "swipe" ? $color("systemLink") : undefined,
-          tintColor: configManager.pagingGesture === "swipe" ? $color("systemLink") : undefined,
+          symbol: this._props.readerConfig.pagingGesture === "swipe" ? "checkmark" : undefined,
+          titleColor: this._props.readerConfig.pagingGesture === "swipe" ? $color("systemLink") : undefined,
+          tintColor: this._props.readerConfig.pagingGesture === "swipe" ? $color("systemLink") : undefined,
           value: () => {
-            if (configManager.pagingGesture !== "swipe") {
-              configManager.pagingGesture = "swipe";
+            if (this._props.readerConfig.pagingGesture !== "swipe") {
+              this._props.readerConfig.pagingGesture = "swipe";
               this._refresh();
             }
           },
@@ -740,12 +745,12 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
         {
           type: "symbol-action",
           title: "仅点击",
-          symbol: configManager.pagingGesture === "tap" ? "checkmark" : undefined,
-          titleColor: configManager.pagingGesture === "tap" ? $color("systemLink") : undefined,
-          tintColor: configManager.pagingGesture === "tap" ? $color("systemLink") : undefined,
+          symbol: this._props.readerConfig.pagingGesture === "tap" ? "checkmark" : undefined,
+          titleColor: this._props.readerConfig.pagingGesture === "tap" ? $color("systemLink") : undefined,
+          tintColor: this._props.readerConfig.pagingGesture === "tap" ? $color("systemLink") : undefined,
           value: () => {
-            if (configManager.pagingGesture !== "tap") {
-              configManager.pagingGesture = "tap";
+            if (this._props.readerConfig.pagingGesture !== "tap") {
+              this._props.readerConfig.pagingGesture = "tap";
               this._refresh();
             }
           },
@@ -753,56 +758,28 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
       ],
     };
 
-    if (configManager.pageDirection !== "vertical") {
+    if (this._props.readerConfig.pageDirection !== "vertical") {
       sections.push(sectionSpreadMode);
       sections.push(sectionPagingGesture);
     }
     return sections;
   }
 
-  private _refresh() {
+  close() {
+    this.view.hidden = true;
+    this._props.closeHandler(this._props.readerConfig, this._props.onlyForThisGallery);
+    this.view.remove();
+  }
+
+  _refresh() {
     this.cviews.list.sections = this._getCurrentSections();
-  }
-
-  set hidden(value: boolean) {
-    if (!value) {
-      this._settingCache = {
-        pageDirection: configManager.pageDirection,
-        spreadModeEnabled: configManager.spreadModeEnabled,
-        skipFirstPageInSpread: configManager.skipFirstPageInSpread,
-        skipLandscapePagesInSpread: configManager.skipLandscapePagesInSpread,
-        pagingGesture: configManager.pagingGesture,
-      };
-      this._refresh();
-    }
-    this.view.hidden = value;
-    if (value) {
-      let flag = false;
-      if (this._settingCache.pageDirection !== configManager.pageDirection) {
-        flag = true;
-      } else if (configManager.pageDirection !== "vertical") {
-        if (this._settingCache.pagingGesture !== configManager.pagingGesture) flag = true;
-        if (this._settingCache.spreadModeEnabled !== configManager.spreadModeEnabled) {
-          flag = true;
-        } else if (configManager.spreadModeEnabled) {
-          if (this._settingCache.skipFirstPageInSpread !== configManager.skipFirstPageInSpread) flag = true;
-          if (this._settingCache.skipLandscapePagesInSpread !== configManager.skipLandscapePagesInSpread) flag = true;
-        }
-      }
-
-      if (flag) {
-        this._reloadPagerHandler();
-      }
-    }
-  }
-
-  get hidden() {
-    return this.view.hidden;
   }
 }
 
 export class ReaderController extends BaseController {
   private gid: number;
+  private _readerConfig: ReaderConfig;
+  private _onlyForThisGallery: boolean;
   private imagePager?:
     | CustomImagePager
     | NoscrollImagePager
@@ -827,7 +804,7 @@ export class ReaderController extends BaseController {
     viewer: ContentView;
     footerThumbnailView: FooterThumbnailView;
     downloadButton: DownloadButtonForReader;
-    settingView: SettingView;
+    settingView?: SettingView;
   };
 
   constructor({
@@ -866,7 +843,7 @@ export class ReaderController extends BaseController {
                 if (
                   !this.imagePager.isCurrentPagesAllLoaded ||
                   this.imagePager.nextPage === undefined ||
-                  this.cviews.settingView.hidden === false
+                  this.cviews.settingView
                 ) {
                   this._autoPagerCountDown = this._autoPagerInterval;
                   return;
@@ -912,17 +889,25 @@ export class ReaderController extends BaseController {
     });
     this._superGalleryController = superGalleryController;
     this.gid = gid;
+    const readerConfig = configManager.getGalleryReaderConfig(gid);
+    if (readerConfig) {
+      this._readerConfig = readerConfig;
+      this._onlyForThisGallery = true;
+    } else {
+      this._readerConfig = configManager.getCommonReaderConfig();
+      this._onlyForThisGallery = false;
+    }
     const galleryDownloader = downloaderManager.get(gid);
     if (!galleryDownloader) throw new Error("galleryDownloader not found");
 
     // 检查纵向滑动是否可用：需要所有分页都下载完
     if (
-      (configManager.pageDirection === "vertical" || configManager.spreadModeEnabled) &&
+      (this._readerConfig.pageDirection === "vertical" || this._readerConfig.spreadModeEnabled) &&
       galleryDownloader.finishedOfHtmls !== galleryDownloader.infos.total_pages
     ) {
-      const alertType = configManager.pageDirection === "vertical" ? "vertical" : "spread";
-      configManager.pageDirection = "left_to_right";
-      configManager.spreadModeEnabled = false;
+      const alertType = this._readerConfig.pageDirection === "vertical" ? "vertical" : "spread";
+      this._readerConfig.pageDirection = "left_to_right";
+      this._readerConfig.spreadModeEnabled = false;
       pagingModeNotAllowedAlert(alertType);
     }
     const footerThumbnailView = new FooterThumbnailView({
@@ -930,7 +915,7 @@ export class ReaderController extends BaseController {
         index,
         length,
         thumbnailItems: galleryDownloader.result.thumbnails,
-        reversed: configManager.pageDirection === "right_to_left",
+        reversed: this._readerConfig.pageDirection === "right_to_left",
       },
       events: {
         changed: (index) => this.handleTurnPage(index),
@@ -959,7 +944,111 @@ export class ReaderController extends BaseController {
       },
       events: {
         tapped: (sender) => {
-          this.cviews.settingView.hidden = !this.cviews.settingView.hidden;
+          if (this.cviews.settingView) {
+            this.cviews.settingView.close();
+            return;
+          }
+
+          const index = footerThumbnailView.index;
+          const galleryDownloader = downloaderManager.get(this.gid);
+          if (!galleryDownloader) return;
+          const image = galleryDownloader.result.images[index];
+          const imageDownloaded = Boolean(image.path);
+          const aiTranslation = galleryDownloader.result.aiTranslations[index];
+          const aiTranslated = Boolean(aiTranslation.path);
+          const settingView = new SettingView({
+            readerConfig: this._readerConfig,
+            onlyForThisGallery: this._onlyForThisGallery,
+            imageDownloaded,
+            aiTranslated,
+            resetImageDownloadHandler: () => {
+              const index = footerThumbnailView.index;
+              const galleryDownloader = downloaderManager.get(this.gid);
+              if (!galleryDownloader) return;
+              const image = galleryDownloader.result.images[index];
+
+              const path = image.path;
+              if (path) {
+                $file.delete(path);
+                image.path = undefined;
+                image.error = false;
+                image.started = false;
+                this.refreshCurrentPage(true);
+                downloaderManager.startOne(this.gid);
+              }
+            },
+            resetAiTranslationHandler: () => {
+              const index = footerThumbnailView.index;
+              const galleryDownloader = downloaderManager.get(this.gid);
+              if (!galleryDownloader) return;
+              const aiTranslation = galleryDownloader.result.aiTranslations[index];
+              const path = aiTranslation.path;
+              if (path) {
+                $file.delete(path);
+                aiTranslation.path = undefined;
+                aiTranslation.error = false;
+                aiTranslation.started = false;
+                aiTranslation.userSelected = false;
+                this.aiTranslatedPageSet.delete(index);
+                aiTranslationButton.status = "pending";
+                this.refreshCurrentPage(true);
+              }
+            },
+            loadOrginalHandler: () => {
+              const index = this.cviews.footerThumbnailView.index;
+              if (this.reloadedPageSet.has(index)) return; // 如果已经添加过，不再重复添加
+
+              this.reloadedPageSet.add(index);
+              // 查看本页面的info是否已经加载完成
+              const galleryDownloader = downloaderManager.get(this.gid);
+              if (!galleryDownloader) return;
+              const originalImage = galleryDownloader.result.originalImages[index];
+              // 如果已经下载好了，则立即刷新
+              // 这种情况只存在于下载器初始化时，已经下载好了原图
+              if (originalImage.path) {
+                this.refreshCurrentPage();
+              }
+              // 如果没有下载好，则选择此图片使下载器准备下载
+              originalImage.userSelected = true;
+              // 重新启动下载器
+              galleryDownloader.start();
+
+              // 刷新标题
+              this.cviews.titleLabel.view.text = this._generateTitle();
+            },
+            closeHandler: (readerConfig, onlyForThisGallery) => {
+              // 与之前的readerConfig，如果有差异则重新布局
+              if (
+                this._readerConfig.pageDirection !== readerConfig.pageDirection ||
+                this._readerConfig.spreadModeEnabled !== readerConfig.spreadModeEnabled ||
+                this._readerConfig.skipFirstPageInSpread !== readerConfig.skipFirstPageInSpread ||
+                this._readerConfig.skipLandscapePagesInSpread !== readerConfig.skipLandscapePagesInSpread ||
+                this._readerConfig.pagingGesture !== readerConfig.pagingGesture
+              ) {
+                this._readerConfig = readerConfig;
+                viewerLayoutSubviews(viewer.view);
+              }
+
+              // 写入数据库
+              this._onlyForThisGallery = onlyForThisGallery;
+              if (this._onlyForThisGallery) {
+                configManager.setGalleryReaderConfig(this.gid, this._readerConfig);
+              } else {
+                configManager.setCommonReaderConfig(readerConfig);
+                configManager.deleteGalleryReaderConfig(this.gid);
+              }
+
+              // 将settingView除名
+              this.cviews.settingView = undefined;
+            },
+            checkVerticalAllowed: () => {
+              const d = downloaderManager.get(gid);
+              if (!d) throw new Error("galleryDownloader not found");
+              return d.finishedOfHtmls === d.infos.total_pages;
+            },
+          });
+          this.cviews.settingView = settingView;
+          this.rootView.add(settingView);
         },
       },
     });
@@ -1286,12 +1375,12 @@ export class ReaderController extends BaseController {
     let lastFrameWidth = 0;
     let lastFrameHeight = 0;
     const viewerLayoutSubviews = (sender: UIBaseView) => {
-      this.cviews.footerThumbnailView.reversed = configManager.pageDirection === "right_to_left";
+      this.cviews.footerThumbnailView.reversed = this._readerConfig.pageDirection === "right_to_left";
       lastFrameWidth = sender.frame.width;
       lastFrameHeight = sender.frame.height;
       if (sender.views.length !== 0) sender.views[0].remove();
       this.imagePager =
-        configManager.pageDirection === "vertical"
+        this._readerConfig.pageDirection === "vertical"
           ? new VerticalImagePager({
               props: {
                 srcs: this._generateSrcs(),
@@ -1326,15 +1415,15 @@ export class ReaderController extends BaseController {
                 },
               },
             })
-          : configManager.spreadModeEnabled && configManager.pagingGesture === "tap"
+          : this._readerConfig.spreadModeEnabled && this._readerConfig.pagingGesture === "tap"
             ? new SpreadNoscrollImagePager({
                 props: {
                   srcs: this._generateSrcs(),
                   page: footerThumbnailView.index,
-                  reversed: configManager.pageDirection === "right_to_left",
+                  reversed: this._readerConfig.pageDirection === "right_to_left",
                   imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
-                  skipFirstPage: configManager.skipFirstPageInSpread,
-                  skipLandscapePages: configManager.skipLandscapePagesInSpread,
+                  skipFirstPage: this._readerConfig.skipFirstPageInSpread,
+                  skipLandscapePages: this._readerConfig.skipLandscapePagesInSpread,
                 },
                 layout: $layout.fillSafeArea,
                 events: {
@@ -1361,16 +1450,16 @@ export class ReaderController extends BaseController {
                   },
                 },
               })
-            : configManager.spreadModeEnabled &&
-                (configManager.pagingGesture === "swipe" || configManager.pagingGesture === "tap_and_swipe")
+            : this._readerConfig.spreadModeEnabled &&
+                (this._readerConfig.pagingGesture === "swipe" || this._readerConfig.pagingGesture === "tap_and_swipe")
               ? new SpreadCustomImagePager({
                   props: {
                     srcs: this._generateSrcs(),
                     page: footerThumbnailView.index,
-                    reversed: configManager.pageDirection === "right_to_left",
+                    reversed: this._readerConfig.pageDirection === "right_to_left",
                     imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
-                    skipFirstPage: configManager.skipFirstPageInSpread,
-                    skipLandscapePages: configManager.skipLandscapePagesInSpread,
+                    skipFirstPage: this._readerConfig.skipFirstPageInSpread,
+                    skipLandscapePages: this._readerConfig.skipLandscapePagesInSpread,
                   },
                   layout: $layout.fillSafeArea,
                   events: {
@@ -1397,7 +1486,7 @@ export class ReaderController extends BaseController {
                     },
                   },
                 })
-              : configManager.pagingGesture === "tap"
+              : this._readerConfig.pagingGesture === "tap"
                 ? new NoscrollImagePager({
                     props: {
                       srcs: this._generateSrcs(),
@@ -1421,7 +1510,7 @@ export class ReaderController extends BaseController {
                       srcs: this._generateSrcs(),
                       page: footerThumbnailView.index,
                       imageShareOnLongPressEnabled: configManager.imageShareOnLongPressEnabled,
-                      reversed: configManager.pageDirection === "right_to_left",
+                      reversed: this._readerConfig.pageDirection === "right_to_left",
                     },
                     layout: $layout.fillSafeArea,
                     // 横向滑动模式必须限制在安全区域内，否则会出现切页时图片随机上下浮动一点点的问题（猜测和状态栏有关？）
@@ -1440,7 +1529,7 @@ export class ReaderController extends BaseController {
         if (!this.imagePager) return;
         define(this.imagePager.view.ocValue(), (location) => {
           if (!this.imagePager) return;
-          if (configManager.pageDirection === "vertical" || configManager.pagingGesture === "swipe") {
+          if (this._readerConfig.pageDirection === "vertical" || this._readerConfig.pagingGesture === "swipe") {
             footer.view.hidden = !footer.view.hidden;
             header.view.hidden = !header.view.hidden;
             return;
@@ -1451,15 +1540,21 @@ export class ReaderController extends BaseController {
           const y = location.y;
           if (
             y / h < 1 / 4 ||
-            (configManager.pageDirection === "left_to_right" && y / h >= 1 / 4 && y / h <= 3 / 4 && x / w < 1 / 3) ||
-            (configManager.pageDirection === "right_to_left" && y / h >= 1 / 4 && y / h <= 3 / 4 && x / w > 2 / 3)
+            (this._readerConfig.pageDirection === "left_to_right" &&
+              y / h >= 1 / 4 &&
+              y / h <= 3 / 4 &&
+              x / w < 1 / 3) ||
+            (this._readerConfig.pageDirection === "right_to_left" && y / h >= 1 / 4 && y / h <= 3 / 4 && x / w > 2 / 3)
           ) {
             if (this.imagePager.prevPage === undefined) return;
             this.handleTurnPage(this.imagePager.prevPage);
           } else if (
             y / h > 3 / 4 ||
-            (configManager.pageDirection === "left_to_right" && y / h >= 1 / 4 && y / h <= 3 / 4 && x / w > 2 / 3) ||
-            (configManager.pageDirection === "right_to_left" && y / h >= 1 / 4 && y / h <= 3 / 4 && x / w < 1 / 3)
+            (this._readerConfig.pageDirection === "left_to_right" &&
+              y / h >= 1 / 4 &&
+              y / h <= 3 / 4 &&
+              x / w > 2 / 3) ||
+            (this._readerConfig.pageDirection === "right_to_left" && y / h >= 1 / 4 && y / h <= 3 / 4 && x / w < 1 / 3)
           ) {
             if (this.imagePager.nextPage === undefined) return;
             this.handleTurnPage(this.imagePager.nextPage);
@@ -1487,86 +1582,6 @@ export class ReaderController extends BaseController {
       },
     });
 
-    const settingView = new SettingView({
-      checkImageDownloaded: () => {
-        const index = footerThumbnailView.index;
-        const galleryDownloader = downloaderManager.get(this.gid);
-        if (!galleryDownloader) return false;
-        const image = galleryDownloader.result.images[index];
-        return Boolean(image.path);
-      },
-      resetImageDownloadHandler: () => {
-        const index = footerThumbnailView.index;
-        const galleryDownloader = downloaderManager.get(this.gid);
-        if (!galleryDownloader) return;
-        const image = galleryDownloader.result.images[index];
-
-        const path = image.path;
-        if (path) {
-          $file.delete(path);
-          image.path = undefined;
-          image.error = false;
-          image.started = false;
-          this.refreshCurrentPage(true);
-          downloaderManager.startOne(this.gid);
-        }
-      },
-      checkAiTranslated: () => {
-        const index = footerThumbnailView.index;
-        const galleryDownloader = downloaderManager.get(this.gid);
-        if (!galleryDownloader) return false;
-        const aiTranslation = galleryDownloader.result.aiTranslations[index];
-        return Boolean(aiTranslation.path);
-      },
-      resetAiTranslationHandler: () => {
-        const index = footerThumbnailView.index;
-        const galleryDownloader = downloaderManager.get(this.gid);
-        if (!galleryDownloader) return;
-        const aiTranslation = galleryDownloader.result.aiTranslations[index];
-        const path = aiTranslation.path;
-        if (path) {
-          $file.delete(path);
-          aiTranslation.path = undefined;
-          aiTranslation.error = false;
-          aiTranslation.started = false;
-          aiTranslation.userSelected = false;
-          this.aiTranslatedPageSet.delete(index);
-          aiTranslationButton.status = "pending";
-          this.refreshCurrentPage(true);
-        }
-      },
-      loadOrginalHandler: () => {
-        const index = this.cviews.footerThumbnailView.index;
-        if (this.reloadedPageSet.has(index)) return; // 如果已经添加过，不再重复添加
-
-        this.reloadedPageSet.add(index);
-        // 查看本页面的info是否已经加载完成
-        const galleryDownloader = downloaderManager.get(this.gid);
-        if (!galleryDownloader) return;
-        const originalImage = galleryDownloader.result.originalImages[index];
-        // 如果已经下载好了，则立即刷新
-        // 这种情况只存在于下载器初始化时，已经下载好了原图
-        if (originalImage.path) {
-          this.refreshCurrentPage();
-        }
-        // 如果没有下载好，则选择此图片使下载器准备下载
-        originalImage.userSelected = true;
-        // 重新启动下载器
-        galleryDownloader.start();
-
-        // 刷新标题
-        this.cviews.titleLabel.view.text = this._generateTitle();
-      },
-      reloadPagerHandler: () => {
-        viewerLayoutSubviews(viewer.view);
-      },
-      checkVerticalAllowed: () => {
-        const d = downloaderManager.get(gid);
-        if (!d) throw new Error("galleryDownloader not found");
-        return d.finishedOfHtmls === d.infos.total_pages;
-      },
-    });
-
     this.cviews = {
       titleLabel,
       aiTranslationButton,
@@ -1575,9 +1590,8 @@ export class ReaderController extends BaseController {
       viewer,
       footerThumbnailView,
       downloadButton,
-      settingView,
     };
-    this.rootView.views = [viewer, header, footer, settingView];
+    this.rootView.views = [viewer, header, footer];
   }
 
   refreshCurrentPage(forced: boolean = false) {

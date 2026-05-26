@@ -9,6 +9,7 @@ import {
   DBSearchBookmarks,
   AITranslationService,
   AITranslationConfigFormItem,
+  ReaderConfig,
 } from "../types";
 import { dbManager } from "./database";
 import { aiTranslationPath, imagePath, originalImagePath, thumbnailPath } from "./glv";
@@ -1300,6 +1301,84 @@ LIMIT 20;
     const sql_delete_archives = "DELETE FROM archives";
     dbManager.update(sql_delete_archive_taglist);
     dbManager.update(sql_delete_archives);
+  }
+
+  /**
+   * 获得特定图库的阅读器参数
+   */
+  getGalleryReaderConfig(gid: number): ReaderConfig | undefined {
+    const sql = "SELECT * FROM gallery_reader_config WHERE gid = ?";
+    const data = dbManager.query(sql, [gid]) as {
+      gid: number;
+      pageDirection: string;
+      spreadModeEnabled: number;
+      skipFirstPageInSpread: number;
+      skipLandscapePagesInSpread: number;
+      pagingGesture: string;
+    }[];
+    if (data.length === 0) {
+      return;
+    } else {
+      const n = data[0];
+      return {
+        pageDirection: n.pageDirection as "left_to_right" | "right_to_left" | "vertical",
+        spreadModeEnabled: Boolean(n.spreadModeEnabled),
+        skipFirstPageInSpread: Boolean(n.skipFirstPageInSpread),
+        skipLandscapePagesInSpread: Boolean(n.skipLandscapePagesInSpread),
+        pagingGesture: n.pagingGesture as "tap_and_swipe" | "swipe" | "tap",
+      };
+    }
+  }
+
+  /**
+   * 设置特定图库的阅读器参数
+   * @param gid
+   * @param config
+   */
+  setGalleryReaderConfig(gid: number, config: ReaderConfig) {
+    const sql_update = `
+    INSERT INTO gallery_reader_config
+    (gid, pageDirection, spreadModeEnabled, skipFirstPageInSpread, skipLandscapePagesInSpread, pagingGesture)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(gid) DO UPDATE SET
+      pageDirection = excluded.pageDirection,
+      spreadModeEnabled = excluded.spreadModeEnabled,
+      skipFirstPageInSpread = excluded.skipFirstPageInSpread,
+      skipLandscapePagesInSpread = excluded.skipLandscapePagesInSpread,
+      pagingGesture = excluded.pagingGesture
+    `;
+    const args_update = [
+      gid,
+      config.pageDirection,
+      config.spreadModeEnabled,
+      config.skipFirstPageInSpread,
+      config.skipLandscapePagesInSpread,
+      config.pagingGesture,
+    ];
+    dbManager.update(sql_update, args_update);
+  }
+
+  deleteGalleryReaderConfig(gid: number) {
+    const sql_delete = "DELETE FROM gallery_reader_config WHERE gid = ?";
+    dbManager.update(sql_delete, [gid]);
+  }
+
+  getCommonReaderConfig(): ReaderConfig {
+    return {
+      pageDirection: this.pageDirection,
+      spreadModeEnabled: this.spreadModeEnabled,
+      skipFirstPageInSpread: this.skipFirstPageInSpread,
+      skipLandscapePagesInSpread: this.skipLandscapePagesInSpread,
+      pagingGesture: this.pagingGesture,
+    };
+  }
+
+  setCommonReaderConfig(config: ReaderConfig) {
+    this.pageDirection = config.pageDirection;
+    this.spreadModeEnabled = config.spreadModeEnabled;
+    this.skipFirstPageInSpread = config.skipFirstPageInSpread;
+    this.skipLandscapePagesInSpread = config.skipLandscapePagesInSpread;
+    this.pagingGesture = config.pagingGesture;
   }
 }
 

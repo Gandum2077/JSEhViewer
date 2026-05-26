@@ -9,8 +9,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "tsc && webpack && cd app && zip -q -r ../JSEhViewer.box . && rm main.js",
-    "test": "tsc && webpack --config webpack.config.test.js && cd app && zip -q -r ../JSEhViewer.box . && rm main.js",
+    "build": "tsc && webpack --entry-reset --entry ${npm_config_entry:-./dist/index.js} && cd app && zip -q -r ../JSEhViewer.box . && rm main.js",
     "format": "prettier --write ."
   },
   "keywords": [],

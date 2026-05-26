@@ -289,3 +289,11 @@ export type ScrollState = {
   offsetY: number;
   firstVisibleItemIndex: number;
 };
+
+export type ReaderConfig = {
+  pageDirection: "left_to_right" | "right_to_left" | "vertical"; // 翻页方向
+  spreadModeEnabled: boolean; // 双页模式
+  skipFirstPageInSpread: boolean; // 双页模式中跳过首页
+  skipLandscapePagesInSpread: boolean; // 双页模式中跳过横图
+  pagingGesture: "tap_and_swipe" | "swipe" | "tap"; // 翻页手势
+};

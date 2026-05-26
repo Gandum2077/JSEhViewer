@@ -165,6 +165,20 @@ export function createDB() {
             length INTEGER NOT NULL,
             finished INTEGER
             )`);
+  // 对特定图库生效的阅读配置表
+  // pageDirection: "left_to_right" | "right_to_left" | "vertical"; // 翻页方向
+  // spreadModeEnabled: boolean; // 双页模式
+  // skipFirstPageInSpread: boolean; // 双页模式中跳过首页
+  // skipLandscapePagesInSpread: boolean; // 双页模式中跳过横图
+  // pagingGesture: "tap_and_swipe" | "swipe" | "tap"; // 翻页手势
+  db.update(`CREATE TABLE IF NOT EXISTS gallery_reader_config (
+            gid INTEGER PRIMARY KEY,
+            pageDirection TEXT CHECK (pageDirection IN ('left_to_right', 'right_to_left', 'vertical')),
+            spreadModeEnabled INTEGER CHECK (spreadModeEnabled IN (0, 1)),
+            skipFirstPageInSpread INTEGER CHECK (skipFirstPageInSpread IN (0, 1)),
+            skipLandscapePagesInSpread INTEGER CHECK (skipLandscapePagesInSpread IN (0, 1)),
+            pagingGesture TEXT CHECK (pagingGesture IN ('tap_and_swipe', 'swipe', 'tap'))
+            )`);
 
   // 创建trigger, 限制webdav_services表的enabled最多只能有一行
   db.update(`CREATE TRIGGER IF NOT EXISTS enforce_webdav_services_single_enabled

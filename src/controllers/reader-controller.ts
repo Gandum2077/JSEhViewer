@@ -493,12 +493,10 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
       },
       events: {
         changed: (values: {
-          onlyForThisGallery: boolean;
           spreadModeEnabled?: boolean;
           skipFirstPageInSpread?: boolean;
           skipLandscapePagesInSpread?: boolean;
         }) => {
-          const onlyForThisGallery = values.onlyForThisGallery;
           const spreadModeEnabled = values.spreadModeEnabled ?? this._props.readerConfig.spreadModeEnabled;
           const skipFirstPageInSpread = values.skipFirstPageInSpread ?? this._props.readerConfig.skipFirstPageInSpread;
           const skipLandscapePagesInSpread =
@@ -511,9 +509,6 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
               return;
             }
             this._props.readerConfig.spreadModeEnabled = spreadModeEnabled;
-          }
-          if (onlyForThisGallery !== this._props.onlyForThisGallery) {
-            this._props.onlyForThisGallery = onlyForThisGallery;
           }
           if (skipFirstPageInSpread !== this._props.readerConfig.skipFirstPageInSpread) {
             this._props.readerConfig.skipFirstPageInSpread = skipFirstPageInSpread;

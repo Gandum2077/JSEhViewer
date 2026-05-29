@@ -1424,6 +1424,7 @@ class StatusManager {
     dbManager.update(sql, [gid]);
     const sql_taglist = `DELETE FROM archive_taglist WHERE gid = ?;`;
     dbManager.update(sql_taglist, [gid]);
+    configManager.deleteGalleryReaderConfig(gid);
   }
 
   getLastReadPage(gid: number) {

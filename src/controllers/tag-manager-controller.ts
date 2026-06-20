@@ -230,10 +230,32 @@ export class TagManagerController extends BaseController {
         },
       },
     });
+    const menu = new Menu({
+      props: {
+        index: 0,
+        tintColor: $color("systemLink"),
+        dynamicWidth: true,
+        bgcolor: $color("clear"),
+        items: [""],
+      },
+      layout: (make, view) => {
+        make.top.offset(-1);
+        make.left.right.bottom.inset(0);
+      },
+      events: {
+        changed: (sender) => {
+          list.view.scrollToOffset({
+            x: 0,
+            y: sender.index === 0 ? 0 : this._sectionCumYs[sender.index - 1] + 1,
+            // y需要额外增加1，否则会恰好卡在上一个的末尾
+          });
+        },
+      },
+    });
     const navbar = new CustomNavigationBar({
       props: {
         title: "标签",
-        style: 2,
+        style: 3,
         leftBarButtonItems: [
           {
             symbol: "sidebar.left",
@@ -254,28 +276,19 @@ export class TagManagerController extends BaseController {
             cview: filterButton,
           },
         ],
-      },
-    });
-    const menu = new Menu({
-      props: {
-        index: 0,
-        tintColor: $color("systemLink"),
-        dynamicWidth: true,
-        items: [""],
-      },
-      layout: (make, view) => {
-        make.top.equalTo(view.prev.bottom).inset(-0.5);
-        make.left.right.inset(0);
-        make.height.equalTo(40.5);
-      },
-      events: {
-        changed: (sender) => {
-          list.view.scrollToOffset({
-            x: 0,
-            y: sender.index === 0 ? 0 : this._sectionCumYs[sender.index - 1] + 1,
-            // y需要额外增加1，否则会恰好卡在上一个的末尾
-          });
-        },
+        toolView: new ContentView({
+          props: {
+            bgcolor: $color("clear"),
+            clipsToBounds: true
+          },
+          layout: (make, view)=> {
+            make.left.right.bottom.inset(0);
+            make.height.equalTo(40.5);
+          },
+          views: [
+            menu.definition
+          ]
+        })
       },
     });
     const list = new List({
@@ -566,8 +579,9 @@ export class TagManagerController extends BaseController {
         },
       ],
       layout: (make, view) => {
-        make.left.right.bottom.equalTo(view.super);
-        make.top.equalTo(view.prev.prev).offset(0.5);
+        make.left.right.equalTo(view.super);
+        make.top.equalTo(view.prev);
+        make.bottom.equalTo(view.super.safeAreaBottom).inset(50);
       },
     });
     this.cviews = {
@@ -579,7 +593,7 @@ export class TagManagerController extends BaseController {
       list,
       emptyView,
     };
-    this.rootView.views = [navbar, menu, list, emptyView];
+    this.rootView.views = [navbar, list, emptyView];
   }
 
   refresh() {
@@ -590,8 +604,10 @@ export class TagManagerController extends BaseController {
     this.cviews.menu.view.items = menuItems;
     if (data.length === 0) {
       this.cviews.emptyView.view.hidden = false;
+      this.cviews.menu.view.hidden = true;
     } else {
       this.cviews.emptyView.view.hidden = true;
+      this.cviews.menu.view.hidden = false;
     }
     const ys = this.cviews.list.view.data.map((i) => i.rows.length * 44 + 57.375);
     // 重新计算 sectionCumYs: ys 的累加和

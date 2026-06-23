@@ -178,6 +178,18 @@ class ConfigManager {
   private _aiTranslationServices: AITranslationService[];
   pushedSearchResultControllerLayoutMode: "large" | "normal" | "minimal";
   // 用于控制搜索结果页面的布局模式，其初始值和homepageManagerLayoutMode相同，但后续可以被PushedSearchResultController组件修改
+
+  /***图片加载设置***/
+  // 该部分的配置将在每次启动时更新，不进入数据库
+  isDonator: boolean = false;
+  sourceNexusPerk: boolean = false;
+  higherResolutionsAvailable: boolean = false;
+  hathLoadSettingIndex: number = 0;
+  hathRegionAttr: string = "";
+  imageSizeSettingIndex: number = 0;
+  preferOriginalImage: boolean = false;
+  /***图片加载设置 END***/
+
   constructor() {
     this._config = this._initConfig();
     this._markedTagDict = this._getMarkedTagsDict();

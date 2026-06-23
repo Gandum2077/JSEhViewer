@@ -165,17 +165,29 @@ async function init(url?: string) {
   );
 
   // 检查配置
-  let config: { [key: string]: string } | undefined;
+  let configAndHathPerks: {
+    config: {
+        [key: string]: string;
+    };
+    isDonator: boolean;
+    perks: {
+        sourceNexus: boolean;
+        mpv: boolean;
+        higherResolutionsAvailable: boolean;
+        moreThumbsLevel: 0 | 2 | 1 | 3;
+        pagingEnlargementLevel: 0 | 2 | 1;
+    };
+} | undefined;
   let ehMyTags: EHMyTags | undefined;
   try {
     if (configManager.syncMyTags) {
-      [config, ehMyTags] = await Promise.all([api.getConfig(), api.getMyTags()]);
+      [configAndHathPerks, ehMyTags] = await Promise.all([api.getConfigAndHathPerks(), api.getMyTags()]);
       // 如果没有启用我的标签，就启用
       if (!ehMyTags.enabled) {
         ehMyTags = await api.enableTagset({ tagset: 1 });
       }
     } else {
-      config = await api.getConfig();
+      configAndHathPerks = await api.getConfigAndHathPerks();
     }
   } catch (e: any) {
     appLog(e, "error");
@@ -271,7 +283,8 @@ async function init(url?: string) {
       });
     }
   }
-  if (config) {
+  if (configAndHathPerks) {
+    const config = configAndHathPerks.config;
     if (config.dm !== "2" || config.ts !== "1") {
       appLog("config not match", "info");
       config.dm = "2";
@@ -311,6 +324,15 @@ async function init(url?: string) {
     }
     // 更新收藏页排序
     configManager.favoritesOrderMethod = config.fs === "0" ? "published_time" : "favorited_time";
+
+    // 更新图片加载设置
+    configManager.isDonator = configAndHathPerks.isDonator;
+    configManager.sourceNexusPerk = configAndHathPerks.perks.sourceNexus;
+    configManager.higherResolutionsAvailable = configAndHathPerks.perks.higherResolutionsAvailable;
+    configManager.hathLoadSettingIndex = Number(config["uh"]);
+    configManager.hathRegionAttr = config["co"];
+    configManager.imageSizeSettingIndex = Number(config["xr"]);
+    configManager.preferOriginalImage = config["oi"] === "1";
   }
   if (ehMyTags) {
     configManager.updateAllMarkedTags(ehMyTags.tags);

@@ -7,6 +7,36 @@ import { api } from "../utils/api";
 import { HomepageController } from "./homepage-controller";
 import { assembleSearchTerms, EHSearchTerm, parseFsearch } from "ehentai-parser";
 
+const hathRegionAttrs = [
+  "",
+  "NL", //Europe
+  "US", //North America
+  "BR", //South America
+  "JP", //Asia
+  "AU", //Oceania
+  "CN", //Chinese Dominion
+];
+
+function hathRegionAttrToIndex(attr: string): number {
+  const index = hathRegionAttrs.indexOf(attr);
+  return index === -1 ? 0 : index;
+}
+
+function hathRegionIndexToAttr(index: number): string {
+  if (index < 0 || index >= hathRegionAttrs.length) {
+    return "";
+  } else {
+    return hathRegionAttrs[index];
+  }
+}
+
+async function updateConfig(key: string, value: string | number) {
+  value = String(value);
+  const config = await api.getConfig();
+  config[key] = value;
+  await api.postConfig(config);
+}
+
 export class GeneralSettingsController extends BaseController {
   private _isUpdatingTranslationData = false;
   private _funds?: { credits: number; gp: number };
@@ -21,6 +51,7 @@ export class GeneralSettingsController extends BaseController {
         unlocked: false;
       };
   private _fetchImageLimitAndFundsFailed: boolean = false;
+  private _isUpdatingConfig = false; // 记录是否正在更新设置，同一时间只能有一个设置更新
   cviews: {
     list: DynamicPreferenceListView;
   };
@@ -65,6 +96,10 @@ export class GeneralSettingsController extends BaseController {
           defaultFavcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
           autoCacheWhenReading: boolean;
           imageShareOnLongPressEnabled: boolean;
+          hathLoadSettingIndex: number;
+          hathRegionAttr: number;
+          imageSizeSettingIndex: number;
+          preferOriginalImage: boolean;
           pageDirection: 0 | 1 | 2;
           spreadModeEnabled?: boolean;
           skipFirstPageInSpread?: boolean;
@@ -123,6 +158,11 @@ export class GeneralSettingsController extends BaseController {
           const autoCacheWhenReading = values.autoCacheWhenReading;
           const imageShareOnLongPressEnabled = values.imageShareOnLongPressEnabled;
 
+          const hathLoadSettingIndex = values.hathLoadSettingIndex;
+          const hathRegionAttr = hathRegionIndexToAttr(values.hathRegionAttr);
+          const imageSizeSettingIndex = values.imageSizeSettingIndex;
+          const preferOriginalImage = values.preferOriginalImage;
+
           const pageDirection =
             values.pageDirection === 0 ? "left_to_right" : values.pageDirection === 1 ? "right_to_left" : "vertical";
           const spreadModeEnabled = values.spreadModeEnabled ?? configManager.spreadModeEnabled;
@@ -172,23 +212,32 @@ export class GeneralSettingsController extends BaseController {
           }
 
           if (favoritesOrderMethod !== configManager.favoritesOrderMethod) {
-            $ui.toast("正在更新收藏页排序");
-            api
-              .setFavoritesSortOrder(favoritesOrderMethod)
-              .then(() => {
-                $ui.success("收藏页排序更新成功");
-                configManager.favoritesOrderMethod = favoritesOrderMethod;
-                // 如果当前页面是收藏页，则需要刷新当前页面
-                const tab = statusManager.currentTab;
-                if (tab.data.type === "favorites") {
-                  const options = clearExtraPropsForReload(tab.data);
-                  (router.get("homepageController") as HomepageController).triggerLoad(options);
-                }
-              })
-              .catch(() => {
-                $ui.error("收藏页排序更新失败");
-                this.cviews.list.sections = this.getCurrentSections();
-              });
+            if (this._isUpdatingConfig) {
+              $ui.warning("请等待上一个更新指令完成");
+              this.cviews.list.sections = this.getCurrentSections();
+            } else {
+              this._isUpdatingConfig = true;
+              $ui.toast("正在更新收藏页排序");
+              api
+                .setFavoritesSortOrder(favoritesOrderMethod)
+                .then(() => {
+                  $ui.success("收藏页排序更新成功");
+                  configManager.favoritesOrderMethod = favoritesOrderMethod;
+                  // 如果当前页面是收藏页，则需要刷新当前页面
+                  const tab = statusManager.currentTab;
+                  if (tab.data.type === "favorites") {
+                    const options = clearExtraPropsForReload(tab.data);
+                    (router.get("homepageController") as HomepageController).triggerLoad(options);
+                  }
+                })
+                .catch(() => {
+                  $ui.error("收藏页排序更新失败");
+                  this.cviews.list.sections = this.getCurrentSections();
+                })
+                .finally(() => {
+                  this._isUpdatingConfig = false;
+                });
+            }
           }
           if (archiveManagerOrderMethod !== configManager.archiveManagerOrderMethod) {
             configManager.archiveManagerOrderMethod = archiveManagerOrderMethod;
@@ -214,6 +263,50 @@ export class GeneralSettingsController extends BaseController {
           if (imageShareOnLongPressEnabled !== configManager.imageShareOnLongPressEnabled) {
             configManager.imageShareOnLongPressEnabled = imageShareOnLongPressEnabled;
           }
+
+          const updateConfigFunc = (key: string, value: string | number, handler: () => void) => {
+            if (this._isUpdatingConfig) {
+              $ui.warning("请等待上一个更新指令完成");
+              this.cviews.list.sections = this.getCurrentSections();
+            } else {
+              this._isUpdatingConfig = true;
+              $ui.toast("请稍等……");
+              updateConfig(key, value)
+                .then(() => {
+                  $ui.success("配置更新成功");
+                  handler();
+                })
+                .catch(() => {
+                  $ui.error("配置更新失败");
+                  this.cviews.list.sections = this.getCurrentSections();
+                })
+                .finally(() => {
+                  this._isUpdatingConfig = false;
+                });
+            }
+          };
+
+          if (hathLoadSettingIndex !== configManager.hathLoadSettingIndex) {
+            updateConfigFunc("uh", hathLoadSettingIndex, () => {
+              configManager.hathLoadSettingIndex = hathLoadSettingIndex;
+            });
+          }
+          if (hathRegionAttr !== configManager.hathRegionAttr) {
+            updateConfigFunc("co", hathRegionAttr, () => {
+              configManager.hathRegionAttr = hathRegionAttr;
+            });
+          }
+          if (imageSizeSettingIndex !== configManager.imageSizeSettingIndex) {
+            updateConfigFunc("xr", imageSizeSettingIndex, () => {
+              configManager.imageSizeSettingIndex = imageSizeSettingIndex;
+            });
+          }
+          if (preferOriginalImage !== configManager.preferOriginalImage) {
+            updateConfigFunc("oi", preferOriginalImage ? 1 : 0, () => {
+              configManager.preferOriginalImage = preferOriginalImage;
+            });
+          }
+
           if (pageDirection !== configManager.pageDirection) {
             configManager.pageDirection = pageDirection;
             this.cviews.list.sections = this.getCurrentSections();
@@ -456,6 +549,36 @@ export class GeneralSettingsController extends BaseController {
         ],
       },
       {
+        title: "图片加载设置（部分设置或选项需要捐赠账号或者拥有对应Hath Perks，没有权限的设置或选项会隐藏）",
+        rows: [
+          {
+            type: "list",
+            title: "H@H客户端",
+            items: configManager.isDonator
+              ? ["任意客户端", "默认端口的客户端", "否[现代/HTTPS]", "否[传统/HTTP]"]
+              : ["任意客户端", "默认端口的客户端"],
+            key: "hathLoadSettingIndex",
+            value: configManager.hathLoadSettingIndex,
+          },
+          {
+            type: "list",
+            title: "H@H区域",
+            items: ["自动检测", "欧洲", "北美洲", "南美洲", "亚洲", "大洋洲", "中国"],
+            key: "hathRegionAttr",
+            value: hathRegionAttrToIndex(configManager.hathRegionAttr),
+          },
+          {
+            type: "list",
+            title: "图像大小",
+            items: configManager.higherResolutionsAvailable
+              ? ["自动", "800x", "1280x", "1920x", "2560x"]
+              : ["自动", "800x", "1280x"],
+            key: "imageSizeSettingIndex",
+            value: configManager.imageSizeSettingIndex,
+          },
+        ],
+      },
+      {
         title: "翻页",
         rows: [
           {
@@ -666,28 +789,37 @@ export class GeneralSettingsController extends BaseController {
       });
     }
 
-    if (configManager.pageDirection !== "vertical") {
+    if (configManager.sourceNexusPerk) {
       sections[6].rows.push({
+        type: "boolean",
+        title: "优先加载原图",
+        key: "PreferOriginalImage",
+        value: configManager.preferOriginalImage,
+      });
+    }
+
+    if (configManager.pageDirection !== "vertical") {
+      sections[7].rows.push({
         type: "boolean",
         title: "双页模式",
         key: "spreadModeEnabled",
         value: configManager.spreadModeEnabled,
       });
       if (configManager.spreadModeEnabled) {
-        sections[6].rows.push({
+        sections[7].rows.push({
           type: "boolean",
           title: " - 跳过首页",
           key: "skipFirstPageInSpread",
           value: configManager.skipFirstPageInSpread,
         });
-        sections[6].rows.push({
+        sections[7].rows.push({
           type: "boolean",
           title: " - 跳过横图 & 条图",
           key: "skipLandscapePagesInSpread",
           value: configManager.skipLandscapePagesInSpread,
         });
       }
-      sections[6].rows.push({
+      sections[7].rows.push({
         type: "list",
         title: "翻页手势",
         items: ["滑动和点击", "仅滑动", "仅点击"],

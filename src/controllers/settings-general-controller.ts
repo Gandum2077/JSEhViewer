@@ -793,7 +793,7 @@ export class GeneralSettingsController extends BaseController {
       sections[6].rows.push({
         type: "boolean",
         title: "优先加载原图",
-        key: "PreferOriginalImage",
+        key: "preferOriginalImage",
         value: configManager.preferOriginalImage,
       });
     }

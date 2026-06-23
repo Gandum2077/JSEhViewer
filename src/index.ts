@@ -165,19 +165,21 @@ async function init(url?: string) {
   );
 
   // 检查配置
-  let configAndHathPerks: {
-    config: {
-        [key: string]: string;
-    };
-    isDonator: boolean;
-    perks: {
-        sourceNexus: boolean;
-        mpv: boolean;
-        higherResolutionsAvailable: boolean;
-        moreThumbsLevel: 0 | 2 | 1 | 3;
-        pagingEnlargementLevel: 0 | 2 | 1;
-    };
-} | undefined;
+  let configAndHathPerks:
+    | {
+        config: {
+          [key: string]: string;
+        };
+        isDonator: boolean;
+        perks: {
+          sourceNexus: boolean;
+          mpv: boolean;
+          higherResolutionsAvailable: boolean;
+          moreThumbsLevel: 0 | 2 | 1 | 3;
+          pagingEnlargementLevel: 0 | 2 | 1;
+        };
+      }
+    | undefined;
   let ehMyTags: EHMyTags | undefined;
   try {
     if (configManager.syncMyTags) {

@@ -161,7 +161,7 @@ export class GeneralSettingsController extends BaseController {
           const hathLoadSettingIndex = values.hathLoadSettingIndex;
           const hathRegionAttr = hathRegionIndexToAttr(values.hathRegionAttr);
           const imageSizeSettingIndex = values.imageSizeSettingIndex;
-          const preferOriginalImage = values.preferOriginalImage;
+          const preferOriginalImage = values.preferOriginalImage ?? configManager.preferOriginalImage;
 
           const pageDirection =
             values.pageDirection === 0 ? "left_to_right" : values.pageDirection === 1 ? "right_to_left" : "vertical";

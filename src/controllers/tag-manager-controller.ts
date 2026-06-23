@@ -279,16 +279,14 @@ export class TagManagerController extends BaseController {
         toolView: new ContentView({
           props: {
             bgcolor: $color("clear"),
-            clipsToBounds: true
+            clipsToBounds: true,
           },
-          layout: (make, view)=> {
+          layout: (make, view) => {
             make.left.right.bottom.inset(0);
             make.height.equalTo(40.5);
           },
-          views: [
-            menu.definition
-          ]
-        })
+          views: [menu.definition],
+        }),
       },
     });
     const list = new List({

@@ -65,6 +65,11 @@ interface Config {
   specificSearchtermsOnStart: string; // 指定搜索词，以json格式存储的EHSearchTerm[]
   resumeIncompleteDownloadsOnStart: boolean; // 启动后继续未完成的下载任务
   toplistTagFilterDefaultEnabled: boolean; // 是否启用排行页本地标签过滤功能，被设置页面的大开关控制
+
+  // 图片收藏设置
+  favoriteImageSort: "gid" | "favorited_at";
+  favoriteImageQueryOrder: "asc" | "desc";
+  favoriteImageShowTitle: boolean;
 }
 
 const defaultConfig: Config = {
@@ -105,6 +110,9 @@ const defaultConfig: Config = {
   specificSearchtermsOnStart: "",
   resumeIncompleteDownloadsOnStart: false,
   toplistTagFilterDefaultEnabled: false,
+  favoriteImageSort: "favorited_at",
+  favoriteImageQueryOrder: "desc",
+  favoriteImageShowTitle: false,
 };
 
 async function getEhTagTranslationText() {
@@ -530,6 +538,30 @@ class ConfigManager {
 
   set toplistTagFilterDefaultEnabled(value: boolean) {
     this._setConfig("toplistTagFilterDefaultEnabled", value);
+  }
+
+  get favoriteImageSort() {
+    return this._config.favoriteImageSort;
+  }
+
+  set favoriteImageSort(value: "gid" | "favorited_at") {
+    this._setConfig("favoriteImageSort", value);
+  }
+
+  get favoriteImageQueryOrder() {
+    return this._config.favoriteImageQueryOrder;
+  }
+
+  set favoriteImageQueryOrder(value: "asc" | "desc") {
+    this._setConfig("favoriteImageQueryOrder", value);
+  }
+
+  get favoriteImageShowTitle() {
+    return this._config.favoriteImageShowTitle;
+  }
+
+  set favoriteImageShowTitle(value: boolean) {
+    this._setConfig("favoriteImageShowTitle", value);
   }
 
   /***CONFIG END***/

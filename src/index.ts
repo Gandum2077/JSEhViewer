@@ -19,7 +19,7 @@ import {
   extractGidToken,
   ParsedCookie,
 } from "ehentai-parser";
-import { aiTranslationPath, imagePath, thumbnailPath, originalImagePath, galleryInfoPath } from "./utils/glv";
+import { aiTranslationPath, imagePath, thumbnailPath, originalImagePath, galleryInfoPath, favoriteImagePath } from "./utils/glv";
 import { globalTimer } from "./utils/timer";
 import { StatusTabOptions } from "./types";
 import { dbManager } from "./utils/database";
@@ -36,6 +36,7 @@ async function init(url?: string) {
   if (!$file.exists(aiTranslationPath)) $file.mkdir(aiTranslationPath);
   if (!$file.exists(originalImagePath)) $file.mkdir(originalImagePath);
   if (!$file.exists(galleryInfoPath)) $file.mkdir(galleryInfoPath);
+  if (!$file.exists(favoriteImagePath)) $file.mkdir(favoriteImagePath);
 
   const homepageController = new HomepageController();
   const archiveController = new ArchiveController();

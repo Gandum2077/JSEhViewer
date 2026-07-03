@@ -94,6 +94,44 @@ export type DBArchiveItem = {
   last_read_page: number;
 };
 
+export type DBFavoriteImageItem = {
+  gid: number;
+  page_index: number;
+  favorited_at: string;
+};
+
+export type DBFavoriteImageGroup = {
+  gid: number;
+  latest_favorited_at: string;
+  pages: number[];
+  title: string;
+};
+
+export type FavoriteImageGroupPage =
+  | {
+      page_index: number;
+      file_name: string;
+      is_original: boolean;
+    }
+  | {
+      page_index: number;
+      file_name?: undefined;
+      is_original?: undefined;
+    };
+
+export type FavoriteImageGroupWithFiles = Omit<DBFavoriteImageGroup, "pages"> & {
+  pages: FavoriteImageGroupPage[];
+};
+
+export type FavoriteImageSort = "gid" | "favorited_at";
+
+export type FavoriteImageQueryOrder = "asc" | "desc";
+
+export type FavoriteImageGroupQueryOptions = {
+  sort?: FavoriteImageSort;
+  order?: FavoriteImageQueryOrder;
+};
+
 export type ArchiveSearchOptions = {
   fromPage: number; // 从0开始
   toPage: number; // 需要加载的页面区间是包含toPage这一页的

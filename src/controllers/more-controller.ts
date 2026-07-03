@@ -14,6 +14,7 @@ import { configManager } from "../utils/config";
 import { downloaderManager } from "../utils/api";
 import { globalTimer } from "../utils/timer";
 import { toLocalTimeString } from "../utils/tools";
+import { FavoriteImageController } from "./favorite-image-controller";
 
 export class MoreController extends BaseController {
   cviews: { navbar: CustomNavigationBar; list: DynamicItemSizeMatrix };
@@ -242,22 +243,29 @@ export class MoreController extends BaseController {
               });
               break;
             case 3:
+              const favoriteImageController = new FavoriteImageController();
+              favoriteImageController.uipush({
+                navBarHidden: true,
+                statusBarStyle: 0,
+              });
+              break;
+            case 4:
               const values = await setWebDAVConfig();
               configManager.webdavEnabled = values.enabled;
               configManager.webdavAutoUpload = values.autoUpload;
               configManager.updateAllWebDAVServices(values.services);
               break;
-            case 4:
+            case 5:
               const controller = new AITranslationConfigPickerController();
               controller.uipush({
                 navBarHidden: true,
                 statusBarStyle: 0,
               });
               break;
-            case 5:
+            case 6:
               $app.openURL("https://e-hentai.org/mytags");
               break;
-            case 6:
+            case 7:
               $app.openURL("https://e-hentai.org/uconfig.php");
               break;
             default:
@@ -377,6 +385,16 @@ export class MoreController extends BaseController {
         icon: { symbol: "arrow.up.arrow.down.circle" },
         title: { text: "下载与上传" },
         content: { text: downloadText + "\n" + uploadText },
+        blur: { hidden: true },
+      },
+      {
+        // gradient: { colors: [$color("#D7AD6B"), $color("#AD7E2F")] },
+        // bgview: { bgcolor: $color("#C2964D") },
+        // gradient: { colors: [$color("#F97316"), $color("#FB923C")] },
+        bgview: { bgcolor: $color("#A5B40E") },
+        icon: { symbol: "photo.stack" },
+        title: { text: "图片收藏" },
+        content: { text: "" },
         blur: { hidden: true },
       },
       {

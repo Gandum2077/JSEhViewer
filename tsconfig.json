@@ -107,9 +107,7 @@
     "skipLibCheck": true                                 /* Skip type checking all .d.ts files. */
   },
   "include": [
-    "node_modules/jsbox-types/*.d.ts",
-    "node_modules/jsbox-types/*/*.d.ts",
-    "src/*.ts",
-    "src/*/*.ts"
+    "node_modules/jsbox-types/index.d.ts",
+    "src/**/*.ts"
   ]
 }

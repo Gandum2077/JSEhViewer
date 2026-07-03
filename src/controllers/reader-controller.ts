@@ -24,6 +24,8 @@ import { VerticalImagePager } from "../components/vertical-image-pager";
 import { SpreadCustomImagePager } from "../components/spread-custom-image-pager";
 import { SpreadNoscrollImagePager } from "../components/spread-noscroll-image-pager";
 import { ReaderConfig } from "../types";
+import { favoriteImageManager } from "../utils/favorite-image";
+import { favoriteImagePath } from "../utils/glv";
 
 let lastUITapGestureRecognizer: any;
 
@@ -459,6 +461,7 @@ type SettingViewProps = {
   onlyForThisGallery: boolean;
   imageDownloaded: boolean;
   aiTranslated: boolean;
+  shareImageHandler: () => void;
   resetImageDownloadHandler: () => void;
   resetAiTranslationHandler: () => void;
   loadOrginalHandler: () => void;
@@ -556,6 +559,14 @@ class SettingView extends Base<UIView, UiTypes.ViewOptions> {
       {
         title: "",
         rows: [
+          {
+            type: "symbol-action",
+            title: "分享本页图片",
+            symbol: "square.and.arrow.up",
+            value: () => {
+              this._props.shareImageHandler();
+            },
+          },
           {
             type: "symbol-action",
             title: "加载原图",
@@ -787,13 +798,17 @@ export class ReaderController extends BaseController {
   // 增加两个Set，其中一个记录以原画质重新载入的图片，另一个记录启用AI翻译的图片
   private reloadedPageSet: Set<number> = new Set();
   private aiTranslatedPageSet: Set<number> = new Set();
+  // 记录收藏图片的Set
+  private _favoriteImageSet: Set<number>;
   // 使用上级的autoCacheWhenReading
 
   // 上级GalleryController
   private _superGalleryController: GalleryController;
+
   cviews: {
     titleLabel: Label;
     aiTranslationButton: AiTranslationButton;
+    favoriteImageButton: SymbolButton;
     header: Blur;
     footer: Blur;
     viewer: ContentView;
@@ -895,6 +910,8 @@ export class ReaderController extends BaseController {
     const galleryDownloader = downloaderManager.get(gid);
     if (!galleryDownloader) throw new Error("galleryDownloader not found");
 
+    this._favoriteImageSet = new Set(favoriteImageManager.queryByGid(this.gid).map((n) => n.page_index));
+
     // 检查纵向滑动是否可用：需要所有分页都下载完
     if (
       (this._readerConfig.pageDirection === "vertical" || this._readerConfig.spreadModeEnabled) &&
@@ -956,6 +973,17 @@ export class ReaderController extends BaseController {
             onlyForThisGallery: this._onlyForThisGallery,
             imageDownloaded,
             aiTranslated,
+            shareImageHandler: () => {
+              const index = this.cviews.footerThumbnailView.index;
+              const galleryDownloader = downloaderManager.get(this.gid);
+              if (!galleryDownloader) return;
+              const path = galleryDownloader.result.images[index].path;
+              if (path) {
+                $share.sheet($image(path));
+              } else {
+                $ui.error("当前图片尚未加载");
+              }
+            },
             resetImageDownloadHandler: () => {
               const index = footerThumbnailView.index;
               const galleryDownloader = downloaderManager.get(this.gid);
@@ -1290,6 +1318,41 @@ export class ReaderController extends BaseController {
         },
       },
     });
+
+    const favoriteImageButton = new SymbolButton({
+      props: {
+        symbol: this._favoriteImageSet.has(index) ? "heart.fill" : "heart",
+        tintColor: this._favoriteImageSet.has(index) ? $color("orange") : $color("primaryText"),
+      },
+      layout: (make, view) => {
+        make.size.equalTo($size(50, 50));
+        make.center.equalTo(view.super);
+      },
+      events: {
+        tapped: (sender) => {
+          const index = this.cviews.footerThumbnailView.index;
+          if (this._favoriteImageSet.has(index)) {
+            // 取消收藏
+            favoriteImageButton.symbol = "heart";
+            favoriteImageButton.tintColor = $color("primaryText");
+            this._favoriteImageSet.delete(index);
+            favoriteImageManager.remove(this.gid, index);
+          } else {
+            // 收藏
+            favoriteImageButton.symbol = "heart.fill";
+            favoriteImageButton.tintColor = $color("orange");
+            this._favoriteImageSet.add(index);
+            favoriteImageManager.add(this.gid, index);
+            const image = galleryDownloader.result.images[index];
+            if (image.path) {
+              const extname = image.path.split(".").at(-1) ?? "jpg";
+              const dst = favoriteImagePath + `${this.gid}_${index}.${extname}`;
+              $file.copy({ src: image.path, dst });
+            }
+          }
+        },
+      },
+    });
     const footer = new Blur({
       props: {
         style: 6,
@@ -1333,28 +1396,7 @@ export class ReaderController extends BaseController {
                 {
                   type: "view",
                   props: {},
-                  views: [
-                    new SymbolButton({
-                      props: { symbol: "square.and.arrow.up" },
-                      layout: (make, view) => {
-                        make.size.equalTo($size(50, 50));
-                        make.center.equalTo(view.super);
-                      },
-                      events: {
-                        tapped: () => {
-                          const index = this.cviews.footerThumbnailView.index;
-                          const galleryDownloader = downloaderManager.get(this.gid);
-                          if (!galleryDownloader) return;
-                          const path = galleryDownloader.result.images[index].path;
-                          if (path) {
-                            $share.sheet($image(path));
-                          } else {
-                            $ui.error("当前图片尚未加载");
-                          }
-                        },
-                      },
-                    }).definition,
-                  ],
+                  views: [favoriteImageButton.definition],
                 },
               ],
             },
@@ -1580,6 +1622,7 @@ export class ReaderController extends BaseController {
     this.cviews = {
       titleLabel,
       aiTranslationButton,
+      favoriteImageButton,
       header,
       footer,
       viewer,
@@ -1624,7 +1667,9 @@ export class ReaderController extends BaseController {
     }
     // 修改标题
     this.cviews.titleLabel.view.text = this._generateTitle();
+
     this.handleAiTranslationButtonStatus(page);
+    this.handleFavoriteImageButtonStatus(page);
 
     // 修改上级GalleryController的阅读进度
     this._superGalleryController.subControllers.galleryInfoController.currentReadPage = page;
@@ -1645,6 +1690,17 @@ export class ReaderController extends BaseController {
       } else {
         this.cviews.aiTranslationButton.status = "loading";
       }
+    }
+  }
+
+  private handleFavoriteImageButtonStatus(page: number) {
+    this._favoriteImageSet.has(page);
+    if (this._favoriteImageSet.has(page)) {
+      this.cviews.favoriteImageButton.symbol = "heart.fill";
+      this.cviews.favoriteImageButton.tintColor = $color("orange");
+    } else {
+      this.cviews.favoriteImageButton.symbol = "heart";
+      this.cviews.favoriteImageButton.tintColor = $color("primaryText");
     }
   }
 

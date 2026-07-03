@@ -179,6 +179,13 @@ export function createDB() {
             skipLandscapePagesInSpread INTEGER CHECK (skipLandscapePagesInSpread IN (0, 1)),
             pagingGesture TEXT CHECK (pagingGesture IN ('tap_and_swipe', 'swipe', 'tap'))
             )`);
+  // 图片收藏表
+  db.update(`CREATE TABLE IF NOT EXISTS favorite_images (
+            gid INTEGER NOT NULL,
+            page_index INTEGER NOT NULL,
+            favorited_at TEXT NOT NULL,
+            PRIMARY KEY (gid, page_index)
+            );`);
 
   // 创建trigger, 限制webdav_services表的enabled最多只能有一行
   db.update(`CREATE TRIGGER IF NOT EXISTS enforce_webdav_services_single_enabled

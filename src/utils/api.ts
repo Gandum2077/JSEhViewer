@@ -392,7 +392,7 @@ export class TabThumbnailDownloader extends ConcurrentDownloaderBase {
         } else {
           this._items[index].error = true;
         }
-        if (this._paused && this.isAllFinishedDespiteError) {
+        if (!this._paused && this.isAllFinishedDespiteError) {
           this._finishHandler();
         }
       },

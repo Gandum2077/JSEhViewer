@@ -12,7 +12,7 @@ import {
   ReaderConfig,
 } from "../types";
 import { dbManager } from "./database";
-import { aiTranslationPath, imagePath, originalImagePath, thumbnailPath } from "./glv";
+import { aiTranslationPath, favoriteImagePath, imagePath, originalImagePath, thumbnailPath } from "./glv";
 import { appLog } from "./tools";
 
 interface Config {
@@ -1273,7 +1273,7 @@ LIMIT 20;
   }
 
   /**
-   * 清除较旧的阅读记录, 排除下载项
+   * 清除较旧的阅读记录, 排除下载项和包含图片收藏的图库
    * @param index 0: 一个月前, 1: 三个月前, 2: 六个月前, 3: 一年前
    */
   clearOldReadRecords(index: number) {
@@ -1289,20 +1289,27 @@ LIMIT 20;
       date.setFullYear(date.getFullYear() - 1);
     }
     // 再根据日期对出符合条件的gid
-    const sql = "SELECT gid FROM archives WHERE last_access_time < ? AND downloaded <> 1";
+    const sql = `
+      SELECT a.gid
+      FROM archives a
+      WHERE a.last_access_time < ?
+        AND COALESCE(a.downloaded, 0) <> 1
+        AND NOT EXISTS (
+          SELECT 1 FROM favorite_images f WHERE f.gid = a.gid
+        )
+    `;
     const data = dbManager.query(sql, [date.toISOString()]) as {
       gid: number;
     }[];
     const needDeleteGids = data.map((n) => n.gid);
-    const sql_delete = "DELETE FROM archives WHERE gid = ?";
-    const sql_delete_taglist = "DELETE FROM archive_taglist WHERE gid = ?";
-    dbManager.batchUpdate(
-      sql_delete,
-      needDeleteGids.map((gid) => [gid]),
-    );
-    dbManager.batchUpdate(
-      sql_delete_taglist,
-      needDeleteGids.map((gid) => [gid]),
+    if (needDeleteGids.length === 0) return;
+
+    dbManager.transactionUpdate(
+      needDeleteGids.flatMap((gid) => [
+        { sql: "DELETE FROM archive_taglist WHERE gid = ?", args: [gid] },
+        { sql: "DELETE FROM gallery_reader_config WHERE gid = ?", args: [gid] },
+        { sql: "DELETE FROM archives WHERE gid = ?", args: [gid] },
+      ]),
     );
   }
 
@@ -1333,18 +1340,21 @@ LIMIT 20;
   }
 
   /**
-   * 清除所有缓存和下载内容
+   * 清除所有缓存、下载内容和图片收藏
    */
   clearAll() {
     $file.delete(thumbnailPath);
     $file.delete(originalImagePath);
     $file.delete(aiTranslationPath);
     $file.delete(imagePath);
-    // 删除archives和archive_taglist表中所有数据
-    const sql_delete_archive_taglist = "DELETE FROM archive_taglist";
-    const sql_delete_archives = "DELETE FROM archives";
-    dbManager.update(sql_delete_archive_taglist);
-    dbManager.update(sql_delete_archives);
+    $file.delete(favoriteImagePath);
+    dbManager.transactionUpdate([
+      { sql: "DELETE FROM favorite_images" },
+      { sql: "DELETE FROM archive_taglist" },
+      { sql: "DELETE FROM gallery_reader_config" },
+      { sql: "DELETE FROM archives" },
+      { sql: "DELETE FROM download_records" },
+    ]);
   }
 
   /**

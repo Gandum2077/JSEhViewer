@@ -12,6 +12,7 @@ import { buildSortedFsearch } from "ehentai-parser";
 import { globalTimer } from "../utils/timer";
 import { EhlistTitleView } from "../components/ehlist-titleview";
 import { popoverForTitleView } from "../components/titleview-popover";
+import { favoriteImageManager } from "../utils/favorite-image";
 
 export class ArchiveController extends BaseController {
   private _thumbnailAllLoaded: boolean = false; // 此标志用于在TabDownloader完成后，再进行一次刷新
@@ -195,9 +196,27 @@ export class ArchiveController extends BaseController {
     const list = new EHlistView({
       layoutMode: configManager.archiveManagerLayoutMode,
       searchBar,
-      removeFromArchiveHandler: (item) => {
+      removeFromArchiveHandler: async (item) => {
         const dbItem = statusManager.getArchiveItem(item.gid);
         if (!dbItem) return;
+
+        const favoriteImageCount = favoriteImageManager.queryByGid(item.gid).length;
+        if (favoriteImageCount > 0) {
+          const result = await $ui.alert({
+            title: "删除历史记录和图片收藏",
+            message: `该图库有 ${favoriteImageCount} 张收藏图片，删除历史记录时也会一并删除，是否继续？`,
+            actions: [
+              { title: "取消", style: $alertActionType.cancel },
+              { title: "删除", style: $alertActionType.destructive },
+            ],
+          });
+          if (result.index === 0) return;
+          if (!favoriteImageManager.removeByGid(item.gid)) {
+            $ui.error("删除图片收藏失败");
+            return;
+          }
+        }
+
         statusManager.deleteArchiveItem(item.gid);
         this.silentRefresh({ ignoreThumbnailDownload: false });
         const d = downloaderManager.get(item.gid);

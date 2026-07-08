@@ -665,12 +665,12 @@ export class GeneralSettingsController extends BaseController {
           },
           {
             type: "action",
-            title: "删除全部缓存和下载内容",
+            title: "删除全部缓存、下载和图片收藏",
             destructive: true,
             value: () => {
               $ui.alert({
                 title: "全部删除",
-                message: "此操作会删除所有的缓存和下载内容，然后重启本应用，是否继续？",
+                message: "此操作会删除所有缓存、下载内容和图片收藏，然后重启本应用，是否继续？",
                 actions: [
                   {
                     title: "取消",

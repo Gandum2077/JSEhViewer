@@ -7,37 +7,64 @@ import {
 import { dbManager } from "./database";
 import { favoriteImagePath } from "./glv";
 
-type FavoriteImageJoinedDBRawData = {
-  gid: number;
-  page_index: number;
-  favorited_at: string;
-  title: string;
-};
-
 type FavoriteImageFile = {
+  page_index: number;
+  thumbnail_file_name: string;
   file_name: string;
   is_original: boolean;
 };
 
-const FAVORITE_IMAGE_FILE_NAME_PATTERN = /^(\d+)_(\d+)(_original)?\.([^.]+)$/i;
+const FAVORITE_IMAGE_FILE_NAME_PATTERN = /^(\d+)_(\d+)(_original|_thumbnail)?\.([^.]+)$/i;
 
 class FavoriteImageManager {
-  add(gid: number, pageIndex: number, favoritedAt: string = new Date().toISOString()): boolean {
-    dbManager.update(
-      `INSERT INTO favorite_images (gid, page_index, favorited_at)
-      VALUES (?, ?, ?)
-      ON CONFLICT(gid, page_index) DO NOTHING`,
-      [gid, pageIndex, favoritedAt],
-    );
+  add(
+    gid: number,
+    pageIndex: number,
+    imagePath: string,
+    thumbnailPath: string,
+    isOriginal = false,
+    favoritedAt: string = new Date().toISOString(),
+  ): boolean {
+    if (!$file.exists(imagePath) || !$file.exists(thumbnailPath)) return false;
+    if (!this._removeFiles(gid, pageIndex)) return false;
+
+    const imageFileName = `${gid}_${pageIndex}${isOriginal ? "_original" : ""}.${this._getExtension(imagePath)}`;
+    const thumbnailFileName = `${gid}_${pageIndex}_thumbnail.${this._getExtension(thumbnailPath)}`;
+    const imageDestination = favoriteImagePath + imageFileName;
+    const thumbnailDestination = favoriteImagePath + thumbnailFileName;
+
+    if (!$file.copy({ src: imagePath, dst: imageDestination })) return false;
+    if (!$file.copy({ src: thumbnailPath, dst: thumbnailDestination })) {
+      $file.delete(imageDestination);
+      return false;
+    }
+
+    try {
+      dbManager.update(
+        `INSERT INTO favorite_images (gid, page_index, favorited_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(gid, page_index) DO NOTHING`,
+        [gid, pageIndex, favoritedAt],
+      );
+      return true;
+    } catch (error) {
+      $file.delete(imageDestination);
+      $file.delete(thumbnailDestination);
+      console.error(error);
+      return false;
+    }
+  }
+
+  remove(gid: number, pageIndex: number): boolean {
+    if (!this._removeFiles(gid, pageIndex)) return false;
+    dbManager.update("DELETE FROM favorite_images WHERE gid = ? AND page_index = ?", [gid, pageIndex]);
     return true;
   }
 
-  remove(gid: number, pageIndex: number) {
-    dbManager.update("DELETE FROM favorite_images WHERE gid = ? AND page_index = ?", [gid, pageIndex]);
-  }
-
-  removeByGid(gid: number) {
+  removeByGid(gid: number): boolean {
+    if (!this._removeFiles(gid)) return false;
     dbManager.update("DELETE FROM favorite_images WHERE gid = ?", [gid]);
+    return true;
   }
 
   get(gid: number, pageIndex: number): DBFavoriteImageItem | undefined {
@@ -77,84 +104,59 @@ class FavoriteImageManager {
     const rows = dbManager.query(`
       SELECT
         f.gid,
-        f.page_index,
-        f.favorited_at,
+        MAX(f.favorited_at) AS latest_favorited_at,
         COALESCE(
-          NULLIF(a.japanese_title, ''),
-          NULLIF(a.english_title, ''),
-          NULLIF(a.title, ''),
-          ''
-        ) AS title
+            NULLIF(a.japanese_title, ''),
+            NULLIF(a.english_title, ''),
+            NULLIF(a.title, ''),
+            ''
+        ) AS title,
+        json_group_array(f.page_index) AS pages
       FROM favorite_images f
       LEFT JOIN archives a ON a.gid = f.gid
-      ORDER BY f.gid DESC, f.favorited_at DESC
-    `) as FavoriteImageJoinedDBRawData[];
+      GROUP BY f.gid
+      ORDER BY ${sort === "favorited_at" ? "latest_favorited_at" : "f.gid"} ${order === "desc" ? "DESC" : "ASC"};
+    `) as { gid: number; latest_favorited_at: string; title: string; pages: string }[];
 
-    const groups: DBFavoriteImageGroup[] = [];
-    for (const row of rows) {
-      if (groups.length === 0) {
-        groups.push({
-          gid: row.gid,
-          latest_favorited_at: row.favorited_at,
-          pages: [row.page_index],
-          title: row.title,
-        });
-        continue;
-      }
-      const lastGroup = groups[groups.length - 1];
-      if (lastGroup.gid === row.gid) {
-        lastGroup.pages.push(row.page_index);
-      } else {
-        groups.push({
-          gid: row.gid,
-          latest_favorited_at: row.favorited_at,
-          pages: [row.page_index],
-          title: row.title,
-        });
-      }
-    }
-
-    groups
-      .sort((a, b) => {
-        if (sort === "favorited_at") {
-          if (a.latest_favorited_at > b.latest_favorited_at) {
-            return 1;
-          } else if (a.latest_favorited_at < b.latest_favorited_at) {
-            return -1;
-          } else {
-            return 0;
-          }
-        } else {
-          return a.gid - b.gid;
-        }
-      })
-      .map((n) => n.pages.sort((a, b) => a - b));
-
-    if (order === "desc") groups.reverse();
-
-    return groups;
+    return rows.map((row) => ({
+      gid: row.gid,
+      latest_favorited_at: row.latest_favorited_at,
+      title: row.title,
+      pages: (JSON.parse(row.pages) as number[]).sort((a, b) => a - b),
+    }));
   }
 
   queryGroupWithFileNames(options: FavoriteImageGroupQueryOptions): FavoriteImageGroupWithFiles[] {
-    const groups = this.queryGroups(options)
+    const groups = this.queryGroups(options);
     const filesByPage = new Map<string, FavoriteImageFile>();
 
-    for (const fileName of ($file.list(favoriteImagePath) ?? [])) {
+    for (const fileName of $file.list(favoriteImagePath) ?? []) {
       const match = FAVORITE_IMAGE_FILE_NAME_PATTERN.exec(fileName);
       if (!match) continue;
 
       const gid = Number(match[1]);
       const pageIndex = Number(match[2]);
-      const isOriginal = Boolean(match[3]);
+      const suffix = match[3]?.toLowerCase();
+      const isOriginal = suffix === "_original";
+      const isThumbnail = suffix === "_thumbnail";
       const key = `${gid}:${pageIndex}`;
       const current = filesByPage.get(key);
 
-      // 文件替换中如果普通图和原图同时存在，优先展示原图。
-      if (!current || (!current.is_original && isOriginal)) {
+      if (!current) {
         filesByPage.set(key, {
-          file_name: fileName,
-          is_original: isOriginal,
+          page_index: pageIndex,
+          file_name: "",
+          is_original: false,
+          thumbnail_file_name: "",
         });
+      }
+
+      const file = filesByPage.get(key)!;
+      if (isThumbnail) {
+        file.thumbnail_file_name = fileName;
+      } else if (isOriginal || !file.file_name) {
+        file.file_name = fileName;
+        file.is_original = isOriginal;
       }
     }
 
@@ -162,9 +164,34 @@ class FavoriteImageManager {
       ...group,
       pages: pages.map((pageIndex) => {
         const file = filesByPage.get(`${group.gid}:${pageIndex}`);
-        return file ? { page_index: pageIndex, ...file } : { page_index: pageIndex };
+        return (
+          file ?? {
+            page_index: pageIndex,
+            file_name: "",
+            is_original: false,
+            thumbnail_file_name: "",
+          }
+        );
       }),
     }));
+  }
+
+  private _getExtension(path: string): string {
+    return path.split(".").at(-1) || "jpg";
+  }
+
+  private _removeFiles(gid: number, pageIndex?: number): boolean {
+    const fileNames = ($file.list(favoriteImagePath) ?? []).filter((fileName) => {
+      const match = FAVORITE_IMAGE_FILE_NAME_PATTERN.exec(fileName);
+      if (!match || Number(match[1]) !== gid) return false;
+      return pageIndex === undefined || Number(match[2]) === pageIndex;
+    });
+
+    let success = true;
+    for (const fileName of fileNames) {
+      if (!$file.delete(favoriteImagePath + fileName)) success = false;
+    }
+    return success;
   }
 }
 

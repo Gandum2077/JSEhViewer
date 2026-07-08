@@ -107,20 +107,16 @@ export type DBFavoriteImageGroup = {
   title: string;
 };
 
-export type FavoriteImageGroupPage =
-  | {
-      page_index: number;
-      file_name: string;
-      is_original: boolean;
-    }
-  | {
-      page_index: number;
-      file_name?: undefined;
-      is_original?: undefined;
-    };
-
-export type FavoriteImageGroupWithFiles = Omit<DBFavoriteImageGroup, "pages"> & {
-  pages: FavoriteImageGroupPage[];
+export type FavoriteImageGroupWithFiles = {
+  gid: number;
+  latest_favorited_at: string;
+  pages: {
+    page_index: number;
+    thumbnail_file_name: string;
+    file_name: string;
+    is_original: boolean;
+  }[];
+  title: string;
 };
 
 export type FavoriteImageSort = "gid" | "favorited_at";

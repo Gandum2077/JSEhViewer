@@ -8,7 +8,8 @@ import {
   DynamicPreferenceListView,
   PreferenceSection,
 } from "jsbox-cview";
-import { FavoriteImageSort, FavoriteImageQueryOrder } from "../types";
+import { CustomImagePager } from "../components/custom-image-pager";
+import { FavoriteImageGroupWithFiles, FavoriteImageQueryOrder, FavoriteImageSort } from "../types";
 import { configManager } from "../utils/config";
 import { favoriteImageManager } from "../utils/favorite-image";
 import { favoriteImagePath } from "../utils/glv";
@@ -180,6 +181,46 @@ function popover({
   });
 }
 
+class FavoriteImageViewerController extends BaseController {
+  constructor(group: FavoriteImageGroupWithFiles, pageIndex: number) {
+    super({ props: { bgcolor: $color("black") } });
+
+    const pages = group.pages.filter((page) => page.file_name);
+    const initialPage = Math.max(
+      0,
+      pages.findIndex((page) => page.page_index === pageIndex),
+    );
+    const navbar = new CustomNavigationBar({
+      props: {
+        title: `${initialPage + 1}/${pages.length}`,
+        popButtonEnabled: true,
+      },
+    });
+    const imagePager = new CustomImagePager({
+      props: {
+        page: initialPage,
+        srcs: pages.map((page) => ({
+          path: favoriteImagePath + page.file_name,
+          error: false,
+          type: page.is_original ? "reloaded" : "normal",
+        })),
+      },
+      layout: (make, view) => {
+        make.top.equalTo(view.prev.bottom);
+        make.left.right.bottom.equalTo(view.super);
+      },
+      events: {
+        changed: (page) => {
+          navbar.title = `${page + 1}/${pages.length}`;
+        },
+      },
+    });
+
+    this.cviews = { navbar, imagePager };
+    this.rootView.views = [navbar, imagePager];
+  }
+}
+
 export class FavoriteImageController extends BaseController {
   cviews: {
     navbar: CustomNavigationBar;
@@ -187,6 +228,7 @@ export class FavoriteImageController extends BaseController {
     matrixNoTitle: DynamicItemSizeMatrix;
   };
   sortOptions: SortPopoverOptions;
+  private _groups: FavoriteImageGroupWithFiles[] = [];
   constructor() {
     super({
       props: { bgcolor: $color("backgroundColor") },
@@ -259,8 +301,7 @@ export class FavoriteImageController extends BaseController {
         itemHeight: (width) => width * 1.2,
         didSelect: (sender, indexPath, data) => {
           const info = data.info as { gid: number; index: number };
-          console.log(info);
-          // TODO
+          this._openViewer(info.gid, info.index);
         },
       },
     });
@@ -281,8 +322,7 @@ export class FavoriteImageController extends BaseController {
         itemHeight: (width) => width * 1.2,
         didSelect: (sender, indexPath, data) => {
           const info = data.info as { gid: number; index: number };
-          console.log(info);
-          // TODO
+          this._openViewer(info.gid, info.index);
         },
       },
     });
@@ -296,6 +336,7 @@ export class FavoriteImageController extends BaseController {
       sort: this.sortOptions.sort,
       order: this.sortOptions.order,
     });
+    this._groups = groups;
 
     if (this.sortOptions.showTitle) {
       this.cviews.matrixWithTitle.view.hidden = false;
@@ -304,7 +345,7 @@ export class FavoriteImageController extends BaseController {
         return {
           title: group.title,
           items: group.pages.map((page) => ({
-            image: { src: page.file_name ? favoriteImagePath + page.file_name : "" },
+            image: { src: page.thumbnail_file_name ? favoriteImagePath + page.thumbnail_file_name : "" },
             info: { gid: group.gid, index: page.page_index },
           })),
         };
@@ -317,11 +358,26 @@ export class FavoriteImageController extends BaseController {
       this.cviews.matrixNoTitle.data = groups
         .map((group) =>
           group.pages.map((page) => ({
-            image: { src: page.file_name ? favoriteImagePath + page.file_name : "" },
+            image: { src: page.thumbnail_file_name ? favoriteImagePath + page.thumbnail_file_name : "" },
             info: { gid: group.gid, index: page.page_index },
           })),
         )
         .flat();
     }
+  }
+
+  private _openViewer(gid: number, pageIndex: number) {
+    const group = this._groups.find((item) => item.gid === gid);
+    if (!group || !group.pages.some((page) => page.page_index === pageIndex && page.file_name)) {
+      $ui.error("收藏图片文件不存在");
+      return;
+    }
+
+    const controller = new FavoriteImageViewerController(group, pageIndex);
+    controller.uipush({
+      theme: "dark",
+      navBarHidden: true,
+      statusBarStyle: 0,
+    });
   }
 }

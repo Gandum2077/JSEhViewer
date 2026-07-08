@@ -25,7 +25,6 @@ import { SpreadCustomImagePager } from "../components/spread-custom-image-pager"
 import { SpreadNoscrollImagePager } from "../components/spread-noscroll-image-pager";
 import { ReaderConfig } from "../types";
 import { favoriteImageManager } from "../utils/favorite-image";
-import { favoriteImagePath } from "../utils/glv";
 
 let lastUITapGestureRecognizer: any;
 
@@ -1333,21 +1332,31 @@ export class ReaderController extends BaseController {
           const index = this.cviews.footerThumbnailView.index;
           if (this._favoriteImageSet.has(index)) {
             // 取消收藏
-            favoriteImageButton.symbol = "heart";
-            favoriteImageButton.tintColor = $color("primaryText");
-            this._favoriteImageSet.delete(index);
-            favoriteImageManager.remove(this.gid, index);
+            if (favoriteImageManager.remove(this.gid, index)) {
+              favoriteImageButton.symbol = "heart";
+              favoriteImageButton.tintColor = $color("primaryText");
+              this._favoriteImageSet.delete(index);
+            } else {
+              $ui.error("取消收藏失败");
+            }
           } else {
             // 收藏
-            favoriteImageButton.symbol = "heart.fill";
-            favoriteImageButton.tintColor = $color("orange");
-            this._favoriteImageSet.add(index);
-            favoriteImageManager.add(this.gid, index);
-            const image = galleryDownloader.result.images[index];
-            if (image.path) {
-              const extname = image.path.split(".").at(-1) ?? "jpg";
-              const dst = favoriteImagePath + `${this.gid}_${index}.${extname}`;
-              $file.copy({ src: image.path, dst });
+            const originalImage = galleryDownloader.result.originalImages[index];
+            const isOriginal = this.reloadedPageSet.has(index) && Boolean(originalImage.path);
+            const image = isOriginal ? originalImage : galleryDownloader.result.images[index];
+            const thumbnail = galleryDownloader.result.thumbnails[index];
+            if (!image.path) {
+              $ui.warning("请等待当前图片加载");
+              return;
+            } else if (!thumbnail.path) {
+              $ui.warning("请等待当前图片缩略图加载");
+              return;
+            } else if (favoriteImageManager.add(this.gid, index, image.path, thumbnail.path, isOriginal)) {
+              favoriteImageButton.symbol = "heart.fill";
+              favoriteImageButton.tintColor = $color("orange");
+              this._favoriteImageSet.add(index);
+            } else {
+              $ui.error("收藏失败");
             }
           }
         },

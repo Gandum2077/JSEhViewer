@@ -333,8 +333,10 @@ export class GalleryCommentController extends BaseController {
 
   private _refreshComments() {
     if (!this._infos) return;
+    const view = this.cviews.webview.view;
+    if (!view) return; // 用户可能会进入画廊后立即退出，此时来不及加载出view
     if (this._sortType === "time") {
-      this.cviews.webview.view.notify({
+      view.notify({
         event: "displayComments",
         message: { comments: this._infos.comments },
       });
@@ -349,7 +351,7 @@ export class GalleryCommentController extends BaseController {
           return b.score - a.score;
         }
       });
-      this.cviews.webview.view.notify({
+      view.notify({
         event: "displayComments",
         message: { comments: sortedComments },
       });

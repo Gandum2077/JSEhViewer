@@ -13,6 +13,7 @@ export const aiTranslationPath = "assets/ai-translations/";
 export const originalImagePath = "assets/original-image/";
 export const galleryInfoPath = "assets/info/";
 export const favoriteImagePath = "assets/favorite-image/";
+export const favoriteImageTempPath = "assets/favorite-image-temp/";
 export const tempPath = "assets/temp/";
 export const tempZipPath = "assets/temp.zip";
 export const appConfigPath = "config.json";

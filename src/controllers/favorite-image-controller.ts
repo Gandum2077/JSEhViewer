@@ -8,11 +8,11 @@ import {
   DynamicPreferenceListView,
   PreferenceSection,
 } from "jsbox-cview";
-import { CustomImagePager } from "../components/custom-image-pager";
 import { FavoriteImageGroupWithFiles, FavoriteImageQueryOrder, FavoriteImageSort } from "../types";
 import { configManager } from "../utils/config";
 import { favoriteImageManager } from "../utils/favorite-image";
 import { favoriteImagePath } from "../utils/glv";
+import { FavoriteImageReaderController } from "./favorite-image-reader-controller";
 
 const POPOVER_WIDTH = 250;
 
@@ -68,7 +68,7 @@ class SortPopover extends Base<UIView, UiTypes.ViewOptions> {
               type: "boolean",
               title: "倒序",
               key: "ascOrder",
-              value: options.order === "asc",
+              value: options.order === "desc",
             },
             {
               type: "boolean",
@@ -151,7 +151,7 @@ class SortPopover extends Base<UIView, UiTypes.ViewOptions> {
     const list2Values = this.cviews.list2.values as { ascOrder: boolean; showTitle: boolean };
     return {
       sort: this._sort,
-      order: list2Values.ascOrder ? "asc" : "desc",
+      order: list2Values.ascOrder ? "desc" : "asc",
       showTitle: list2Values.showTitle,
     };
   }
@@ -181,46 +181,6 @@ function popover({
   });
 }
 
-class FavoriteImageViewerController extends BaseController {
-  constructor(group: FavoriteImageGroupWithFiles, pageIndex: number) {
-    super({ props: { bgcolor: $color("black") } });
-
-    const pages = group.pages.filter((page) => page.file_name);
-    const initialPage = Math.max(
-      0,
-      pages.findIndex((page) => page.page_index === pageIndex),
-    );
-    const navbar = new CustomNavigationBar({
-      props: {
-        title: `${initialPage + 1}/${pages.length}`,
-        popButtonEnabled: true,
-      },
-    });
-    const imagePager = new CustomImagePager({
-      props: {
-        page: initialPage,
-        srcs: pages.map((page) => ({
-          path: favoriteImagePath + page.file_name,
-          error: false,
-          type: page.is_original ? "reloaded" : "normal",
-        })),
-      },
-      layout: (make, view) => {
-        make.top.equalTo(view.prev.bottom);
-        make.left.right.bottom.equalTo(view.super);
-      },
-      events: {
-        changed: (page) => {
-          navbar.title = `${page + 1}/${pages.length}`;
-        },
-      },
-    });
-
-    this.cviews = { navbar, imagePager };
-    this.rootView.views = [navbar, imagePager];
-  }
-}
-
 export class FavoriteImageController extends BaseController {
   cviews: {
     navbar: CustomNavigationBar;
@@ -233,7 +193,7 @@ export class FavoriteImageController extends BaseController {
     super({
       props: { bgcolor: $color("backgroundColor") },
       events: {
-        didLoad: () => {
+        didAppear: () => {
           this.fullRefresh();
         },
       },
@@ -373,7 +333,11 @@ export class FavoriteImageController extends BaseController {
       return;
     }
 
-    const controller = new FavoriteImageViewerController(group, pageIndex);
+    const controller = new FavoriteImageReaderController({
+      groups: this._groups,
+      gid,
+      pageIndex,
+    });
     controller.uipush({
       theme: "dark",
       navBarHidden: true,

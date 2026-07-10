@@ -12,7 +12,14 @@ import {
   ReaderConfig,
 } from "../types";
 import { dbManager } from "./database";
-import { aiTranslationPath, favoriteImagePath, imagePath, originalImagePath, thumbnailPath } from "./glv";
+import {
+  aiTranslationPath,
+  favoriteImagePath,
+  favoriteImageTempPath,
+  imagePath,
+  originalImagePath,
+  thumbnailPath,
+} from "./glv";
 import { appLog } from "./tools";
 
 interface Config {
@@ -70,6 +77,7 @@ interface Config {
   favoriteImageSort: "gid" | "favorited_at";
   favoriteImageQueryOrder: "asc" | "desc";
   favoriteImageShowTitle: boolean;
+  favoriteImagePagingGesture: "tap_and_swipe" | "swipe" | "tap";
 }
 
 const defaultConfig: Config = {
@@ -113,6 +121,7 @@ const defaultConfig: Config = {
   favoriteImageSort: "favorited_at",
   favoriteImageQueryOrder: "desc",
   favoriteImageShowTitle: false,
+  favoriteImagePagingGesture: "tap_and_swipe",
 };
 
 async function getEhTagTranslationText() {
@@ -562,6 +571,14 @@ class ConfigManager {
 
   set favoriteImageShowTitle(value: boolean) {
     this._setConfig("favoriteImageShowTitle", value);
+  }
+
+  get favoriteImagePagingGesture() {
+    return this._config.favoriteImagePagingGesture;
+  }
+
+  set favoriteImagePagingGesture(value: "tap_and_swipe" | "swipe" | "tap") {
+    this._setConfig("favoriteImagePagingGesture", value);
   }
 
   /***CONFIG END***/
@@ -1348,6 +1365,7 @@ LIMIT 20;
     $file.delete(aiTranslationPath);
     $file.delete(imagePath);
     $file.delete(favoriteImagePath);
+    $file.delete(favoriteImageTempPath);
     dbManager.transactionUpdate([
       { sql: "DELETE FROM favorite_images" },
       { sql: "DELETE FROM archive_taglist" },

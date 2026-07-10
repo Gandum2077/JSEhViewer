@@ -102,20 +102,26 @@ export type DBFavoriteImageItem = {
 
 export type DBFavoriteImageGroup = {
   gid: number;
+  token: string;
+  length: number;
   latest_favorited_at: string;
   pages: number[];
   title: string;
 };
 
+export type FavoriteImageFile = {
+  page_index: number;
+  thumbnail_file_name: string;
+  file_name: string;
+  is_original: boolean;
+};
+
 export type FavoriteImageGroupWithFiles = {
   gid: number;
+  token: string;
+  length: number;
   latest_favorited_at: string;
-  pages: {
-    page_index: number;
-    thumbnail_file_name: string;
-    file_name: string;
-    is_original: boolean;
-  }[];
+  pages: FavoriteImageFile[];
   title: string;
 };
 

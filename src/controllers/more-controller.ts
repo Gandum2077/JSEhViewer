@@ -15,6 +15,7 @@ import { downloaderManager } from "../utils/api";
 import { globalTimer } from "../utils/timer";
 import { toLocalTimeString } from "../utils/tools";
 import { FavoriteImageController } from "./favorite-image-controller";
+import { favoriteImageTempPath } from "../utils/glv";
 
 export class MoreController extends BaseController {
   cviews: { navbar: CustomNavigationBar; list: DynamicItemSizeMatrix };
@@ -54,6 +55,7 @@ export class MoreController extends BaseController {
               if (configManager.autoClearCache) {
                 configManager.clearCache();
               }
+              if ($file.exists(favoriteImageTempPath)) $file.delete(favoriteImageTempPath);
               $app.close();
             },
           },

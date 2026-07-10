@@ -1,6 +1,7 @@
 import {
   Base,
   BaseController,
+  ContentView,
   CustomNavigationBar,
   DynamicItemSizeMatrix,
   DynamicItemSizeSectionMatrix,
@@ -191,6 +192,7 @@ function popover({
 
 export class FavoriteImageController extends BaseController {
   cviews: {
+    emptyView: ContentView;
     navbar: CustomNavigationBar;
     matrixWithTitle: DynamicItemSizeSectionMatrix;
     matrixNoTitle: DynamicItemSizeMatrix;
@@ -203,6 +205,9 @@ export class FavoriteImageController extends BaseController {
     super({
       props: { bgcolor: $color("backgroundColor") },
       events: {
+        didLoad: () => {
+          this.fullRefresh();
+        },
         didAppear: () => {
           this.fullRefresh();
         },
@@ -214,6 +219,43 @@ export class FavoriteImageController extends BaseController {
       order: configManager.favoriteImageQueryOrder,
       showTitle: configManager.favoriteImageShowTitle,
     };
+    const emptyView = new ContentView({
+      props: {
+        hidden: true,
+        bgcolor: $color("insetGroupedBackground"),
+      },
+      views: [
+        {
+          type: "image",
+          props: {
+            symbol: "square.stack.3d.up.slash",
+            tintColor: $color("systemPlaceholderText"),
+          },
+          layout: (make, view) => {
+            make.centerX.equalTo(view.super);
+            make.centerY.equalTo(view.super).offset(-50);
+            make.size.equalTo($size(100, 100));
+          },
+        },
+        {
+          type: "label",
+          props: {
+            id: "emptyLabel",
+            text: "没有匹配的记录",
+            textColor: $color("systemPlaceholderText"),
+            font: $font(20),
+            align: $align.center,
+          },
+          layout: (make, view) => {
+            make.centerX.equalTo(view.super);
+            make.top.equalTo(view.prev.bottom).inset(10);
+          },
+        },
+      ],
+      layout: (make, view) => {
+        make.top.left.right.bottom.equalTo(view.prev);
+      },
+    });
 
     const searchButton = new SymbolButton({
       props: {
@@ -323,8 +365,8 @@ export class FavoriteImageController extends BaseController {
       },
     });
 
-    this.cviews = { navbar, matrixWithTitle, matrixNoTitle, searchButton };
-    this.rootView.views = [navbar, matrixNoTitle, matrixWithTitle];
+    this.cviews = { emptyView, navbar, matrixWithTitle, matrixNoTitle, searchButton };
+    this.rootView.views = [navbar, matrixNoTitle, matrixWithTitle, emptyView];
   }
 
   get hasSearchOptions() {
@@ -347,14 +389,30 @@ export class FavoriteImageController extends BaseController {
       order: this.sortOptions.order,
     });
 
+    if (groups.length === 0) {
+      (this.cviews.emptyView.view.get("emptyLabel") as UILabelView).text = "暂无记录";
+      this.cviews.emptyView.view.hidden = false;
+      this.cviews.matrixWithTitle.view.hidden = true;
+      this.cviews.matrixNoTitle.view.hidden = true;
+      return;
+    }
+
     if (this.hasSearchOptions) {
       const matchedGids = new Set(statusManager.queryArchiveGids(this.searchOptions));
       groups = groups.filter((group) => matchedGids.has(group.gid));
+      if (groups.length === 0) {
+        (this.cviews.emptyView.view.get("emptyLabel") as UILabelView).text = "没有匹配的记录";
+        this.cviews.emptyView.view.hidden = false;
+        this.cviews.matrixWithTitle.view.hidden = true;
+        this.cviews.matrixNoTitle.view.hidden = true;
+        return;
+      }
     }
 
     this._groups = groups;
 
     if (this.sortOptions.showTitle) {
+      this.cviews.emptyView.view.hidden = true;
       this.cviews.matrixWithTitle.view.hidden = false;
       this.cviews.matrixNoTitle.view.hidden = true;
       this.cviews.matrixWithTitle.data = groups.map((group) => {
@@ -368,6 +426,7 @@ export class FavoriteImageController extends BaseController {
       });
       this.cviews.matrixNoTitle.data = [];
     } else {
+      this.cviews.emptyView.view.hidden = true;
       this.cviews.matrixWithTitle.view.hidden = true;
       this.cviews.matrixNoTitle.view.hidden = false;
       this.cviews.matrixWithTitle.data = [];

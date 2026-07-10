@@ -56,6 +56,7 @@ function filterToplistItemsByLocalTagFilter(items: EHListCompactItem[]) {
 function buildArchiveSearchSQLQuery(
   options: ArchiveSearchOptions,
   countOnly: boolean = false,
+  gidOnly: boolean = false,
 ): {
   sql: string;
   args: any[];
@@ -80,7 +81,14 @@ function buildArchiveSearchSQLQuery(
     FROM 
       archives
   `
-    : `
+    : gidOnly
+      ? `
+    SELECT
+      archives.gid
+    FROM
+      archives
+  `
+      : `
     SELECT 
       archives.*
     FROM 
@@ -317,8 +325,8 @@ function buildArchiveSearchSQLQuery(
     sql += ` WHERE ${conditions.join(" AND ")}`;
   }
 
-  // Handle sorting and pagination if not countOnly
-  if (!countOnly) {
+  // Handle sorting and pagination if not countOnly or gidOnly
+  if (!countOnly && !gidOnly) {
     if (sort) {
       sql += ` ORDER BY ${sort} DESC`;
     } else {
@@ -1280,6 +1288,12 @@ class StatusManager {
       last_read_page: row.last_read_page,
     };
     return data;
+  }
+
+  queryArchiveGids(options: ArchiveSearchOptions) {
+    const { sql, args } = buildArchiveSearchSQLQuery(options, false, true);
+    const rawData = dbManager.query(sql, args) as { gid: number }[];
+    return rawData.map((row) => row.gid);
   }
 
   /**

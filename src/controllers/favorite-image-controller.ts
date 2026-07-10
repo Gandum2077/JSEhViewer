@@ -7,12 +7,20 @@ import {
   DynamicItemSizeSectionMatrixSection,
   DynamicPreferenceListView,
   PreferenceSection,
+  SymbolButton,
 } from "jsbox-cview";
-import { FavoriteImageGroupWithFiles, FavoriteImageQueryOrder, FavoriteImageSort } from "../types";
+import {
+  ArchiveSearchOptions,
+  FavoriteImageGroupWithFiles,
+  FavoriteImageQueryOrder,
+  FavoriteImageSort,
+} from "../types";
 import { configManager } from "../utils/config";
 import { favoriteImageManager } from "../utils/favorite-image";
 import { favoriteImagePath } from "../utils/glv";
+import { statusManager } from "../utils/status";
 import { FavoriteImageReaderController } from "./favorite-image-reader-controller";
+import { getSearchOptions } from "./search-controller";
 
 const POPOVER_WIDTH = 250;
 
@@ -186,8 +194,10 @@ export class FavoriteImageController extends BaseController {
     navbar: CustomNavigationBar;
     matrixWithTitle: DynamicItemSizeSectionMatrix;
     matrixNoTitle: DynamicItemSizeMatrix;
+    searchButton: SymbolButton;
   };
   sortOptions: SortPopoverOptions;
+  searchOptions: ArchiveSearchOptions = { fromPage: 0, toPage: 0 };
   private _groups: FavoriteImageGroupWithFiles[] = [];
   constructor() {
     super({
@@ -204,6 +214,29 @@ export class FavoriteImageController extends BaseController {
       order: configManager.favoriteImageQueryOrder,
       showTitle: configManager.favoriteImageShowTitle,
     };
+
+    const searchButton = new SymbolButton({
+      props: {
+        tintColor: $color("primaryText"),
+        symbol: "magnifyingglass",
+      },
+      layout: $layout.fill,
+      events: {
+        tapped: async (sender) => {
+          try {
+            const options = await getSearchOptions(
+              {
+                type: "archive",
+                options: this.searchOptions,
+              },
+              "onlyShowArchive",
+            );
+            this.searchOptions = options.options;
+            this.fullRefresh();
+          } catch {}
+        },
+      },
+    });
 
     const navbar = new CustomNavigationBar({
       props: {
@@ -224,6 +257,9 @@ export class FavoriteImageController extends BaseController {
               configManager.favoriteImageShowTitle = options.showTitle;
               this.fullRefresh();
             },
+          },
+          {
+            cview: searchButton,
           },
         ],
       },
@@ -287,15 +323,35 @@ export class FavoriteImageController extends BaseController {
       },
     });
 
-    this.cviews = { navbar, matrixWithTitle, matrixNoTitle };
+    this.cviews = { navbar, matrixWithTitle, matrixNoTitle, searchButton };
     this.rootView.views = [navbar, matrixNoTitle, matrixWithTitle];
   }
 
+  get hasSearchOptions() {
+    return Boolean(
+      (this.searchOptions.type && this.searchOptions.type !== "all") ||
+      this.searchOptions.searchTerms?.length ||
+      this.searchOptions.excludedCategories?.length ||
+      this.searchOptions.minimumPages !== undefined ||
+      this.searchOptions.maximumPages !== undefined ||
+      this.searchOptions.minimumRating !== undefined,
+    );
+  }
+
   fullRefresh() {
-    const groups = favoriteImageManager.queryGroupWithFileNames({
+    // 如果存在搜索项，搜索按钮变成橙色
+    this.cviews.searchButton.tintColor = this.hasSearchOptions ? $color("orange") : $color("primaryText");
+
+    let groups = favoriteImageManager.queryGroupWithFileNames({
       sort: this.sortOptions.sort,
       order: this.sortOptions.order,
     });
+
+    if (this.hasSearchOptions) {
+      const matchedGids = new Set(statusManager.queryArchiveGids(this.searchOptions));
+      groups = groups.filter((group) => matchedGids.has(group.gid));
+    }
+
     this._groups = groups;
 
     if (this.sortOptions.showTitle) {

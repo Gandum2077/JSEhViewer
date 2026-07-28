@@ -277,6 +277,7 @@ async function init(url?: string) {
           });
           if (index2 === 0) {
             configManager.cookie = "";
+            configManager.githubToken = "";
             $addin.restart();
           } else if (index2 === 1) {
             $app.close();
@@ -284,6 +285,7 @@ async function init(url?: string) {
         }
       } else if (index === 1) {
         configManager.cookie = "";
+        configManager.githubToken = "";
         $addin.restart();
       } else if (index === 2) {
         $app.close();

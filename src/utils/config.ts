@@ -27,6 +27,9 @@ interface Config {
   exhentai: boolean; // 是否登录Exhentai
   syncMyTags: boolean; // 是否同步我的标签
   mpvAvailable: boolean; // 是否可用MPV
+
+  githubToken: string; // GitHub Token，用于获取标签翻译
+
   homepageManagerLayoutMode: "large" | "normal" | "minimal"; // 主页管理器布局模式
   archiveManagerLayoutMode: "large" | "normal" | "minimal"; // 存档管理器布局模式
   tagManagerOnlyShowBookmarked: boolean; // 标签管理器仅显示已收藏的标签
@@ -85,6 +88,7 @@ const defaultConfig: Config = {
   exhentai: false,
   syncMyTags: false,
   mpvAvailable: false,
+  githubToken: "",
   homepageManagerLayoutMode: "large",
   archiveManagerLayoutMode: "large",
   tagManagerOnlyShowBookmarked: false,
@@ -124,9 +128,13 @@ const defaultConfig: Config = {
   favoriteImagePagingGesture: "tap_and_swipe",
 };
 
-async function getEhTagTranslationText() {
+async function getEhTagTranslationText(githubToken: string) {
+  const header: Record<string, string> = {};
+  if (githubToken) {
+    header.Authorization = `Bearer ${githubToken}`;
+  }
   const url = "https://api.github.com/repos/EhTagTranslation/Database/releases/latest";
-  const resp = await $http.get({ url: url, timeout: 30 });
+  const resp = await $http.get({ url: url, timeout: 30, header });
   if (resp.error) {
     appLog(resp, "error");
     throw new Error("访问GitHub API失败: " + resp.error.localizedDescription);
@@ -135,11 +143,12 @@ async function getEhTagTranslationText() {
     appLog(resp, "error");
     throw new Error(`GitHub API返回错误，状态码: ${resp.response.statusCode}，返回内容: ${JSON.stringify(resp.data)}`);
   }
-  const info: {
-    assets: { name: string; browser_download_url: string }[];
-  } = resp.data;
-  const dbUrl = info.assets.find((i) => i.name === "db.full.json")!.browser_download_url;
-  const resp2 = await $http.get({ url: dbUrl, timeout: 30 });
+  const info: { assets: { name: string; url: string }[] } = resp.data;
+  const asset = info.assets.find((a) => a.name === "db.full.json");
+  if (!asset) throw new Error("GitHub Release中缺少db.full.json");
+  const dbUrl = asset.url;
+  header.Accept = "application/octet-stream";
+  const resp2 = await $http.get({ url: dbUrl, timeout: 30, header });
   if (resp2.error) {
     appLog(resp, "error");
     throw new Error("下载标签翻译数据失败: " + resp2.error.localizedDescription);
@@ -268,6 +277,14 @@ class ConfigManager {
 
   set mpvAvailable(value: boolean) {
     this._setConfig("mpvAvailable", value);
+  }
+
+  get githubToken() {
+    return this._config.githubToken;
+  }
+
+  set githubToken(value: string) {
+    this._setConfig("githubToken", value);
   }
 
   get homepageManagerLayoutMode() {
@@ -800,7 +817,7 @@ class ConfigManager {
 
   async updateTranslationData() {
     const sql_delete_translation_data = "DELETE FROM translation_data";
-    const text = await getEhTagTranslationText();
+    const text = await getEhTagTranslationText(this.githubToken);
     const data: any = JSON.parse(text);
     const time: string = data.head.committer.when;
     const translationData = extractTranslationData(data);

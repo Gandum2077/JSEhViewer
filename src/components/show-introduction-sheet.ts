@@ -1,10 +1,15 @@
 import { ContentView, CustomNavigationBar, Markdown, Sheet, SymbolButton } from "jsbox-cview";
 
-export function showIntroductionSheet(path: string, title: string) {
-  const text = $file.read(path).string || "";
+export function showIntroductionSheet(options: { path: string; title: string } | { text: string; title: string }) {
+  let content = "";
+  if ("path" in options) {
+    content = $file.read(options.path).string || "";
+  } else if ("text" in options) {
+    content = options.text;
+  }
   const navbar = new CustomNavigationBar({
     props: {
-      title,
+      title: options.title,
       rightBarButtonItems: [
         {
           cview: new SymbolButton({
@@ -23,7 +28,7 @@ export function showIntroductionSheet(path: string, title: string) {
   });
   const markdown = new Markdown({
     props: {
-      content: text,
+      content,
     },
     layout: (make, view) => {
       make.top.equalTo(view.prev.bottom);

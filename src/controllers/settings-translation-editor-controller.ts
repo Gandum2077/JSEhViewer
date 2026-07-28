@@ -486,7 +486,7 @@ class AITranslationConfigEditorController extends BaseController {
           {
             symbol: "questionmark.circle",
             handler: () => {
-              showIntroductionSheet(aiTranslationIntroductionPath, "自定义 AI 翻译");
+              showIntroductionSheet({ path: aiTranslationIntroductionPath, title: "自定义 AI 翻译" });
             },
           },
           {

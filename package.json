@@ -18,7 +18,7 @@
   "dependencies": {
     "cheerio": "0.22.0",
     "ehentai-parser": "^1.15.0",
-    "jsbox-cview": "^1.6.9",
+    "jsbox-cview": "^1.6.10",
     "prettier": "^3.8.1",
     "url-parse": "^1.5.10"
   },

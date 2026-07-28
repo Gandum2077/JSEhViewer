@@ -6,7 +6,6 @@ import {
   Image,
   PresentedPageController,
   PreferenceListView,
-  textDialog,
   PageViewer,
   ContentView,
   PageControl,
@@ -17,25 +16,16 @@ import { defaultButtonColor } from "../utils/glv";
 import { clearCookie } from "../utils/tools";
 import { configManager } from "../utils/config";
 import { api } from "../utils/api";
+import { showIntroductionSheet } from "../components/show-introduction-sheet";
 
 const galleryOneText = `欢迎使用[JSEhViewer](https://github.com/Gandum2077/JSEhViewer)，一款运行在JSBox平台的E-Hentai阅读应用。
 
 JSEhViewer的运行依赖从网页端抓取数据。启动时会自动将[网站设置](https://e-hentai.org/uconfig.php)修改为特定的值：
-搜索页的显示模式: 扩展
-图库的缩略图模式: 大
+
+  搜索页的显示模式: 扩展
+  图库的缩略图模式: 大
 
 运行时请不要在网页端修改设置，有可能会导致错误。`;
-
-const syncMyTagsText = `
-1. 出于同步速度的考虑，只同步首个标签组。如果首个标签组没有启用，会自动启用。
-
-2. 为保持风格统一，本应用不使用网页端设定的颜色，而是使用橘黄色表示标记，绿色表示订阅，红色表示隐藏。
-
-3. 每次打开应用时，会将网页端的标签同步到本地。如果标签数据冲突则以网页端为准。
-
-4. 为了方便创建包含上传者的搜索组合，可以在本地保存上传者标签。但是由于网页端不能保存上传者标签，所以不会同步上传者标签。
-
-另外请注意，本应用的标签列表由标签翻译数据库EhTagTranslation提供。不在数据库中的标签，默认并不会出现在标签列表中。需要手动加入我的标签，才会出现在列表中。`;
 
 class WelcomeController extends PresentedPageController {
   constructor(finishHandler: () => void) {
@@ -53,14 +43,14 @@ class WelcomeController extends PresentedPageController {
           rows: [
             {
               type: "boolean",
-              title: "登录Exhentai",
+              title: "登录里站",
               key: "exhentai",
               value: false,
             },
           ],
         },
         {
-          title: "你可以和E-Hentai同步我的标签，请先查看同步规则",
+          title: "",
           rows: [
             {
               type: "boolean",
@@ -71,11 +61,29 @@ class WelcomeController extends PresentedPageController {
             {
               type: "action",
               title: "查看同步标签的规则",
-              value: async () => {
-                await textDialog({
-                  title: "同步标签的规则",
-                  text: syncMyTagsText,
-                  editable: false,
+              value: () => {
+                showIntroductionSheet({ title: "同步标签", path: "assets/sync-mytags-introduction.md" });
+              },
+            },
+          ],
+        },
+        {
+          title: "",
+          rows: [
+            {
+              type: "secure",
+              title: "GitHub Token",
+              key: "githubToken",
+              value: "",
+              placeholder: "github_pat_xxx",
+            },
+            {
+              type: "action",
+              title: "关于429错误和GitHub Token",
+              value: () => {
+                showIntroductionSheet({
+                  path: "assets/github-token-introduction.md",
+                  title: "GitHub Token",
                 });
               },
             },
@@ -89,8 +97,8 @@ class WelcomeController extends PresentedPageController {
       },
       layout: (make, view) => {
         make.centerX.equalTo(view.super);
-        make.centerY.equalTo(view.super).offset(-50);
-        make.height.equalTo(240);
+        make.centerY.equalTo(view.super).offset(0);
+        make.height.equalTo(360);
         make.width.greaterThanOrEqualTo(300).priority(1000);
         make.width.lessThanOrEqualTo(600).priority(999);
         make.width.equalTo(view.super).offset(-75).priority(998);
@@ -98,10 +106,12 @@ class WelcomeController extends PresentedPageController {
     });
     const tappedEvent = async (sender: UIButtonView, type: "cookie" | "web") => {
       try {
-        const { exhentai, syncMyTags } = optionList.values as {
+        const { exhentai, syncMyTags, githubToken } = optionList.values as {
           exhentai: boolean;
           syncMyTags: boolean;
+          githubToken: string;
         };
+        configManager.githubToken = githubToken;
         sender.title = "获取账号信息...";
         cookieLoginButton.view.enabled = false;
         webLoginButton.view.enabled = false;
@@ -187,7 +197,7 @@ class WelcomeController extends PresentedPageController {
                 },
                 layout: (make, view) => {
                   make.center.equalTo(view.super);
-                  make.height.equalTo(240);
+                  make.height.equalTo(300);
                   make.width.greaterThanOrEqualTo(300).priority(1000);
                   make.width.lessThanOrEqualTo(600).priority(999);
                   make.width.equalTo(view.super).offset(-75).priority(998);

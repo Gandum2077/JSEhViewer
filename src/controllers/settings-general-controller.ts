@@ -6,6 +6,7 @@ import { clearExtraPropsForReload, statusManager } from "../utils/status";
 import { api } from "../utils/api";
 import { HomepageController } from "./homepage-controller";
 import { assembleSearchTerms, EHSearchTerm, parseFsearch } from "ehentai-parser";
+import { showIntroductionSheet } from "../components/show-introduction-sheet";
 
 const hathRegionAttrs = [
   "",
@@ -87,6 +88,7 @@ export class GeneralSettingsController extends BaseController {
       },
       events: {
         changed: (values: {
+          githubToken: string;
           startPageType: 0 | 1 | 2 | 3;
           specificPageTypeOnStart?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
           specificSearchtermsOnStart?: "";
@@ -110,6 +112,7 @@ export class GeneralSettingsController extends BaseController {
           toplistTagFilterDefaultEnabled: boolean;
         }) => {
           // 先把values中的值转换为configManager中的值的格式
+          const githubToken = values.githubToken;
           const startPageType =
             values.startPageType === 0
               ? "blank_page"
@@ -184,6 +187,16 @@ export class GeneralSettingsController extends BaseController {
           const toplistTagFilterDefaultEnabled = values.toplistTagFilterDefaultEnabled;
 
           // 再比较configManager中的值和values中的值是否相同，如果不同，则更新configManager中的值
+          if (githubToken !== configManager.githubToken) {
+            // 校验githubToken的格式
+            if (githubToken === "" || githubToken.startsWith("github_pat_")) {
+              configManager.githubToken = githubToken;
+            } else {
+              $ui.error("GitHub Token格式不正确");
+              // 立即刷新
+              this.cviews.list.sections = this.getCurrentSections();
+            }
+          }
           if (startPageType !== configManager.startPageType) {
             configManager.startPageType = startPageType;
             // 立即刷新
@@ -380,6 +393,7 @@ export class GeneralSettingsController extends BaseController {
                     title: "确定",
                     handler: () => {
                       configManager.cookie = "";
+                      configManager.githubToken = "";
                       $addin.restart();
                     },
                   },
@@ -466,6 +480,23 @@ export class GeneralSettingsController extends BaseController {
             type: "info",
             title: "上次更新时间",
             value: toLocalTimeString(configManager.translationUpdateTime),
+          },
+          {
+            type: "secure",
+            title: "GitHub Token",
+            key: "githubToken",
+            value: configManager.githubToken,
+            placeholder: "github_pat_xxx",
+          },
+          {
+            type: "action",
+            title: "关于429错误和GitHub Token",
+            value: () => {
+              showIntroductionSheet({
+                path: "assets/github-token-introduction.md",
+                title: "GitHub Token",
+              });
+            },
           },
         ],
       },

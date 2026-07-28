@@ -146,7 +146,7 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
           },
           didSelect: async (sender, indexPath, data) => {
             if (indexPath.section === 0 && indexPath.row === 0) {
-              showIntroductionSheet(webdavIntroductionPath, "WebDAV 使用指南");
+              showIntroductionSheet({ path: webdavIntroductionPath, title: "WebDAV 使用指南" });
             } else if (
               (this._services.length === 0 && indexPath.section === 1) ||
               (this._services.length > 0 && indexPath.section === 2)
@@ -417,7 +417,7 @@ class WebDAVSettingsController extends BaseController {
       events: {
         didAppear: () => {
           if (!configManager.webdavIntroductionFirstRead) {
-            showIntroductionSheet(webdavIntroductionPath, "WebDAV 使用指南");
+            showIntroductionSheet({ path: webdavIntroductionPath, title: "WebDAV 使用指南" });
             configManager.webdavIntroductionFirstRead = true;
           }
         },

@@ -68,7 +68,7 @@ export class AITranslationConfigPickerController extends BaseController {
               },
               events: {
                 tapped: () => {
-                  showIntroductionSheet(aiTranslationIntroductionPath, "自定义 AI 翻译");
+                  showIntroductionSheet({ path: aiTranslationIntroductionPath, title: "自定义 AI 翻译" });
                 },
               },
             },

@@ -203,11 +203,31 @@ export function isNameMatchGid(name: string, gid: number): boolean {
  * 检测GitHub更新
  */
 export function getLatestVersion() {
+  const githubToken = configManager.githubToken;
+  const header: Record<string, string> = {};
+  if (githubToken) {
+    header.Authorization = `Bearer ${githubToken}`;
+  }
   const current_version = JSON.parse($file.read(appConfigPath).string || "").info.version as string;
   $http.get({
     url: "https://api.github.com/repos/Gandum2077/JSEhViewer/releases/latest",
+    header,
     timeout: 10,
     handler: (resp) => {
+      if (resp.error) {
+        $ui.alert({
+          title: "检查更新失败",
+          message: "网络问题: " + resp.error.localizedDescription,
+        });
+        return;
+      }
+      if (resp.response.statusCode === 403) {
+        $ui.alert({
+          title: "检查更新失败",
+          message: "GitHub API达到限额，建议您在设置中添加或更新GitHub Token",
+        });
+        return;
+      }
       if (resp.data && resp.response && resp.response.statusCode === 200) {
         const info = resp.data;
         let latest_version = info?.tag_name as string | undefined;

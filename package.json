@@ -10,7 +10,10 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc && webpack --entry-reset --entry ${npm_config_entry:-./dist/index.js} && cd app && zip -q -r ../JSEhViewer.box . && rm main.js",
-    "format": "prettier --write ."
+    "bump": "npm version --no-git-tag-version",
+    "check:version": "node scripts/sync-version.js --check",
+    "format": "prettier --write .",
+    "version": "node scripts/sync-version.js"
   },
   "keywords": [],
   "author": "Gandum2077",

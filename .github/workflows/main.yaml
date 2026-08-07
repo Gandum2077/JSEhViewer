@@ -26,18 +26,22 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # 4. 执行打包构建，项目会生成 JSEhViewer.box 文件
+      # 4. 确认所有发布文件使用同一个版本号
+      - name: Check release version
+        run: npm run check:version
+
+      # 5. 执行打包构建，项目会生成 JSEhViewer.box 文件
       - name: Build project
         run: npm run build
 
-      # 5. 读取 package.json 中的 version 字段，写入到一个输出变量 VERSION
+      # 6. 读取 package.json 中的 version 字段，写入到一个输出变量 VERSION
       - name: Get version from package.json
         id: get_version
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
-      # 6. 创建 GitHub Release，并上传 JSEhViewer.box
+      # 7. 创建 GitHub Release，并上传 JSEhViewer.box
       #    使用 ncipollo/release-action@v1 插件
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1

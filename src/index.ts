@@ -82,7 +82,7 @@ async function init(url?: string) {
       ],
     },
     events: {
-      doubleTapped: (controller, index) => {
+      reselected: (controller, index) => {
         switch (index) {
           case 0:
             homepageController.cviews.list.matrix.view.scrollToOffset($point(0, 0));

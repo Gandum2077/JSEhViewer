@@ -64,10 +64,12 @@ export class MoreController extends BaseController {
     });
     const list = new DynamicItemSizeMatrix({
       props: {
-        maxColumns: 2,
-        minItemWidth: 290,
-        fixedItemHeight: 150,
-        spacing: 20,
+        itemLayoutOptions: {
+          maxColumns: 2,
+          minItemWidth: 290,
+          itemHeight: 150,
+          spacing: 20,
+        },
         bgcolor: $color("clear"),
         indicatorInsets: $insets(50, 0, 50, 0),
         header: {

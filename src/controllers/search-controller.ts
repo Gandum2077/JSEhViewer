@@ -271,7 +271,7 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
       },
       layout: $layout.fill,
       events: {
-        didSelect(sender, index, item) {
+        didSelect(index, item) {
           const tag = mostAccessedTags[index];
           const fsearch = assembleSearchTerms([
             {
@@ -297,7 +297,7 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
       },
       layout: $layout.fill,
       events: {
-        didSelect(sender, index, item) {
+        didSelect(index, item) {
           const tag = lastAccessSearchTerms[index];
           const fsearch = assembleSearchTerms([
             {
@@ -344,6 +344,18 @@ class SearchHistoryView extends Base<UIView, UiTypes.ViewOptions> {
   }
 }
 
+type FrontPagePreferenceValues = {
+  browseExpungedGalleries: boolean;
+  requireGalleryTorrent: boolean;
+  enablePageFilters: boolean;
+  minimumPages: number | undefined;
+  maximumPages: number | undefined;
+  minimumRating: number;
+  disableLanguageFilters: boolean;
+  disableUploaderFilters: boolean;
+  disableTagFilters: boolean;
+};
+
 class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
   private _excludedCategories: Set<EHSearchedCategory>;
@@ -360,7 +372,7 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   };
   cviews: {
     catList: DynamicItemSizeMatrix;
-    optionsList: DynamicPreferenceListView;
+    optionsList: DynamicPreferenceListView<FrontPagePreferenceValues>;
   };
   constructor(options?: EHSearchOptions) {
     super();
@@ -378,7 +390,7 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     if (this._options.minimumPages !== undefined || this._options.maximumPages !== undefined) {
       this._enablePageFilters = true;
     }
-    const optionsList = new DynamicPreferenceListView({
+    const optionsList = new DynamicPreferenceListView<FrontPagePreferenceValues>({
       sections: this.mapSections(),
       props: {
         style: 2,
@@ -410,12 +422,14 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     const catList = new DynamicItemSizeMatrix({
       props: {
         bgcolor: $color("insetGroupedBackground"),
-        minItemWidth: 100,
-        fixedItemHeight: 36,
-        spacing: 10,
+        itemLayoutOptions: {
+          minItemWidth: 100,
+          itemHeight: 36,
+          spacing: 10,
+          maxColumns: 5,
+        },
+
         scrollEnabled: false,
-        dynamicHeightEnabled: false,
-        maxColumns: 5,
         data: this.mapData(),
         template: {
           views: [
@@ -676,12 +690,15 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     this._selectedFavcat = options?.favcat;
     const favcatList = new DynamicItemSizeMatrix({
       props: {
+        itemLayoutOptions: {
+          minItemWidth: 170,
+          itemHeight: 36,
+          spacing: 10,
+          maxColumns: 2,
+        },
         bgcolor: $color("insetGroupedBackground"),
-        minItemWidth: 170,
-        fixedItemHeight: 36,
-        spacing: 10,
+
         scrollEnabled: false,
-        maxColumns: 2,
         data: this.mapData(),
         template: {
           props: {
@@ -789,6 +806,14 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   }
 }
 
+type ArchivePreferenceValues = {
+  type: number;
+  enablePageFilters: boolean;
+  minimumPages: number | undefined;
+  maximumPages: number | undefined;
+  minimumRating: number;
+};
+
 class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   _defineView: () => UiTypes.ViewOptions;
   private _excludedCategories: Set<EHCategory>;
@@ -801,7 +826,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
   };
   cviews: {
     catList: DynamicItemSizeMatrix;
-    optionsList: DynamicPreferenceListView;
+    optionsList: DynamicPreferenceListView<ArchivePreferenceValues>;
   };
   constructor(options?: ArchiveSearchOptions) {
     super();
@@ -815,7 +840,7 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     if (this._options.minimumPages !== undefined || this._options.maximumPages !== undefined) {
       this._enablePageFilters = true;
     }
-    const optionsList = new DynamicPreferenceListView({
+    const optionsList = new DynamicPreferenceListView<ArchivePreferenceValues>({
       sections: this.mapSections(),
       props: {
         style: 2,
@@ -844,12 +869,13 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
     const catList = new DynamicItemSizeMatrix({
       props: {
         bgcolor: $color("insetGroupedBackground"),
-        minItemWidth: 100,
-        fixedItemHeight: 36,
-        spacing: 10,
+        itemLayoutOptions: {
+          minItemWidth: 100,
+          itemHeight: 36,
+          maxColumns: 5,
+          spacing: 10,
+        },
         scrollEnabled: false,
-        dynamicHeightEnabled: false,
-        maxColumns: 5,
         data: this.mapData(),
         template: {
           views: [

@@ -2,30 +2,22 @@
 // 因此整个过程为：主界面加载 -> 检查登录（加载本模块） -> 数据加载
 // 本模块需要的文件：get-cookie.ts
 
-import {
-  Image,
-  PresentedPageController,
-  PreferenceListView,
-  PageViewer,
-  ContentView,
-  PageControl,
-  Button,
-} from "jsbox-cview";
+import { Image, PresentedPageController, PageViewer, ContentView, PageControl, Button } from "jsbox-cview";
 import { getCookie } from "../utils/get-cookie";
 import { defaultButtonColor } from "../utils/glv";
 import { clearCookie } from "../utils/tools";
 import { configManager } from "../utils/config";
 import { api } from "../utils/api";
-import { showIntroductionSheet } from "../components/show-introduction-sheet";
+import { LoginOptionsView } from "../components/login-options-view";
 
 const galleryOneText = `欢迎使用[JSEhViewer](https://github.com/Gandum2077/JSEhViewer)，一款运行在JSBox平台的E-Hentai阅读应用。
 
-JSEhViewer的运行依赖从网页端抓取数据。启动时会自动将[网站设置](https://e-hentai.org/uconfig.php)修改为特定的值：
+JSEhViewer需要从网页端抓取数据。启动时会自动将网页端设置修改为特定的值：
 
-  搜索页的显示模式: 扩展
-  图库的缩略图模式: 大
+  - 搜索页的显示模式: 扩展
+  - 图库的缩略图模式: 大
 
-运行时请不要在网页端修改设置，有可能会导致错误。`;
+本应用运行时请不要在网页端修改设置，可能会导致错误。`;
 
 class WelcomeController extends PresentedPageController {
   constructor(finishHandler: () => void) {
@@ -36,69 +28,11 @@ class WelcomeController extends PresentedPageController {
         interactiveDismissalDisabled: true,
       },
     });
-    const optionList = new PreferenceListView({
-      sections: [
-        {
-          title: "",
-          rows: [
-            {
-              type: "boolean",
-              title: "登录里站",
-              key: "exhentai",
-              value: false,
-            },
-          ],
-        },
-        {
-          title: "",
-          rows: [
-            {
-              type: "boolean",
-              title: "同步我的标签",
-              key: "syncMyTags",
-              value: false,
-            },
-            {
-              type: "action",
-              title: "查看同步标签的规则",
-              value: () => {
-                showIntroductionSheet({ title: "同步标签", path: "assets/sync-mytags-introduction.md" });
-              },
-            },
-          ],
-        },
-        {
-          title: "",
-          rows: [
-            {
-              type: "secure",
-              title: "GitHub Token",
-              key: "githubToken",
-              value: "",
-              placeholder: "github_pat_xxx",
-            },
-            {
-              type: "action",
-              title: "关于429错误和GitHub Token",
-              value: () => {
-                showIntroductionSheet({
-                  path: "assets/github-token-introduction.md",
-                  title: "GitHub Token",
-                });
-              },
-            },
-          ],
-        },
-      ],
-      props: {
-        style: 2,
-        scrollEnabled: false,
-        bgcolor: $color("clear"),
-      },
+    const optionList = new LoginOptionsView({
       layout: (make, view) => {
         make.centerX.equalTo(view.super);
-        make.centerY.equalTo(view.super).offset(0);
-        make.height.equalTo(360);
+        make.centerY.equalTo(view.super).offset(-5);
+        make.height.equalTo(219);
         make.width.greaterThanOrEqualTo(300).priority(1000);
         make.width.lessThanOrEqualTo(600).priority(999);
         make.width.equalTo(view.super).offset(-75).priority(998);
@@ -106,11 +40,7 @@ class WelcomeController extends PresentedPageController {
     });
     const tappedEvent = async (sender: UIButtonView, type: "cookie" | "web") => {
       try {
-        const { exhentai, syncMyTags, githubToken } = optionList.values as {
-          exhentai: boolean;
-          syncMyTags: boolean;
-          githubToken: string;
-        };
+        const { exhentai, syncMyTags, githubToken } = optionList.values;
         configManager.githubToken = githubToken;
         sender.title = "获取账号信息...";
         cookieLoginButton.view.enabled = false;
@@ -179,7 +109,7 @@ class WelcomeController extends PresentedPageController {
         cviews: [
           new ContentView({
             props: {
-              bgcolor: $color("#F7CD82", "#5B584F"),
+              bgcolor: $color("#F7CD82", "#925f07"),
             },
             layout: $layout.fill,
             views: [
@@ -194,10 +124,12 @@ class WelcomeController extends PresentedPageController {
                   bgcolor: $color("clear"),
                   editable: false,
                   scrollEnabled: false,
+                  selectable: false,
+                  insets: $insets(0, 0, 0, 0),
                 },
                 layout: (make, view) => {
                   make.center.equalTo(view.super);
-                  make.height.equalTo(300);
+                  make.height.equalTo(240);
                   make.width.greaterThanOrEqualTo(300).priority(1000);
                   make.width.lessThanOrEqualTo(600).priority(999);
                   make.width.equalTo(view.super).offset(-75).priority(998);

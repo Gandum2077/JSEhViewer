@@ -1143,11 +1143,12 @@ export class GalleryInfoController extends BaseController {
     });
     const infoMatrix = new DynamicItemSizeMatrix({
       props: {
-        maxColumns: 3,
-        spacing: 2,
-        fixedItemHeight: 20,
-        minItemWidth: 137,
-        dynamicHeightEnabled: false,
+        itemLayoutOptions: {
+          maxColumns: 3,
+          spacing: 2,
+          itemHeight: 20,
+          minItemWidth: 137,
+        },
         selectable: false,
         bgcolor: $color("clear"),
         data: [],

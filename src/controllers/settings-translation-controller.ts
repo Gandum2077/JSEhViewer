@@ -39,10 +39,12 @@ export class AITranslationConfigPickerController extends BaseController {
 
     const matrix = new DynamicItemSizeMatrix({
       props: {
-        spacing: 20,
-        maxColumns: 3,
-        minItemWidth: 320,
-        fixedItemHeight: 16 + 34 + 4 + 38 + 16 + 22 + 22 + 31,
+        itemLayoutOptions: {
+          spacing: 20,
+          maxColumns: 3,
+          minItemWidth: 320,
+          itemHeight: 16 + 34 + 4 + 38 + 16 + 22 + 22 + 31,
+        },
         bgcolor: $color("clear"),
         header: {
           type: "view",

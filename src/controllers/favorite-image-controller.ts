@@ -5,7 +5,6 @@ import {
   CustomNavigationBar,
   DynamicItemSizeMatrix,
   DynamicItemSizeSectionMatrix,
-  DynamicItemSizeSectionMatrixSection,
   DynamicPreferenceListView,
   PreferenceSection,
   SymbolButton,
@@ -324,9 +323,12 @@ export class FavoriteImageController extends BaseController {
 
     const matrixNoTitle = new DynamicItemSizeMatrix({
       props: {
-        spacing: 8,
-        minItemWidth: $device.isIpad ? 182 : 148,
-        maxColumns: 10,
+        itemLayoutOptions: {
+          spacing: 8,
+          minItemWidth: $device.isIpad ? 182 : 148,
+          maxColumns: 10,
+          itemHeight: (width) => width * 1.2,
+        },
         bgcolor: $color("clear"),
         data: [],
         template,
@@ -336,7 +338,6 @@ export class FavoriteImageController extends BaseController {
         make.top.equalTo(view.prev.bottom);
       },
       events: {
-        itemHeight: (width) => width * 1.2,
         didSelect: (sender, indexPath, data) => {
           const info = data.info as { gid: number; index: number };
           this._openViewer(info.gid, info.index);
@@ -344,11 +345,14 @@ export class FavoriteImageController extends BaseController {
       },
     });
 
-    const matrixWithTitle = new DynamicItemSizeSectionMatrix<DynamicItemSizeSectionMatrixSection>({
+    const matrixWithTitle = new DynamicItemSizeSectionMatrix({
       props: {
-        spacing: 8,
-        minItemWidth: $device.isIpad ? 182 : 148,
-        maxColumns: 10,
+        itemLayoutOptions: {
+          spacing: 8,
+          minItemWidth: $device.isIpad ? 182 : 148,
+          maxColumns: 10,
+          itemHeight: (width) => width * 1.2,
+        },
         bgcolor: $color("clear"),
         data: [],
         template,
@@ -357,7 +361,6 @@ export class FavoriteImageController extends BaseController {
         make.top.left.right.bottom.equalTo(view.prev);
       },
       events: {
-        itemHeight: (width) => width * 1.2,
         didSelect: (sender, indexPath, data) => {
           const info = data.info as { gid: number; index: number };
           this._openViewer(info.gid, info.index);

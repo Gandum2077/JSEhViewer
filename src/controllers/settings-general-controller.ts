@@ -5,7 +5,7 @@ import { ArchiveController } from "./archive-controller";
 import { clearExtraPropsForReload, statusManager } from "../utils/status";
 import { api } from "../utils/api";
 import { HomepageController } from "./homepage-controller";
-import { assembleSearchTerms, EHSearchTerm, parseFsearch } from "ehentai-parser";
+import { assembleSearchTerms, EHSearchTerm } from "ehentai-parser";
 import { showIntroductionSheet } from "../components/show-introduction-sheet";
 
 const hathRegionAttrs = [
@@ -77,7 +77,30 @@ export class GeneralSettingsController extends BaseController {
         popButtonEnabled: true,
       },
     });
-    const list = new DynamicPreferenceListView({
+    const list = new DynamicPreferenceListView<{
+      githubToken: string;
+      startPageType: 0 | 1 | 2 | 3;
+      specificPageTypeOnStart?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+      specificSearchtermsOnStart?: "";
+      favoritesOrderMethod: 0 | 1;
+      archiveManagerOrderMethod: 0 | 1 | 2;
+      alwaysShowWebDAVWidget: boolean;
+      defaultFavcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+      autoCacheWhenReading: boolean;
+      imageShareOnLongPressEnabled: boolean;
+      hathLoadSettingIndex: number;
+      hathRegionAttr: number;
+      imageSizeSettingIndex: number;
+      preferOriginalImage: boolean;
+      pageDirection: 0 | 1 | 2;
+      spreadModeEnabled?: boolean;
+      skipFirstPageInSpread?: boolean;
+      skipLandscapePagesInSpread?: boolean;
+      pagingGesture?: 0 | 1 | 2;
+      autoClearCache: boolean;
+      resumeIncompleteDownloadsOnStart: boolean;
+      toplistTagFilterDefaultEnabled: boolean;
+    }>({
       sections: this.getCurrentSections(),
       props: {
         style: 2,
@@ -87,30 +110,7 @@ export class GeneralSettingsController extends BaseController {
         make.left.right.bottom.equalTo(view.super);
       },
       events: {
-        changed: (values: {
-          githubToken: string;
-          startPageType: 0 | 1 | 2 | 3;
-          specificPageTypeOnStart?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
-          specificSearchtermsOnStart?: "";
-          favoritesOrderMethod: 0 | 1;
-          archiveManagerOrderMethod: 0 | 1 | 2;
-          alwaysShowWebDAVWidget: boolean;
-          defaultFavcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
-          autoCacheWhenReading: boolean;
-          imageShareOnLongPressEnabled: boolean;
-          hathLoadSettingIndex: number;
-          hathRegionAttr: number;
-          imageSizeSettingIndex: number;
-          preferOriginalImage: boolean;
-          pageDirection: 0 | 1 | 2;
-          spreadModeEnabled?: boolean;
-          skipFirstPageInSpread?: boolean;
-          skipLandscapePagesInSpread?: boolean;
-          pagingGesture?: 0 | 1 | 2;
-          autoClearCache: boolean;
-          resumeIncompleteDownloadsOnStart: boolean;
-          toplistTagFilterDefaultEnabled: boolean;
-        }) => {
+        changed: (values) => {
           // 先把values中的值转换为configManager中的值的格式
           const githubToken = values.githubToken;
           const startPageType =
@@ -490,7 +490,7 @@ export class GeneralSettingsController extends BaseController {
           },
           {
             type: "action",
-            title: "关于429错误和GitHub Token",
+            title: "关于GitHub Token",
             value: () => {
               showIntroductionSheet({
                 path: "assets/github-token-introduction.md",

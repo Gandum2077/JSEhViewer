@@ -41,10 +41,12 @@ export class GalleryHathController extends PresentedPageController {
 
     const list = new DynamicItemSizeMatrix({
       props: {
-        minItemWidth: 140,
-        maxColumns: 3,
-        spacing: 30,
-        fixedItemHeight: 80,
+        itemLayoutOptions: {
+          minItemWidth: 140,
+          maxColumns: 3,
+          spacing: 30,
+          itemHeight: 80,
+        },
         bgcolor: $color("clear"),
         data: [],
         template: {

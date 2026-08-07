@@ -13,9 +13,12 @@ export class GalleryThumbnailController extends BaseController {
     const matrix = new DynamicItemSizeMatrix({
       props: {
         bgcolor: $color("clear"),
-        spacing: 5,
-        minItemWidth: $device.isIpad ? 140 : 118,
-        maxColumns: 10,
+        itemLayoutOptions: {
+          spacing: 5,
+          minItemWidth: $device.isIpad ? 140 : 118,
+          maxColumns: 10,
+          itemHeight: (width) => width * 1.414 + 20,
+        },
         template: {
           views: [
             {
@@ -58,7 +61,6 @@ export class GalleryThumbnailController extends BaseController {
         make.top.bottom.inset(0);
       },
       events: {
-        itemHeight: (width) => width * 1.414 + 20,
         didSelect: (sender, indexPath, data) => {
           readHandler(indexPath.item);
         },

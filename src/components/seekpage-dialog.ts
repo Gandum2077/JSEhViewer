@@ -2,6 +2,17 @@ import { dateToString, DynamicPreferenceListView, PreferenceSection } from "jsbo
 
 import { DialogSheet } from "jsbox-cview";
 
+type HomepageJumpPreferenceValues =
+  | { method: 0; range: number }
+  | { method: 1; date: Date; direction: number }
+  | { method: 2; num: number; unit: number; direction: number };
+
+type FavoritesJumpPreferenceValues =
+  | { method: 0; date: Date; direction: number }
+  | { method: 1; num: number; unit: number; direction: number };
+
+type PageJumpPreferenceValues = { page: number };
+
 export function getJumpRangeDialogForHomepage({
   minimumGid,
   maximumGid,
@@ -124,7 +135,7 @@ export function getJumpRangeDialogForHomepage({
       ],
     },
   ];
-  const view = new DynamicPreferenceListView({
+  const view = new DynamicPreferenceListView<HomepageJumpPreferenceValues>({
     sections: sectionForRange,
     props: {
       scrollEnabled: false,
@@ -160,7 +171,7 @@ export function getJumpRangeDialogForHomepage({
         direction = 1;
       } else if (!next_page_available) {
         direction = 0;
-      } else {
+      } else if ("direction" in values) {
         direction = values.direction;
       }
       if (values.method === 0) {
@@ -300,7 +311,7 @@ export function getJumpRangeDialogForFavorites({
       ],
     },
   ];
-  const view = new DynamicPreferenceListView({
+  const view = new DynamicPreferenceListView<FavoritesJumpPreferenceValues>({
     sections: sectionForDate,
     props: {
       scrollEnabled: false,
@@ -377,7 +388,7 @@ export function getJumpRangeDialogForFavorites({
 }
 
 export function getJumpPageDialog(max: number) {
-  const view = new DynamicPreferenceListView({
+  const view = new DynamicPreferenceListView<PageJumpPreferenceValues>({
     sections: [
       {
         title: "",

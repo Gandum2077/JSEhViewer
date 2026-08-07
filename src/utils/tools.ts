@@ -224,7 +224,7 @@ export function getLatestVersion() {
       if (resp.response.statusCode === 403) {
         $ui.alert({
           title: "检查更新失败",
-          message: "GitHub API达到限额，建议您在设置中添加或更新GitHub Token",
+          message: "GitHub API达到限额，建议在设置中添加或更新GitHub Token",
         });
         return;
       }

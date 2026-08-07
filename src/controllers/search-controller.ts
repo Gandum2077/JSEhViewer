@@ -429,7 +429,6 @@ class FrontPageOptionsView extends Base<UIView, UiTypes.ViewOptions> {
           maxColumns: 5,
         },
 
-        scrollEnabled: false,
         data: this.mapData(),
         template: {
           views: [
@@ -697,8 +696,6 @@ class FavoritesOptionsView extends Base<UIView, UiTypes.ViewOptions> {
           maxColumns: 2,
         },
         bgcolor: $color("insetGroupedBackground"),
-
-        scrollEnabled: false,
         data: this.mapData(),
         template: {
           props: {
@@ -875,7 +872,6 @@ class ArchiveOptionsView extends Base<UIView, UiTypes.ViewOptions> {
           maxColumns: 5,
           spacing: 10,
         },
-        scrollEnabled: false,
         data: this.mapData(),
         template: {
           views: [

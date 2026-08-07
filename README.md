@@ -34,7 +34,7 @@ JSEhViewer 是运行在 iOS 平台 [JSBox](https://apps.apple.com/app/id13120144
 需要 iOS 版本 >= 17.0.0, JSBox 版本 >= 2.22.0  
 不需要 JSBox 2.0.0 版本之后的付费订阅功能
 
-[一键安装](https://xteko.com/redir?name=JSEhViewer&url=https%3A%2F%2Fgithub.com%2FGandum2077%2FJSEhViewer%2Freleases%2Fdownload%2F3.9.0%2FJSEhViewer.box)
+[一键安装](https://xteko.com/redir?name=JSEhViewer&url=https%3A%2F%2Fgithub.com%2FGandum2077%2FJSEhViewer%2Freleases%2Fdownload%2F3.10.0%2FJSEhViewer.box)
 
 [从 Release 下载](https://github.com/Gandum2077/JSEhViewer/releases)
 
@@ -83,10 +83,9 @@ ehgt.org
 hath.network
 ```
 
-- 无法访问 github.com 和 githubusercontent.com 将导致无法获取标签翻译，从而无法完成登录步骤。如果速度很慢，会超时导致失败；此外，你使用的 IP 可能会因为滥用而被 GitHub 风控，此种情况下获取标签翻译也将失败
-- e-hentai.org 和 exhentai.org 是主站点
-- 无法访问 ehgt.org 会导致无法加载缩略图和评论中的图片
-- 无法访问 hath.network 会导致无法加载图库的图片
+#### GitHub API 限额问题
+
+如果遇到 GitHub API 限额（429错误）或者速度很慢，建议添加 GitHub Token，[查看相关帮助](app/assets/github-token-introduction.md)
 
 #### 账号有里站权限，但是登录 ExHentai 失败
 

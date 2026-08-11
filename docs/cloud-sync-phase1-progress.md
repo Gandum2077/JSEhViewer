@@ -1,7 +1,7 @@
 # 云端同步 Phase 1：本地数据库与 Repository 进展
 
 > 开始日期：2026-08-11
-> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层也已通过真机验证。正式数据库尚未迁移，也未上传业务数据。
+> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层也已通过真机验证。共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核已完成自动验证，等待真机临时库确认。正式数据库尚未迁移，也未上传业务数据。
 
 ## 本阶段目标
 
@@ -131,6 +131,18 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 新增 `npm run test:marked-tag-repository`，覆盖两种模式隔离、用户/远端/迁移/上游来源、重新登录整表清空、镜像故障回滚、远端重建及非法数据拒绝。
 - 云端同步诊断页新增“检查本地与 My Tags 双模式 Repository”，只使用 `assets/cloud-sync-phase1-marked-tag-repository.db` 临时库，并验证关闭重开与临时文件清理。
 
+## 已完成：第十小步（共享同步写入内核）
+
+- 新增 `SyncMutationWriter`，它只接受调用方已经计算好的 `object_key` 和加密 envelope，不在这一层耦合图库、书签或标签结构，也不自行实现密码学。
+- Repository 可以在自己的 callback transaction 中先写业务表，再调用该内核推进 HLC、更新 `sync_versions` 并写入 `sync_outbox`；任一步失败都会连同业务写、逻辑时钟和 outbox 一起回滚。
+- 本地 HLC 的 wall/logical 部分持久化在 `sync_clock`。同毫秒连续操作增加 logical counter；设备时间倒退或先收到未来版本时，后续本地版本仍严格递增。
+- 同一 `object_key` 只有一条未确认 outbox。新的本地改动会产生新的 `op_id` 并覆盖旧最终状态，同时清零重试次数；Worker 的迟到 ACK 只按 `op_id` 删除，因此不会误删后来合并出的新操作。
+- 远端 change 只在 `(wall_ms, logical_counter, device_id)` 严格大于本机已见版本时执行业务 apply。获胜远端版本会取消该对象的旧 outbox；陈旧或重复 change 不改业务表，也不制造回声 outbox。
+- 普通跨设备删除仍写 `sync_versions.deleted=1` 和删除 outbox。搜索历史的仅本机删除以及重新登录清理可删除 `sync_versions`，由外键级联取消 outbox，不生成 tombstone。
+- 首次启用同步的 seed 与用户操作都可以创建 outbox；`remote`、`upstreamMirror` 和普通本机维护不能误走该入口。
+- 新增 `npm run test:sync-mutation-writer`，覆盖同毫秒与倒退时钟、outbox 合并、迟到 ACK、tombstone、本机丢弃、远端胜负/重复、entity type 冲突、payload 约束和本地/远端故障完整回滚。
+- 云端同步诊断页新增“检查 HLC、版本与 outbox 原子写入”，只使用 `assets/cloud-sync-phase1-mutation-writer.db` 临时库，不读取正式数据库，也不连接 Worker。
+
 ## 自动验证结果
 
 - `npm run test:sqlite-safe`：通过。
@@ -140,6 +152,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - `npm run test:archive-repository`：通过。
 - `npm run test:marked-tag-repository`：通过。
 - `npm run test:search-repository`：通过。
+- `npm run test:sync-mutation-writer`：通过。
 - `npm run test:uploader-repository`：通过。
 - `npx tsc --noEmit`：通过。
 - `npm run build`：通过；仅保留既有的 webpack 包体积提示。
@@ -208,8 +221,18 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 该检查只创建 `assets/cloud-sync-phase1-marked-tag-repository.db` 及其 sidecar，不读取或修改正式 `assets/database.db`。
 
+## 同步写入内核真机检查
+
+- [ ] 安装本次构建的开发版，进入“其他 → 云端同步”。
+- [ ] 点击“检查 HLC、版本与 outbox 原子写入”。
+- [ ] 确认结果显示 HLC、outbox 合并与旧 ACK 保护、tombstone、本机丢弃、远端版本顺序和故障回滚均正确。
+- [ ] 确认结果显示关闭重开后数据完整、临时文件已删除。
+- [ ] 回传“最近结果”；结果只包含耗时和检查结论，不包含真实业务数据、密钥或同步 payload。
+
+该检查只创建 `assets/cloud-sync-phase1-mutation-writer.db` 及其 sidecar，不读取或修改正式 `assets/database.db`，也不会向 Worker 发请求。
+
 ## 下一小步
 
-1. 让 Repository 底层适配 v2 schema，并为可同步用户操作原子维护 `sync_versions` 与 `sync_outbox`；
+1. 真机通过共享同步写入内核后，让各 Repository 增加 v2 adapter，并在同一业务事务中调用该内核；
 2. 增加启动失败时面向普通用户的备份恢复说明与诊断导出；
 3. 所有业务读写和回归测试适配 v2 后，才把 `CURRENT_USER_VERSION` 提升为 2 并接入正式启动迁移。

@@ -27,6 +27,7 @@ import { runCloudSyncArchiveRepositoryDiagnostic } from "../utils/cloud-sync-arc
 import { runCloudSyncSearchRepositoryDiagnostic } from "../utils/cloud-sync-search-repository-diagnostic";
 import { runCloudSyncUploaderRepositoryDiagnostic } from "../utils/cloud-sync-uploader-repository-diagnostic";
 import { runCloudSyncMarkedTagRepositoryDiagnostic } from "../utils/cloud-sync-marked-tag-repository-diagnostic";
+import { runCloudSyncMutationWriterDiagnostic } from "../utils/cloud-sync-mutation-writer-diagnostic";
 
 const BASE64URL_32_BYTES_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -106,6 +107,7 @@ export class CloudSyncController extends BaseController {
   private _searchRepositoryCheck = "未检查";
   private _uploaderRepositoryCheck = "未检查";
   private _markedTagRepositoryCheck = "未检查";
+  private _syncMutationWriterCheck = "未检查";
   private _lastResult = "尚未运行本次实机检查";
   private _workerInfo?: CloudSyncWorkerInfo;
   private _cryptoWaiter?: CryptoWaiter;
@@ -297,6 +299,7 @@ export class CloudSyncController extends BaseController {
           { type: "info", title: "搜索 Repository", value: this._searchRepositoryCheck },
           { type: "info", title: "上传者 Repository", value: this._uploaderRepositoryCheck },
           { type: "info", title: "标签 Repository", value: this._markedTagRepositoryCheck },
+          { type: "info", title: "同步写入内核", value: this._syncMutationWriterCheck },
           {
             type: "action",
             title: "检查 Keychain 与安全随机数",
@@ -341,6 +344,11 @@ export class CloudSyncController extends BaseController {
             type: "action",
             title: "检查本地与 My Tags 双模式 Repository",
             value: () => void this._runMarkedTagRepositoryDiagnostic(),
+          },
+          {
+            type: "action",
+            title: "检查 HLC、版本与 outbox 原子写入",
+            value: () => void this._runSyncMutationWriterDiagnostic(),
           },
         ],
       },
@@ -635,6 +643,22 @@ export class CloudSyncController extends BaseController {
         $ui.success("本地与 My Tags 双模式 Repository 检查通过");
       } catch (error) {
         this._markedTagRepositoryCheck = `失败：${displayError(error)}`;
+        throw error;
+      }
+    });
+  }
+
+  private async _runSyncMutationWriterDiagnostic(): Promise<void> {
+    await this._perform("检查 HLC、版本与 outbox 原子写入", async () => {
+      try {
+        const result = runCloudSyncMutationWriterDiagnostic();
+        this._syncMutationWriterCheck = `通过：${result.durationMs} ms`;
+        this._lastResult =
+          `同步写入内核临时库检查通过（${result.durationMs} ms）：HLC 单调推进、outbox 合并与旧 ACK 保护、` +
+          "tombstone、本机丢弃、远端版本顺序和故障回滚均正确；关闭重开后数据完整，临时文件已删除。";
+        $ui.success("同步写入内核检查通过");
+      } catch (error) {
+        this._syncMutationWriterCheck = `失败：${displayError(error)}`;
         throw error;
       }
     });

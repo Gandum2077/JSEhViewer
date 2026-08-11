@@ -120,11 +120,25 @@ npm run test:database-schema-v2
 
 2026-08-11 JSBox 真机检查已通过（36 ms）：40 条图库、24 条历史完成迁移，关闭重开后数据完整；AI、WebDAV、`marked_tags` 与阅读器设置保持原样，注入故障完整回滚，临时文件已删除。该检查没有打开正式 `assets/database.db`。
 
-## 9. 仍未开始的工作
+## 9. 已建立的共享同步写入内核
+
+`src/repositories/sync-mutation-writer.ts` 已把所有实体共用的版本规则集中到一处：
+
+- 用户操作或首次 seed 在调用方现有事务中推进 `sync_clock`、写 `sync_versions` 并写/合并 `sync_outbox`；
+- 同一对象再次改动时更换 `op_id`，迟到的旧 ACK 只按旧 `op_id` 删除，不能误删新操作；
+- 远端版本按 `(wall_ms, logical_counter, device_id)` 比较，只有严格获胜才执行调用方提供的业务写入并取消本机待上传项；
+- 陈旧和重复 change 不重复修改业务表，但仍作为一次接收事件推进 HLC；
+- 跨设备删除使用通用 tombstone；本机历史删除等例外直接删除版本行并级联取消 outbox；
+- `object_key`、entity payload 编码和加密由更上层实体 adapter 负责，本内核只保存不透明值。
+
+`npm run test:sync-mutation-writer` 已通过自动故障注入。云端同步诊断页另有独立的 v2 临时库检查，等待 JSBox 真机确认；该检查不会打开正式数据库或请求 Worker。
+
+## 10. 仍未开始的工作
 
 - 没有把草案接入 `initializeDatabase()`，正式数据库版本仍为 1；
 - 没有修改现有业务查询，它们目前仍读写 `archives` 和数字搜索 ID；
-- 没有创建 repository、HLC、outbox 或网络同步实现；
+- 现有 Repository 还没有 v2 adapter，因此尚未把实际图库、历史、书签、上传者或标签编码后交给共享写入内核；
+- 没有实现 object key 派生、entity envelope 编码、网络 push/pull、ACK/cursor 提交或 Worker change apply 调度；
 - 没有把任何现有 Cookie、AI/WebDAV 配置或业务数据上传到 Worker。
 
 下一小步是把现有业务查询迁到 v2 repository。虽然临时迁移已经通过，也不能立刻更改 `CURRENT_USER_VERSION`；否则 App 会在升级后继续查询已经不存在的 `archives`。

@@ -284,6 +284,8 @@ flowchart LR
 6. 如果服务端已提交但响应丢失，客户端重试相同 `op_id`，结果不变；
 7. 如果客户端拿到响应后在本地 commit 前崩溃，旧 cursor 会再次拉到相同 change，local apply 也必须幂等。
 
+同一对象在尚未上传时再次变化，会把 outbox 合并为新的最终版本并生成新的 `op_id`。服务端 ACK 必须按 `op_id` 删除，而不能只按 `object_key` 删除；这样旧请求的迟到响应不会误删后来产生的新操作。远端 change 只有在版本严格获胜时才修改业务表并取消该对象的本机 outbox，陈旧或重复 change 不产生回声写入。
+
 Cloudflare 的 `D1Database.batch()` 会按顺序执行批量语句，并在任一语句失败时回滚整批，适合原子应用一组 operation。[D1 `batch()`](https://developers.cloudflare.com/d1/worker-api/d1-database/#batch)。推送后读取 change log 时使用 D1 Sessions API，并从 `first-primary` 开始或继承 bookmark，确保同一同步请求具有 read-your-writes / sequential consistency。开启 read replication 后，普通副本可能异步落后；Sessions API 正是 Cloudflare 提供的顺序一致性机制。[D1 read replication and Sessions](https://developers.cloudflare.com/d1/best-practices/read-replication/)。
 
 搜索历史的正常下载已经符合“只取本设备上次同步之后的新记录”，但判断依据不是本机最后一条历史的 `last_access_time`，而是 `sync_profile.cursor`。Worker 实际执行的是类似 `changes.seq > cursor` 的增量查询；因此它既能取得新查询，也能取得另一台设备后来再次使用某个旧查询所产生的新版本。只有以下情况才走全量 objects snapshot：第一台设备首次接入、用户明确执行云端恢复，或本机 cursor 已早于 change log 保留窗口而收到 `reset_required=true`。
@@ -454,7 +456,7 @@ repository 在一个事务中：
 1. 写业务表；
 2. 推进本机 HLC；
 3. 更新 `sync_versions`；
-4. 仅当 `MutationOrigin` 为 `user` 且该类型已启用同步时，写/合并 `sync_outbox`。这里的 mutation origin 表示调用来源，与 `marked_tags` 的数据来源无关。
+4. 仅当 `MutationOrigin` 为 `user`，或处于用户确认后的首次 `migrationSeed`，且该类型已启用同步时，写/合并 `sync_outbox`。这里的 mutation origin 表示调用来源，与 `marked_tags` 的数据来源无关。
 
 DBManager 应新增 transaction callback，而不是让上层拼 statement 数组；每个 `db.update` 必须检查 `{result,error}`。如果未来网络回调可能从不同线程触发，统一使用 `$sqlite.dbQueue` 或严格调度到同一线程；官方文档明确不建议多个线程同时访问同一个 SQLite 实例。
 

@@ -16,6 +16,8 @@ import { globalTimer } from "../utils/timer";
 import { toLocalTimeString } from "../utils/tools";
 import { FavoriteImageController } from "./favorite-image-controller";
 import { favoriteImageTempPath } from "../utils/glv";
+import { CloudSyncController } from "./cloud-sync-controller";
+import { getCloudSyncPhase0Summary } from "../utils/cloud-sync-phase0";
 
 export class MoreController extends BaseController {
   cviews: { navbar: CustomNavigationBar; list: DynamicItemSizeMatrix };
@@ -240,36 +242,43 @@ export class MoreController extends BaseController {
               });
               break;
             case 2:
+              const cloudSyncController = new CloudSyncController();
+              cloudSyncController.uipush({
+                navBarHidden: true,
+                statusBarStyle: 0,
+              });
+              break;
+            case 3:
               const downloadsController = new SettingsDownloadsController();
               downloadsController.uipush({
                 navBarHidden: true,
                 statusBarStyle: 0,
               });
               break;
-            case 3:
+            case 4:
               const favoriteImageController = new FavoriteImageController();
               favoriteImageController.uipush({
                 navBarHidden: true,
                 statusBarStyle: 0,
               });
               break;
-            case 4:
+            case 5:
               const values = await setWebDAVConfig();
               configManager.webdavEnabled = values.enabled;
               configManager.webdavAutoUpload = values.autoUpload;
               configManager.updateAllWebDAVServices(values.services);
               break;
-            case 5:
+            case 6:
               const controller = new AITranslationConfigPickerController();
               controller.uipush({
                 navBarHidden: true,
                 statusBarStyle: 0,
               });
               break;
-            case 6:
+            case 7:
               $app.openURL("https://e-hentai.org/mytags");
               break;
-            case 7:
+            case 8:
               $app.openURL("https://e-hentai.org/uconfig.php");
               break;
             default:
@@ -378,6 +387,15 @@ export class MoreController extends BaseController {
           text:
             "常用的设置：UI偏好、标签翻译更新、排序方式、清理缓存、重新登录等\n标签翻译更新时间: " +
             tagTranslationUpdateTimeText,
+        },
+        blur: { hidden: true },
+      },
+      {
+        bgview: { bgcolor: $color("#2563EB") },
+        icon: { symbol: "icloud.and.arrow.up" },
+        title: { text: "云端同步" },
+        content: {
+          text: `Phase 0 实机诊断\n${getCloudSyncPhase0Summary()}`,
         },
         blur: { hidden: true },
       },

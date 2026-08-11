@@ -1,0 +1,130 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <script>
+      const bytesToHex = (bytes) =>
+        Array.from(bytes)
+          .map((value) => value.toString(16).padStart(2, "0"))
+          .join("");
+
+      const hexToBytes = (hex) => {
+        const result = new Uint8Array(hex.length / 2);
+        for (let index = 0; index < result.length; index += 1) {
+          result[index] = Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16);
+        }
+        return result;
+      };
+
+      const randomBase64Url = (length) => {
+        const bytes = new Uint8Array(length);
+        crypto.getRandomValues(bytes);
+        let binary = "";
+        bytes.forEach((value) => {
+          binary += String.fromCharCode(value);
+        });
+        return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+      };
+
+      const randomUuidV4 = () => {
+        const bytes = new Uint8Array(16);
+        crypto.getRandomValues(bytes);
+        bytes[6] = (bytes[6] & 0x0f) | 0x40;
+        bytes[8] = (bytes[8] & 0x3f) | 0x80;
+        const hex = bytesToHex(bytes);
+        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+      };
+
+      function createCloudSyncIdentity() {
+        if (!globalThis.crypto || typeof crypto.getRandomValues !== "function") {
+          throw new Error("WKWebView 不支持 crypto.getRandomValues");
+        }
+        return JSON.stringify({
+          deviceToken: randomBase64Url(32),
+          deviceId: randomUuidV4(),
+        });
+      }
+
+      async function runCloudSyncCryptoSelfTest() {
+        const startedAt = performance.now();
+        const result = {
+          ok: false,
+          random: false,
+          hmacSha256: false,
+          hkdfSha256: false,
+          aes256Gcm: false,
+          tamperRejected: false,
+          durationMs: 0,
+        };
+
+        try {
+          if (!globalThis.crypto || !crypto.subtle || typeof crypto.getRandomValues !== "function") {
+            throw new Error("WKWebView 缺少 Web Crypto API");
+          }
+
+          const randomA = randomBase64Url(32);
+          const randomB = randomBase64Url(32);
+          result.random = randomA.length === 43 && randomB.length === 43 && randomA !== randomB;
+
+          const hmacKey = await crypto.subtle.importKey(
+            "raw",
+            new Uint8Array(20).fill(0x0b),
+            { name: "HMAC", hash: "SHA-256" },
+            false,
+            ["sign"],
+          );
+          const hmac = await crypto.subtle.sign("HMAC", hmacKey, new TextEncoder().encode("Hi There"));
+          result.hmacSha256 =
+            bytesToHex(new Uint8Array(hmac)) === "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7";
+
+          const hkdfKey = await crypto.subtle.importKey("raw", new Uint8Array(22).fill(0x0b), "HKDF", false, [
+            "deriveBits",
+          ]);
+          const hkdf = await crypto.subtle.deriveBits(
+            {
+              name: "HKDF",
+              hash: "SHA-256",
+              salt: hexToBytes("000102030405060708090a0b0c"),
+              info: hexToBytes("f0f1f2f3f4f5f6f7f8f9"),
+            },
+            hkdfKey,
+            42 * 8,
+          );
+          result.hkdfSha256 =
+            bytesToHex(new Uint8Array(hkdf)) ===
+            "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865";
+
+          const aesKey = await crypto.subtle.importKey("raw", new Uint8Array(32), { name: "AES-GCM" }, false, [
+            "encrypt",
+            "decrypt",
+          ]);
+          const iv = new Uint8Array(12);
+          const plaintext = new Uint8Array(16);
+          const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv, tagLength: 128 }, aesKey, plaintext);
+          const ciphertextBytes = new Uint8Array(ciphertext);
+          result.aes256Gcm =
+            bytesToHex(ciphertextBytes) === "cea7403d4d606b6e074ec5d3baf39d18d0d1c8a799996bf0265b98b5d48ab919";
+
+          const tampered = new Uint8Array(ciphertextBytes);
+          tampered[0] ^= 1;
+          try {
+            await crypto.subtle.decrypt({ name: "AES-GCM", iv, tagLength: 128 }, aesKey, tampered);
+          } catch {
+            result.tamperRejected = true;
+          }
+
+          result.ok =
+            result.random && result.hmacSha256 && result.hkdfSha256 && result.aes256Gcm && result.tamperRejected;
+        } catch (error) {
+          result.error = error instanceof Error ? error.message : String(error);
+        }
+
+        result.durationMs = Math.round((performance.now() - startedAt) * 10) / 10;
+        $notify("cloudSyncCryptoSelfTest", result);
+      }
+    </script>
+  </body>
+</html>

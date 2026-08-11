@@ -1,7 +1,7 @@
 # 云端同步 Phase 1：本地数据库与 Repository 进展
 
 > 开始日期：2026-08-11
-> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；正式数据库尚未迁移，也未上传业务数据。下一步迁移业务读写到 v2 repository。
+> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库业务读写已收口到 v1 兼容 repository，等待真机临时库验证。正式数据库尚未迁移，也未上传业务数据。
 
 ## 本阶段目标
 
@@ -33,8 +33,8 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 ## 尚未包含
 
 - `CURRENT_USER_VERSION` 仍为 1；DB v2 目前只是未接入启动流程的可执行草案，尚未迁移正式数据库。
-- 尚未拆分 `archives`，也没有建立稳定 ID、外键、同步版本表或 outbox。
-- 尚未引入 reading/search/marked uploader 等 domain repository。
+- 正式数据库尚未拆分 `archives`，也没有启用稳定 ID、外键、同步版本表或 outbox；当前图库 repository 仍以 v1 表为底层，目的是先把调用方与表结构解耦。
+- 尚未引入 search/marked uploader 等 domain repository；图库 repository 也尚未接入 v2 三表和 outbox。
 - Cookie、WebDAV 与 AI 翻译服务的密钥处理本阶段暂不迁移；按当前产品决定，`ai_translation_services` 和 `webdav_services` 在 v1 不同步。
 
 ## 已完成：第二小步（初始化顺序与 fixture）
@@ -82,12 +82,26 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 两条路径只使用 `assets/cloud-sync-phase1-migration-v2-*.db`，结束后删除数据库及 journal/WAL/SHM，不打开正式 `assets/database.db`。
 - 沿用现有 `DynamicPreferenceListView` 与 `_perform()` 生命周期，不新增页面、定时器或后台资源。
 
+## 已完成：第六小步（图库 Repository 兼容层）
+
+- 新增 `ArchiveRepository`，把图库列表计数、筛选、分页、单项读取、阅读状态更新、标签索引、旧记录清理和列表元数据读取集中到一个文件。`status.ts`、`config.ts` 和 `favorite-image.ts` 不再直接访问 `archives` 或 `archive_taglist`。
+- Repository 当前仍读写 v1 `archives`，没有提前切换正式 schema。以后改为 v2 `archive_entries + reading_state + local_gallery_state` 时，页面和控制器无需再次理解三张表如何拼接。
+- 完整保留构成图库列表所需的标题、token、缩略图、分类、页数、标签和上游状态快照；不是只保存打开图库后可重建的 `infos.json`。
+- 图库行和 `archive_taglist` 现在位于同一个 callback transaction。标签写入失败时，图库行更新会一起回滚；旧的 `INSERT OR REPLACE` 已改为明确的 `ON CONFLICT DO UPDATE`。
+- 所有 repository 写入必须携带 `MutationOrigin`。当前已区分用户删除和 `clearOldReadRecords`/`clearAll` 等本机维护删除，为以后决定是否生成 outbox 留出明确边界。
+- `clearOldReadRecords` 保持原语义：保护已下载图库和存在本机图片收藏的图库；E-Hentai 收藏状态本身不阻止本机阅读记录清理。
+- 修复图库列表自定义 `pageSize` 时 SQL `LIMIT` 仍固定按 50 计算的问题。
+- 图片收藏分组不再跨 repository 直接 JOIN `archives`；先聚合本机收藏页，再通过 repository 批量补齐标题、token 和页数。
+- 新增 `npm run test:archive-repository`，覆盖插入不覆盖、显式替换、标签故障原子回滚、状态更新、筛选、分页、维护性删除、列表元数据和变更来源校验。
+- 云端同步诊断页新增“检查图库 Repository 业务读写”，只使用 `assets/cloud-sync-phase1-archive-repository.db` 临时库，并检查关闭重开和临时文件清理。
+
 ## 自动验证结果
 
 - `npm run test:sqlite-safe`：通过。
 - `npm run test:database-init`：通过。
 - `npm run test:database-migration-v2`：通过。
 - `npm run test:database-schema-v2`：通过。
+- `npm run test:archive-repository`：通过。
 - `npx tsc --noEmit`：通过。
 - `npm run build`：通过；仅保留既有的 webpack 包体积提示。
 - 2026-08-11 JSBox 真机数据库初始化临时库检查：通过（26 ms）。fresh、v0、v1 最终 schema 一致，旧数据完整迁移，v1 重启不覆盖用户设置，未知版本在零 schema 写入下停止，临时文件已删除。
@@ -111,8 +125,19 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 该检查只创建 `assets/cloud-sync-phase1-migration-v2-success.db` 和 `assets/cloud-sync-phase1-migration-v2-rollback.db` 及其 sidecar，不会打开或修改正式数据库。
 
+## 图库 Repository 真机检查
+
+- [ ] 安装本次构建的开发版，进入“其他 → 云端同步”。
+- [ ] 点击“检查图库 Repository 业务读写”。
+- [ ] 确认结果显示 6 条图库完成原子保存、标签故障回滚、筛选分页和维护性删除检查。
+- [ ] 确认结果显示关闭重开后数据完整、临时文件已删除。
+- [ ] 回传“最近结果”；结果只包含数量、耗时和检查结论，不包含真实图库数据。
+
+该检查只创建 `assets/cloud-sync-phase1-archive-repository.db` 及其 sidecar，不读取或修改正式 `assets/database.db`。
+
 ## 下一小步
 
-1. 把现有 archives/search 读写逐步迁到 v2 domain repository；
-2. 增加启动失败时面向普通用户的备份恢复说明与诊断导出；
-3. 所有业务读写和回归测试适配 v2 后，才把 `CURRENT_USER_VERSION` 提升为 2 并接入正式启动迁移。
+1. 真机通过图库 repository 临时库检查；
+2. 把 search history/bookmark 读写迁到独立 repository，并落实“清除历史只清本机、普通增量只接收本机最后记录之后的云端历史”边界；
+3. 增加启动失败时面向普通用户的备份恢复说明与诊断导出；
+4. 所有业务读写和回归测试适配 v2 后，才把 `CURRENT_USER_VERSION` 提升为 2 并接入正式启动迁移。

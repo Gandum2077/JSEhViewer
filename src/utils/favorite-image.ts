@@ -7,6 +7,7 @@ import {
 } from "../types";
 import { dbManager } from "./database";
 import { favoriteImagePath, favoriteImageTempPath } from "./glv";
+import { archiveRepository } from "../repositories";
 
 const FAVORITE_IMAGE_FILE_NAME_PATTERN = /^(\d+)_(\d+)(_original|_thumbnail)?\.([^.]+)$/i;
 type FavoriteImageFileSource = "favorite" | "temporary";
@@ -173,30 +174,25 @@ class FavoriteImageManager {
     const rows = dbManager.query(`
       SELECT
         f.gid,
-        COALESCE(a.token, '') AS token,
-        COALESCE(a.length, 0) AS length,
         MAX(f.favorited_at) AS latest_favorited_at,
-        COALESCE(
-            NULLIF(a.japanese_title, ''),
-            NULLIF(a.english_title, ''),
-            NULLIF(a.title, ''),
-            ''
-        ) AS title,
         json_group_array(f.page_index) AS pages
       FROM favorite_images f
-      LEFT JOIN archives a ON a.gid = f.gid
       GROUP BY f.gid
       ORDER BY ${sort === "favorited_at" ? "latest_favorited_at" : "f.gid"} ${order === "desc" ? "DESC" : "ASC"};
-    `) as { gid: number; token: string; length: number; latest_favorited_at: string; title: string; pages: string }[];
+    `) as { gid: number; latest_favorited_at: string; pages: string }[];
+    const metadataByGid = archiveRepository.getMetadataByGids(rows.map((row) => row.gid));
 
-    return rows.map((row) => ({
-      gid: row.gid,
-      token: row.token,
-      length: row.length,
-      latest_favorited_at: row.latest_favorited_at,
-      title: row.title,
-      pages: (JSON.parse(row.pages) as number[]).sort((a, b) => a - b),
-    }));
+    return rows.map((row) => {
+      const metadata = metadataByGid.get(row.gid);
+      return {
+        gid: row.gid,
+        token: metadata?.token ?? "",
+        length: metadata?.length ?? 0,
+        latest_favorited_at: row.latest_favorited_at,
+        title: metadata?.title ?? "",
+        pages: (JSON.parse(row.pages) as number[]).sort((a, b) => a - b),
+      };
+    });
   }
 
   queryGroupWithFileNames(options: FavoriteImageGroupQueryOptions): FavoriteImageGroupWithFiles[] {

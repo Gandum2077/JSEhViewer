@@ -23,6 +23,7 @@ import {
 import { runCloudSyncDatabaseInitializationDiagnostic } from "../utils/cloud-sync-database-initialization-diagnostic";
 import { runCloudSyncDatabaseV2MigrationDiagnostic } from "../utils/cloud-sync-database-v2-migration-diagnostic";
 import { runCloudSyncSqliteDiagnostic } from "../utils/cloud-sync-sqlite-diagnostic";
+import { runCloudSyncArchiveRepositoryDiagnostic } from "../utils/cloud-sync-archive-repository-diagnostic";
 
 const BASE64URL_32_BYTES_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -98,6 +99,7 @@ export class CloudSyncController extends BaseController {
   private _sqliteCheck = "未检查";
   private _databaseInitializationCheck = "未检查";
   private _databaseV2MigrationCheck = "未检查";
+  private _archiveRepositoryCheck = "未检查";
   private _lastResult = "尚未运行本次实机检查";
   private _workerInfo?: CloudSyncWorkerInfo;
   private _cryptoWaiter?: CryptoWaiter;
@@ -285,6 +287,7 @@ export class CloudSyncController extends BaseController {
           { type: "info", title: "SQLite 事务", value: this._sqliteCheck },
           { type: "info", title: "数据库初始化", value: this._databaseInitializationCheck },
           { type: "info", title: "DB v2 临时迁移", value: this._databaseV2MigrationCheck },
+          { type: "info", title: "图库 Repository", value: this._archiveRepositoryCheck },
           {
             type: "action",
             title: "检查 Keychain 与安全随机数",
@@ -309,6 +312,11 @@ export class CloudSyncController extends BaseController {
             type: "action",
             title: "检查 DB v2 临时迁移与回滚",
             value: () => void this._runDatabaseV2MigrationDiagnostic(),
+          },
+          {
+            type: "action",
+            title: "检查图库 Repository 业务读写",
+            value: () => void this._runArchiveRepositoryDiagnostic(),
           },
         ],
       },
@@ -536,6 +544,22 @@ export class CloudSyncController extends BaseController {
         $ui.success("DB v2 临时迁移与回滚检查通过");
       } catch (error) {
         this._databaseV2MigrationCheck = `失败：${displayError(error)}`;
+        throw error;
+      }
+    });
+  }
+
+  private async _runArchiveRepositoryDiagnostic(): Promise<void> {
+    await this._perform("检查图库 Repository 业务读写", async () => {
+      try {
+        const result = runCloudSyncArchiveRepositoryDiagnostic();
+        this._archiveRepositoryCheck = `通过：${result.durationMs} ms`;
+        this._lastResult =
+          `图库 Repository 临时库检查通过（${result.durationMs} ms）：${result.archiveCount} 条图库完成原子保存、` +
+          "标签故障回滚、筛选分页和维护性删除检查；关闭重开后数据完整，临时文件已删除。";
+        $ui.success("图库 Repository 业务读写检查通过");
+      } catch (error) {
+        this._archiveRepositoryCheck = `失败：${displayError(error)}`;
         throw error;
       }
     });

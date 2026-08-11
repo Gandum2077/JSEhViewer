@@ -21,6 +21,7 @@ import {
   thumbnailPath,
 } from "./glv";
 import { appLog } from "./tools";
+import { archiveRepository, MutationOrigin } from "../repositories";
 
 interface Config {
   cookie: string; // 登录Cookie
@@ -1322,29 +1323,9 @@ LIMIT 20;
     } else {
       date.setFullYear(date.getFullYear() - 1);
     }
-    // 再根据日期对出符合条件的gid
-    const sql = `
-      SELECT a.gid
-      FROM archives a
-      WHERE a.last_access_time < ?
-        AND COALESCE(a.downloaded, 0) <> 1
-        AND NOT EXISTS (
-          SELECT 1 FROM favorite_images f WHERE f.gid = a.gid
-        )
-    `;
-    const data = dbManager.query(sql, [date.toISOString()]) as {
-      gid: number;
-    }[];
-    const needDeleteGids = data.map((n) => n.gid);
+    const needDeleteGids = archiveRepository.findOldRemovableGids(date.toISOString());
     if (needDeleteGids.length === 0) return;
-
-    dbManager.transactionUpdate(
-      needDeleteGids.flatMap((gid) => [
-        { sql: "DELETE FROM archive_taglist WHERE gid = ?", args: [gid] },
-        { sql: "DELETE FROM gallery_reader_config WHERE gid = ?", args: [gid] },
-        { sql: "DELETE FROM archives WHERE gid = ?", args: [gid] },
-      ]),
-    );
+    archiveRepository.deleteMany(needDeleteGids, MutationOrigin.localMaintenance, true);
   }
 
   /**
@@ -1359,11 +1340,7 @@ LIMIT 20;
     $file.delete(thumbnailPath);
     $file.delete(originalImagePath);
     $file.delete(aiTranslationPath);
-    const sql = "SELECT gid FROM archives WHERE downloaded = 1";
-    const data = dbManager.query(sql) as {
-      gid: number;
-    }[];
-    const downloadedGids = data.map((n) => n.gid);
+    const downloadedGids = archiveRepository.listDownloadedGids();
     const imageDirs = $file.list(imagePath)!;
     for (const dir of imageDirs) {
       const gid = parseInt(dir);
@@ -1383,13 +1360,7 @@ LIMIT 20;
     $file.delete(imagePath);
     $file.delete(favoriteImagePath);
     $file.delete(favoriteImageTempPath);
-    dbManager.transactionUpdate([
-      { sql: "DELETE FROM favorite_images" },
-      { sql: "DELETE FROM archive_taglist" },
-      { sql: "DELETE FROM gallery_reader_config" },
-      { sql: "DELETE FROM archives" },
-      { sql: "DELETE FROM download_records" },
-    ]);
+    archiveRepository.clearAllLocalData(MutationOrigin.localMaintenance);
   }
 
   /**

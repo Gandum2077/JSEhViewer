@@ -42,7 +42,7 @@ npm run test:database-schema-v2
 ### 3.2 搜索书签
 
 - `bookmark_id` 同样由规范化 `sorted_fsearch` 的 UTF-8 字节计算稳定的小写 SHA-256；旧 schema 已禁止重复查询，因此不会合并两个原本允许共存的书签。
-- `position_key` 是可比较的字符串。迁移会按旧 `(sort_order, id)` 顺序生成带间隔的初始 key，后续重排使用 fractional index，而不是重新给整表写连续整数。
+- `position_key` 是可比较的字符串。迁移、新增和当前全量重排使用集中定义的 12 位小写 base36、间隔 1024 的 key；只为位置实际变化的书签逐项写版本。相同 key 由 `bookmark_id` 打破平局，未来需要任意相邻插入时可在同一模块扩展 fractional 分配或显式重整。
 - terms 使用 `(bookmark_id, term_index)` 主键和 `ON DELETE CASCADE`。
 
 书签删除是跨设备用户意图，因此会产生 tombstone；搜索历史删除是已确认的本机例外。
@@ -133,13 +133,13 @@ npm run test:database-schema-v2
 
 `npm run test:sync-mutation-writer` 已通过自动故障注入。2026-08-11，云端同步诊断页的独立 v2 临时库检查也已在 JSBox 真机通过（27 ms）：HLC、outbox 合并与旧 ACK 保护、tombstone、本机丢弃、远端版本顺序、故障回滚、关闭重开和临时文件清理均符合预期。该检查没有打开正式数据库或请求 Worker。
 
-实际实体 adapter 目前包括 `V2UploaderRepository` 和 `V2SearchHistoryRepository`。它们通过 `SyncEntityEnvelopeCodec` 获取 object key，并在 HLC 生成后调用 codec 编码 envelope，使生产实现可以把 object key、版本、删除标志和 profile epoch 纳入 AEAD AAD。搜索历史 adapter 还落实了本机清理时删除版本并级联取消 outbox、不生成 tombstone 的例外规则。当前只有 Node 与隔离临时库使用明确命名的明文诊断 codec；正式路径仍没有密码学 codec，也没有连接 Worker。
+实际实体 adapter 目前包括 `V2UploaderRepository`、`V2SearchHistoryRepository` 和 `V2SearchBookmarkRepository`。它们通过 `SyncEntityEnvelopeCodec` 获取 object key，并在 HLC 生成后调用 codec 编码 envelope，使生产实现可以把 object key、版本、删除标志和 profile epoch 纳入 AEAD AAD。搜索历史 adapter 落实本机清理不生成 tombstone 的例外规则；搜索书签 adapter 则实现跨设备 tombstone 和逐项 position 版本。当前只有 Node 与隔离临时库使用明确命名的明文诊断 codec；正式路径仍没有密码学 codec，也没有连接 Worker。
 
 ## 10. 仍未开始的工作
 
 - 没有把草案接入 `initializeDatabase()`，正式数据库版本仍为 1；
 - 没有修改现有业务查询，它们目前仍读写 `archives` 和数字搜索 ID；
-- 标记上传者与搜索历史已有独立 v2 adapter；图库、书签与标签仍未适配，也尚未把正式 App Repository 实例切到 v2；
+- 标记上传者、搜索历史与搜索书签已有独立 v2 adapter；图库与标签仍未适配，也尚未把正式 App Repository 实例切到 v2；
 - 没有实现生产用 HMAC object key、AEAD envelope codec、网络 push/pull、ACK/cursor 提交或 Worker change apply 调度；
 - 没有把任何现有 Cookie、AI/WebDAV 配置或业务数据上传到 Worker。
 

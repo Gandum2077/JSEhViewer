@@ -1,9 +1,8 @@
 import { DATABASE_V2_DRAFT_SCHEMA_STATEMENTS, DATABASE_V2_DRAFT_USER_VERSION } from "./database-schema-v2-draft";
 import type { SqliteTransactionContext } from "./sqlite-safe";
+import { bookmarkPositionKeyForIndex } from "../repositories/bookmark-position-key";
 
 const MIGRATION_TABLE_SUFFIX = "_v2_migration";
-const INITIAL_POSITION_GAP = 1024;
-const INITIAL_POSITION_WIDTH = 12;
 
 const REPLACED_TABLES = [
   "archive_entries",
@@ -256,14 +255,11 @@ export function stableSearchEntityId(sortedFsearch: string, sha256Hex: (value: s
 }
 
 export function initialBookmarkPositionKey(index: number): string {
-  if (!Number.isSafeInteger(index) || index < 0) {
-    throw new DatabaseV2MigrationError(`书签位置序号无效：${index}`);
+  try {
+    return bookmarkPositionKeyForIndex(index);
+  } catch (error) {
+    throw new DatabaseV2MigrationError(error instanceof Error ? error.message : String(error));
   }
-  const value = (index + 1) * INITIAL_POSITION_GAP;
-  if (!Number.isSafeInteger(value)) {
-    throw new DatabaseV2MigrationError("书签数量超过 position_key 安全范围");
-  }
-  return value.toString(36).padStart(INITIAL_POSITION_WIDTH, "0");
 }
 
 function requireSortedFsearch(value: string | null, entity: string, sourceId: number): string {

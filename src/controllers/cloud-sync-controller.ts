@@ -30,6 +30,7 @@ import { runCloudSyncMarkedTagRepositoryDiagnostic } from "../utils/cloud-sync-m
 import { runCloudSyncMutationWriterDiagnostic } from "../utils/cloud-sync-mutation-writer-diagnostic";
 import { runCloudSyncUploaderRepositoryV2Diagnostic } from "../utils/cloud-sync-uploader-repository-v2-diagnostic";
 import { runCloudSyncSearchHistoryRepositoryV2Diagnostic } from "../utils/cloud-sync-search-history-repository-v2-diagnostic";
+import { runCloudSyncSearchBookmarkRepositoryV2Diagnostic } from "../utils/cloud-sync-search-bookmark-repository-v2-diagnostic";
 
 const BASE64URL_32_BYTES_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -112,6 +113,7 @@ export class CloudSyncController extends BaseController {
   private _syncMutationWriterCheck = "未检查";
   private _uploaderRepositoryV2Check = "未检查";
   private _searchHistoryRepositoryV2Check = "未检查";
+  private _searchBookmarkRepositoryV2Check = "未检查";
   private _lastResult = "尚未运行本次实机检查";
   private _workerInfo?: CloudSyncWorkerInfo;
   private _cryptoWaiter?: CryptoWaiter;
@@ -306,6 +308,7 @@ export class CloudSyncController extends BaseController {
           { type: "info", title: "同步写入内核", value: this._syncMutationWriterCheck },
           { type: "info", title: "上传者 v2 Adapter", value: this._uploaderRepositoryV2Check },
           { type: "info", title: "搜索历史 v2 Adapter", value: this._searchHistoryRepositoryV2Check },
+          { type: "info", title: "搜索书签 v2 Adapter", value: this._searchBookmarkRepositoryV2Check },
           {
             type: "action",
             title: "检查 Keychain 与安全随机数",
@@ -365,6 +368,11 @@ export class CloudSyncController extends BaseController {
             type: "action",
             title: "检查搜索历史 v2 远端版本与本机清理",
             value: () => void this._runSearchHistoryRepositoryV2Diagnostic(),
+          },
+          {
+            type: "action",
+            title: "检查搜索书签 v2 删除、重排与并发位置",
+            value: () => void this._runSearchBookmarkRepositoryV2Diagnostic(),
           },
         ],
       },
@@ -709,6 +717,23 @@ export class CloudSyncController extends BaseController {
         $ui.success("搜索历史 v2 Adapter 检查通过");
       } catch (error) {
         this._searchHistoryRepositoryV2Check = `失败：${displayError(error)}`;
+        throw error;
+      }
+    });
+  }
+
+  private async _runSearchBookmarkRepositoryV2Diagnostic(): Promise<void> {
+    await this._perform("检查搜索书签 v2 删除、重排与并发位置", async () => {
+      try {
+        const result = runCloudSyncSearchBookmarkRepositoryV2Diagnostic();
+        this._searchBookmarkRepositoryV2Check = `通过：${result.durationMs} ms`;
+        this._lastResult =
+          `搜索书签 v2 Adapter 临时库检查通过（${result.durationMs} ms）：${result.seededCount} 条旧数据完成可重入 seed，` +
+          "parent/terms/position/版本/outbox 原子提交；逐项重排、带身份 tombstone、远端版本顺序和故障回滚正确，" +
+          "并发相同位置未丢书签且顺序确定，关闭重开后数据完整，临时文件已删除。";
+        $ui.success("搜索书签 v2 Adapter 检查通过");
+      } catch (error) {
+        this._searchBookmarkRepositoryV2Check = `失败：${displayError(error)}`;
         throw error;
       }
     });

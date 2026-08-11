@@ -131,7 +131,7 @@ npm run test:database-schema-v2
 - 跨设备删除使用通用 tombstone；本机历史删除等例外直接删除版本行并级联取消 outbox；
 - `object_key`、entity payload 编码和加密由更上层实体 adapter 负责，本内核只保存不透明值。
 
-`npm run test:sync-mutation-writer` 已通过自动故障注入。云端同步诊断页另有独立的 v2 临时库检查，等待 JSBox 真机确认；该检查不会打开正式数据库或请求 Worker。
+`npm run test:sync-mutation-writer` 已通过自动故障注入。2026-08-11，云端同步诊断页的独立 v2 临时库检查也已在 JSBox 真机通过（27 ms）：HLC、outbox 合并与旧 ACK 保护、tombstone、本机丢弃、远端版本顺序、故障回滚、关闭重开和临时文件清理均符合预期。该检查没有打开正式数据库或请求 Worker。
 
 ## 10. 仍未开始的工作
 

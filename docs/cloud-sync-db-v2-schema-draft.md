@@ -108,12 +108,24 @@ npm run test:database-schema-v2
 - 负数页码、无效 JSON 拒绝迁移；
 - 在临时表已经创建、部分数据已经复制后注入 hash 故障，确认 schema、数据和版本完整回滚。
 
-## 8. 仍未开始的工作
+## 8. JSBox 真机临时库诊断
+
+云端同步诊断页现已提供“检查 DB v2 临时迁移与回滚”。它只操作：
+
+- `assets/cloud-sync-phase1-migration-v2-success.db`；
+- `assets/cloud-sync-phase1-migration-v2-rollback.db`；
+- 两者可能产生的 `-journal`、`-wal`、`-shm` sidecar。
+
+成功路径会迁移 40 条图库和 24 条历史，关闭数据库后重新打开，核对拆分数据、稳定 ID、书签顺序、本机专属表和外键。故障路径会在临时表与部分数据已经写入后注入错误，确认关闭重开仍保持完整 v1 schema、原数据和 `user_version=1`。两条路径结束后都会删除临时文件。
+
+该入口尚待 JSBox 真机执行；无论成功或失败都不会打开正式 `assets/database.db`。
+
+## 9. 仍未开始的工作
 
 - 没有把草案接入 `initializeDatabase()`，正式数据库版本仍为 1；
-- 尚未在 JSBox 真机 SQLite 临时库中执行 v1 → v2 迁移；
+- 尚未取得 JSBox 真机 v1 → v2 临时迁移结果；
 - 没有修改现有业务查询，它们目前仍读写 `archives` 和数字搜索 ID；
 - 没有创建 repository、HLC、outbox 或网络同步实现；
 - 没有把任何现有 Cookie、AI/WebDAV 配置或业务数据上传到 Worker。
 
-下一小步是在诊断页加入 JSBox 真机临时库迁移检查。即使该检查通过，也必须先把现有业务查询迁到 v2 repository，才能更改 `CURRENT_USER_VERSION`；否则 App 会在升级后继续查询已经不存在的 `archives`。
+真机检查通过后，下一小步是把现有业务查询迁到 v2 repository。即使临时迁移通过，也不能立刻更改 `CURRENT_USER_VERSION`；否则 App 会在升级后继续查询已经不存在的 `archives`。

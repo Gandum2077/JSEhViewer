@@ -1,7 +1,7 @@
 # 云端同步 Phase 1：本地数据库与 Repository 进展
 
 > 开始日期：2026-08-11
-> 当前状态：进行中。SQLite 安全层、数据库初始化重构、DB v2 可执行 schema 与 v1 → v2 迁移 fixture 已完成自动验证，初始化路径已通过 JSBox 真机验证；正式数据库尚未迁移，也未上传业务数据。
+> 当前状态：进行中。SQLite 安全层、数据库初始化重构、DB v2 可执行 schema 与 v1 → v2 迁移 fixture 已完成自动验证，初始化路径已通过 JSBox 真机验证；等待 DB v2 临时迁移真机结果。正式数据库尚未迁移，也未上传业务数据。
 
 ## 本阶段目标
 
@@ -73,6 +73,15 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 新增 `npm run test:database-migration-v2`，使用 252 条图库、201 条历史、v0→v1→v2 路径以及故障注入验证数据复制和完整回滚。
 - 迁移仍未接入 `initializeDatabase()`；正式 `CURRENT_USER_VERSION` 保持 1。
 
+## 已完成：第五小步（DB v2 真机临时迁移入口）
+
+- 云端同步 CView 诊断页新增独立的“DB v2 临时迁移”状态和“检查 DB v2 临时迁移与回滚”动作。
+- 成功路径创建 40 条图库、24 条搜索历史、书签和本机专属表 fixture，执行 v1 → v2 后关闭重开，验证数据、稳定 ID、顺序、外键与 `user_version=2` 持久化。
+- 故障路径在临时表和部分复制已经发生后注入无效 SHA-256，验证事务回滚；关闭重开后仍是原 v1 schema、原数据和 `user_version=1`。
+- 诊断明确检查 AI 配置、WebDAV 密码、`marked_tags` 与 `gallery_reader_config` 保持原样，但脱敏摘要只包含通过/失败状态和数量，不包含这些 fixture 值。
+- 两条路径只使用 `assets/cloud-sync-phase1-migration-v2-*.db`，结束后删除数据库及 journal/WAL/SHM，不打开正式 `assets/database.db`。
+- 沿用现有 `DynamicPreferenceListView` 与 `_perform()` 生命周期，不新增页面、定时器或后台资源。
+
 ## 自动验证结果
 
 - `npm run test:sqlite-safe`：通过。
@@ -92,9 +101,18 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 该检查只创建 `assets/cloud-sync-phase1-init-*.db` 临时库，不会打开或修改正式 `assets/database.db`。请不要对正式数据库执行人为破坏测试。
 
+## 当前需要做的真机检查
+
+- [ ] 安装本次构建的开发版，进入“其他 → 云端同步”。
+- [ ] 点击“检查 DB v2 临时迁移与回滚”。
+- [ ] 确认结果显示 40 条图库、24 条历史迁移完成，关闭重开后数据完整，本机专属表保持原样，注入故障完整回滚，临时文件已删除。
+- [ ] 把“最近结果”文字或脱敏诊断摘要发回；新增字段为 `database_v2_migration_check`。
+
+该检查只创建 `assets/cloud-sync-phase1-migration-v2-success.db` 和 `assets/cloud-sync-phase1-migration-v2-rollback.db` 及其 sidecar，不会打开或修改正式数据库。
+
 ## 下一小步
 
-1. 在云端同步诊断页加入 JSBox 真机 v1 → v2 临时库迁移与故障回滚检查；
+1. 完成 DB v2 临时迁移真机检查；
 2. 真机通过后，把现有 archives/search 读写逐步迁到 v2 domain repository；
 3. 增加启动失败时面向普通用户的备份恢复说明与诊断导出；
 4. 所有业务读写和回归测试适配 v2 后，才把 `CURRENT_USER_VERSION` 提升为 2 并接入正式启动迁移。

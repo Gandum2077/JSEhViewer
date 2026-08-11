@@ -306,10 +306,8 @@ async function init(url?: string) {
       await api.postConfig(config);
     }
     // 同步被禁止的上传者
-    if (config.xu) {
-      const bannedUploaders = config.xu.split("\n").filter((n) => n);
-      configManager.updateAllBannedUploaders(bannedUploaders);
-    }
+    const bannedUploaders = config.xu ? config.xu.split("\n").filter((n) => n) : [];
+    configManager.updateAllBannedUploaders(bannedUploaders);
     // 同步favcat
     if (
       config.favorite_0 &&

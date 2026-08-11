@@ -1,7 +1,7 @@
 # 云端同步 Phase 1：本地数据库与 Repository 进展
 
 > 开始日期：2026-08-11
-> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签 Repository 兼容层也已通过真机验证。正式数据库尚未迁移，也未上传业务数据。
+> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签 Repository 兼容层也已通过真机验证。标记与屏蔽上传者已收口到 v1 兼容 Repository，等待真机临时库验证。正式数据库尚未迁移，也未上传业务数据。
 
 ## 本阶段目标
 
@@ -34,7 +34,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 - `CURRENT_USER_VERSION` 仍为 1；DB v2 目前只是未接入启动流程的可执行草案，尚未迁移正式数据库。
 - 正式数据库尚未拆分 `archives`，也没有启用稳定 ID、外键、同步版本表或 outbox；当前图库 repository 仍以 v1 表为底层，目的是先把调用方与表结构解耦。
-- 尚未引入 marked uploader 等 domain repository；图库和搜索 Repository 也尚未接入 v2 表、稳定字符串 ID 与 outbox。
+- 尚未引入按 `syncMyTags` 切换模式的 marked tags Repository；图库、搜索和上传者 Repository 也尚未接入 v2 表、稳定字符串 ID 与 outbox。
 - Cookie、WebDAV 与 AI 翻译服务的密钥处理本阶段暂不迁移；按当前产品决定，`ai_translation_services` 和 `webdav_services` 在 v1 不同步。
 
 ## 已完成：第二小步（初始化顺序与 fixture）
@@ -110,6 +110,17 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 新增 `npm run test:search-repository`，覆盖特殊字符、term 顺序、同查询更新、parent/terms 故障回滚、本机历史删除、旧历史清理、最近使用词、书签重复拒绝、重排与非法重排回滚。
 - 云端同步诊断页新增“检查搜索历史与书签 Repository”，只使用 `assets/cloud-sync-phase1-search-repository.db` 临时库，并验证关闭重开与临时文件清理。
 
+## 已完成：第八小步（标记与屏蔽上传者 Repository 兼容层）
+
+- 新增 `UploaderRepository`，集中管理可同步的 `marked_uploaders` 与仅作为 E-Hentai 上游镜像的 `banned_uploaders`；`ConfigManager` 不再直接访问这两张表。
+- 标记、取消标记显式使用 `MutationOrigin.user`；未来 Worker change 使用同一入口和 `MutationOrigin.remote`。屏蔽名单整表刷新只接受 `MutationOrigin.upstreamMirror`，避免以后错误地产生 D1 tombstone。
+- 屏蔽名单的删除、去重写入、查找重叠标记和本机冲突清理位于同一个 callback transaction；任何一项失败都会恢复刷新前的两张表。
+- 本机已经屏蔽的上传者不能被本地或远端入口重新写入 `marked_uploaders`。这是本机上游镜像约束；当前兼容层不会把这种拒绝或冲突清理上传到 D1。
+- 修复上游屏蔽名单刷新后只更新 `_bannedUploaders`、没有刷新 `_markedUploaders`，导致界面在重启前仍显示已被数据库删除标记的问题。
+- 修复 E-Hentai 屏蔽名单变为空时启动流程跳过刷新、旧本机镜像永久残留的问题；现在空名单也会原子清空本机 `banned_uploaders`。
+- 新增 `npm run test:uploader-repository`，覆盖用户/远端/上游来源、重复操作幂等、错误来源拒绝、镜像故障回滚、名单去重、标记与屏蔽冲突清理。
+- 云端同步诊断页新增“检查标记与屏蔽上传者 Repository”，只使用 `assets/cloud-sync-phase1-uploader-repository.db` 临时库，并验证关闭重开与临时文件清理。
+
 ## 自动验证结果
 
 - `npm run test:sqlite-safe`：通过。
@@ -118,6 +129,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - `npm run test:database-schema-v2`：通过。
 - `npm run test:archive-repository`：通过。
 - `npm run test:search-repository`：通过。
+- `npm run test:uploader-repository`：通过。
 - `npx tsc --noEmit`：通过。
 - `npm run build`：通过；仅保留既有的 webpack 包体积提示。
 - 2026-08-11 JSBox 真机数据库初始化临时库检查：通过（26 ms）。fresh、v0、v1 最终 schema 一致，旧数据完整迁移，v1 重启不覆盖用户设置，未知版本在零 schema 写入下停止，临时文件已删除。
@@ -163,8 +175,19 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 该检查只创建 `assets/cloud-sync-phase1-search-repository.db` 及其 sidecar，不读取或修改正式 `assets/database.db`。
 
+## 上传者 Repository 真机检查
+
+- [ ] 安装本次构建的开发版，进入“其他 → 云端同步”。
+- [ ] 点击“检查标记与屏蔽上传者 Repository”。
+- [ ] 确认结果显示 4 条标记、2 条屏蔽完成用户/远端/上游来源检查、镜像故障回滚和冲突清理。
+- [ ] 确认结果显示关闭重开后数据完整、临时文件已删除。
+- [ ] 回传“最近结果”；结果只包含数量、耗时和检查结论，不包含真实上传者名称。
+
+该检查只创建 `assets/cloud-sync-phase1-uploader-repository.db` 及其 sidecar，不读取或修改正式 `assets/database.db`。
+
 ## 下一小步
 
-1. 收口 `marked_uploaders` 等剩余同步候选写入，并审计每个调用点的 `MutationOrigin`；
-2. 让 Repository 底层适配 v2 schema，增加启动失败时面向普通用户的备份恢复说明与诊断导出；
-3. 所有业务读写和回归测试适配 v2 后，才把 `CURRENT_USER_VERSION` 提升为 2 并接入正式启动迁移。
+1. 真机通过标记/屏蔽上传者 Repository 临时库检查；
+2. 收口 `marked_tags`，根据本机 `syncMyTags` 明确选择本地同步模式或 E-Hentai 整表镜像模式；
+3. 让 Repository 底层适配 v2 schema，增加启动失败时面向普通用户的备份恢复说明与诊断导出；
+4. 所有业务读写和回归测试适配 v2 后，才把 `CURRENT_USER_VERSION` 提升为 2 并接入正式启动迁移。

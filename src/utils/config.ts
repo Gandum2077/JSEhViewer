@@ -21,7 +21,7 @@ import {
   thumbnailPath,
 } from "./glv";
 import { appLog } from "./tools";
-import { archiveRepository, MutationOrigin, searchRepository } from "../repositories";
+import { archiveRepository, MutationOrigin, searchRepository, uploaderRepository } from "../repositories";
 
 interface Config {
   cookie: string; // 登录Cookie
@@ -707,24 +707,16 @@ class ConfigManager {
   }
 
   private _queryMarkedUploaders() {
-    const sql = "SELECT * FROM marked_uploaders";
-    const data = dbManager.query(sql) as {
-      uploader: string;
-    }[];
-    return data.map((d) => d.uploader);
+    return uploaderRepository.queryMarkedUploaders();
   }
 
   addMarkedUploader(uploader: string) {
-    const sql = "INSERT INTO marked_uploaders (uploader) VALUES (?) ON CONFLICT (uploader) DO NOTHING";
-    const args = [uploader];
-    dbManager.update(sql, args);
+    uploaderRepository.addMarkedUploader(uploader, MutationOrigin.user);
     this._markedUploaders = this._queryMarkedUploaders();
   }
 
   deleteMarkedUploader(uploader: string) {
-    const sql = "DELETE FROM marked_uploaders WHERE uploader = ?";
-    const args = [uploader];
-    dbManager.update(sql, args);
+    uploaderRepository.deleteMarkedUploader(uploader, MutationOrigin.user);
     this._markedUploaders = this._queryMarkedUploaders();
   }
 
@@ -733,25 +725,14 @@ class ConfigManager {
   }
 
   private _queryBannedUploaders() {
-    const sql = "SELECT * FROM banned_uploaders";
-    const data = dbManager.query(sql) as {
-      uploader: string;
-    }[];
-    return data.map((d) => d.uploader);
+    return uploaderRepository.queryBannedUploaders();
   }
 
   updateAllBannedUploaders(uploaders: string[]) {
-    const sql_remove = "DELETE FROM banned_uploaders";
-    // 另外需要删除marked_uploaders中的被禁止的上传者
-    const sql_remove_marked = `DELETE FROM marked_uploaders WHERE uploader IN (SELECT uploader FROM banned_uploaders);`;
-    dbManager.update(sql_remove);
-    dbManager.batchInsert(
-      "banned_uploaders",
-      ["uploader"],
-      uploaders.map((u) => [u]),
-    );
-    dbManager.update(sql_remove_marked);
-    this._bannedUploaders = uploaders;
+    const normalized = uploaders.filter((uploader) => uploader.length > 0);
+    const result = uploaderRepository.replaceBannedUploaders(normalized, MutationOrigin.upstreamMirror);
+    this._markedUploaders = result.markedUploaders;
+    this._bannedUploaders = result.bannedUploaders;
   }
 
   get favcatTitles() {

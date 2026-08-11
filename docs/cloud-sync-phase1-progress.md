@@ -94,6 +94,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 图片收藏分组不再跨 repository 直接 JOIN `archives`；先聚合本机收藏页，再通过 repository 批量补齐标题、token 和页数。
 - 新增 `npm run test:archive-repository`，覆盖插入不覆盖、显式替换、标签故障原子回滚、状态更新、筛选、分页、维护性删除、列表元数据和变更来源校验。
 - 云端同步诊断页新增“检查图库 Repository 业务读写”，只使用 `assets/cloud-sync-phase1-archive-repository.db` 临时库，并检查关闭重开和临时文件清理。
+- 首轮真机检查发现持久化哨兵同时符合旧记录清理条件，而诊断没有直接断言它未进入删除集合。诊断现已改为经 Repository 将哨兵标记为本机下载项，并在关闭前、重开后分别检查记录、标题与标签，避免把 fixture 被删除误报为 SQLite 持久化失败。
 
 ## 自动验证结果
 

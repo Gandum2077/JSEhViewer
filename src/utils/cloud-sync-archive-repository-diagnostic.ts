@@ -164,6 +164,9 @@ function populateAndCheck(): void {
       throw new CloudSyncArchiveRepositoryDiagnosticError("repository 筛选或自定义分页结果不正确");
     }
 
+    // gid=1 是后续关闭重开的持久化哨兵；通过 repository 明确标记为本机下载项，
+    // 避免让持久化检查依赖另一张表的原始 SQL fixture。
+    repository.update(1, { downloaded: true }, MutationOrigin.localMaintenance);
     repository.update(2, { downloaded: true }, MutationOrigin.localMaintenance);
     withSqliteQueueOperation(
       queue,
@@ -174,22 +177,26 @@ function populateAndCheck(): void {
           [3, 0, "2026-01-01T00:00:00.000Z"],
           "写入 repository 图片收藏 fixture",
         );
-        checkedSqliteUpdate(
-          db,
-          "INSERT INTO favorite_images (gid, page_index, favorited_at) VALUES (?, ?, ?)",
-          [1, 0, "2026-01-01T00:00:00.000Z"],
-          "保护关闭重开 fixture",
-        );
       },
       "写入 repository 图片收藏 fixture 队列",
     );
     const removable = repository.findOldRemovableGids("2026-12-01T00:00:00.000Z");
-    if (removable.includes(2) || removable.includes(3) || !removable.includes(4)) {
+    if (removable.includes(1) || removable.includes(2) || removable.includes(3) || !removable.includes(4)) {
       throw new CloudSyncArchiveRepositoryDiagnosticError("本机维护删除没有正确保护下载项或图片收藏");
     }
     repository.deleteMany(removable, MutationOrigin.localMaintenance, true);
     if (repository.get(4)) {
       throw new CloudSyncArchiveRepositoryDiagnosticError("本机维护删除没有移除预期图库记录");
+    }
+    const beforeClose = repository.get(1);
+    if (!beforeClose) {
+      throw new CloudSyncArchiveRepositoryDiagnosticError("关闭前持久化哨兵已被维护性删除");
+    }
+    if (beforeClose.title !== "repository replacement") {
+      throw new CloudSyncArchiveRepositoryDiagnosticError("关闭前持久化哨兵标题不完整");
+    }
+    if (beforeClose.taglist.length !== 1 || beforeClose.taglist[0]?.tags.length !== 2) {
+      throw new CloudSyncArchiveRepositoryDiagnosticError("关闭前持久化哨兵标签列表不完整");
     }
   });
 }
@@ -198,8 +205,14 @@ function checkReopenAndCleanup(): void {
   withQueue((queue) => {
     const repository = createRepository(queue);
     const first = repository.get(1);
-    if (!first || first.title !== "repository replacement" || first.taglist[0]?.tags.length !== 2) {
-      throw new CloudSyncArchiveRepositoryDiagnosticError("关闭重开后图库行或标签列表不完整");
+    if (!first) {
+      throw new CloudSyncArchiveRepositoryDiagnosticError("关闭重开后持久化哨兵不存在");
+    }
+    if (first.title !== "repository replacement") {
+      throw new CloudSyncArchiveRepositoryDiagnosticError("关闭重开后持久化哨兵标题不完整");
+    }
+    if (first.taglist.length !== 1 || first.taglist[0]?.tags.length !== 2) {
+      throw new CloudSyncArchiveRepositoryDiagnosticError("关闭重开后持久化哨兵标签列表不完整");
     }
     if (repository.getMetadataByGids([1]).get(1)?.title !== "japanese-1") {
       throw new CloudSyncArchiveRepositoryDiagnosticError("图库列表元数据读取结果不正确");

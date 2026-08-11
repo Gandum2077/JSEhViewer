@@ -7,6 +7,14 @@ import {
 } from "../ai-translations/preset";
 import { validateUserCustomScriptText } from "../ai-translations/user-custom-validation";
 import { databasePath } from "./glv";
+import {
+  querySqliteRows,
+  SqliteStatement,
+  SqliteTransactionContext,
+  SqliteValue,
+  withSqliteQueueOperation,
+  withSqliteTransaction,
+} from "./sqlite-safe";
 
 // 当前数据库版本，写在数据库文件中
 // 当出现不兼容更新时，更新数据库版本，并且提供对应的升级方案
@@ -109,7 +117,7 @@ export function createDB() {
             UNIQUE(uploader)
             )`);
   // favcat_titles 和ehentai同步
-  db.update(`CREATE TABLE favcat_titles (
+  db.update(`CREATE TABLE IF NOT EXISTS favcat_titles (
               favcat INTEGER PRIMARY KEY CHECK (favcat >=0 AND favcat <= 9),
               title TEXT
             );`);
@@ -187,14 +195,26 @@ export function createDB() {
             PRIMARY KEY (gid, page_index)
             );`);
 
-  // 创建trigger, 限制webdav_services表的enabled最多只能有一行
-  db.update(`CREATE TRIGGER IF NOT EXISTS enforce_webdav_services_single_enabled
-            BEFORE INSERT OR UPDATE ON webdav_services
+  // 创建 trigger，限制 webdav_services 表的 enabled 最多只能有一行。
+  // SQLite 一个 trigger 只能对应 INSERT 或 UPDATE，不能写成 "INSERT OR UPDATE"。
+  db.update(`CREATE TRIGGER IF NOT EXISTS enforce_webdav_services_single_enabled_insert
+            BEFORE INSERT ON webdav_services
             FOR EACH ROW
             WHEN NEW.enabled = 1
             BEGIN
                 SELECT RAISE(ABORT, 'Only one row can have enabled = 1')
                 WHERE (SELECT COUNT(*) FROM webdav_services WHERE enabled = 1) >= 1;
+            END;`);
+  db.update(`CREATE TRIGGER IF NOT EXISTS enforce_webdav_services_single_enabled_update
+            BEFORE UPDATE OF enabled ON webdav_services
+            FOR EACH ROW
+            WHEN NEW.enabled = 1
+            BEGIN
+                SELECT RAISE(ABORT, 'Only one row can have enabled = 1')
+                WHERE EXISTS (
+                  SELECT 1 FROM webdav_services
+                  WHERE enabled = 1 AND rowid <> OLD.rowid
+                );
             END;`);
   // 写入favcat_titles的初始值
   const r = queryDB(db, "SELECT COUNT(*) as count FROM favcat_titles") as { count: number }[];
@@ -212,65 +232,35 @@ export function createDB() {
   $sqlite.close(db);
 }
 
-// 打开数据库
-function openDB() {
-  return $sqlite.open(databasePath);
-}
-
-// 关闭数据库
-function closeDB(db: SqliteTypes.SqliteInstance) {
-  $sqlite.close(db);
-}
-
 // 查询数据库
 function queryDB(db: SqliteTypes.SqliteInstance, sql: string, args?: any[]) {
-  const result: Record<string, any>[] = [];
-  const options = args ? { sql, args } : sql;
-  db.query(options, (rs, err) => {
-    if (rs === null) {
-      console.log(options);
-    }
-    while (rs.next()) {
-      const values = rs.values;
-      result.push(values);
-    }
-    rs.close();
-  });
-  return result;
+  return querySqliteRows(db, sql, args);
 }
 
 // 更新数据库
 function updateDB(db: SqliteTypes.SqliteInstance, sql: string, args?: any[]) {
-  const options = args ? { sql, args } : sql;
-  db.beginTransaction();
-  db.update(options);
-  db.commit();
+  return withSqliteTransaction(db, (transaction) => transaction.update(sql, args), "单条数据库更新");
 }
 
 // 批量更新数据库
 function updateDBBatch(db: SqliteTypes.SqliteInstance, sql: string, manyArgs: any[][]) {
-  db.beginTransaction();
-  for (const args of manyArgs) {
-    db.update({ sql, args });
-  }
-  db.commit();
+  return withSqliteTransaction(
+    db,
+    (transaction) => {
+      for (const args of manyArgs) transaction.update(sql, args);
+    },
+    "批量数据库更新",
+  );
 }
 
-function transactionUpdateDB(
-  db: SqliteTypes.SqliteInstance,
-  statements: { sql: string; args?: (string | number | boolean | null | undefined)[] }[],
-) {
-  db.beginTransaction();
-  try {
-    for (const statement of statements) {
-      const options = statement.args ? { sql: statement.sql, args: statement.args } : statement.sql;
-      db.update(options);
-    }
-    db.commit();
-  } catch (error) {
-    db.rollback();
-    throw error;
-  }
+function transactionUpdateDB(db: SqliteTypes.SqliteInstance, statements: SqliteStatement[]) {
+  return withSqliteTransaction(
+    db,
+    (transaction) => {
+      for (const statement of statements) transaction.update(statement.sql, statement.args);
+    },
+    "多语句数据库更新",
+  );
 }
 
 /**
@@ -284,26 +274,30 @@ function insertDBBatch(db: SqliteTypes.SqliteInstance, tableName: string, column
   const batchSize = 10000;
   const sql0 = `INSERT INTO ${tableName} (${columns.join(",")}) VALUES `;
   const columnQuotes = "(" + columns.map(() => "?").join(",") + ")";
-  db.beginTransaction();
-  // 分批插入
-  for (let i = 0; i < manyArgs.length; i += batchSize) {
-    const batchArgs = manyArgs.slice(i, i + batchSize);
-    const sql = sql0 + batchArgs.map(() => columnQuotes).join(",");
-    db.update({ sql, args: batchArgs.flat() });
-  }
-  db.commit();
+  return withSqliteTransaction(
+    db,
+    (transaction) => {
+      // 分批插入
+      for (let i = 0; i < manyArgs.length; i += batchSize) {
+        const batchArgs = manyArgs.slice(i, i + batchSize);
+        const sql = sql0 + batchArgs.map(() => columnQuotes).join(",");
+        transaction.update(sql, batchArgs.flat());
+      }
+    },
+    `批量写入 ${tableName}`,
+  );
 }
 
 class DBManager {
-  private _db: SqliteTypes.SqliteInstance;
+  private _queue: SqliteTypes.SqliteQueueInstance;
   constructor() {
     createDB();
-    this._db = openDB();
+    this._queue = $sqlite.dbQueue(databasePath);
     this.checkDBUpdate();
   }
 
   close() {
-    closeDB(this._db);
+    this._queue.close();
   }
 
   checkDBUpdate() {
@@ -345,8 +339,7 @@ class DBManager {
       validateUserCustomScriptText(userCustomConfig.scriptText.trim()).ok;
     const userCustomScriptText = isScriptTextValid ? userCustomConfig.scriptText : DEFAULT_CUSTOM_AI_TRANSLATION_SCRIPT;
 
-    this._db.beginTransaction();
-    try {
+    this.transaction((transaction) => {
       const services = [
         {
           name: "manga-image-translator",
@@ -365,39 +358,48 @@ class DBManager {
       ];
 
       for (const service of services) {
-        this._db.update({
-          sql: `INSERT INTO ai_translation_services (name, selected, script_text, config_form, config)
-                VALUES (?, ?, ?, ?, ?)`,
-          args: [service.name, service.selected, service.script_text, service.config_form, service.config],
-        });
+        transaction.update(
+          `INSERT INTO ai_translation_services (name, selected, script_text, config_form, config)
+           VALUES (?, ?, ?, ?, ?)`,
+          [service.name, service.selected, service.script_text, service.config_form, service.config],
+          "迁移 AI 翻译服务",
+        );
       }
 
-      this._db.update("PRAGMA user_version = 1;");
-      this._db.commit();
-    } catch (error) {
-      this._db.rollback();
-      throw error;
-    }
+      transaction.update("PRAGMA user_version = 1;", undefined, "更新数据库版本");
+    }, "数据库 v0 到 v1 迁移");
   }
 
   query(sql: string, args?: any[]) {
-    return queryDB(this._db, sql, args);
+    return withSqliteQueueOperation(this._queue, (db) => queryDB(db, sql, args), "数据库查询队列");
   }
 
-  update(sql: string, args?: (string | number | boolean | null | undefined)[]) {
-    return updateDB(this._db, sql, args);
+  update(sql: string, args?: SqliteValue[]) {
+    return withSqliteQueueOperation(this._queue, (db) => updateDB(db, sql, args), "数据库更新队列");
   }
 
-  batchUpdate(sql: string, manyArgs: (string | number | boolean | null | undefined)[][]) {
-    return updateDBBatch(this._db, sql, manyArgs);
+  batchUpdate(sql: string, manyArgs: SqliteValue[][]) {
+    return withSqliteQueueOperation(this._queue, (db) => updateDBBatch(db, sql, manyArgs), "批量数据库更新队列");
   }
 
-  transactionUpdate(statements: { sql: string; args?: (string | number | boolean | null | undefined)[] }[]) {
-    return transactionUpdateDB(this._db, statements);
+  transaction<T>(callback: (transaction: SqliteTransactionContext) => T, operation = "业务数据库事务") {
+    return withSqliteQueueOperation(
+      this._queue,
+      (db) => withSqliteTransaction(db, callback, operation),
+      `${operation}队列`,
+    );
   }
 
-  batchInsert(tableName: string, columns: string[], manyArgs: (string | number | boolean | null | undefined)[][]) {
-    return insertDBBatch(this._db, tableName, columns, manyArgs);
+  transactionUpdate(statements: SqliteStatement[]) {
+    return withSqliteQueueOperation(this._queue, (db) => transactionUpdateDB(db, statements), "多语句数据库更新队列");
+  }
+
+  batchInsert(tableName: string, columns: string[], manyArgs: SqliteValue[][]) {
+    return withSqliteQueueOperation(
+      this._queue,
+      (db) => insertDBBatch(db, tableName, columns, manyArgs),
+      `批量写入 ${tableName} 队列`,
+    );
   }
 }
 

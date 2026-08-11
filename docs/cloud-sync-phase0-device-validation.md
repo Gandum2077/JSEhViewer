@@ -1,6 +1,6 @@
 # 云端同步 Phase 0：App 端进展与真机清单
 
-> 状态：已完成（2026-08-11）。Phase 1 尚未开始。
+> 状态：已完成（2026-08-11）。Phase 1 已在独立进度文档中开始。
 
 ## 当前进展
 
@@ -64,6 +64,8 @@
 - 早期诊断发现真机 `queue.transaction()` 的布尔返回行为不适合作为 Phase 1 的事务边界，因此正式实现统一采用队列内显式事务，并逐条检查 `{ result, error }`。
 
 Phase 0 的风险验证目标已满足，可以开始 Phase 1 的本地 DB v2 与 repository 工作；在 Phase 2 完成前仍不得向测试部署上传真实阅读记录。
+
+后续实施状态见 [`cloud-sync-phase1-progress.md`](./cloud-sync-phase1-progress.md)。
 
 ## 尚未进入本阶段的功能
 

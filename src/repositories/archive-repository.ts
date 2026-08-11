@@ -1,12 +1,10 @@
 import { EHCategory, EHQualifier, EHTagListItem } from "ehentai-parser";
 import { ArchiveSearchOptions, DBArchiveItem } from "../types";
-import { SqliteTransactionContext, SqliteValue } from "../utils/sqlite-safe";
+import { SqliteValue } from "../utils/sqlite-safe";
 import { MutationOrigin, requireMutationOrigin } from "./mutation-origin";
+import { RepositoryDatabase } from "./repository-database";
 
-interface ArchiveRepositoryDatabase {
-  query(sql: string, args?: SqliteValue[]): Record<string, any>[];
-  transaction<T>(callback: (transaction: SqliteTransactionContext) => T, operation?: string): T;
-}
+const ID_BATCH_SIZE = 400;
 
 type ArchiveItemDBRawData = {
   gid: number;
@@ -278,7 +276,7 @@ function archiveValues(item: DBArchiveItem): SqliteValue[] {
 }
 
 export class ArchiveRepository {
-  constructor(private readonly database: ArchiveRepositoryDatabase) {}
+  constructor(private readonly database: RepositoryDatabase) {}
 
   count(options: ArchiveSearchOptions): number {
     const { sql, args } = buildArchiveSearchSQLQuery(options, true);
@@ -409,12 +407,18 @@ export class ArchiveRepository {
 
   getMetadataByGids(gids: number[]): Map<number, ArchiveMetadata> {
     if (!gids.length) return new Map();
-    const rows = this.database.query(
-      `SELECT gid, COALESCE(token, '') AS token, COALESCE(length, 0) AS length,
-        COALESCE(NULLIF(japanese_title, ''), NULLIF(english_title, ''), NULLIF(title, ''), '') AS title
-       FROM archives WHERE gid IN (${gids.map(() => "?").join(", ")})`,
-      gids,
-    ) as (ArchiveMetadata & { gid: number })[];
+    const rows: (ArchiveMetadata & { gid: number })[] = [];
+    for (let index = 0; index < gids.length; index += ID_BATCH_SIZE) {
+      const batch = gids.slice(index, index + ID_BATCH_SIZE);
+      rows.push(
+        ...(this.database.query(
+          `SELECT gid, COALESCE(token, '') AS token, COALESCE(length, 0) AS length,
+            COALESCE(NULLIF(japanese_title, ''), NULLIF(english_title, ''), NULLIF(title, ''), '') AS title
+           FROM archives WHERE gid IN (${batch.map(() => "?").join(", ")})`,
+          batch,
+        ) as (ArchiveMetadata & { gid: number })[]),
+      );
+    }
     return new Map(rows.map(({ gid, ...metadata }) => [gid, metadata]));
   }
 }

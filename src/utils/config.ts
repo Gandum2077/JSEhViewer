@@ -21,7 +21,7 @@ import {
   thumbnailPath,
 } from "./glv";
 import { appLog } from "./tools";
-import { archiveRepository, MutationOrigin } from "../repositories";
+import { archiveRepository, MutationOrigin, searchRepository } from "../repositories";
 
 interface Config {
   cookie: string; // 登录Cookie
@@ -835,214 +835,36 @@ class ConfigManager {
   }
 
   private _querySearchHistory() {
-    const sql = `
-SELECT 
-    h.id,
-    h.last_access_time,
-    h.sorted_fsearch,
-    GROUP_CONCAT(
-        COALESCE(t.namespace, '') || '|' ||
-        COALESCE(t.qualifier, '') || '|' ||
-        COALESCE(t.term, '') || '|' ||
-        COALESCE(t.dollar, 0) || '|' ||
-        COALESCE(t.subtract, 0) || '|' ||
-        COALESCE(t.tilde, 0), ';'
-    ) AS search_terms
-FROM 
-    search_history AS h
-LEFT JOIN 
-    search_history_search_terms AS t
-ON 
-    h.id = t.search_history_id
-GROUP BY 
-    h.id;
-`;
-    const rows = dbManager.query(sql) as {
-      id: number;
-      last_access_time: string;
-      sorted_fsearch: string;
-      search_terms: string;
-    }[];
-    const result = rows
-      .map((row) => ({
-        id: row.id,
-        last_access_time: row.last_access_time,
-        sorted_fsearch: row.sorted_fsearch,
-        searchTerms: row.search_terms
-          ? row.search_terms.split(";").map((term) => {
-              const [namespace, qualifier, termText, dollar, subtract, tilde] = term.split("|");
-              return {
-                namespace: namespace ? (namespace as TagNamespace) : undefined,
-                qualifier: qualifier ? (qualifier as EHQualifier) : undefined,
-                term: termText,
-                dollar: Boolean(Number(dollar)),
-                subtract: Boolean(Number(subtract)),
-                tilde: Boolean(Number(tilde)),
-              };
-            })
-          : [],
-      }))
-      .sort((a, b) => b.last_access_time.localeCompare(a.last_access_time));
-    return result;
+    return searchRepository.queryHistory();
   }
 
   addOrUpdateSearchHistory(sortedFsearch: string, searchTerms: EHSearchTerm[]) {
-    const sql_check = "SELECT id FROM search_history WHERE sorted_fsearch = ?";
-    const args_check = [sortedFsearch];
-    const id = dbManager.query(sql_check, args_check)[0]?.id;
-    const last_access_time = new Date().toISOString();
-    if (id) {
-      const sql_update = "UPDATE search_history SET last_access_time = ? WHERE id = ?";
-      const args_update = [last_access_time, id];
-      dbManager.update(sql_update, args_update);
-      this._searchHistory.find((item) => item.id === id)!.last_access_time = last_access_time;
-      this._searchHistory.sort((a, b) => b.last_access_time.localeCompare(a.last_access_time));
-    } else {
-      const sql_insert_history = "INSERT INTO search_history (last_access_time, sorted_fsearch) VALUES (?, ?)";
-      const args_insert_history = [last_access_time, sortedFsearch];
-      dbManager.update(sql_insert_history, args_insert_history);
-      const sql_get_id = "SELECT id FROM search_history WHERE sorted_fsearch = ?";
-      const args_get_id = [sortedFsearch];
-      const id = dbManager.query(sql_get_id, args_get_id)[0].id;
-      const sql_insert_terms =
-        "INSERT INTO search_history_search_terms (search_history_id, namespace, qualifier, term, dollar, subtract, tilde) VALUES (?, ?, ?, ?, ?, ?, ?)";
-      const args_insert_terms = searchTerms.map((term) => [
-        id,
-        term.namespace,
-        term.qualifier,
-        term.term,
-        Number(term.dollar),
-        Number(term.subtract),
-        Number(term.tilde),
-      ]);
-      dbManager.batchUpdate(sql_insert_terms, args_insert_terms);
-      this._searchHistory.unshift({
-        id,
-        last_access_time,
-        sorted_fsearch: sortedFsearch,
-        searchTerms,
-      });
-    }
+    searchRepository.upsertHistory(sortedFsearch, searchTerms, MutationOrigin.user);
+    this._searchHistory = this._querySearchHistory();
   }
 
   deleteSearchHistory(id: number) {
-    const sql_delete = "DELETE FROM search_history WHERE id = ?";
-    dbManager.update(sql_delete, [id]);
-    const sql_delete_terms = "DELETE FROM search_history_search_terms WHERE search_history_id = ?";
-    dbManager.update(sql_delete_terms, [id]);
-    const index_delete = this._searchHistory.findIndex((item) => item.id === id);
-    if (index_delete !== -1) {
-      this._searchHistory.splice(index_delete, 1);
-    }
+    searchRepository.deleteHistoryLocally(id);
+    this._searchHistory = this._querySearchHistory();
   }
 
   private _querySearchBookmarks() {
-    const sql = `
-SELECT
-    b.id,
-    b.sort_order,
-    b.sorted_fsearch,
-    GROUP_CONCAT(
-        COALESCE(t.namespace, '') || '|' ||
-        COALESCE(t.qualifier, '') || '|' ||
-        COALESCE(t.term, '') || '|' ||
-        COALESCE(t.dollar, 0) || '|' ||
-        COALESCE(t.subtract, 0) || '|' ||
-        COALESCE(t.tilde, 0), ';'
-    ) AS search_terms
-FROM 
-    search_bookmarks AS b
-LEFT JOIN 
-    search_bookmarks_search_terms AS t
-ON 
-    b.id = t.search_bookmarks_id
-GROUP BY 
-    b.id;
-`;
-    const rows = dbManager.query(sql) as {
-      id: number;
-      sort_order: number;
-      sorted_fsearch: string;
-      search_terms: string;
-    }[];
-    const result = rows
-      .map((row) => ({
-        id: row.id,
-        sort_order: row.sort_order,
-        sorted_fsearch: row.sorted_fsearch,
-        searchTerms: row.search_terms
-          ? row.search_terms.split(";").map((term) => {
-              const [namespace, qualifier, termText, dollar, subtract, tilde] = term.split("|");
-              return {
-                namespace: namespace ? (namespace as TagNamespace) : undefined,
-                qualifier: qualifier ? (qualifier as EHQualifier) : undefined,
-                term: termText,
-                dollar: Boolean(Number(dollar)),
-                subtract: Boolean(Number(subtract)),
-                tilde: Boolean(Number(tilde)),
-              };
-            })
-          : [],
-      }))
-      .sort((a, b) => a.sort_order - b.sort_order);
-    return result;
+    return searchRepository.queryBookmarks();
   }
 
   addSearchBookmark(sortedFsearch: string, searchTerms: EHSearchTerm[]) {
-    const sql_check = "SELECT id FROM search_bookmarks WHERE sorted_fsearch = ?";
-    const args_check = [sortedFsearch];
-    const id = dbManager.query(sql_check, args_check)[0]?.id;
-    if (id) {
-      return false;
-    } else {
-      const sql_insert_bookmark = "INSERT INTO search_bookmarks (sort_order, sorted_fsearch) VALUES (?, ?)";
-      const newSortOrder =
-        this._searchBookmarks.length === 0 ? 0 : this._searchBookmarks[this._searchBookmarks.length - 1].sort_order + 1;
-      const args_insert_bookmark = [newSortOrder, sortedFsearch];
-      dbManager.update(sql_insert_bookmark, args_insert_bookmark);
-      const sql_get_id = "SELECT id FROM search_bookmarks WHERE sorted_fsearch = ?";
-      const args_get_id = [sortedFsearch];
-      const id = dbManager.query(sql_get_id, args_get_id)[0].id;
-      const sql_insert_terms =
-        "INSERT INTO search_bookmarks_search_terms (search_bookmarks_id, namespace, qualifier, term, dollar, subtract, tilde) VALUES (?, ?, ?, ?, ?, ?, ?)";
-      const args_insert_terms = searchTerms.map((term) => [
-        id,
-        term.namespace,
-        term.qualifier,
-        term.term,
-        Number(term.dollar),
-        Number(term.subtract),
-        Number(term.tilde),
-      ]);
-      dbManager.batchUpdate(sql_insert_terms, args_insert_terms);
-      this._searchBookmarks.push({
-        id,
-        sort_order: newSortOrder,
-        sorted_fsearch: sortedFsearch,
-        searchTerms,
-      });
-      return true;
-    }
+    const inserted = searchRepository.addBookmark(sortedFsearch, searchTerms, MutationOrigin.user);
+    if (inserted) this._searchBookmarks = this._querySearchBookmarks();
+    return inserted;
   }
 
   deleteSearchBookmark(id: number) {
-    const sql_delete = "DELETE FROM search_bookmarks WHERE id = ?";
-    dbManager.update(sql_delete, [id]);
-    const sql_delete_terms = "DELETE FROM search_bookmarks_search_terms WHERE search_bookmarks_id = ?";
-    dbManager.update(sql_delete_terms, [id]);
-    const index_delete = this._searchBookmarks.findIndex((item) => item.id === id);
-    if (index_delete !== -1) {
-      this._searchBookmarks.splice(index_delete, 1);
-    }
-    this.reorderSearchBookmarks(this._searchBookmarks.map((item) => item.id));
+    searchRepository.deleteBookmark(id, MutationOrigin.user);
+    this._searchBookmarks = this._querySearchBookmarks();
   }
 
   reorderSearchBookmarks(resorted_ids: number[]) {
-    const sql_update = "UPDATE search_bookmarks SET sort_order = ? WHERE id = ?";
-    dbManager.batchUpdate(
-      sql_update,
-      resorted_ids.map((id, index) => [index, id]),
-    );
+    searchRepository.reorderBookmarks(resorted_ids, MutationOrigin.user);
     this._searchBookmarks = this._querySearchBookmarks();
   }
 
@@ -1072,53 +894,7 @@ DO UPDATE SET count = count + 1;
   }
 
   getSomeLastAccessSearchTerms(): EHSearchTerm[] {
-    const sql = `
-SELECT 
-    namespace,
-    qualifier,
-    term
-FROM (
-    SELECT 
-        search_history_search_terms.namespace,
-        search_history_search_terms.qualifier,
-        search_history_search_terms.term,
-        search_history.last_access_time,
-        ROW_NUMBER() OVER (
-            PARTITION BY 
-                search_history_search_terms.namespace,
-                search_history_search_terms.qualifier,
-                search_history_search_terms.term
-            ORDER BY 
-                search_history.last_access_time DESC
-        ) AS row_num
-    FROM 
-        search_history_search_terms
-    JOIN 
-        search_history
-    ON 
-        search_history_search_terms.search_history_id = search_history.id
-) 
-WHERE row_num = 1
-ORDER BY last_access_time DESC
-LIMIT 20;
-`;
-    const data = dbManager.query(sql) as {
-      namespace: string;
-      term: string;
-      qualifier: string;
-      dollar: number;
-      subtract: number;
-      tilde: number;
-      last_access_time: string;
-    }[];
-    return data.map((n) => ({
-      namespace: n.namespace ? (n.namespace as TagNamespace) : undefined,
-      term: n.term,
-      qualifier: n.qualifier ? (n.qualifier as EHQualifier) : undefined,
-      dollar: Boolean(n.dollar),
-      subtract: Boolean(n.subtract),
-      tilde: Boolean(n.tilde),
-    }));
+    return searchRepository.getSomeLastAccessSearchTerms();
   }
 
   private _queryWebDAVServices(): WebDAVService[] {
@@ -1288,22 +1064,7 @@ LIMIT 20;
     } else {
       date.setFullYear(date.getFullYear() - 1);
     }
-    // 再根据日期对出符合条件的id
-    const sql = "SELECT id FROM search_history WHERE last_access_time < ?";
-    const data = dbManager.query(sql, [date.toISOString()]) as {
-      id: number;
-    }[];
-    const needDeleteIds = data.map((n) => n.id);
-    const sql_delete = "DELETE FROM search_history WHERE id = ?";
-    const sql_delete_terms = "DELETE FROM search_history_search_terms WHERE search_history_id = ?";
-    dbManager.batchUpdate(
-      sql_delete_terms,
-      needDeleteIds.map((id) => [id]),
-    );
-    dbManager.batchUpdate(
-      sql_delete,
-      needDeleteIds.map((id) => [id]),
-    );
+    searchRepository.deleteHistoryBeforeLocally(date.toISOString());
     this._searchHistory = this._querySearchHistory();
   }
 

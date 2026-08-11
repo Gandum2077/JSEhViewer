@@ -24,6 +24,7 @@ import { runCloudSyncDatabaseInitializationDiagnostic } from "../utils/cloud-syn
 import { runCloudSyncDatabaseV2MigrationDiagnostic } from "../utils/cloud-sync-database-v2-migration-diagnostic";
 import { runCloudSyncSqliteDiagnostic } from "../utils/cloud-sync-sqlite-diagnostic";
 import { runCloudSyncArchiveRepositoryDiagnostic } from "../utils/cloud-sync-archive-repository-diagnostic";
+import { runCloudSyncSearchRepositoryDiagnostic } from "../utils/cloud-sync-search-repository-diagnostic";
 
 const BASE64URL_32_BYTES_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -100,6 +101,7 @@ export class CloudSyncController extends BaseController {
   private _databaseInitializationCheck = "未检查";
   private _databaseV2MigrationCheck = "未检查";
   private _archiveRepositoryCheck = "未检查";
+  private _searchRepositoryCheck = "未检查";
   private _lastResult = "尚未运行本次实机检查";
   private _workerInfo?: CloudSyncWorkerInfo;
   private _cryptoWaiter?: CryptoWaiter;
@@ -288,6 +290,7 @@ export class CloudSyncController extends BaseController {
           { type: "info", title: "数据库初始化", value: this._databaseInitializationCheck },
           { type: "info", title: "DB v2 临时迁移", value: this._databaseV2MigrationCheck },
           { type: "info", title: "图库 Repository", value: this._archiveRepositoryCheck },
+          { type: "info", title: "搜索 Repository", value: this._searchRepositoryCheck },
           {
             type: "action",
             title: "检查 Keychain 与安全随机数",
@@ -317,6 +320,11 @@ export class CloudSyncController extends BaseController {
             type: "action",
             title: "检查图库 Repository 业务读写",
             value: () => void this._runArchiveRepositoryDiagnostic(),
+          },
+          {
+            type: "action",
+            title: "检查搜索历史与书签 Repository",
+            value: () => void this._runSearchRepositoryDiagnostic(),
           },
         ],
       },
@@ -560,6 +568,23 @@ export class CloudSyncController extends BaseController {
         $ui.success("图库 Repository 业务读写检查通过");
       } catch (error) {
         this._archiveRepositoryCheck = `失败：${displayError(error)}`;
+        throw error;
+      }
+    });
+  }
+
+  private async _runSearchRepositoryDiagnostic(): Promise<void> {
+    await this._perform("检查搜索历史与书签 Repository", async () => {
+      try {
+        const result = runCloudSyncSearchRepositoryDiagnostic();
+        this._searchRepositoryCheck = `通过：${result.durationMs} ms`;
+        this._lastResult =
+          `搜索 Repository 临时库检查通过（${result.durationMs} ms）：${result.historyCount} 条历史、` +
+          `${result.bookmarkCount} 条书签完成 parent/terms 原子回滚、特殊字符与顺序、本机历史删除和书签重排检查；` +
+          "关闭重开后数据完整，临时文件已删除。";
+        $ui.success("搜索历史与书签 Repository 检查通过");
+      } catch (error) {
+        this._searchRepositoryCheck = `失败：${displayError(error)}`;
         throw error;
       }
     });

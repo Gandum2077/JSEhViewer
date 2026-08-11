@@ -1,7 +1,7 @@
 # 云端同步 Phase 1：本地数据库与 Repository 进展
 
 > 开始日期：2026-08-11
-> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库业务读写已收口到 v1 兼容 repository，等待真机临时库验证。正式数据库尚未迁移，也未上传业务数据。
+> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库 Repository 已通过真机，搜索历史与书签已收口到 v1 兼容 Repository 并等待真机临时库验证。正式数据库尚未迁移，也未上传业务数据。
 
 ## 本阶段目标
 
@@ -34,7 +34,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 - `CURRENT_USER_VERSION` 仍为 1；DB v2 目前只是未接入启动流程的可执行草案，尚未迁移正式数据库。
 - 正式数据库尚未拆分 `archives`，也没有启用稳定 ID、外键、同步版本表或 outbox；当前图库 repository 仍以 v1 表为底层，目的是先把调用方与表结构解耦。
-- 尚未引入 search/marked uploader 等 domain repository；图库 repository 也尚未接入 v2 三表和 outbox。
+- 尚未引入 marked uploader 等 domain repository；图库和搜索 Repository 也尚未接入 v2 表、稳定字符串 ID 与 outbox。
 - Cookie、WebDAV 与 AI 翻译服务的密钥处理本阶段暂不迁移；按当前产品决定，`ai_translation_services` 和 `webdav_services` 在 v1 不同步。
 
 ## 已完成：第二小步（初始化顺序与 fixture）
@@ -96,6 +96,20 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 云端同步诊断页新增“检查图库 Repository 业务读写”，只使用 `assets/cloud-sync-phase1-archive-repository.db` 临时库，并检查关闭重开和临时文件清理。
 - 首轮真机检查发现持久化哨兵同时符合旧记录清理条件，而诊断没有直接断言它未进入删除集合。诊断现已改为经 Repository 将哨兵标记为本机下载项，并在关闭前、重开后分别检查记录、标题与标签，避免把 fixture 被删除误报为 SQLite 持久化失败。
 
+## 已完成：第七小步（搜索历史与书签 Repository 兼容层）
+
+- 新增 `SearchRepository`，把搜索历史、历史 terms、搜索书签、书签 terms、最近使用词和书签重排集中管理；`ConfigManager` 不再直接访问这四张表。
+- v1 Repository 仍向现有 UI 返回本机数字 ID。跨设备稳定字符串 ID 已由 v2 schema 和迁移 fixture 验证，等正式切换 v2 adapter 时在 Repository 内部替换，不要求列表组件同时改表结构。
+- parent 与 terms 的新增、替换和删除现在位于同一个 callback transaction；同一条历史再次访问时会原子更新时间并重建完整 terms。
+- 删除单条历史和清理旧历史使用名称明确的 `deleteHistoryLocally` / `deleteHistoryBeforeLocally`，只删除本机业务行，不创建 tombstone。正式接入 v2 后，这两个事务还会取消相应本机 `sync_versions` 和未发送 outbox，但仍不会向云端发送删除。
+- 搜索书签属于用户创建内容：新增、删除和重排都携带 `MutationOrigin.user`。以后删除书签会生成 tombstone，与搜索历史的本机删除语义不同。
+- 不再使用无顺序保证的 `GROUP_CONCAT` 和 `;`/`|` 分隔解析。terms 逐行按旧表 `rowid` 读取，因此顺序固定，词文本包含这两个字符时也不会损坏。
+- terms 与图库列表元数据按最多 400 个 parent ID 分批查询，避免历史或图片收藏较多时超过 SQLite 单语句绑定参数上限。
+- 书签删除与剩余项重排合并为一个事务；主动重排必须且只能包含全部现有书签，缺项、重复项或陌生 ID 会完整拒绝。
+- 普通增量同步将按服务端 cursor 拉取“本设备尚未处理的 change”，而不是比较本机最后一条历史时间；设备时钟和本机删除不会导致旧 change 反复下载。只有首次接入、cursor 过期后的 snapshot 或用户主动全量恢复才重建云端历史。
+- 新增 `npm run test:search-repository`，覆盖特殊字符、term 顺序、同查询更新、parent/terms 故障回滚、本机历史删除、旧历史清理、最近使用词、书签重复拒绝、重排与非法重排回滚。
+- 云端同步诊断页新增“检查搜索历史与书签 Repository”，只使用 `assets/cloud-sync-phase1-search-repository.db` 临时库，并验证关闭重开与临时文件清理。
+
 ## 自动验证结果
 
 - `npm run test:sqlite-safe`：通过。
@@ -103,6 +117,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - `npm run test:database-migration-v2`：通过。
 - `npm run test:database-schema-v2`：通过。
 - `npm run test:archive-repository`：通过。
+- `npm run test:search-repository`：通过。
 - `npx tsc --noEmit`：通过。
 - `npm run build`：通过；仅保留既有的 webpack 包体积提示。
 - 2026-08-11 JSBox 真机数据库初始化临时库检查：通过（26 ms）。fresh、v0、v1 最终 schema 一致，旧数据完整迁移，v1 重启不覆盖用户设置，未知版本在零 schema 写入下停止，临时文件已删除。
@@ -137,9 +152,19 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 该检查只创建 `assets/cloud-sync-phase1-archive-repository.db` 及其 sidecar，不读取或修改正式 `assets/database.db`。
 
+## 搜索 Repository 真机检查
+
+- [ ] 安装本次构建的开发版，进入“其他 → 云端同步”。
+- [ ] 点击“检查搜索历史与书签 Repository”。
+- [ ] 确认结果显示 8 条历史、4 条书签完成 parent/terms 原子回滚、特殊字符与顺序、本机历史删除和书签重排检查。
+- [ ] 确认结果显示关闭重开后数据完整、临时文件已删除。
+- [ ] 回传“最近结果”；结果只包含数量、耗时和检查结论，不包含真实搜索内容。
+
+该检查只创建 `assets/cloud-sync-phase1-search-repository.db` 及其 sidecar，不读取或修改正式 `assets/database.db`。
+
 ## 下一小步
 
-1. 真机通过图库 repository 临时库检查；
-2. 把 search history/bookmark 读写迁到独立 repository，并落实“清除历史只清本机、普通增量只接收本机最后记录之后的云端历史”边界；
-3. 增加启动失败时面向普通用户的备份恢复说明与诊断导出；
+1. 真机通过搜索 history/bookmark Repository 临时库检查；
+2. 收口 `marked_uploaders` 等剩余同步候选写入，并审计每个调用点的 `MutationOrigin`；
+3. 让 Repository 底层适配 v2 schema，增加启动失败时面向普通用户的备份恢复说明与诊断导出；
 4. 所有业务读写和回归测试适配 v2 后，才把 `CURRENT_USER_VERSION` 提升为 2 并接入正式启动迁移。

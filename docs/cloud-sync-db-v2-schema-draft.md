@@ -84,12 +84,36 @@ npm run test:database-schema-v2
 
 远端 D1 的 `objects` 保存每个 `object_key` 的当前获胜版本，`changes` 保存按 `seq` 排列的传输流水；它们不属于本地 DB v2 schema。
 
-## 7. 仍未开始的工作
+## 7. 已建立的 v1 → v2 迁移 fixture
+
+`src/utils/database-migration-v2-draft.ts` 已实现一套尚未接入启动流程的迁移函数。调用方必须在安全事务中执行它：
+
+1. 确认 `user_version=1` 且所需 v1 表存在；
+2. 检查负数阅读页码和无法解析的 `taglist`，发现后不猜测修复，直接停止；
+3. 使用从 v2 单一 schema 定义派生的临时表复制数据；
+4. 为 history/bookmark 计算稳定 SHA-256，并按旧 `rowid` 写入 `term_index`；
+5. 在全部复制成功后删除旧表并改名；
+6. 建立 v2 索引和同步表、运行 `foreign_key_check`、核对行数，最后才写 `user_version=2`。
+
+旧 schema 允许但业务无法使用的孤儿索引/terms、NULL 或空 uploader 会被丢弃，并在迁移结果中返回明确数量。任何其他约束错误或 hash 依赖错误都会使整个事务回滚。
+
+`npm run test:database-migration-v2` 当前覆盖：
+
+- 252 条图库、201 条搜索历史及其 terms 的批量复制；
+- v0 先升级到 v1，再迁移到 v2；
+- 列表快照、阅读状态与本机下载状态的字段归一；
+- history/bookmark 稳定 ID、term 顺序和 bookmark position key；
+- `marked_tags`、AI、WebDAV、阅读器设置、图片收藏和 config 内容保持不变；
+- 孤儿行与无效 uploader 的可计数清理；
+- 负数页码、无效 JSON 拒绝迁移；
+- 在临时表已经创建、部分数据已经复制后注入 hash 故障，确认 schema、数据和版本完整回滚。
+
+## 8. 仍未开始的工作
 
 - 没有把草案接入 `initializeDatabase()`，正式数据库版本仍为 1；
-- 没有执行 v1 → v2 表复制、稳定 ID 计算或 bookmark position key 生成；
+- 尚未在 JSBox 真机 SQLite 临时库中执行 v1 → v2 迁移；
 - 没有修改现有业务查询，它们目前仍读写 `archives` 和数字搜索 ID；
 - 没有创建 repository、HLC、outbox 或网络同步实现；
 - 没有把任何现有 Cookie、AI/WebDAV 配置或业务数据上传到 Worker。
 
-下一小步是在这份表结构确认后编写迁移函数和更大规模/损坏边缘 fixture。迁移仍先只针对临时库验证，通过后才会更改 `CURRENT_USER_VERSION`。
+下一小步是在诊断页加入 JSBox 真机临时库迁移检查。即使该检查通过，也必须先把现有业务查询迁到 v2 repository，才能更改 `CURRENT_USER_VERSION`；否则 App 会在升级后继续查询已经不存在的 `archives`。

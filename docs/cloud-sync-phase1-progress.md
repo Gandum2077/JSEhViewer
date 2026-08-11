@@ -1,7 +1,7 @@
 # 云端同步 Phase 1：本地数据库与 Repository 进展
 
 > 开始日期：2026-08-11
-> 当前状态：进行中。SQLite 安全层、数据库初始化重构与 DB v2 可执行 schema 草案已完成自动验证，初始化路径已通过 JSBox 真机验证；尚未迁移用户表或上传业务数据。
+> 当前状态：进行中。SQLite 安全层、数据库初始化重构、DB v2 可执行 schema 与 v1 → v2 迁移 fixture 已完成自动验证，初始化路径已通过 JSBox 真机验证；正式数据库尚未迁移，也未上传业务数据。
 
 ## 本阶段目标
 
@@ -62,10 +62,22 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 新增 [`cloud-sync-db-v2-schema-draft.md`](cloud-sync-db-v2-schema-draft.md)，逐项记录同步范围、删除语义和仍未实施的边界。
 - 新增 `npm run test:database-schema-v2`，验证表职责拆分、稳定 ID、terms 顺序/级联、tombstone 边界、同步约束，以及要求保持原样的 v1 表。
 
+## 已完成：第四小步（v1 → v2 迁移与边缘 fixture）
+
+- 新增 `src/utils/database-migration-v2-draft.ts`，从集中 v2 schema 定义派生临时表，在调用方事务中完成复制、旧表替换、行数核对、外键检查和版本更新。
+- 图库列表、阅读状态和本机下载状态从旧 `archives` 分别复制；NULL 布尔值和时间有明确归一规则，负数页码或无效标签 JSON 会停止迁移。
+- history/bookmark 稳定 ID 使用注入的 UTF-8 SHA-256，既能由 Node fixture 验证，也能在后续 JSBox 真机检查中复用；terms 按旧 `rowid` 生成稳定 `term_index`。
+- 书签按旧 `(sort_order, id)` 生成有间隔、可字典序比较的初始 `position_key`。
+- 旧 schema 允许但业务无法使用的孤儿 tag/terms、NULL 或空 uploader 会被安全丢弃，丢弃数量进入迁移结果；其他损坏不静默猜测。
+- `marked_tags`、config、AI、WebDAV、阅读器设置和图片收藏等要求保留的内容不会被迁移函数改写。
+- 新增 `npm run test:database-migration-v2`，使用 252 条图库、201 条历史、v0→v1→v2 路径以及故障注入验证数据复制和完整回滚。
+- 迁移仍未接入 `initializeDatabase()`；正式 `CURRENT_USER_VERSION` 保持 1。
+
 ## 自动验证结果
 
 - `npm run test:sqlite-safe`：通过。
 - `npm run test:database-init`：通过。
+- `npm run test:database-migration-v2`：通过。
 - `npm run test:database-schema-v2`：通过。
 - `npx tsc --noEmit`：通过。
 - `npm run build`：通过；仅保留既有的 webpack 包体积提示。
@@ -82,8 +94,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 ## 下一小步
 
-1. 评审 DB v2 的实际表结构；
-2. 编写尚未接入正式启动流程的 v1 → v2 数据复制函数；
-3. 增加 v0/v1 数据量、损坏边缘和备份恢复 fixture；
-4. 增加启动失败时面向普通用户的备份恢复说明与诊断导出；
-5. 迁移 fixture 与真机临时库检查通过后，才把 `CURRENT_USER_VERSION` 提升为 2。
+1. 在云端同步诊断页加入 JSBox 真机 v1 → v2 临时库迁移与故障回滚检查；
+2. 真机通过后，把现有 archives/search 读写逐步迁到 v2 domain repository；
+3. 增加启动失败时面向普通用户的备份恢复说明与诊断导出；
+4. 所有业务读写和回归测试适配 v2 后，才把 `CURRENT_USER_VERSION` 提升为 2 并接入正式启动迁移。

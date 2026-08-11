@@ -16,12 +16,12 @@ export interface LocalSyncMutation {
   objectKey: string;
   entityType: string;
   deleted: boolean;
-  envelopeJson?: string | null;
+  createEnvelopeJson: (version: SyncVersion) => string;
 }
 
 export interface RemoteSyncMutation extends SyncVersion {
   origin: typeof MutationOrigin.remote;
-  envelopeJson?: string | null;
+  envelopeJson: string;
 }
 
 export interface LocalSyncDiscard {
@@ -82,6 +82,13 @@ function requireClockInteger(value: number, name: string): number {
   return value;
 }
 
+function requireDeletedFlag(value: boolean): boolean {
+  if (typeof value !== "boolean") {
+    throw new SyncMutationError("deleted 必须是布尔值");
+  }
+  return value;
+}
+
 function incrementLogical(value: number): number {
   if (value >= Number.MAX_SAFE_INTEGER) {
     throw new SyncMutationError("HLC logical counter 已达到安全整数上限");
@@ -89,15 +96,9 @@ function incrementLogical(value: number): number {
   return value + 1;
 }
 
-function requireEnvelope(deleted: boolean, envelopeJson?: string | null): string | null {
-  if (deleted) {
-    if (envelopeJson !== undefined && envelopeJson !== null) {
-      throw new SyncMutationError("删除操作不能携带同步 payload");
-    }
-    return null;
-  }
+function requireEnvelope(envelopeJson?: string | null): string {
   if (typeof envelopeJson !== "string" || envelopeJson.length === 0) {
-    throw new SyncMutationError("非删除操作必须携带同步 payload");
+    throw new SyncMutationError("同步操作必须携带非空 payload envelope");
   }
   return envelopeJson;
 }
@@ -160,7 +161,10 @@ export class SyncMutationWriter {
     }
     const objectKey = requireNonEmpty(mutation.objectKey, "object key");
     const entityType = requireNonEmpty(mutation.entityType, "entity type");
-    const envelopeJson = requireEnvelope(mutation.deleted, mutation.envelopeJson);
+    const deleted = requireDeletedFlag(mutation.deleted);
+    if (typeof mutation.createEnvelopeJson !== "function") {
+      throw new SyncMutationError("本地同步操作必须提供版本感知 payload envelope 编码回调");
+    }
     const existing = readStoredVersion(transaction, objectKey);
     requireSameEntityType(existing, entityType);
     const clock = this._advanceClock(transaction, existing);
@@ -171,9 +175,10 @@ export class SyncMutationWriter {
       wallMs: clock.wallMs,
       logicalCounter: clock.logicalCounter,
       deviceId: this._deviceId,
-      deleted: mutation.deleted,
+      deleted,
       opId,
     };
+    const envelopeJson = requireEnvelope(mutation.createEnvelopeJson(version));
 
     this._upsertVersion(transaction, version);
     transaction.update(
@@ -221,10 +226,10 @@ export class SyncMutationWriter {
       wallMs: requireClockInteger(mutation.wallMs, "远端 wall time"),
       logicalCounter: requireClockInteger(mutation.logicalCounter, "远端 logical counter"),
       deviceId: requireNonEmpty(mutation.deviceId, "远端 device id"),
-      deleted: mutation.deleted,
+      deleted: requireDeletedFlag(mutation.deleted),
       opId: requireNonEmpty(mutation.opId, "远端 operation id"),
     };
-    requireEnvelope(remote.deleted, mutation.envelopeJson);
+    requireEnvelope(mutation.envelopeJson);
     const existing = readStoredVersion(transaction, remote.objectKey);
     requireSameEntityType(existing, remote.entityType);
     this._advanceClock(transaction, remote);

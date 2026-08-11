@@ -221,7 +221,25 @@ function checkTombstoneBoundary(database) {
        (op_id, object_key, wall_ms, logical_counter, device_id, deleted, envelope_json, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run("op-3", "object-2", 2, 0, "device-a", 1, null, "2026-08-11T00:00:02.000Z");
+    .run("op-3", "object-2", 2, 0, "device-a", 1, "{}", "2026-08-11T00:00:02.000Z");
+  database
+    .prepare(
+      `INSERT INTO sync_versions
+       (object_key, entity_type, wall_ms, logical_counter, device_id, deleted, last_op_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run("object-3", "marked.uploader.v1", 3, 0, "device-a", 1, "op-4");
+  assert.throws(
+    () =>
+      database
+        .prepare(
+          `INSERT INTO sync_outbox
+           (op_id, object_key, wall_ms, logical_counter, device_id, deleted, envelope_json, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run("op-4", "object-3", 3, 0, "device-a", 1, null, "2026-08-11T00:00:03.000Z"),
+    /constraint/i,
+  );
   assert.equal(database.prepare("SELECT deleted FROM sync_versions WHERE object_key = ?").get("object-2").deleted, 1);
 }
 

@@ -317,6 +317,7 @@ LWW 不是无损合并，但这里的实体已经被切到最小，普通用户�
 ### 5.6 删除和日志压缩
 
 - `objects` 中的删除行（tombstone）v1 长期保留；否则一台长期离线设备可能让删除的数据复活；
+- 生产版的 object key 是不透明 HMAC，因此 tombstone envelope 应保留加密后的最小实体身份；否则新设备或带有待合并本地数据的设备无法仅凭 object key 判断要删除哪一行业务数据。身份只在客户端解密，Worker 仍看不到明文；
 - `changes` 是传输日志，不是当前状态。可保留 90–180 天，然后压缩；
 - cursor 早于保留窗口时，返回 `reset_required=true`，客户端走分页 snapshot；
 - snapshot 必须包含 tombstone；
@@ -428,7 +429,7 @@ CREATE TABLE sync_outbox (
   logical_counter INTEGER NOT NULL,
   device_id TEXT NOT NULL,
   deleted INTEGER NOT NULL CHECK (deleted IN (0, 1)),
-  envelope_json TEXT,
+  envelope_json TEXT NOT NULL,
   created_at TEXT NOT NULL,
   attempt_count INTEGER NOT NULL DEFAULT 0,
   next_attempt_at TEXT
@@ -498,7 +499,7 @@ CREATE TABLE objects (
   logical_counter INTEGER NOT NULL,
   device_id TEXT NOT NULL,
   deleted INTEGER NOT NULL CHECK (deleted IN (0, 1)),
-  envelope_json TEXT,
+  envelope_json TEXT NOT NULL,
   last_op_id TEXT NOT NULL,
   updated_at INTEGER NOT NULL
 );
@@ -511,7 +512,7 @@ CREATE TABLE changes (
   logical_counter INTEGER NOT NULL,
   device_id TEXT NOT NULL,
   deleted INTEGER NOT NULL,
-  envelope_json TEXT,
+  envelope_json TEXT NOT NULL,
   committed_at INTEGER NOT NULL
 );
 
@@ -569,7 +570,7 @@ Worker 必须验证 method、Content-Type、JSON schema、协议版本、epoch�
 - 通过 HKDF-SHA-256 派生 `dataKey`、`indexKey`、恢复/配对相关子密钥，Worker 永远拿不到 master/data key；
 - payload 使用有认证的加密（优先 XChaCha20-Poly1305；若 JSBox 环境存在经过验证的 WebCrypto，也可评估 AES-256-GCM）；
 - `object_key = HMAC-SHA256(indexKey, entityType + ':' + entityId)`，让 Worker 不直接看到 gid、标签或查询；
-- AAD 包含协议版本、profile epoch、object key 和 HLC，防止密文被换到另一个对象；
+- AAD 包含协议版本、profile epoch、object key、HLC 和删除标志，防止密文被换到另一个对象或被篡改为删除操作；
 - envelope 带 `format/algorithm/key_version`，为将来密钥轮换保留空间；
 - 第一台设备从电脑端部署助手的二维码获得 master key 和一次性部署凭据；后续设备从已配对设备的面对面二维码获得 master key 与一次性配对码。二维码只在浏览器或设备本地生成，不经 Worker、GitHub 或第三方二维码 API 保存。
 

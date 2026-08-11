@@ -1,7 +1,7 @@
 # 云端同步 Phase 1：本地数据库与 Repository 进展
 
 > 开始日期：2026-08-11
-> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层以及共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核也已通过真机验证。正式数据库尚未迁移，也未上传业务数据。
+> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层以及共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核也已通过真机验证。第一个实际 v2 adapter（标记上传者）已完成自动验证，等待真机临时库确认。正式数据库尚未迁移，也未上传业务数据。
 
 ## 本阶段目标
 
@@ -34,7 +34,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 - `CURRENT_USER_VERSION` 仍为 1；DB v2 目前只是未接入启动流程的可执行草案，尚未迁移正式数据库。
 - 正式数据库尚未拆分 `archives`，也没有启用稳定 ID、外键、同步版本表或 outbox；当前图库 repository 仍以 v1 表为底层，目的是先把调用方与表结构解耦。
-- 图库、搜索、上传者和 marked tags Repository 尚未接入 v2 表、稳定字符串 ID 与 outbox；重新登录清理目前只处理业务表，未来接入 v2 时还需同时取消对应本机版本与未发送 outbox。
+- 图库、搜索和 marked tags Repository 尚未接入 v2 表、稳定字符串 ID 与 outbox；标记上传者已有独立的 v2 adapter，但正式 App 仍使用 v1 兼容 Repository。重新登录清理目前只处理业务表，未来接入 v2 时还需同时取消对应本机版本与未发送 outbox。
 - Cookie、WebDAV 与 AI 翻译服务的密钥处理本阶段暂不迁移；按当前产品决定，`ai_translation_services` 和 `webdav_services` 在 v1 不同步。
 
 ## 已完成：第二小步（初始化顺序与 fixture）
@@ -143,6 +143,18 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 新增 `npm run test:sync-mutation-writer`，覆盖同毫秒与倒退时钟、outbox 合并、迟到 ACK、tombstone、本机丢弃、远端胜负/重复、entity type 冲突、payload 约束和本地/远端故障完整回滚。
 - 云端同步诊断页新增“检查 HLC、版本与 outbox 原子写入”，只使用 `assets/cloud-sync-phase1-mutation-writer.db` 临时库，不读取正式数据库，也不连接 Worker。
 
+## 已完成：第十一步（标记上传者 v2 Adapter）
+
+- 新增 `V2UploaderRepository` 作为第一个真正以 v2 schema 和共享写入内核工作的实体 adapter；现有 `UploaderRepository` 仍服务正式 v1 数据库，因此本次不会提前切换用户路径。
+- 用户标记/取消标记在同一个 callback transaction 中写 `marked_uploaders`、推进 HLC、更新 `sync_versions` 并写入 upsert/tombstone outbox。重复操作没有业务变化时不会推进时钟或制造新 outbox。
+- 增加可重入 `seedExistingMarkedUploaders()`：只为尚无 `sync_versions` 的迁移已有行创建初始版本与 outbox，重跑不会重复 seed，已被本机上游屏蔽的上传者不会上传。
+- 远端 change 必须携带完整版本和 envelope；adapter 解码实体身份后重新派生 object key，拒绝 payload/key 不匹配、HLC/AAD 绑定不匹配和错误 entity type。陈旧或重复版本不重复改业务表，获胜版本不产生回声 outbox。
+- tombstone 的 envelope 保存最小且加密的实体身份。原因是生产 `object_key` 是 HMAC 后的不透明值；新设备或本机已有数据 join 时，必须能在客户端解密出要删除的上传者。Worker 仍只能看到密文。
+- 新增唯一的 `SyncEntityEnvelopeCodec` 边界。未来生产 HMAC/HKDF/AEAD 实现只需集中替换这一接口，并把 object key、HLC、删除标志和 profile epoch 纳入 AAD；Repository 不自行拼密钥、nonce 或密文。明文 `CloudSyncDiagnosticEntityCodec` 名称和位置均明确限定为 Node/隔离临时库验证，不得用于正式同步。
+- E-Hentai 屏蔽名单仍是本机约束：若冲突对象存在尚未发送的本机 outbox，清理会同时丢弃这笔未发布版本；已由远端或 ACK 确认的版本则保留。两种情况都不生成云端 tombstone；较新的远端“标记”版本可以被记录，但在本设备保持不可见。
+- 新增 `npm run test:uploader-repository-v2`，覆盖可重入 seed、版本感知 envelope、用户 upsert/delete、带身份 tombstone、远端新旧/重复版本、payload/key 与 HLC 绑定、上游屏蔽隔离以及业务/outbox 故障回滚。
+- 云端同步诊断页新增“检查上传者 v2 业务与同步原子写入”，只使用 `assets/cloud-sync-phase1-uploader-repository-v2.db`，不打开正式数据库、不连接 Worker。
+
 ## 自动验证结果
 
 - `npm run test:sqlite-safe`：通过。
@@ -154,6 +166,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - `npm run test:search-repository`：通过。
 - `npm run test:sync-mutation-writer`：通过。
 - `npm run test:uploader-repository`：通过。
+- `npm run test:uploader-repository-v2`：通过。
 - `npx tsc --noEmit`：通过。
 - `npm run build`：通过；仅保留既有的 webpack 包体积提示。
 - 2026-08-11 JSBox 真机数据库初始化临时库检查：通过（26 ms）。fresh、v0、v1 最终 schema 一致，旧数据完整迁移，v1 重启不覆盖用户设置，未知版本在零 schema 写入下停止，临时文件已删除。
@@ -232,8 +245,18 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 该检查只创建 `assets/cloud-sync-phase1-mutation-writer.db` 及其 sidecar，不读取或修改正式 `assets/database.db`，也不会向 Worker 发请求。
 
+## 上传者 v2 Adapter 真机检查
+
+- [ ] 安装本次构建的开发版，进入“其他 → 云端同步”。
+- [ ] 点击“检查上传者 v2 业务与同步原子写入”。
+- [ ] 确认结果显示 1 条旧数据完成可重入 seed，用户新增/删除与版本/outbox 原子提交，envelope 绑定 HLC，tombstone 可恢复实体身份。
+- [ ] 确认远端版本顺序、上游屏蔽隔离和故障回滚正确。
+- [ ] 确认关闭重开后数据完整、临时文件已删除，并回传“最近结果”。
+
+该检查只创建 `assets/cloud-sync-phase1-uploader-repository-v2.db` 及其 sidecar。使用的 object key 和 envelope 是专供 fixture 的明文诊断格式，不包含真实用户内容，也不会发送到 Worker。
+
 ## 下一小步
 
-1. 让各 Repository 增加 v2 adapter，并在同一业务事务中调用已经通过真机验证的共享同步写入内核；
+1. 真机确认标记上传者 v2 adapter 后，按相同 codec/事务边界逐个实现其他同步实体 adapter；
 2. 增加启动失败时面向普通用户的备份恢复说明与诊断导出；
 3. 所有业务读写和回归测试适配 v2 后，才把 `CURRENT_USER_VERSION` 提升为 2 并接入正式启动迁移。

@@ -7,13 +7,13 @@ export interface ReplaceBannedUploadersResult {
   removedMarkedUploaders: string[];
 }
 
-function requireUploader(uploader: string): void {
+export function requireUploader(uploader: string): void {
   if (typeof uploader !== "string" || uploader.length === 0) {
     throw new Error("上传者名称不能为空");
   }
 }
 
-function uniqueUploaders(uploaders: string[]): string[] {
+export function uniqueUploaders(uploaders: string[]): string[] {
   const result: string[] = [];
   const seen = new Set<string>();
   for (const uploader of uploaders) {
@@ -27,7 +27,7 @@ function uniqueUploaders(uploaders: string[]): string[] {
 }
 
 export class UploaderRepository {
-  constructor(private readonly database: RepositoryDatabase) {}
+  constructor(protected readonly database: RepositoryDatabase) {}
 
   queryMarkedUploaders(): string[] {
     return (

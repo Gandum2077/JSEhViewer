@@ -28,6 +28,7 @@ import { runCloudSyncSearchRepositoryDiagnostic } from "../utils/cloud-sync-sear
 import { runCloudSyncUploaderRepositoryDiagnostic } from "../utils/cloud-sync-uploader-repository-diagnostic";
 import { runCloudSyncMarkedTagRepositoryDiagnostic } from "../utils/cloud-sync-marked-tag-repository-diagnostic";
 import { runCloudSyncMutationWriterDiagnostic } from "../utils/cloud-sync-mutation-writer-diagnostic";
+import { runCloudSyncUploaderRepositoryV2Diagnostic } from "../utils/cloud-sync-uploader-repository-v2-diagnostic";
 
 const BASE64URL_32_BYTES_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -108,6 +109,7 @@ export class CloudSyncController extends BaseController {
   private _uploaderRepositoryCheck = "未检查";
   private _markedTagRepositoryCheck = "未检查";
   private _syncMutationWriterCheck = "未检查";
+  private _uploaderRepositoryV2Check = "未检查";
   private _lastResult = "尚未运行本次实机检查";
   private _workerInfo?: CloudSyncWorkerInfo;
   private _cryptoWaiter?: CryptoWaiter;
@@ -300,6 +302,7 @@ export class CloudSyncController extends BaseController {
           { type: "info", title: "上传者 Repository", value: this._uploaderRepositoryCheck },
           { type: "info", title: "标签 Repository", value: this._markedTagRepositoryCheck },
           { type: "info", title: "同步写入内核", value: this._syncMutationWriterCheck },
+          { type: "info", title: "上传者 v2 Adapter", value: this._uploaderRepositoryV2Check },
           {
             type: "action",
             title: "检查 Keychain 与安全随机数",
@@ -349,6 +352,11 @@ export class CloudSyncController extends BaseController {
             type: "action",
             title: "检查 HLC、版本与 outbox 原子写入",
             value: () => void this._runSyncMutationWriterDiagnostic(),
+          },
+          {
+            type: "action",
+            title: "检查上传者 v2 业务与同步原子写入",
+            value: () => void this._runUploaderRepositoryV2Diagnostic(),
           },
         ],
       },
@@ -659,6 +667,23 @@ export class CloudSyncController extends BaseController {
         $ui.success("同步写入内核检查通过");
       } catch (error) {
         this._syncMutationWriterCheck = `失败：${displayError(error)}`;
+        throw error;
+      }
+    });
+  }
+
+  private async _runUploaderRepositoryV2Diagnostic(): Promise<void> {
+    await this._perform("检查上传者 v2 业务与同步原子写入", async () => {
+      try {
+        const result = runCloudSyncUploaderRepositoryV2Diagnostic();
+        this._uploaderRepositoryV2Check = `通过：${result.durationMs} ms`;
+        this._lastResult =
+          `上传者 v2 Adapter 临时库检查通过（${result.durationMs} ms）：${result.seededCount} 条旧数据完成可重入 seed，` +
+          "用户新增/删除与版本/outbox 原子提交，envelope 绑定 HLC，tombstone 可恢复实体身份；" +
+          "远端顺序、上游屏蔽隔离和故障回滚正确，关闭重开后数据完整，临时文件已删除。";
+        $ui.success("上传者 v2 Adapter 检查通过");
+      } catch (error) {
+        this._uploaderRepositoryV2Check = `失败：${displayError(error)}`;
         throw error;
       }
     });

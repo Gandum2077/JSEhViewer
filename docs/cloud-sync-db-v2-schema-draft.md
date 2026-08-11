@@ -80,7 +80,7 @@ npm run test:database-schema-v2
 | `sync_clock`    | 持久化本机 HLC 的 wall/logical 部分，避免 App 重启后倒退                                      |
 | `sync_profile`  | endpoint、设备、epoch、协议和最后完成的服务端 cursor；token 与主密钥不在表中，保存在 Keychain |
 
-普通跨设备删除在一个事务中删除业务行、把 `sync_versions.deleted` 写为 1，并写入删除 outbox。搜索历史的“仅本机删除”则删除业务行和对应 `sync_versions`；其 outbox 由外键自动取消。因此不需要给每张业务表加 `deleted`。
+普通跨设备删除在一个事务中删除业务行、把 `sync_versions.deleted` 写为 1，并写入删除 outbox。生产 object key 是不透明 HMAC，因此实体 adapter 会让 tombstone envelope 携带加密后的最小实体身份；新设备只能在客户端解密它，Worker 仍看不到上传者、标签或查询。搜索历史的“仅本机删除”则删除业务行和对应 `sync_versions`；其 outbox 由外键自动取消。因此不需要给每张业务表加 `deleted`。
 
 远端 D1 的 `objects` 保存每个 `object_key` 的当前获胜版本，`changes` 保存按 `seq` 排列的传输流水；它们不属于本地 DB v2 schema。
 
@@ -133,12 +133,14 @@ npm run test:database-schema-v2
 
 `npm run test:sync-mutation-writer` 已通过自动故障注入。2026-08-11，云端同步诊断页的独立 v2 临时库检查也已在 JSBox 真机通过（27 ms）：HLC、outbox 合并与旧 ACK 保护、tombstone、本机丢弃、远端版本顺序、故障回滚、关闭重开和临时文件清理均符合预期。该检查没有打开正式数据库或请求 Worker。
 
+首个使用该内核的实际实体 adapter 是 `V2UploaderRepository`。它通过 `SyncEntityEnvelopeCodec` 获取 object key，并在 HLC 生成后调用 codec 编码 envelope，使生产实现可以把 object key、版本、删除标志和 profile epoch 纳入 AEAD AAD。当前只有 Node 与隔离临时库使用明确命名的明文诊断 codec；正式路径仍没有密码学 codec，也没有连接 Worker。
+
 ## 10. 仍未开始的工作
 
 - 没有把草案接入 `initializeDatabase()`，正式数据库版本仍为 1；
 - 没有修改现有业务查询，它们目前仍读写 `archives` 和数字搜索 ID；
-- 现有 Repository 还没有 v2 adapter，因此尚未把实际图库、历史、书签、上传者或标签编码后交给共享写入内核；
-- 没有实现 object key 派生、entity envelope 编码、网络 push/pull、ACK/cursor 提交或 Worker change apply 调度；
+- 标记上传者已有独立 v2 adapter；图库、历史、书签与标签仍未适配，也尚未把正式 App Repository 实例切到 v2；
+- 没有实现生产用 HMAC object key、AEAD envelope codec、网络 push/pull、ACK/cursor 提交或 Worker change apply 调度；
 - 没有把任何现有 Cookie、AI/WebDAV 配置或业务数据上传到 Worker。
 
 下一小步是把现有业务查询迁到 v2 repository。虽然临时迁移已经通过，也不能立刻更改 `CURRENT_USER_VERSION`；否则 App 会在升级后继续查询已经不存在的 `archives`。

@@ -122,7 +122,7 @@ function populateAndCheck(): void {
         objectKey: "alpha",
         entityType: "fixture.v1",
         deleted: false,
-        envelopeJson: '{"value":"local-1"}',
+        createEnvelopeJson: () => '{"value":"local-1"}',
       });
     }, "检查业务写入与 outbox 原子提交");
     const second = database.transaction((transaction) => {
@@ -132,7 +132,7 @@ function populateAndCheck(): void {
         objectKey: "alpha",
         entityType: "fixture.v1",
         deleted: false,
-        envelopeJson: '{"value":"local-2"}',
+        createEnvelopeJson: () => '{"value":"local-2"}',
       });
     }, "检查同对象 outbox 合并");
     const alphaOutbox = queryOne<{ op_id: string; logical_counter: number }>(
@@ -170,7 +170,7 @@ function populateAndCheck(): void {
         objectKey: "beta",
         entityType: "fixture.v1",
         deleted: false,
-        envelopeJson: '{"value":"local"}',
+        createEnvelopeJson: () => '{"value":"local"}',
       });
     }, "检查系统时间倒退时的 HLC");
     if (backwards.wallMs !== 1000 || backwards.logicalCounter !== 2) {
@@ -201,7 +201,7 @@ function populateAndCheck(): void {
         objectKey: "gamma",
         entityType: "fixture.v1",
         deleted: false,
-        envelopeJson: '{"value":"local"}',
+        createEnvelopeJson: () => '{"value":"local"}',
       });
     }, "创建远端顺序诊断 fixture");
 
@@ -224,7 +224,7 @@ function populateAndCheck(): void {
           objectKey: "failure",
           entityType: "fixture.v1",
           deleted: false,
-          envelopeJson: "{}",
+          createEnvelopeJson: () => "{}",
         });
       }, "注入同步写入内核故障");
     } catch {
@@ -318,13 +318,14 @@ function populateAndCheck(): void {
         objectKey: "alpha",
         entityType: "fixture.v1",
         deleted: true,
+        createEnvelopeJson: () => '{"identity":"alpha"}',
       });
     }, "检查通用 tombstone");
     const tombstone = queryOne<{ deleted: number; envelope_json: string | null }>(
       database,
       "SELECT deleted, envelope_json FROM sync_outbox WHERE object_key = 'alpha'",
     );
-    if (tombstone.deleted !== 1 || tombstone.envelope_json !== null) {
+    if (tombstone.deleted !== 1 || tombstone.envelope_json !== '{"identity":"alpha"}') {
       throw new CloudSyncMutationWriterDiagnosticError("跨设备删除没有留下正确的通用 tombstone");
     }
   });

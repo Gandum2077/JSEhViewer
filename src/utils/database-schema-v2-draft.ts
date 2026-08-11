@@ -353,11 +353,10 @@ export const DATABASE_V2_DRAFT_SCHEMA_STATEMENTS: DatabaseSchemaStatement[] = [
       logical_counter INTEGER NOT NULL CHECK (logical_counter >= 0),
       device_id TEXT NOT NULL,
       deleted INTEGER NOT NULL CHECK (deleted IN (0, 1)),
-      envelope_json TEXT,
+      envelope_json TEXT NOT NULL,
       created_at TEXT NOT NULL,
       attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
       next_attempt_at TEXT,
-      CHECK (deleted = 1 OR envelope_json IS NOT NULL),
       FOREIGN KEY (object_key) REFERENCES sync_versions(object_key) ON DELETE CASCADE
     )`,
   },

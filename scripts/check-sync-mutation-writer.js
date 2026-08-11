@@ -87,7 +87,7 @@ const first = transaction((tx) => {
     objectKey: "alpha",
     entityType: "fixture.v1",
     deleted: false,
-    envelopeJson: '{"value":"local-1"}',
+    createEnvelopeJson: () => '{"value":"local-1"}',
   });
 });
 assert.deepEqual(
@@ -106,7 +106,7 @@ const second = transaction((tx) => {
     objectKey: "alpha",
     entityType: "fixture.v1",
     deleted: false,
-    envelopeJson: '{"value":"local-2"}',
+    createEnvelopeJson: () => '{"value":"local-2"}',
   });
 });
 assert.equal(second.wallMs, 1000);
@@ -137,7 +137,7 @@ const backwards = transaction((tx) => {
     objectKey: "beta",
     entityType: "fixture.v1",
     deleted: false,
-    envelopeJson: '{"value":"local"}',
+    createEnvelopeJson: () => '{"value":"local"}',
   });
 });
 assert.deepEqual(
@@ -154,7 +154,7 @@ const later = transaction((tx) => {
     objectKey: "gamma",
     entityType: "fixture.v1",
     deleted: false,
-    envelopeJson: '{"value":"local"}',
+    createEnvelopeJson: () => '{"value":"local"}',
   });
 });
 assert.deepEqual({ wallMs: later.wallMs, logicalCounter: later.logicalCounter }, { wallMs: 2000, logicalCounter: 0 });
@@ -174,7 +174,7 @@ assert.throws(
         objectKey: "failure",
         entityType: "fixture.v1",
         deleted: false,
-        envelopeJson: "{}",
+        createEnvelopeJson: () => "{}",
       });
     }),
   /injected sync outbox failure/,
@@ -201,13 +201,14 @@ const tombstone = transaction((tx) => {
     objectKey: "alpha",
     entityType: "fixture.v1",
     deleted: true,
+    createEnvelopeJson: () => '{"identity":"alpha"}',
   });
 });
 assert.equal(tombstone.deleted, true);
 assert.deepEqual(
   { ...database.prepare("SELECT deleted, envelope_json FROM sync_outbox WHERE object_key = ?").get("alpha") },
-  { deleted: 1, envelope_json: null },
-  "跨设备删除必须留下通用 tombstone",
+  { deleted: 1, envelope_json: '{"identity":"alpha"}' },
+  "跨设备删除必须留下带加密身份的通用 tombstone",
 );
 
 transaction((tx) => {
@@ -309,7 +310,7 @@ const afterRemote = transaction((tx) => {
     objectKey: "gamma",
     entityType: "fixture.v1",
     deleted: false,
-    envelopeJson: '{"value":"local-after-remote"}',
+    createEnvelopeJson: () => '{"value":"local-after-remote"}',
   });
 });
 assert.equal(afterRemote.wallMs, 3000);
@@ -323,7 +324,7 @@ assert.throws(
         objectKey: "gamma",
         entityType: "different.v1",
         deleted: false,
-        envelopeJson: "{}",
+        createEnvelopeJson: () => "{}",
       }),
     ),
   /不能改变 entity type/,
@@ -338,7 +339,7 @@ assert.throws(
         deleted: false,
       }),
     ),
-  /必须携带同步 payload/,
+  /必须提供版本感知 payload envelope 编码回调/,
 );
 
 database.close();

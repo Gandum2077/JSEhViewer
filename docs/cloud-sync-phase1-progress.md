@@ -1,7 +1,7 @@
 # 云端同步 Phase 1：本地数据库与 Repository 进展
 
 > 开始日期：2026-08-11
-> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层以及共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核也已通过真机验证。标记上传者 v2 adapter 已通过自动与真机验证；搜索历史 v2 adapter 已完成自动验证，等待真机临时库确认。正式数据库尚未迁移，也未上传业务数据。
+> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层以及共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核也已通过真机验证。标记上传者和搜索历史两个实际 v2 adapter 均已通过自动与真机验证。正式数据库尚未迁移，也未上传业务数据。
 
 ## 本阶段目标
 
@@ -189,6 +189,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 2026-08-11 JSBox 真机标签 Repository 临时库检查：通过（25 ms）。4 条本地标签、3 条 My Tags 镜像完成双模式隔离、重新登录整表清空、镜像故障回滚和 D1 远端重建；关闭重开后数据完整，临时文件已删除。
 - 2026-08-11 JSBox 真机同步写入内核临时库检查：通过（27 ms）。HLC 单调推进、outbox 合并与旧 ACK 保护、tombstone、本机丢弃、远端版本顺序和故障回滚均正确；关闭重开后数据完整，临时文件已删除。
 - 2026-08-12 JSBox 真机上传者 v2 Adapter 临时库检查：通过（30 ms）。1 条旧数据完成可重入 seed，用户新增/删除与版本/outbox 原子提交，envelope 绑定 HLC，tombstone 可恢复实体身份；远端顺序、上游屏蔽隔离和故障回滚正确，关闭重开后数据完整，临时文件已删除。
+- 2026-08-12 JSBox 真机搜索历史 v2 Adapter 临时库检查：通过（36 ms）。1 条旧数据完成可重入 seed，parent/terms/版本/outbox 原子提交且 envelope 绑定 HLC；本机单条及按时间清理均不生成 tombstone，远端版本顺序、重复 apply、显式全量恢复和故障回滚正确，关闭重开后数据完整，临时文件已删除。
 
 ## 真机检查结果
 
@@ -270,11 +271,11 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 ## 搜索历史 v2 Adapter 真机检查
 
-- [ ] 安装本次构建的开发版，进入“其他 → 云端同步”。
-- [ ] 点击“检查搜索历史 v2 远端版本与本机清理”。
-- [ ] 确认结果显示 1 条旧数据完成可重入 seed，parent/terms/版本/outbox 原子提交且 envelope 绑定 HLC。
-- [ ] 确认本机单条及按时间清理不生成 tombstone，远端版本顺序、重复 apply、显式全量恢复和故障回滚正确。
-- [ ] 确认关闭重开后数据完整、临时文件已删除，并回传“最近结果”。
+- [x] 安装本次构建的开发版，进入“其他 → 云端同步”。
+- [x] 点击“检查搜索历史 v2 远端版本与本机清理”。
+- [x] 确认结果显示 1 条旧数据完成可重入 seed，parent/terms/版本/outbox 原子提交且 envelope 绑定 HLC。
+- [x] 确认本机单条及按时间清理不生成 tombstone，远端版本顺序、重复 apply、显式全量恢复和故障回滚正确。
+- [x] 确认关闭重开后数据完整、临时文件已删除，并回传“最近结果”。
 
 该检查只创建 `assets/cloud-sync-phase1-search-history-repository-v2.db` 及其 sidecar。object key 和 envelope 是专供 fixture 的明文诊断格式；没有真实搜索内容，不连接 Worker，也尚未验证网络 cursor。
 

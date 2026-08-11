@@ -1,7 +1,7 @@
 # 云端同步 Phase 1：本地数据库与 Repository 进展
 
 > 开始日期：2026-08-11
-> 当前状态：进行中。SQLite 安全层和数据库初始化重构已完成自动验证与 JSBox 真机临时库验证；尚未迁移用户表或上传业务数据。
+> 当前状态：进行中。SQLite 安全层、数据库初始化重构与 DB v2 可执行 schema 草案已完成自动验证，初始化路径已通过 JSBox 真机验证；尚未迁移用户表或上传业务数据。
 
 ## 本阶段目标
 
@@ -32,7 +32,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 ## 尚未包含
 
-- `CURRENT_USER_VERSION` 仍为 1；尚未建立或迁移 DB v2。
+- `CURRENT_USER_VERSION` 仍为 1；DB v2 目前只是未接入启动流程的可执行草案，尚未迁移正式数据库。
 - 尚未拆分 `archives`，也没有建立稳定 ID、外键、同步版本表或 outbox。
 - 尚未引入 reading/search/marked uploader 等 domain repository。
 - Cookie、WebDAV 与 AI 翻译服务的密钥处理本阶段暂不迁移；按当前产品决定，`ai_translation_services` 和 `webdav_services` 在 v1 不同步。
@@ -50,10 +50,23 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 新增真实 SQLite fixture，覆盖 fresh、v0、稀疏 v1、版本 99、故障中的 v0 和“非零版本空库”；同时验证旧 `archives` 行与 AI 迁移配置保持不变。
 - 云端同步诊断页新增“检查数据库初始化与迁移”，在 JSBox 内使用四个隔离临时库重复验证 fresh/v0/v1/未知版本，并在结束后删除数据库及 sidecar 文件。
 
+## 已完成：第三小步（DB v2 可执行 schema 草案）
+
+- 新增集中定义 `src/utils/database-schema-v2-draft.ts`。它可以创建完整的 v2 内存数据库，但刻意不接入 `initializeDatabase()`。
+- 把旧 `archives` 拆为可同步列表快照 `archive_entries`、用户阅读状态 `reading_state`、仅本机下载状态 `local_gallery_state`，并让本地 `archive_taglist` 索引通过外键跟随列表快照删除。
+- 搜索历史和书签改用稳定字符串 ID；terms 增加 `term_index`、复合主键与 `ON DELETE CASCADE`。
+- `marked_tags` 不增加 `origin`；来源仍由本机 `config.syncMyTags` 的整表模式决定。
+- `gallery_reader_config`、`ai_translation_services` 和 `webdav_services` 保持 v1 schema，不参与 v1 同步。
+- tombstone 只存于 `sync_versions.deleted`，不向每张业务表增加删除标记；`sync_outbox` 外键引用版本行，使搜索历史的本机删除可以同时取消未发送操作。
+- 新增 `sync_clock` 持久化 HLC，并补齐 `sync_profile`、`sync_versions`、`sync_outbox` 的约束与索引。
+- 新增 [`cloud-sync-db-v2-schema-draft.md`](cloud-sync-db-v2-schema-draft.md)，逐项记录同步范围、删除语义和仍未实施的边界。
+- 新增 `npm run test:database-schema-v2`，验证表职责拆分、稳定 ID、terms 顺序/级联、tombstone 边界、同步约束，以及要求保持原样的 v1 表。
+
 ## 自动验证结果
 
 - `npm run test:sqlite-safe`：通过。
 - `npm run test:database-init`：通过。
+- `npm run test:database-schema-v2`：通过。
 - `npx tsc --noEmit`：通过。
 - `npm run build`：通过；仅保留既有的 webpack 包体积提示。
 - 2026-08-11 JSBox 真机数据库初始化临时库检查：通过（26 ms）。fresh、v0、v1 最终 schema 一致，旧数据完整迁移，v1 重启不覆盖用户设置，未知版本在零 schema 写入下停止，临时文件已删除。
@@ -69,7 +82,8 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 ## 下一小步
 
-1. 把用户已经确认的同步范围落实为 DB v2 schema 草案；
-2. 增加 v0/v1 数据量、损坏边缘和备份恢复 fixture；
-3. 增加启动失败时面向普通用户的备份恢复说明与诊断导出；
-4. 评审 DB v2 的实际表结构后，才开始复制用户数据。
+1. 评审 DB v2 的实际表结构；
+2. 编写尚未接入正式启动流程的 v1 → v2 数据复制函数；
+3. 增加 v0/v1 数据量、损坏边缘和备份恢复 fixture；
+4. 增加启动失败时面向普通用户的备份恢复说明与诊断导出；
+5. 迁移 fixture 与真机临时库检查通过后，才把 `CURRENT_USER_VERSION` 提升为 2。

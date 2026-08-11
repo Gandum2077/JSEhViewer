@@ -14,6 +14,7 @@
     "check:version": "node scripts/sync-version.js --check",
     "format": "prettier --write .",
     "test:database-init": "tsc && node scripts/check-database-initialization.js",
+    "test:database-schema-v2": "tsc && node scripts/check-database-schema-v2-draft.js",
     "test:sqlite-safe": "tsc && node scripts/check-sqlite-safe.js",
     "version": "node scripts/sync-version.js"
   },

@@ -13,6 +13,7 @@
     "bump": "npm version --no-git-tag-version",
     "check:version": "node scripts/sync-version.js --check",
     "format": "prettier --write .",
+    "test:database-init": "tsc && node scripts/check-database-initialization.js",
     "test:sqlite-safe": "tsc && node scripts/check-sqlite-safe.js",
     "version": "node scripts/sync-version.js"
   },

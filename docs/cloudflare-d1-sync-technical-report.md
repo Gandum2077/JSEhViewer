@@ -4,6 +4,8 @@
 > 研究对象：JSEhViewer 3.10.0 当前源码、JSBox SQLite 能力、Cloudflare Workers / D1 / Deploy to Cloudflare 现行能力  
 > 文档性质：架构决策与实施依据；不是已经完成的功能说明
 
+> 实施进展：Phase 0 已完成；Phase 1 当前状态和真机事项见 [`cloud-sync-phase1-progress.md`](./cloud-sync-phase1-progress.md)。本报告中的“当前问题”保留初始审计语境。
+
 ## 1. 结论先行
 
 ### 1.1 总结论

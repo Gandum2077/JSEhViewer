@@ -20,6 +20,7 @@ import {
   sha256Base64UrlSecret,
   testCloudSyncKeychainRoundTrip,
 } from "../utils/cloud-sync-phase0";
+import { runCloudSyncDatabaseInitializationDiagnostic } from "../utils/cloud-sync-database-initialization-diagnostic";
 import { runCloudSyncSqliteDiagnostic } from "../utils/cloud-sync-sqlite-diagnostic";
 
 const BASE64URL_32_BYTES_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
@@ -94,6 +95,7 @@ export class CloudSyncController extends BaseController {
   private _randomCheck = "未检查";
   private _cryptoCheck = "未检查";
   private _sqliteCheck = "未检查";
+  private _databaseInitializationCheck = "未检查";
   private _lastResult = "尚未运行本次实机检查";
   private _workerInfo?: CloudSyncWorkerInfo;
   private _cryptoWaiter?: CryptoWaiter;
@@ -220,7 +222,7 @@ export class CloudSyncController extends BaseController {
             type: "interactive-info",
             title: "当前阶段",
             value:
-              "Phase 0 实机诊断。此页面不会上传阅读记录、搜索历史或图库资料；它只验证连接包、Keychain、密码学能力、Worker/D1 自检和首台设备注册。",
+              "Phase 0 已完成；当前加入 Phase 1 本地数据库诊断。此页面不会上传阅读记录、搜索历史或图库资料，数据库迁移检查也只使用随后删除的临时库。",
           },
           {
             type: "info",
@@ -279,6 +281,7 @@ export class CloudSyncController extends BaseController {
           },
           { type: "info", title: "密码学向量", value: this._cryptoCheck },
           { type: "info", title: "SQLite 事务", value: this._sqliteCheck },
+          { type: "info", title: "数据库初始化", value: this._databaseInitializationCheck },
           {
             type: "action",
             title: "检查 Keychain 与安全随机数",
@@ -293,6 +296,11 @@ export class CloudSyncController extends BaseController {
             type: "action",
             title: "检查 SQLite 队列与事务",
             value: () => void this._runSqliteDiagnostic(),
+          },
+          {
+            type: "action",
+            title: "检查数据库初始化与迁移",
+            value: () => void this._runDatabaseInitializationDiagnostic(),
           },
         ],
       },
@@ -492,6 +500,22 @@ export class CloudSyncController extends BaseController {
     });
   }
 
+  private async _runDatabaseInitializationDiagnostic(): Promise<void> {
+    await this._perform("检查数据库初始化与迁移", async () => {
+      try {
+        const result = runCloudSyncDatabaseInitializationDiagnostic();
+        this._databaseInitializationCheck = `通过：${result.durationMs} ms`;
+        this._lastResult =
+          `数据库初始化临时库检查通过（${result.durationMs} ms）：fresh、v0、v1 最终 schema 一致，` +
+          "旧数据完整迁移，v1 重启不覆盖用户设置，未知版本在零 schema 写入下停止，临时文件已删除。";
+        $ui.success("数据库初始化与迁移检查通过");
+      } catch (error) {
+        this._databaseInitializationCheck = `失败：${displayError(error)}`;
+        throw error;
+      }
+    });
+  }
+
   private _requestCryptoSelfTest(): Promise<CryptoSelfTestResult> {
     if (!this._webCryptoReady) {
       return Promise.reject(
@@ -686,6 +710,7 @@ export class CloudSyncController extends BaseController {
       random_check: this._randomCheck,
       crypto_check: this._cryptoCheck,
       sqlite_check: this._sqliteCheck,
+      database_initialization_check: this._databaseInitializationCheck,
       worker: this._workerInfo
         ? {
             version: this._workerInfo.worker_version,

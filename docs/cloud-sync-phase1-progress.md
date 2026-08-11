@@ -1,7 +1,7 @@
 # 云端同步 Phase 1：本地数据库与 Repository 进展
 
 > 开始日期：2026-08-11
-> 当前状态：进行中。第一小步已完成；尚未迁移用户表或上传业务数据。
+> 当前状态：进行中。SQLite 安全层和数据库初始化重构已完成自动验证，等待 JSBox 真机临时库验证；尚未迁移用户表或上传业务数据。
 
 ## 本阶段目标
 
@@ -30,29 +30,45 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 修复原先无效的 `BEFORE INSERT OR UPDATE` WebDAV trigger SQL，拆为 INSERT 与 UPDATE 两个 trigger。
 - 新增 `npm run test:sqlite-safe`，覆盖队列执行、正常提交、`{ result, error }` 约束失败、完整回滚、查询错误、参数脱敏、异步事务拒绝。
 
-## 第一小步尚未包含
+## 尚未包含
 
-- `createDB()` 仍沿用“先尝试创建当前表，再读取 `user_version`”的旧顺序，其中的 DDL 返回值还没有统一纳入错误检查。下一小步会先重构初始化顺序，再启用严格 DDL 检查，避免在旧库上形成半新半旧 schema。
 - `CURRENT_USER_VERSION` 仍为 1；尚未建立或迁移 DB v2。
 - 尚未拆分 `archives`，也没有建立稳定 ID、外键、同步版本表或 outbox。
 - 尚未引入 reading/search/marked uploader 等 domain repository。
 - Cookie、WebDAV 与 AI 翻译服务的密钥处理本阶段暂不迁移；按当前产品决定，`ai_translation_services` 和 `webdav_services` 在 v1 不同步。
 
+## 已完成：第二小步（初始化顺序与 fixture）
+
+- 删除“先创建所有当前表，再检查版本”的启动路径。现在先读取 `PRAGMA user_version` 和已有业务表，再区分空库、v0、v1 与不支持版本。
+- 只有 `user_version=0` 且没有业务表时才按 fresh database 创建；非零版本的空库会作为异常停止，避免把被误删的库静默当成新安装。
+- v0 的配置读取、当前 schema 创建、AI 翻译服务迁移、收藏分类初始值和版本提升位于同一个显式事务；任一步失败都会完整回滚。
+- v1 启动只补齐兼容 schema 和空的收藏分类，不会在用户主动删除全部 AI 服务后擅自重建默认服务。
+- 高于当前 App 支持范围的数据库版本会在任何 schema 写入前停止，并提示使用更新版 App。
+- 所有 DDL 现在通过安全包装层检查 `{ result, error }`；初始化失败时会关闭数据库队列。
+- 每个连接启用 `PRAGMA foreign_keys=ON`，初始化事务提交前执行 `PRAGMA foreign_key_check`。
+- 正式数据库首次进入新初始化路径前，会先创建一次性的 `assets/database.pre-sync-v1.backup.db`。备份先写同目录临时文件再改名，已有备份永不覆盖；新安装没有数据库时不会生成空备份。
+- 新增真实 SQLite fixture，覆盖 fresh、v0、稀疏 v1、版本 99、故障中的 v0 和“非零版本空库”；同时验证旧 `archives` 行与 AI 迁移配置保持不变。
+- 云端同步诊断页新增“检查数据库初始化与迁移”，在 JSBox 内使用四个隔离临时库重复验证 fresh/v0/v1/未知版本，并在结束后删除数据库及 sidecar 文件。
+
 ## 自动验证结果
 
 - `npm run test:sqlite-safe`：通过。
+- `npm run test:database-init`：通过。
 - `npx tsc --noEmit`：通过。
-- 完整 App 构建会在本小步提交前再次执行。
+- `npm run build`：通过；仅保留既有的 webpack 包体积提示。
 
-## 你目前需要做的事项
+## 你需要做的真机检查
 
-- [ ] 暂无。请不要用当前开发版对正式数据库执行人为破坏测试。
+- [ ] 安装本次构建的开发版，进入“其他 → 云端同步”。
+- [ ] 点击“检查数据库初始化与迁移”。
+- [ ] 确认结果显示 fresh/v0/v1 schema 一致、未知版本被拒绝、临时文件已删除。
+- [ ] 把“最近结果”文字或脱敏诊断摘要发回；其中新增 `database_initialization_check`，不包含业务数据或密钥。
 
-下一小步完成“初始化顺序 + fresh/v0/v1 fixture”后，我会把只读或隔离副本上的真机检查加入云端同步诊断页，再请你验证；不会要求直接拿唯一的正式数据库试错。
+该检查只创建 `assets/cloud-sync-phase1-init-*.db` 临时库，不会打开或修改正式 `assets/database.db`。请不要对正式数据库执行人为破坏测试。
 
 ## 下一小步
 
-1. 把“空数据库首次创建”和“已有数据库逐版迁移”分成两条明确路径；
-2. 为迁移建立一次性备份和失败恢复约束；
-3. 建立 fresh/v0/v1 fixture，对比最终 `sqlite_schema`，并执行 `foreign_key_check`；
+1. 真机临时库验证通过后，把用户已经确认的同步范围落实为 DB v2 schema 草案；
+2. 增加 v0/v1 数据量、损坏边缘和备份恢复 fixture；
+3. 增加启动失败时面向普通用户的备份恢复说明与诊断导出；
 4. 评审 DB v2 的实际表结构后，才开始复制用户数据。

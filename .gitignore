@@ -133,6 +133,8 @@ dist
 .DS_Store
 test*
 database.db
+database.pre-sync-v1.backup.db*
+cloud-sync-phase1-init-*.db*
 JSEhViewer.box
 upload.js
 webpack.config.test.js

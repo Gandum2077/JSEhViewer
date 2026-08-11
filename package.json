@@ -19,6 +19,7 @@
     "test:archive-repository": "tsc && node scripts/check-archive-repository.js",
     "test:marked-tag-repository": "tsc && node scripts/check-marked-tag-repository.js",
     "test:search-repository": "tsc && node scripts/check-search-repository.js",
+    "test:search-history-repository-v2": "tsc && node scripts/check-search-history-repository-v2.js",
     "test:sync-mutation-writer": "tsc && node scripts/check-sync-mutation-writer.js",
     "test:uploader-repository": "tsc && node scripts/check-uploader-repository.js",
     "test:uploader-repository-v2": "tsc && node scripts/check-uploader-repository-v2.js",

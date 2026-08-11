@@ -1,7 +1,7 @@
 # 云端同步 Phase 1：本地数据库与 Repository 进展
 
 > 开始日期：2026-08-11
-> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层以及共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核也已通过真机验证。第一个实际 v2 adapter（标记上传者）已通过自动验证和真机临时库确认。正式数据库尚未迁移，也未上传业务数据。
+> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层以及共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核也已通过真机验证。标记上传者 v2 adapter 已通过自动与真机验证；搜索历史 v2 adapter 已完成自动验证，等待真机临时库确认。正式数据库尚未迁移，也未上传业务数据。
 
 ## 本阶段目标
 
@@ -34,7 +34,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 - `CURRENT_USER_VERSION` 仍为 1；DB v2 目前只是未接入启动流程的可执行草案，尚未迁移正式数据库。
 - 正式数据库尚未拆分 `archives`，也没有启用稳定 ID、外键、同步版本表或 outbox；当前图库 repository 仍以 v1 表为底层，目的是先把调用方与表结构解耦。
-- 图库、搜索和 marked tags Repository 尚未接入 v2 表、稳定字符串 ID 与 outbox；标记上传者已有独立的 v2 adapter，但正式 App 仍使用 v1 兼容 Repository。重新登录清理目前只处理业务表，未来接入 v2 时还需同时取消对应本机版本与未发送 outbox。
+- 图库、搜索书签和 marked tags Repository 尚未接入 v2 表、稳定字符串 ID 与 outbox；标记上传者和搜索历史已有独立的 v2 adapter，但正式 App 仍使用 v1 兼容 Repository。重新登录清理目前只处理业务表，未来接入 v2 时还需同时取消对应本机版本与未发送 outbox。
 - Cookie、WebDAV 与 AI 翻译服务的密钥处理本阶段暂不迁移；按当前产品决定，`ai_translation_services` 和 `webdav_services` 在 v1 不同步。
 
 ## 已完成：第二小步（初始化顺序与 fixture）
@@ -155,6 +155,17 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 新增 `npm run test:uploader-repository-v2`，覆盖可重入 seed、版本感知 envelope、用户 upsert/delete、带身份 tombstone、远端新旧/重复版本、payload/key 与 HLC 绑定、上游屏蔽隔离以及业务/outbox 故障回滚。
 - 云端同步诊断页新增“检查上传者 v2 业务与同步原子写入”，只使用 `assets/cloud-sync-phase1-uploader-repository-v2.db`，不打开正式数据库、不连接 Worker。
 
+## 已完成：第十二步（搜索历史 v2 Adapter）
+
+- 新增 `V2SearchHistoryRepository`，使用规范化查询的 SHA-256 作为稳定 `history_id`，并以 `search.history.v1` 作为独立同步实体；parent、按 `term_index` 排序的完整 terms、HLC、`sync_versions` 与合并后的 outbox 位于同一个事务。
+- 同一规范化查询再次访问时复用同一个稳定 ID。内容和访问时间完全相同不会推进 HLC；有变化时替换完整 terms 并把尚未发送的 outbox 合并为最终版本。
+- 增加可重入 `seedExistingHistory()`，只为迁移后尚无版本的历史创建初始 outbox；稳定 ID 与规范化查询不一致会停止，不能静默把损坏数据上传。
+- 远端 change 的 envelope 必须同时通过 entity type、object key、HLC、稳定 ID 与规范化查询校验。获胜版本原子重建 parent/terms，陈旧或重复版本不修改业务表，也不产生回声 outbox。
+- 用户删除单条、按时间清理或以后执行“清空历史”时，只删除本机 history/terms 和对应本机 `sync_versions`；外键级联取消未发送 outbox，绝不生成 tombstone。正常增量是否下载由尚未实现的同步引擎按服务端 cursor 决定，不由 Adapter 比较 `last_access_time`。
+- 本机已清除的旧历史在没有新 change 时不会被普通增量重新取得；另一设备后来再次使用同一查询会形成新版本并可重新出现。首次接入、明确云端恢复或 cursor 过期后的 snapshot 会按云端现状重建。
+- 新增 `npm run test:search-history-repository-v2`，覆盖稳定 ID、term 顺序与特殊字符、可重入 seed、相同查询 outbox 合并、本机单条/批量清理无 tombstone、远端新旧/重复版本、显式全量重建、payload/key/HLC 绑定和故障回滚。
+- 云端同步诊断页新增“检查搜索历史 v2 远端版本与本机清理”，只使用 `assets/cloud-sync-phase1-search-history-repository-v2.db`，不打开正式数据库、不连接 Worker；该检查验证 Adapter 接收 change 的规则，不宣称网络 cursor 已经实现。
+
 ## 自动验证结果
 
 - `npm run test:sqlite-safe`：通过。
@@ -164,6 +175,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - `npm run test:archive-repository`：通过。
 - `npm run test:marked-tag-repository`：通过。
 - `npm run test:search-repository`：通过。
+- `npm run test:search-history-repository-v2`：通过。
 - `npm run test:sync-mutation-writer`：通过。
 - `npm run test:uploader-repository`：通过。
 - `npm run test:uploader-repository-v2`：通过。
@@ -256,8 +268,18 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 该检查只创建 `assets/cloud-sync-phase1-uploader-repository-v2.db` 及其 sidecar。使用的 object key 和 envelope 是专供 fixture 的明文诊断格式，不包含真实用户内容，也不会发送到 Worker。
 
+## 搜索历史 v2 Adapter 真机检查
+
+- [ ] 安装本次构建的开发版，进入“其他 → 云端同步”。
+- [ ] 点击“检查搜索历史 v2 远端版本与本机清理”。
+- [ ] 确认结果显示 1 条旧数据完成可重入 seed，parent/terms/版本/outbox 原子提交且 envelope 绑定 HLC。
+- [ ] 确认本机单条及按时间清理不生成 tombstone，远端版本顺序、重复 apply、显式全量恢复和故障回滚正确。
+- [ ] 确认关闭重开后数据完整、临时文件已删除，并回传“最近结果”。
+
+该检查只创建 `assets/cloud-sync-phase1-search-history-repository-v2.db` 及其 sidecar。object key 和 envelope 是专供 fixture 的明文诊断格式；没有真实搜索内容，不连接 Worker，也尚未验证网络 cursor。
+
 ## 下一小步
 
-1. 真机确认标记上传者 v2 adapter 后，按相同 codec/事务边界逐个实现其他同步实体 adapter；
+1. 真机确认搜索历史 v2 adapter 后，按相同 codec/事务边界实现搜索书签 v2 adapter；
 2. 增加启动失败时面向普通用户的备份恢复说明与诊断导出；
 3. 所有业务读写和回归测试适配 v2 后，才把 `CURRENT_USER_VERSION` 提升为 2 并接入正式启动迁移。

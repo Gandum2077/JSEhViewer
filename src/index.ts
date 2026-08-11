@@ -137,6 +137,8 @@ async function init(url?: string) {
   getLatestVersion();
 
   if (!configManager.cookie) {
+    // 重新登录是 syncMyTags 唯一可能改变的入口；先清空旧模式的 marked_tags，且不产生云端 tombstone。
+    configManager.prepareMarkedTagsForRelogin();
     // 如果重新登录，则直接删除download_records中的内容
     dbManager.update("DELETE FROM download_records");
     await login();

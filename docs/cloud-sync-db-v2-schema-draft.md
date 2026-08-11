@@ -53,8 +53,8 @@ npm run test:database-schema-v2
 
 - 本机 `config.syncMyTags=1`：整表由 E-Hentai My Tags 管理，不生成或应用 D1 标签变更；
 - 本机 `config.syncMyTags=0`：整表作为本地标签参与 D1 同步；
-- 从 1 切到 0：先清空本机 `marked_tags`，不产生 tombstone，再从 D1 snapshot 重建本地标签；
-- 从 0 切到 1：停止本地标签同步，由网站返回的数据整表替换。
+- 用户选择重新登录后，在进入登录流程前清空本机 `marked_tags`，不产生 tombstone；这是 `syncMyTags` 唯一允许改变的入口；
+- 新登录选择 `0`：从 D1 snapshot 重建本地标签；新登录选择 `1`：停止本地标签同步，由网站返回的数据整表替换。
 
 `syncMyTags` 本身不参与 v1 同步，因此不同设备可以采用不同模式。
 

@@ -138,7 +138,7 @@ JSBox 官方文档说明其 SQLite 接口基于 FMDB，提供查询、更新和�
 
 `marked_tags` 不增加逐行 `origin`。它采用整表模式：当前设备的 `syncMyTags=1` 时，本表完全由 E-Hentai My Tags 覆盖，repository 不生成 D1 outbox，也不把 D1 的本地标签应用到该表；`syncMyTags=0` 时，本表才作为 `marked.tag.local.v1` 参与 D1 同步。`syncMyTags` 本身在 v1 不同步，所以不同设备可以选择不同模式。
 
-模式切换规则固定为：`0 → 1` 时停止 D1 标签同步并由 E-Hentai 整表替换；`1 → 0` 时先删除本机全部 `marked_tags`，不为这些删除生成 D1 tombstone，然后从 D1 snapshot 重建此前的本地标签集合。网站上的 My Tags 本来就由 E-Hentai 保存，不复制到 D1。这样不需要 `origin` 字段，也不会误判整表来源。
+模式切换规则固定为：`syncMyTags` 只允许在重新登录时改变。用户确认重新登录后，App 在进入登录流程前删除本机全部 `marked_tags`，无论旧值和新值是什么，都不为这些删除生成 D1 tombstone。新登录选择 `0` 时从 D1 snapshot 重建本地标签；选择 `1` 时停止 D1 标签同步并由 E-Hentai 整表替换。网站上的 My Tags 本来就由 E-Hentai 保存，不复制到 D1。这样不需要 `origin` 字段，也不会误判整表来源。
 
 ## 4. 推荐总体架构
 
@@ -705,7 +705,7 @@ Cloudflare 官方支持把远程 migrations 放进 deploy script，并会按顺�
 4. 在事务内创建 `*_v2` 表；
 5. 从 `archives` 分别复制可同步的 `archive_entries`、`reading_state` 和仅本机的 `local_gallery_state`；
 6. 给 bookmarks/history 生成稳定 ID，并按原始读取顺序写入 `term_index`；
-7. `marked_tags` 不改 schema：首次 seed 和每次 mutation 都读取本机 `syncMyTags`；值为 `0` 才产生/应用 D1 标签变更，值为 `1` 时由 E-Hentai 整表管理；从 `1` 切回 `0` 时本机清空该表且不产生 tombstone，再从 D1 snapshot 重建；
+7. `marked_tags` 不改 schema：首次 seed 和每次 mutation 都读取本机 `syncMyTags`；值为 `0` 才产生/应用 D1 标签变更，值为 `1` 时由 E-Hentai 整表管理；重新登录开始时本机清空该表且不产生 tombstone，登录完成后按新模式从 D1 snapshot 或 E-Hentai 重建；
 8. 检查每个关键表行数、唯一约束和 `foreign_key_check`；
 9. 删除旧表并 rename 新表；
 10. 写 `PRAGMA user_version=2` 后 commit；
@@ -769,7 +769,7 @@ D1 会在负载过高时排队，队列满时返回 overloaded；免费额度用
 - cache clear、clear old records、download delete 不产生云端 tombstone；
 - `gallery_reader_config` 在两台设备可保持不同值，修改和删除都不产生 outbox；
 - `ai_translation_services`、`webdav_services` 的 v1 migration 前后 schema 与行内容一致，其增删改不产生 outbox；
-- `syncMyTags=0` 时本地标签产生并应用 D1 变更，`syncMyTags=1` 时 E-Hentai 整表刷新不产生 D1 变更；从 `1` 切回 `0` 会清空本机行且不产生 tombstone，再从 D1 snapshot 还原；
+- `syncMyTags=0` 时本地标签产生并应用 D1 变更，`syncMyTags=1` 时 E-Hentai 整表刷新不产生 D1 变更；重新登录开始时无条件清空本机行且不产生 tombstone，登录完成后按新模式从 D1 snapshot 或 E-Hentai 还原；
 - v1 新增的同步主密钥和设备 token 只写 Keychain，不写 SQLite 或诊断日志。
 
 ### 14.2 同步算法
@@ -889,7 +889,7 @@ D1 会在负载过高时排队，队列满时返回 overloaded；免费额度用
 2. **D1 schema 与本地业务 schema 解耦，D1 只存通用加密 objects 和 changes。**
 3. **v1 默认同步图库列表快照、阅读状态、read-later、搜索书签、搜索历史、marked uploader，以及 `syncMyTags=0` 时的本地 marked tags。**
 4. **`gallery_reader_config` 每台设备单独设置，不参与同步。`ai_translation_services`、`webdav_services` 在 v1 不同步且不修改，稳定 ID、冲突和密钥问题留待后续版本。**
-5. **`marked_tags` 不增加 `origin`；本机 `syncMyTags=1` 时整表由 E-Hentai 管理，值为 `0` 时才由 D1 同步。从 `1` 切回 `0` 时清空本机表且不产生 tombstone，再从 D1 snapshot 重建。**
+5. **`marked_tags` 不增加 `origin`；本机 `syncMyTags=1` 时整表由 E-Hentai 管理，值为 `0` 时才由 D1 同步。`syncMyTags` 只在重新登录时改变；重新登录开始时清空本机表且不产生 tombstone，登录完成后按新模式重建。**
 6. **`archive_entries` 的列表快照可以进入 D1；下载状态、图片、`infos.json` 等详情缓存、全局 config 和任何秘密不进入 D1。上游状态字段只作为列表快照，不据此反向修改 E-Hentai。**
 7. **所有用户变更必须经 domain repository，并与 outbox 同事务。**
 8. **使用幂等 operation、HLC、server cursor、tombstone、snapshot 和 profile epoch 处理多设备。搜索历史删除是明确例外：只删本机，不写 outbox/tombstone，正常增量按 cursor 不会重下旧记录，但全量 snapshot 会恢复。**

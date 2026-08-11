@@ -21,7 +21,14 @@ import {
   thumbnailPath,
 } from "./glv";
 import { appLog } from "./tools";
-import { archiveRepository, MutationOrigin, searchRepository, uploaderRepository } from "../repositories";
+import {
+  archiveRepository,
+  markedTagRepository,
+  MarkedTagMode,
+  MutationOrigin,
+  searchRepository,
+  uploaderRepository,
+} from "../repositories";
 
 interface Config {
   cookie: string; // 登录Cookie
@@ -622,25 +629,10 @@ class ConfigManager {
   }
 
   private _getMarkedTagsDict() {
-    const sql = "SELECT * FROM marked_tags";
-    const data = dbManager.query(sql) as {
-      tagid: number;
-      namespace: TagNamespace;
-      name: string;
-      watched: 0 | 1;
-      hidden: 0 | 1;
-      color: string;
-      weight: number;
-    }[];
-    const tags = data.map((d) => ({
-      tagid: d.tagid,
-      namespace: d.namespace,
-      name: d.name,
-      watched: Boolean(d.watched),
-      hidden: Boolean(d.hidden),
-      color: d.color,
-      weight: d.weight,
-    }));
+    return this._buildMarkedTagDict(markedTagRepository.queryMarkedTags());
+  }
+
+  private _buildMarkedTagDict(tags: MarkedTag[]) {
     const result = new Map() as MarkedTagDict;
     for (const namespace of tagNamespaces) {
       const data: [string, MarkedTag][] = tags.filter((t) => t.namespace === namespace).map((t) => [t.name, t]);
@@ -649,21 +641,23 @@ class ConfigManager {
     return result;
   }
 
+  private _markedTagMode() {
+    return this.syncMyTags ? MarkedTagMode.upstreamMirror : MarkedTagMode.localSync;
+  }
+
+  prepareMarkedTagsForRelogin() {
+    const removedCount = markedTagRepository.clearForRelogin(MutationOrigin.localMaintenance);
+    this._markedTagDict = this._buildMarkedTagDict([]);
+    return removedCount;
+  }
+
   updateAllMarkedTags(markedTags: MarkedTag[]) {
-    // 更新marked_tags表, 从服务器获取数据后调用（而非本地添加/删除）
-    const sql_remove = "DELETE FROM marked_tags";
-    dbManager.update(sql_remove);
-    dbManager.batchInsert(
-      "marked_tags",
-      ["tagid", "namespace", "name", "watched", "hidden", "color", "weight"],
-      markedTags.map((t) => [t.tagid, t.namespace, t.name, t.watched, t.hidden, t.color || "", t.weight]),
+    const tags = markedTagRepository.replaceUpstreamMirror(
+      markedTags,
+      this._markedTagMode(),
+      MutationOrigin.upstreamMirror,
     );
-    const result = new Map() as MarkedTagDict;
-    for (const namespace of tagNamespaces) {
-      const data: [string, MarkedTag][] = markedTags.filter((t) => t.namespace === namespace).map((t) => [t.name, t]);
-      result.set(namespace, new Map(data));
-    }
-    this._markedTagDict = result;
+    this._markedTagDict = this._buildMarkedTagDict(tags);
   }
 
   getMarkedTag(namespace: TagNamespace, name: string): MarkedTag | undefined {
@@ -672,34 +666,23 @@ class ConfigManager {
   }
 
   updateMarkedTag(tag: MarkedTag) {
-    const sql =
-      "UPDATE marked_tags SET tagid = ?, watched = ?, hidden = ?, color = ?, weight = ? WHERE namespace = ? AND name = ?";
-    const args = [tag.tagid, tag.watched, tag.hidden, tag.color, tag.weight, tag.namespace, tag.name];
-    dbManager.update(sql, args);
-    if (!this._markedTagDict.get(tag.namespace)) {
-      this._markedTagDict.set(tag.namespace, new Map());
+    const mode = this._markedTagMode();
+    if (mode === MarkedTagMode.upstreamMirror) {
+      markedTagRepository.updateUpstreamTag(tag, mode, MutationOrigin.upstreamMirror);
+    } else {
+      markedTagRepository.upsertLocalTag(tag, mode, MutationOrigin.user);
     }
-    this._markedTagDict.get(tag.namespace)!.set(tag.name, tag);
+    this._markedTagDict = this._getMarkedTagsDict();
   }
 
   addMarkedTag(tag: MarkedTag) {
-    // 添加marked_tags中的记录, 仅用于本地添加
-    const sql =
-      "INSERT INTO marked_tags (tagid, namespace, name, watched, hidden, color, weight) VALUES (?, ?, ?, ?, ?, ?, ?)";
-    const args = [tag.tagid, tag.namespace, tag.name, tag.watched, tag.hidden, tag.color || "", tag.weight];
-    dbManager.update(sql, args);
-    if (!this._markedTagDict.get(tag.namespace)) {
-      this._markedTagDict.set(tag.namespace, new Map());
-    }
-    this._markedTagDict.get(tag.namespace)!.set(tag.name, tag);
+    markedTagRepository.upsertLocalTag(tag, this._markedTagMode(), MutationOrigin.user);
+    this._markedTagDict = this._getMarkedTagsDict();
   }
 
   deleteMarkedTag(namespace: TagNamespace, name: string) {
-    // 删除marked_tags中的记录, 仅用于本地删除
-    const sql = "DELETE FROM marked_tags WHERE namespace = ? AND name = ?";
-    const args = [namespace, name];
-    dbManager.update(sql, args);
-    this._markedTagDict.get(namespace)!.delete(name);
+    markedTagRepository.deleteLocalTag(namespace, name, this._markedTagMode(), MutationOrigin.user);
+    this._markedTagDict = this._getMarkedTagsDict();
   }
 
   get markedUploaders() {

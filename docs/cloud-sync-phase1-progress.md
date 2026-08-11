@@ -1,7 +1,7 @@
 # 云端同步 Phase 1：本地数据库与 Repository 进展
 
 > 开始日期：2026-08-11
-> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者 Repository 兼容层也已通过真机验证。正式数据库尚未迁移，也未上传业务数据。
+> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者 Repository 兼容层也已通过真机验证。`marked_tags` 已收口到双模式 Repository，等待真机临时库验证。正式数据库尚未迁移，也未上传业务数据。
 
 ## 本阶段目标
 
@@ -34,7 +34,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 - `CURRENT_USER_VERSION` 仍为 1；DB v2 目前只是未接入启动流程的可执行草案，尚未迁移正式数据库。
 - 正式数据库尚未拆分 `archives`，也没有启用稳定 ID、外键、同步版本表或 outbox；当前图库 repository 仍以 v1 表为底层，目的是先把调用方与表结构解耦。
-- 尚未引入按 `syncMyTags` 切换模式的 marked tags Repository；图库、搜索和上传者 Repository 也尚未接入 v2 表、稳定字符串 ID 与 outbox。
+- 图库、搜索、上传者和 marked tags Repository 尚未接入 v2 表、稳定字符串 ID 与 outbox；重新登录清理目前只处理业务表，未来接入 v2 时还需同时取消对应本机版本与未发送 outbox。
 - Cookie、WebDAV 与 AI 翻译服务的密钥处理本阶段暂不迁移；按当前产品决定，`ai_translation_services` 和 `webdav_services` 在 v1 不同步。
 
 ## 已完成：第二小步（初始化顺序与 fixture）
@@ -121,6 +121,16 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 新增 `npm run test:uploader-repository`，覆盖用户/远端/上游来源、重复操作幂等、错误来源拒绝、镜像故障回滚、名单去重、标记与屏蔽冲突清理。
 - 云端同步诊断页新增“检查标记与屏蔽上传者 Repository”，只使用 `assets/cloud-sync-phase1-uploader-repository.db` 临时库，并验证关闭重开与临时文件清理。
 
+## 已完成：第九小步（marked tags 双模式 Repository）
+
+- 新增 `MarkedTagRepository`。本地同步模式只接受 `user`、`remote` 和 `migrationSeed` 的逐项 UPSERT/删除；E-Hentai 镜像模式只接受 `upstreamMirror` 的整表替换或单项服务器结果更新。
+- `ConfigManager` 不再直接访问 `marked_tags`，每次操作都根据本机 `syncMyTags` 选择模式；本地模式和镜像模式互相拒绝不属于自己的写入，避免以后误生成 outbox 或把 D1 数据混入 My Tags。
+- E-Hentai 整表刷新改为 callback transaction。删除旧表后任一新标签写入失败，会完整恢复刷新前的镜像；本地逐项更新改为明确的 `ON CONFLICT DO UPDATE`，数据库和内存字典不会再因 UPDATE 未命中而分叉。
+- `syncMyTags` 仍只在登录成功时写入。启动发现没有 Cookie、即将进入登录流程时，会先调用 `prepareMarkedTagsForRelogin()` 清空整张表；这覆盖初次安装和所有“重新登录”入口。
+- 重新登录清理固定使用 `MutationOrigin.localMaintenance`，不产生 D1 tombstone。登录后选择 `syncMyTags=0` 时由 D1 snapshot 重建；选择 `1` 时由 E-Hentai My Tags 整表重建。
+- 新增 `npm run test:marked-tag-repository`，覆盖两种模式隔离、用户/远端/迁移/上游来源、重新登录整表清空、镜像故障回滚、远端重建及非法数据拒绝。
+- 云端同步诊断页新增“检查本地与 My Tags 双模式 Repository”，只使用 `assets/cloud-sync-phase1-marked-tag-repository.db` 临时库，并验证关闭重开与临时文件清理。
+
 ## 自动验证结果
 
 - `npm run test:sqlite-safe`：通过。
@@ -128,6 +138,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - `npm run test:database-migration-v2`：通过。
 - `npm run test:database-schema-v2`：通过。
 - `npm run test:archive-repository`：通过。
+- `npm run test:marked-tag-repository`：通过。
 - `npm run test:search-repository`：通过。
 - `npm run test:uploader-repository`：通过。
 - `npx tsc --noEmit`：通过。
@@ -186,8 +197,18 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 该检查只创建 `assets/cloud-sync-phase1-uploader-repository.db` 及其 sidecar，不读取或修改正式 `assets/database.db`。
 
+## 标签 Repository 真机检查
+
+- [ ] 安装本次构建的开发版，进入“其他 → 云端同步”。
+- [ ] 点击“检查本地与 My Tags 双模式 Repository”。
+- [ ] 确认结果显示 4 条本地标签、3 条 My Tags 镜像完成双模式隔离、重新登录整表清空、镜像故障回滚和 D1 远端重建。
+- [ ] 确认结果显示关闭重开后数据完整、临时文件已删除。
+- [ ] 回传“最近结果”；结果只包含数量、耗时和检查结论，不包含真实标签内容。
+
+该检查只创建 `assets/cloud-sync-phase1-marked-tag-repository.db` 及其 sidecar，不读取或修改正式 `assets/database.db`。
+
 ## 下一小步
 
-1. 收口 `marked_tags`，根据本机 `syncMyTags` 明确选择本地同步模式或 E-Hentai 整表镜像模式；
+1. 真机通过 marked tags 双模式 Repository 临时库检查；
 2. 让 Repository 底层适配 v2 schema，增加启动失败时面向普通用户的备份恢复说明与诊断导出；
 3. 所有业务读写和回归测试适配 v2 后，才把 `CURRENT_USER_VERSION` 提升为 2 并接入正式启动迁移。

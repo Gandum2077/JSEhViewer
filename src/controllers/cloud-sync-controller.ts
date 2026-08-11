@@ -26,6 +26,7 @@ import { runCloudSyncSqliteDiagnostic } from "../utils/cloud-sync-sqlite-diagnos
 import { runCloudSyncArchiveRepositoryDiagnostic } from "../utils/cloud-sync-archive-repository-diagnostic";
 import { runCloudSyncSearchRepositoryDiagnostic } from "../utils/cloud-sync-search-repository-diagnostic";
 import { runCloudSyncUploaderRepositoryDiagnostic } from "../utils/cloud-sync-uploader-repository-diagnostic";
+import { runCloudSyncMarkedTagRepositoryDiagnostic } from "../utils/cloud-sync-marked-tag-repository-diagnostic";
 
 const BASE64URL_32_BYTES_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -104,6 +105,7 @@ export class CloudSyncController extends BaseController {
   private _archiveRepositoryCheck = "未检查";
   private _searchRepositoryCheck = "未检查";
   private _uploaderRepositoryCheck = "未检查";
+  private _markedTagRepositoryCheck = "未检查";
   private _lastResult = "尚未运行本次实机检查";
   private _workerInfo?: CloudSyncWorkerInfo;
   private _cryptoWaiter?: CryptoWaiter;
@@ -294,6 +296,7 @@ export class CloudSyncController extends BaseController {
           { type: "info", title: "图库 Repository", value: this._archiveRepositoryCheck },
           { type: "info", title: "搜索 Repository", value: this._searchRepositoryCheck },
           { type: "info", title: "上传者 Repository", value: this._uploaderRepositoryCheck },
+          { type: "info", title: "标签 Repository", value: this._markedTagRepositoryCheck },
           {
             type: "action",
             title: "检查 Keychain 与安全随机数",
@@ -333,6 +336,11 @@ export class CloudSyncController extends BaseController {
             type: "action",
             title: "检查标记与屏蔽上传者 Repository",
             value: () => void this._runUploaderRepositoryDiagnostic(),
+          },
+          {
+            type: "action",
+            title: "检查本地与 My Tags 双模式 Repository",
+            value: () => void this._runMarkedTagRepositoryDiagnostic(),
           },
         ],
       },
@@ -610,6 +618,23 @@ export class CloudSyncController extends BaseController {
         $ui.success("标记与屏蔽上传者 Repository 检查通过");
       } catch (error) {
         this._uploaderRepositoryCheck = `失败：${displayError(error)}`;
+        throw error;
+      }
+    });
+  }
+
+  private async _runMarkedTagRepositoryDiagnostic(): Promise<void> {
+    await this._perform("检查本地与 My Tags 双模式 Repository", async () => {
+      try {
+        const result = runCloudSyncMarkedTagRepositoryDiagnostic();
+        this._markedTagRepositoryCheck = `通过：${result.durationMs} ms`;
+        this._lastResult =
+          `标签 Repository 临时库检查通过（${result.durationMs} ms）：${result.localTagCount} 条本地标签、` +
+          `${result.upstreamTagCount} 条 My Tags 镜像完成双模式隔离、重新登录整表清空、镜像故障回滚和 D1 远端重建；` +
+          "关闭重开后数据完整，临时文件已删除。";
+        $ui.success("本地与 My Tags 双模式 Repository 检查通过");
+      } catch (error) {
+        this._markedTagRepositoryCheck = `失败：${displayError(error)}`;
         throw error;
       }
     });

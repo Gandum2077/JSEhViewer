@@ -33,6 +33,7 @@ import { runCloudSyncSearchHistoryRepositoryV2Diagnostic } from "../utils/cloud-
 import { runCloudSyncSearchBookmarkRepositoryV2Diagnostic } from "../utils/cloud-sync-search-bookmark-repository-v2-diagnostic";
 import { runCloudSyncMarkedTagRepositoryV2Diagnostic } from "../utils/cloud-sync-marked-tag-repository-v2-diagnostic";
 import { runCloudSyncArchiveRepositoryV2Diagnostic } from "../utils/cloud-sync-archive-repository-v2-diagnostic";
+import { runCloudSyncDatabaseRecoveryDiagnostic } from "../utils/cloud-sync-database-recovery-diagnostic";
 
 const BASE64URL_32_BYTES_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -118,6 +119,7 @@ export class CloudSyncController extends BaseController {
   private _searchBookmarkRepositoryV2Check = "未检查";
   private _markedTagRepositoryV2Check = "未检查";
   private _archiveRepositoryV2Check = "未检查";
+  private _databaseRecoveryCheck = "未检查";
   private _lastResult = "尚未运行本次实机检查";
   private _workerInfo?: CloudSyncWorkerInfo;
   private _cryptoWaiter?: CryptoWaiter;
@@ -315,6 +317,7 @@ export class CloudSyncController extends BaseController {
           { type: "info", title: "搜索书签 v2 Adapter", value: this._searchBookmarkRepositoryV2Check },
           { type: "info", title: "本地标签 v2 Adapter", value: this._markedTagRepositoryV2Check },
           { type: "info", title: "图库与阅读 v2 Adapter", value: this._archiveRepositoryV2Check },
+          { type: "info", title: "启动失败恢复", value: this._databaseRecoveryCheck },
           {
             type: "action",
             title: "检查 Keychain 与安全随机数",
@@ -389,6 +392,11 @@ export class CloudSyncController extends BaseController {
             type: "action",
             title: "检查图库列表、阅读状态与本机下载隔离",
             value: () => void this._runArchiveRepositoryV2Diagnostic(),
+          },
+          {
+            type: "action",
+            title: "检查启动失败恢复与诊断脱敏",
+            value: () => void this._runDatabaseRecoveryDiagnostic(),
           },
         ],
       },
@@ -791,6 +799,23 @@ export class CloudSyncController extends BaseController {
     });
   }
 
+  private async _runDatabaseRecoveryDiagnostic(): Promise<void> {
+    await this._perform("检查启动失败恢复与诊断脱敏", async () => {
+      try {
+        const result = runCloudSyncDatabaseRecoveryDiagnostic();
+        this._databaseRecoveryCheck = `通过：${result.durationMs} ms`;
+        this._lastResult =
+          `数据库启动恢复临时库检查通过（${result.durationMs} ms）：启动错误正确分级并脱敏，` +
+          "诊断仅包含 schema 元数据和文件状态，不包含 Cookie、API Key、密码或业务行；" +
+          "原数据库与升级前备份保持不变，未执行自动恢复，临时文件已删除。";
+        $ui.success("数据库启动恢复检查通过");
+      } catch (error) {
+        this._databaseRecoveryCheck = `失败：${displayError(error)}`;
+        throw error;
+      }
+    });
+  }
+
   private _requestCryptoSelfTest(): Promise<CryptoSelfTestResult> {
     if (!this._webCryptoReady) {
       return Promise.reject(
@@ -987,6 +1012,17 @@ export class CloudSyncController extends BaseController {
       sqlite_check: this._sqliteCheck,
       database_initialization_check: this._databaseInitializationCheck,
       database_v2_migration_check: this._databaseV2MigrationCheck,
+      database_recovery_check: this._databaseRecoveryCheck,
+      archive_repository_check: this._archiveRepositoryCheck,
+      search_repository_check: this._searchRepositoryCheck,
+      uploader_repository_check: this._uploaderRepositoryCheck,
+      marked_tag_repository_check: this._markedTagRepositoryCheck,
+      sync_mutation_writer_check: this._syncMutationWriterCheck,
+      uploader_repository_v2_check: this._uploaderRepositoryV2Check,
+      search_history_repository_v2_check: this._searchHistoryRepositoryV2Check,
+      search_bookmark_repository_v2_check: this._searchBookmarkRepositoryV2Check,
+      marked_tag_repository_v2_check: this._markedTagRepositoryV2Check,
+      archive_repository_v2_check: this._archiveRepositoryV2Check,
       worker: this._workerInfo
         ? {
             version: this._workerInfo.worker_version,

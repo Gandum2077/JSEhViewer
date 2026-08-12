@@ -1,7 +1,7 @@
 # 云端同步 Phase 1：本地数据库与 Repository 进展
 
 > 开始日期：2026-08-11
-> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层以及共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核也已通过真机验证。图库、标记上传者、搜索历史、搜索书签和本地标签五个实际 v2 adapter 均已通过自动与真机隔离临时库验证。正式数据库尚未迁移，也未上传业务数据。
+> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层以及共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核也已通过真机验证。图库、标记上传者、搜索历史、搜索书签和本地标签五个实际 v2 adapter 均已通过自动与真机隔离临时库验证。数据库启动失败恢复页和脱敏诊断已通过自动验证，等待 JSBox 真机隔离诊断。正式数据库尚未迁移，也未上传业务数据。
 
 ## 本阶段目标
 
@@ -199,10 +199,20 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 新增 `npm run test:archive-repository-v2`，覆盖三对象可重入 seed、兼容查询、低页码 LWW、本机下载隔离、用户 tombstone、维护性丢弃、共享阅读行清理、远端重建、payload/key/HLC 校验和故障回滚。
 - 云端同步诊断页新增“检查图库列表、阅读状态与本机下载隔离”，只使用 `assets/cloud-sync-phase1-archive-repository-v2.db`，不打开正式数据库、不连接 Worker。
 
+## 已完成：第十六步（数据库启动失败恢复与脱敏诊断）
+
+- 新增最小 `bootstrap` 启动壳。正常情况仍同步加载原有 `index`；若数据库备份、初始化或其他模块启动在同步阶段失败，则不进入正常业务页面，改为显示只读“数据库恢复”页。
+- 恢复页不会自动还原、替换或删除任何数据库。它显示错误类别、文件存在状态、`user_version` 与 SQLite 检查结论，并提供恢复步骤、重新启动以及显式警告后的数据库原件导出。
+- 新增脱敏诊断 JSON。它只读取 `sqlite_master` 表名、`PRAGMA user_version`、`quick_check` 和 `foreign_key_check` 等 schema 元数据，不读取 config 值、图库、搜索词、标签或其他业务行；URL query、Bearer token、命名 secret 和长 token 会从错误文本中删除。
+- 升级前备份和当前数据库原件属于敏感文件，可能包含 Cookie、API Key、WebDAV 密码和业务数据；它们与脱敏诊断使用不同按钮，分享前会再次警告，不能上传到公开 Issue。
+- 云端同步诊断页新增“检查启动失败恢复与诊断脱敏”。它只操作 `assets/cloud-sync-phase1-recovery-diagnostic.*` 临时文件，使用专用 secret 哨兵验证诊断不泄漏内容、原临时库与备份不变、没有自动恢复，并在结束后删除临时文件。
+- 新增 `npm run test:database-recovery` 和 [`database-startup-recovery.md`](database-startup-recovery.md)。真机诊断刻意不破坏正式数据库；实际恢复页的启动分支由类型检查、Node fixture 和 production bundle 构建覆盖。
+
 ## 自动验证结果
 
 - `npm run test:sqlite-safe`：通过。
 - `npm run test:database-init`：通过。
+- `npm run test:database-recovery`：通过。
 - `npm run test:database-migration-v2`：通过。
 - `npm run test:database-schema-v2`：通过。
 - `npm run test:archive-repository`：通过。
@@ -348,8 +358,20 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 该检查只创建 `assets/cloud-sync-phase1-archive-repository-v2.db` 及其 sidecar。object key 和 envelope 是 fixture 专用明文格式，不包含真实图库数据，也不会连接 Worker。
 
+## 数据库启动失败恢复真机检查
+
+- [ ] 安装本次构建的开发版，进入“其他 → 云端同步”。
+- [ ] 点击“检查启动失败恢复与诊断脱敏”。
+- [ ] 确认结果显示启动错误已正确分级并脱敏，诊断不包含 Cookie、API Key、密码或业务行。
+- [ ] 确认原临时库与升级前临时备份保持不变、未执行自动恢复、临时文件已删除。
+- [ ] 回传“最近结果”。
+
+预期结果：`数据库启动恢复临时库检查通过（… ms）：启动错误正确分级并脱敏，诊断仅包含 schema 元数据和文件状态，不包含 Cookie、API Key、密码或业务行；原数据库与升级前备份保持不变，未执行自动恢复，临时文件已删除。`
+
+该检查只创建 `assets/cloud-sync-phase1-recovery-diagnostic.db` 和 `assets/cloud-sync-phase1-recovery-diagnostic.backup.db` 及其 sidecar。它不会打开、导出、替换或破坏正式 `assets/database.db`，也不会人为触发真实的启动失败。
+
 ## 下一小步
 
-1. 增加启动失败时面向普通用户的备份恢复说明与诊断导出；
+1. 完成数据库启动失败恢复与脱敏诊断的 JSBox 真机检查；
 2. 审计正式业务入口与五个 v2 adapter 的签名兼容性，补齐启动切换前的整库回归；
 3. 所有业务读写和回归测试适配 v2 后，才把 `CURRENT_USER_VERSION` 提升为 2 并接入正式启动迁移。

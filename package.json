@@ -9,11 +9,12 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "tsc && webpack --entry-reset --entry ${npm_config_entry:-./dist/index.js} && cd app && zip -q -r ../JSEhViewer.box . && rm main.js",
+    "build": "tsc && webpack --entry-reset --entry ${npm_config_entry:-./dist/bootstrap.js} && cd app && zip -q -r ../JSEhViewer.box . && rm main.js",
     "bump": "npm version --no-git-tag-version",
     "check:version": "node scripts/sync-version.js --check",
     "format": "prettier --write .",
     "test:database-init": "tsc && node scripts/check-database-initialization.js",
+    "test:database-recovery": "tsc && node scripts/check-database-recovery.js",
     "test:database-migration-v2": "tsc && node scripts/check-database-migration-v2-draft.js",
     "test:database-schema-v2": "tsc && node scripts/check-database-schema-v2-draft.js",
     "test:archive-repository": "tsc && node scripts/check-archive-repository.js",

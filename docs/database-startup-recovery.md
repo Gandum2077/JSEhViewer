@@ -56,3 +56,5 @@ npm run test:database-recovery
 JSBox 开发诊断页的“检查启动失败恢复与诊断脱敏”使用 `assets/cloud-sync-phase1-recovery-diagnostic.*` 隔离临时库，写入专用的 Cookie/API Key/password 哨兵后确认它们不会出现在诊断中，且当前临时库和临时备份保持原样，随后删除所有临时文件。
 
 该真机检查不会故意破坏正式 `assets/database.db`，所以它验证的是恢复诊断的安全边界，而不是人为制造一次真实启动失败。真实恢复页入口另由 TypeScript、Node fixture 和生产 bundle 构建共同覆盖。
+
+2026-08-12 JSBox 真机隔离检查已通过（16 ms）：启动错误正确分级并脱敏，诊断只包含 schema 元数据和文件状态；原临时库与升级前临时备份保持不变，未执行自动恢复，临时文件已删除。

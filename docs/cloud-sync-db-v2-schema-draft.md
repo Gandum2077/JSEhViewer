@@ -143,4 +143,4 @@ npm run test:database-schema-v2
 - 没有实现生产用 HMAC object key、AEAD envelope codec、网络 push/pull、ACK/cursor 提交或 Worker change apply 调度；
 - 没有把任何现有 Cookie、AI/WebDAV 配置或业务数据上传到 Worker。
 
-启动失败恢复已经通过 Node、production bundle 和 JSBox 真机隔离诊断。v1/v2 正式业务契约、搜索稳定字符串 ID facade 与业务文件直接 SQL 扫描也已通过自动与 2026-08-12 JSBox 真机隔离验证（27 ms）。五类 v2 Repository 现在可由一个集中 runtime 共享数据库、HLC writer 与 codec 完成装配，7 种同步实体和 ConfigManager/StatusManager 关键调用序列已通过自动整库回归与 2026-08-12 JSBox 真机隔离验证（51 ms）。虽然迁移、单体 Adapter 和整库装配已通过，也不能立刻更改 `CURRENT_USER_VERSION`；正式启动的备份/迁移/seed 状态机和正式数据库副本全 App 回归仍未完成。
+启动失败恢复已经通过 Node、production bundle 和 JSBox 真机隔离诊断。v1/v2 正式业务契约、搜索稳定字符串 ID facade 与业务文件直接 SQL 扫描也已通过自动与 2026-08-12 JSBox 真机隔离验证（27 ms）。五类 v2 Repository 现在可由一个集中 runtime 共享数据库、HLC writer 与 codec 完成装配，7 种同步实体和 ConfigManager/StatusManager 关键调用序列已通过自动整库回归与 2026-08-12 JSBox 真机隔离验证（51 ms）。备份/迁移/runtime/seed 状态机也已通过自动故障注入与 2026-08-12 JSBox 真机隔离验证（418 ms）。仍不能立刻更改 `CURRENT_USER_VERSION`：尚需定义未配置同步时的正式 v2 写入模式，并完成正式数据库副本的全 App 回归。

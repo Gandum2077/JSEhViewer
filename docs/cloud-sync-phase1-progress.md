@@ -1,7 +1,7 @@
 # 云端同步 Phase 1：本地数据库与 Repository 进展
 
 > 开始日期：2026-08-11
-> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层以及共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核也已通过真机验证。标记上传者、搜索历史和搜索书签三个实际 v2 adapter 均已通过自动与真机验证。正式数据库尚未迁移，也未上传业务数据。
+> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层以及共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核也已通过真机验证。标记上传者、搜索历史和搜索书签三个实际 v2 adapter 均已通过自动与真机验证；本地标签 v2 adapter 已通过自动验证，等待真机确认。正式数据库尚未迁移，也未上传业务数据。
 
 ## 本阶段目标
 
@@ -34,7 +34,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 - `CURRENT_USER_VERSION` 仍为 1；DB v2 目前只是未接入启动流程的可执行草案，尚未迁移正式数据库。
 - 正式数据库尚未拆分 `archives`，也没有启用稳定 ID、外键、同步版本表或 outbox；当前图库 repository 仍以 v1 表为底层，目的是先把调用方与表结构解耦。
-- 图库和 marked tags Repository 尚未接入 v2 表、稳定字符串 ID 与 outbox；标记上传者、搜索历史和搜索书签已有独立的 v2 adapter，但正式 App 仍使用 v1 兼容 Repository。重新登录清理目前只处理业务表，未来接入 v2 时还需同时取消对应本机版本与未发送 outbox。
+- 图库 Repository 尚未接入 v2 表与 outbox；标记上传者、搜索历史、搜索书签和本地标签已有独立的 v2 adapter，但正式 App 仍使用 v1 兼容 Repository。
 - Cookie、WebDAV 与 AI 翻译服务的密钥处理本阶段暂不迁移；按当前产品决定，`ai_translation_services` 和 `webdav_services` 在 v1 不同步。
 
 ## 已完成：第二小步（初始化顺序与 fixture）
@@ -177,6 +177,16 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 新增 `npm run test:search-bookmark-repository-v2`，覆盖稳定 ID、可重入 seed、特殊字符与 term 顺序、追加位置、逐项重排、非法/中途失败回滚、带身份 tombstone、远端新旧/重复版本、无本机行 tombstone、并发相同位置及 payload/key/HLC 校验。
 - 云端同步诊断页新增“检查搜索书签 v2 删除、重排与并发位置”，只使用 `assets/cloud-sync-phase1-search-bookmark-repository-v2.db`，不打开正式数据库、不连接 Worker。
 
+## 已完成：第十四步（本地标签 v2 Adapter）
+
+- 新增 `V2MarkedTagRepository`，只在本机 `syncMyTags=0` 的 `localSync` 模式处理 `marked.tag.local.v1`；`syncMyTags=1` 时继续使用继承的 E-Hentai My Tags 整表镜像方法，镜像写入不创建 `sync_versions` 或 outbox。
+- 单个本地标签以无歧义的 `[namespace, name]` 作为稳定实体身份。payload 只包含 namespace、name、watched、hidden、color 和 weight；网站 `tagid` 是本机/上游镜像字段，不进入 object key 或云端 payload，单独变化也不会推进 HLC。
+- 用户新增、更新和删除在同一事务中写业务行、HLC、版本和合并后的 outbox。用户删除产生携带加密标签身份的 tombstone；陈旧远端 upsert 不能复活，较新 upsert 可以恢复，较新 tombstone 可以再次删除。
+- 增加可重入 `seedExistingLocalTags()`，仅在本地模式为尚无版本的迁移旧行生成初始 outbox；镜像模式调用 seed、本地入口接收 remote 来源、远端 apply 处于镜像模式时都会明确拒绝。
+- `clearForRelogin(localMaintenance)` 现在在一个事务中清空整张 `marked_tags`，并按 entity type 删除全部本地标签版本；`sync_outbox` 通过外键级联取消。该动作不生成 tombstone，失败时业务表、版本和 outbox 一起回滚。登录后模式为 0 时由 D1 snapshot 重建，为 1 时由 E-Hentai 镜像重建。
+- 新增 `npm run test:marked-tag-repository-v2`，覆盖可重入 seed、payload 排除 tagid、仅 tagid 变化不产生新版本、用户写入/删除、带身份 tombstone、远端新旧/重复版本、My Tags 隔离、重新登录清理、云端重建以及故障完整回滚。
+- 云端同步诊断页新增“检查本地标签 v2 双模式、删除与重新登录”，只使用 `assets/cloud-sync-phase1-marked-tag-repository-v2.db`，不打开正式数据库、不连接 Worker。
+
 ## 自动验证结果
 
 - `npm run test:sqlite-safe`：通过。
@@ -185,6 +195,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - `npm run test:database-schema-v2`：通过。
 - `npm run test:archive-repository`：通过。
 - `npm run test:marked-tag-repository`：通过。
+- `npm run test:marked-tag-repository-v2`：通过。
 - `npm run test:search-repository`：通过。
 - `npm run test:search-history-repository-v2`：通过。
 - `npm run test:search-bookmark-repository-v2`：通过。
@@ -302,8 +313,18 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 该检查只创建 `assets/cloud-sync-phase1-search-bookmark-repository-v2.db` 及其 sidecar。object key 和 envelope 是 fixture 专用明文格式，不包含真实书签，也不会连接 Worker。
 
+## 本地标签 v2 Adapter 真机检查
+
+- [ ] 安装本次构建的开发版，进入“其他 → 云端同步”。
+- [ ] 点击“检查本地标签 v2 双模式、删除与重新登录”。
+- [ ] 确认结果显示 2 条旧数据完成可重入 seed，用户更新/删除与版本/outbox 原子提交，payload 排除网站 tagid，tombstone 可恢复标签身份。
+- [ ] 确认远端版本、My Tags 镜像隔离、重新登录无 tombstone 清理、云端重建和故障回滚正确。
+- [ ] 确认关闭重开后数据完整、临时文件已删除，并回传“最近结果”。
+
+该检查只创建 `assets/cloud-sync-phase1-marked-tag-repository-v2.db` 及其 sidecar。object key 和 envelope 是 fixture 专用明文格式，不包含真实标签，也不会连接 Worker。
+
 ## 下一小步
 
-1. 真机确认搜索书签 v2 adapter 后，按 `syncMyTags=0` 的本地模式实现 marked tags v2 adapter；
+1. 真机确认本地标签 v2 adapter 后，实现图库列表快照与阅读状态的 v2 adapter；
 2. 增加启动失败时面向普通用户的备份恢复说明与诊断导出；
 3. 所有业务读写和回归测试适配 v2 后，才把 `CURRENT_USER_VERSION` 提升为 2 并接入正式启动迁移。

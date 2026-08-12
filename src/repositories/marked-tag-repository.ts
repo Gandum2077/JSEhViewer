@@ -76,7 +76,7 @@ function requireUpstreamWrite(mode: MarkedTagMode, origin: MutationOrigin): void
 }
 
 export class MarkedTagRepository {
-  constructor(private readonly database: RepositoryDatabase) {}
+  constructor(protected readonly database: RepositoryDatabase) {}
 
   queryMarkedTags(): MarkedTag[] {
     return (

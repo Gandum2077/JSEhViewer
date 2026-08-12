@@ -31,6 +31,7 @@ import { runCloudSyncMutationWriterDiagnostic } from "../utils/cloud-sync-mutati
 import { runCloudSyncUploaderRepositoryV2Diagnostic } from "../utils/cloud-sync-uploader-repository-v2-diagnostic";
 import { runCloudSyncSearchHistoryRepositoryV2Diagnostic } from "../utils/cloud-sync-search-history-repository-v2-diagnostic";
 import { runCloudSyncSearchBookmarkRepositoryV2Diagnostic } from "../utils/cloud-sync-search-bookmark-repository-v2-diagnostic";
+import { runCloudSyncMarkedTagRepositoryV2Diagnostic } from "../utils/cloud-sync-marked-tag-repository-v2-diagnostic";
 
 const BASE64URL_32_BYTES_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -114,6 +115,7 @@ export class CloudSyncController extends BaseController {
   private _uploaderRepositoryV2Check = "未检查";
   private _searchHistoryRepositoryV2Check = "未检查";
   private _searchBookmarkRepositoryV2Check = "未检查";
+  private _markedTagRepositoryV2Check = "未检查";
   private _lastResult = "尚未运行本次实机检查";
   private _workerInfo?: CloudSyncWorkerInfo;
   private _cryptoWaiter?: CryptoWaiter;
@@ -309,6 +311,7 @@ export class CloudSyncController extends BaseController {
           { type: "info", title: "上传者 v2 Adapter", value: this._uploaderRepositoryV2Check },
           { type: "info", title: "搜索历史 v2 Adapter", value: this._searchHistoryRepositoryV2Check },
           { type: "info", title: "搜索书签 v2 Adapter", value: this._searchBookmarkRepositoryV2Check },
+          { type: "info", title: "本地标签 v2 Adapter", value: this._markedTagRepositoryV2Check },
           {
             type: "action",
             title: "检查 Keychain 与安全随机数",
@@ -373,6 +376,11 @@ export class CloudSyncController extends BaseController {
             type: "action",
             title: "检查搜索书签 v2 删除、重排与并发位置",
             value: () => void this._runSearchBookmarkRepositoryV2Diagnostic(),
+          },
+          {
+            type: "action",
+            title: "检查本地标签 v2 双模式、删除与重新登录",
+            value: () => void this._runMarkedTagRepositoryV2Diagnostic(),
           },
         ],
       },
@@ -734,6 +742,24 @@ export class CloudSyncController extends BaseController {
         $ui.success("搜索书签 v2 Adapter 检查通过");
       } catch (error) {
         this._searchBookmarkRepositoryV2Check = `失败：${displayError(error)}`;
+        throw error;
+      }
+    });
+  }
+
+  private async _runMarkedTagRepositoryV2Diagnostic(): Promise<void> {
+    await this._perform("检查本地标签 v2 双模式、删除与重新登录", async () => {
+      try {
+        const result = runCloudSyncMarkedTagRepositoryV2Diagnostic();
+        this._markedTagRepositoryV2Check = `通过：${result.durationMs} ms`;
+        this._lastResult =
+          `本地标签 v2 Adapter 临时库检查通过（${result.durationMs} ms）：${result.seededCount} 条旧数据完成可重入 seed，` +
+          "用户更新/删除与版本/outbox 原子提交，payload 排除网站 tagid，tombstone 可恢复标签身份；" +
+          "远端版本、My Tags 镜像隔离、重新登录无 tombstone 清理、云端重建和故障回滚正确，" +
+          "关闭重开后数据完整，临时文件已删除。";
+        $ui.success("本地标签 v2 Adapter 检查通过");
+      } catch (error) {
+        this._markedTagRepositoryV2Check = `失败：${displayError(error)}`;
         throw error;
       }
     });

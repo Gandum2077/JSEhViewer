@@ -133,7 +133,7 @@ npm run test:database-schema-v2
 
 `npm run test:sync-mutation-writer` 已通过自动故障注入。2026-08-11，云端同步诊断页的独立 v2 临时库检查也已在 JSBox 真机通过（27 ms）：HLC、outbox 合并与旧 ACK 保护、tombstone、本机丢弃、远端版本顺序、故障回滚、关闭重开和临时文件清理均符合预期。该检查没有打开正式数据库或请求 Worker。
 
-实际实体 adapter 目前包括 `V2UploaderRepository`、`V2SearchHistoryRepository`、`V2SearchBookmarkRepository` 和 `V2MarkedTagRepository`。它们通过 `SyncEntityEnvelopeCodec` 获取 object key，并在 HLC 生成后调用 codec 编码 envelope，使生产实现可以把 object key、版本、删除标志和 profile epoch 纳入 AEAD AAD。搜索历史 adapter 落实本机清理不生成 tombstone 的例外规则；搜索书签和本地标签 adapter 实现跨设备 tombstone；标签 adapter 还隔离 `syncMyTags=1` 的 E-Hentai 镜像，并在重新登录时无 tombstone 地丢弃该实体类型的本机版本/outbox。当前只有 Node 与隔离临时库使用明确命名的明文诊断 codec；正式路径仍没有密码学 codec，也没有连接 Worker。
+实际实体 adapter 目前包括 `V2UploaderRepository`、`V2SearchHistoryRepository`、`V2SearchBookmarkRepository` 和 `V2MarkedTagRepository`。它们通过 `SyncEntityEnvelopeCodec` 获取 object key，并在 HLC 生成后调用 codec 编码 envelope，使生产实现可以把 object key、版本、删除标志和 profile epoch 纳入 AEAD AAD。搜索历史 adapter 落实本机清理不生成 tombstone 的例外规则；搜索书签和本地标签 adapter 实现跨设备 tombstone；标签 adapter 还隔离 `syncMyTags=1` 的 E-Hentai 镜像，并在重新登录时无 tombstone 地丢弃该实体类型的本机版本/outbox。四个 adapter 都已通过 Node 自动检查和 JSBox 真机隔离临时库检查。当前只有 Node 与隔离临时库使用明确命名的明文诊断 codec；正式路径仍没有密码学 codec，也没有连接 Worker。
 
 ## 10. 仍未开始的工作
 

@@ -1,19 +1,9 @@
 import { dbManager } from "../utils/database";
-import { ArchiveRepository } from "./archive-repository";
-import { SearchRepository } from "./search-repository";
-import { UploaderRepository } from "./uploader-repository";
-import { MarkedTagRepository } from "./marked-tag-repository";
-import {
-  ArchiveRepositoryContract,
-  MarkedTagRepositoryContract,
-  SearchRepositoryContract,
-  UploaderRepositoryContract,
-} from "./repository-contracts";
+import { createV1RepositoryRuntime } from "./repository-runtime";
 
 export { MutationOrigin } from "./mutation-origin";
 export { MarkedTagMode } from "./marked-tag-repository";
 
-export const archiveRepository: ArchiveRepositoryContract = new ArchiveRepository(dbManager);
-export const searchRepository: SearchRepositoryContract = new SearchRepository(dbManager);
-export const uploaderRepository: UploaderRepositoryContract = new UploaderRepository(dbManager);
-export const markedTagRepository: MarkedTagRepositoryContract = new MarkedTagRepository(dbManager);
+// 正式切换 v2 时只允许调整这个集中装配入口；CURRENT_USER_VERSION 在完成启动回归前仍为 1。
+export const repositoryRuntime = createV1RepositoryRuntime(dbManager);
+export const { archiveRepository, searchRepository, uploaderRepository, markedTagRepository } = repositoryRuntime;

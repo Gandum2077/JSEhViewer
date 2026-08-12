@@ -16,6 +16,7 @@
     "test:database-init": "tsc && node scripts/check-database-initialization.js",
     "test:database-recovery": "tsc && node scripts/check-database-recovery.js",
     "test:v2-business-paths": "tsc && node scripts/check-v2-business-paths.js",
+    "test:repository-runtime-v2": "tsc && node scripts/check-repository-runtime-v2.js",
     "test:database-migration-v2": "tsc && node scripts/check-database-migration-v2-draft.js",
     "test:database-schema-v2": "tsc && node scripts/check-database-schema-v2-draft.js",
     "test:archive-repository": "tsc && node scripts/check-archive-repository.js",

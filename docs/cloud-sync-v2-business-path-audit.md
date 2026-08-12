@@ -76,4 +76,4 @@ type SearchEntityId = number | string;
 - push/pull、ACK、cursor 与远端 apply 调度；
 - 正式数据库 v2 整库 UI 回归。
 
-因此 `src/repositories/index.ts` 仍实例化 v1 Repository，`CURRENT_USER_VERSION` 仍为 1。下一步应实现只在隔离临时库运行的“v2 正式 Repository 装配 + ConfigManager 关键路径”回归，再考虑改启动工厂。
+因此 `src/repositories/index.ts` 仍导出 v1 Repository，`CURRENT_USER_VERSION` 仍为 1。后续已经增加集中 `RepositoryRuntime`：v2 五类 Adapter 的自动整库装配和 ConfigManager/StatusManager 关键调用序列回归已通过，等待真机隔离检查。之后仍需验证正式启动的备份/迁移/seed 状态机，才能考虑提升数据库版本。

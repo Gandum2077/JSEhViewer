@@ -35,6 +35,7 @@ import { runCloudSyncMarkedTagRepositoryV2Diagnostic } from "../utils/cloud-sync
 import { runCloudSyncArchiveRepositoryV2Diagnostic } from "../utils/cloud-sync-archive-repository-v2-diagnostic";
 import { runCloudSyncDatabaseRecoveryDiagnostic } from "../utils/cloud-sync-database-recovery-diagnostic";
 import { runCloudSyncV2BusinessPathDiagnostic } from "../utils/cloud-sync-v2-business-path-diagnostic";
+import { runCloudSyncRepositoryRuntimeV2Diagnostic } from "../utils/cloud-sync-repository-runtime-v2-diagnostic";
 
 const BASE64URL_32_BYTES_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -122,6 +123,7 @@ export class CloudSyncController extends BaseController {
   private _archiveRepositoryV2Check = "未检查";
   private _databaseRecoveryCheck = "未检查";
   private _v2BusinessPathCheck = "未检查";
+  private _repositoryRuntimeV2Check = "未检查";
   private _lastResult = "尚未运行本次实机检查";
   private _workerInfo?: CloudSyncWorkerInfo;
   private _cryptoWaiter?: CryptoWaiter;
@@ -321,6 +323,7 @@ export class CloudSyncController extends BaseController {
           { type: "info", title: "图库与阅读 v2 Adapter", value: this._archiveRepositoryV2Check },
           { type: "info", title: "启动失败恢复", value: this._databaseRecoveryCheck },
           { type: "info", title: "v2 业务入口契约", value: this._v2BusinessPathCheck },
+          { type: "info", title: "v2 Repository 整库装配", value: this._repositoryRuntimeV2Check },
           {
             type: "action",
             title: "检查 Keychain 与安全随机数",
@@ -405,6 +408,11 @@ export class CloudSyncController extends BaseController {
             type: "action",
             title: "检查 v2 业务入口与稳定搜索 ID",
             value: () => void this._runV2BusinessPathDiagnostic(),
+          },
+          {
+            type: "action",
+            title: "检查五类 v2 Repository 整库装配",
+            value: () => void this._runRepositoryRuntimeV2Diagnostic(),
           },
         ],
       },
@@ -841,6 +849,24 @@ export class CloudSyncController extends BaseController {
     });
   }
 
+  private async _runRepositoryRuntimeV2Diagnostic(): Promise<void> {
+    await this._perform("检查五类 v2 Repository 整库装配", async () => {
+      try {
+        const result = runCloudSyncRepositoryRuntimeV2Diagnostic();
+        this._repositoryRuntimeV2Check = `通过：${result.durationMs} ms`;
+        this._lastResult =
+          `v2 Repository 整库装配临时库检查通过（${result.durationMs} ms）：五类 Adapter 在同一数据库、HLC writer ` +
+          `与 codec 下完成装配，${result.seededObjects} 个迁移对象可重入 seed，覆盖 ${result.entityTypes} 种同步实体；` +
+          "ConfigManager/StatusManager 的图库、搜索历史与书签、上传者、标签双模式关键路径均正确，" +
+          "sync_versions 与 outbox 一致；关闭重开后数据完整，临时文件已删除。";
+        $ui.success("v2 Repository 整库装配检查通过");
+      } catch (error) {
+        this._repositoryRuntimeV2Check = `失败：${displayError(error)}`;
+        throw error;
+      }
+    });
+  }
+
   private _requestCryptoSelfTest(): Promise<CryptoSelfTestResult> {
     if (!this._webCryptoReady) {
       return Promise.reject(
@@ -1039,6 +1065,7 @@ export class CloudSyncController extends BaseController {
       database_v2_migration_check: this._databaseV2MigrationCheck,
       database_recovery_check: this._databaseRecoveryCheck,
       v2_business_path_check: this._v2BusinessPathCheck,
+      repository_runtime_v2_check: this._repositoryRuntimeV2Check,
       archive_repository_check: this._archiveRepositoryCheck,
       search_repository_check: this._searchRepositoryCheck,
       uploader_repository_check: this._uploaderRepositoryCheck,

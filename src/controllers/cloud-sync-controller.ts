@@ -32,6 +32,7 @@ import { runCloudSyncUploaderRepositoryV2Diagnostic } from "../utils/cloud-sync-
 import { runCloudSyncSearchHistoryRepositoryV2Diagnostic } from "../utils/cloud-sync-search-history-repository-v2-diagnostic";
 import { runCloudSyncSearchBookmarkRepositoryV2Diagnostic } from "../utils/cloud-sync-search-bookmark-repository-v2-diagnostic";
 import { runCloudSyncMarkedTagRepositoryV2Diagnostic } from "../utils/cloud-sync-marked-tag-repository-v2-diagnostic";
+import { runCloudSyncArchiveRepositoryV2Diagnostic } from "../utils/cloud-sync-archive-repository-v2-diagnostic";
 
 const BASE64URL_32_BYTES_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -116,6 +117,7 @@ export class CloudSyncController extends BaseController {
   private _searchHistoryRepositoryV2Check = "未检查";
   private _searchBookmarkRepositoryV2Check = "未检查";
   private _markedTagRepositoryV2Check = "未检查";
+  private _archiveRepositoryV2Check = "未检查";
   private _lastResult = "尚未运行本次实机检查";
   private _workerInfo?: CloudSyncWorkerInfo;
   private _cryptoWaiter?: CryptoWaiter;
@@ -312,6 +314,7 @@ export class CloudSyncController extends BaseController {
           { type: "info", title: "搜索历史 v2 Adapter", value: this._searchHistoryRepositoryV2Check },
           { type: "info", title: "搜索书签 v2 Adapter", value: this._searchBookmarkRepositoryV2Check },
           { type: "info", title: "本地标签 v2 Adapter", value: this._markedTagRepositoryV2Check },
+          { type: "info", title: "图库与阅读 v2 Adapter", value: this._archiveRepositoryV2Check },
           {
             type: "action",
             title: "检查 Keychain 与安全随机数",
@@ -381,6 +384,11 @@ export class CloudSyncController extends BaseController {
             type: "action",
             title: "检查本地标签 v2 双模式、删除与重新登录",
             value: () => void this._runMarkedTagRepositoryV2Diagnostic(),
+          },
+          {
+            type: "action",
+            title: "检查图库列表、阅读状态与本机下载隔离",
+            value: () => void this._runArchiveRepositoryV2Diagnostic(),
           },
         ],
       },
@@ -760,6 +768,24 @@ export class CloudSyncController extends BaseController {
         $ui.success("本地标签 v2 Adapter 检查通过");
       } catch (error) {
         this._markedTagRepositoryV2Check = `失败：${displayError(error)}`;
+        throw error;
+      }
+    });
+  }
+
+  private async _runArchiveRepositoryV2Diagnostic(): Promise<void> {
+    await this._perform("检查图库列表、阅读状态与本机下载隔离", async () => {
+      try {
+        const result = runCloudSyncArchiveRepositoryV2Diagnostic();
+        this._archiveRepositoryV2Check = `通过：${result.durationMs} ms`;
+        this._lastResult =
+          `图库与阅读 v2 Adapter 临时库检查通过（${result.durationMs} ms）：${result.seededArchiveCount} 条旧图库完成` +
+          "列表快照、阅读进度、稍后阅读三对象可重入 seed；兼容查询、低页码 LWW、本机下载隔离、" +
+          "用户 tombstone 与维护性丢弃、共享阅读行清理、远端重建和故障回滚正确，" +
+          "关闭重开后数据完整，临时文件已删除。";
+        $ui.success("图库与阅读 v2 Adapter 检查通过");
+      } catch (error) {
+        this._archiveRepositoryV2Check = `失败：${displayError(error)}`;
         throw error;
       }
     });

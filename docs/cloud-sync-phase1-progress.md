@@ -1,7 +1,7 @@
 # 云端同步 Phase 1：本地数据库与 Repository 进展
 
 > 开始日期：2026-08-11
-> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层以及共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核也已通过真机验证。标记上传者、搜索历史、搜索书签和本地标签四个实际 v2 adapter 均已通过自动与真机验证。正式数据库尚未迁移，也未上传业务数据。
+> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层以及共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核也已通过真机验证。标记上传者、搜索历史、搜索书签和本地标签四个实际 v2 adapter 均已通过自动与真机验证；图库列表快照、阅读进度与稍后阅读 v2 adapter 已通过自动验证，等待真机临时库确认。正式数据库尚未迁移，也未上传业务数据。
 
 ## 本阶段目标
 
@@ -34,7 +34,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 - `CURRENT_USER_VERSION` 仍为 1；DB v2 目前只是未接入启动流程的可执行草案，尚未迁移正式数据库。
 - 正式数据库尚未拆分 `archives`，也没有启用稳定 ID、外键、同步版本表或 outbox；当前图库 repository 仍以 v1 表为底层，目的是先把调用方与表结构解耦。
-- 图库 Repository 尚未接入 v2 表与 outbox；标记上传者、搜索历史、搜索书签和本地标签已有独立的 v2 adapter，但正式 App 仍使用 v1 兼容 Repository。
+- 图库、标记上传者、搜索历史、搜索书签和本地标签已有独立的 v2 adapter，但正式 App 仍使用 v1 兼容 Repository；本次新增的图库 v2 adapter 只由 Node fixture 和隔离真机诊断调用。
 - Cookie、WebDAV 与 AI 翻译服务的密钥处理本阶段暂不迁移；按当前产品决定，`ai_translation_services` 和 `webdav_services` 在 v1 不同步。
 
 ## 已完成：第二小步（初始化顺序与 fixture）
@@ -187,6 +187,18 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 新增 `npm run test:marked-tag-repository-v2`，覆盖可重入 seed、payload 排除 tagid、仅 tagid 变化不产生新版本、用户写入/删除、带身份 tombstone、远端新旧/重复版本、My Tags 隔离、重新登录清理、云端重建以及故障完整回滚。
 - 云端同步诊断页新增“检查本地标签 v2 双模式、删除与重新登录”，只使用 `assets/cloud-sync-phase1-marked-tag-repository-v2.db`，不打开正式数据库、不连接 Worker。
 
+## 已完成：第十五步（图库列表快照与阅读状态 v2 Adapter）
+
+- 新增 `V2ArchiveRepository`，将同一个 `gid` 拆成三个独立冲突单元：`archive.entry.v1` 保存构成图库列表所需的快照，`reading.progress.v1` 保存页码与访问时间，`reading.read-later.v1` 保存稍后阅读 membership。某台设备刷新标题或评分快照时不会顺带覆盖另一台设备的阅读页码。
+- 图库列表快照包含标题、token、缩略图、分类、页数、标签和 E-Hentai 收藏/评分等上游状态快照；它不是图库目录中的 `infos.json`。`downloaded` 只写 `local_gallery_state`，`archive_taglist` 由快照中的标签重建，二者均不进入云端 payload；`gallery_reader_config` 仍是每台设备独立设置。
+- Adapter 使用一个名为 `archives` 的兼容 CTE 从 v2 三张表重建旧列表行形状，并复用现有筛选、排序、分页 SQL，因此后续正式切换不需要同时重写所有图库列表查询。
+- 用户保存或更新时，业务表、标签索引、三个实体各自的 HLC/版本和合并 outbox 位于同一个 callback transaction；任一写入失败会完整回滚。阅读进度使用 LWW，小页码可以覆盖大页码，不能用 `max(page)` 猜测用户意图。
+- 可重入 `seedExistingArchives()` 只为尚无版本的迁移旧数据生成初始 outbox。当前 v2 schema 没有单独的“加入稍后阅读时间”，因此 seed 暂以 `first_access_time` 作为 `addedAt`；以后若产品需要展示精确加入时间，应新增明确字段，而不是从 HLC 反推。
+- 用户明确删除图库记录会为三个同步对象都写 tombstone，即使其中某个本机业务片段当前不存在，也能阻止尚未拉取的旧云端对象稍后复活。缓存清理、旧记录清理和本机“全部清除”则删除本机业务行与对应版本/outbox，不生成云端 tombstone。
+- 三种远端 change 分别按 HLC 应用。`reading_state` 虽是共享物理表，删除 progress 时会保留 read-later，删除 read-later 时也会保留 progress；只有两种阅读状态都已删除才清理共享行。远端列表快照不会恢复本机下载状态或阅读状态。
+- 新增 `npm run test:archive-repository-v2`，覆盖三对象可重入 seed、兼容查询、低页码 LWW、本机下载隔离、用户 tombstone、维护性丢弃、共享阅读行清理、远端重建、payload/key/HLC 校验和故障回滚。
+- 云端同步诊断页新增“检查图库列表、阅读状态与本机下载隔离”，只使用 `assets/cloud-sync-phase1-archive-repository-v2.db`，不打开正式数据库、不连接 Worker。
+
 ## 自动验证结果
 
 - `npm run test:sqlite-safe`：通过。
@@ -194,6 +206,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - `npm run test:database-migration-v2`：通过。
 - `npm run test:database-schema-v2`：通过。
 - `npm run test:archive-repository`：通过。
+- `npm run test:archive-repository-v2`：通过。
 - `npm run test:marked-tag-repository`：通过。
 - `npm run test:marked-tag-repository-v2`：通过。
 - `npm run test:search-repository`：通过。
@@ -324,8 +337,19 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 该检查只创建 `assets/cloud-sync-phase1-marked-tag-repository-v2.db` 及其 sidecar。object key 和 envelope 是 fixture 专用明文格式，不包含真实标签，也不会连接 Worker。
 
+## 图库与阅读状态 v2 Adapter 真机检查
+
+- [ ] 安装本次构建的开发版，进入“其他 → 云端同步”。
+- [ ] 点击“检查图库列表、阅读状态与本机下载隔离”。
+- [ ] 确认结果显示 2 条旧图库完成列表快照、阅读进度、稍后阅读三个对象的可重入 seed。
+- [ ] 确认兼容查询、低页码 LWW、本机下载隔离、用户 tombstone 与维护性丢弃、共享阅读行清理、远端重建和故障回滚正确。
+- [ ] 确认关闭重开后数据完整、临时文件已删除，并回传“最近结果”。
+
+该检查只创建 `assets/cloud-sync-phase1-archive-repository-v2.db` 及其 sidecar。object key 和 envelope 是 fixture 专用明文格式，不包含真实图库数据，也不会连接 Worker。
+
 ## 下一小步
 
-1. 真机确认本地标签 v2 adapter 后，实现图库列表快照与阅读状态的 v2 adapter；
+1. 真机确认图库列表快照与阅读状态 v2 adapter；
 2. 增加启动失败时面向普通用户的备份恢复说明与诊断导出；
-3. 所有业务读写和回归测试适配 v2 后，才把 `CURRENT_USER_VERSION` 提升为 2 并接入正式启动迁移。
+3. 审计正式业务入口与五个 v2 adapter 的签名兼容性，补齐启动切换前的整库回归；
+4. 所有业务读写和回归测试适配 v2 后，才把 `CURRENT_USER_VERSION` 提升为 2 并接入正式启动迁移。

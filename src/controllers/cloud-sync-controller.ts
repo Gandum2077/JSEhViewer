@@ -36,6 +36,7 @@ import { runCloudSyncArchiveRepositoryV2Diagnostic } from "../utils/cloud-sync-a
 import { runCloudSyncDatabaseRecoveryDiagnostic } from "../utils/cloud-sync-database-recovery-diagnostic";
 import { runCloudSyncV2BusinessPathDiagnostic } from "../utils/cloud-sync-v2-business-path-diagnostic";
 import { runCloudSyncRepositoryRuntimeV2Diagnostic } from "../utils/cloud-sync-repository-runtime-v2-diagnostic";
+import { runCloudSyncDatabaseV2StartupDiagnostic } from "../utils/cloud-sync-database-v2-startup-diagnostic";
 
 const BASE64URL_32_BYTES_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -124,6 +125,7 @@ export class CloudSyncController extends BaseController {
   private _databaseRecoveryCheck = "未检查";
   private _v2BusinessPathCheck = "未检查";
   private _repositoryRuntimeV2Check = "未检查";
+  private _databaseV2StartupCheck = "未检查";
   private _lastResult = "尚未运行本次实机检查";
   private _workerInfo?: CloudSyncWorkerInfo;
   private _cryptoWaiter?: CryptoWaiter;
@@ -324,6 +326,7 @@ export class CloudSyncController extends BaseController {
           { type: "info", title: "启动失败恢复", value: this._databaseRecoveryCheck },
           { type: "info", title: "v2 业务入口契约", value: this._v2BusinessPathCheck },
           { type: "info", title: "v2 Repository 整库装配", value: this._repositoryRuntimeV2Check },
+          { type: "info", title: "v2 启动状态机", value: this._databaseV2StartupCheck },
           {
             type: "action",
             title: "检查 Keychain 与安全随机数",
@@ -413,6 +416,11 @@ export class CloudSyncController extends BaseController {
             type: "action",
             title: "检查五类 v2 Repository 整库装配",
             value: () => void this._runRepositoryRuntimeV2Diagnostic(),
+          },
+          {
+            type: "action",
+            title: "检查 v2 启动状态机与中断恢复",
+            value: () => void this._runDatabaseV2StartupDiagnostic(),
           },
         ],
       },
@@ -862,6 +870,24 @@ export class CloudSyncController extends BaseController {
         $ui.success("v2 Repository 整库装配检查通过");
       } catch (error) {
         this._repositoryRuntimeV2Check = `失败：${displayError(error)}`;
+        throw error;
+      }
+    });
+  }
+
+  private async _runDatabaseV2StartupDiagnostic(): Promise<void> {
+    await this._perform("检查 v2 启动状态机与中断恢复", async () => {
+      try {
+        const result = runCloudSyncDatabaseV2StartupDiagnostic();
+        this._databaseV2StartupCheck = `通过：${result.durationMs} ms`;
+        this._lastResult =
+          `v2 启动状态机临时库检查通过（${result.durationMs} ms）：${result.crashBoundaries} 个阶段边界均可重启恢复，` +
+          `迁移内部故障完整回滚，一次性备份保持可读 v1；本地模式 seed ${result.localSeededObjects} 个对象，` +
+          `My Tags 镜像模式只 seed ${result.upstreamMirrorSeededObjects} 个对象且不上传网站标签；` +
+          "完全恢复后再次启动不重复迁移或 seed，临时文件已删除。";
+        $ui.success("v2 启动状态机检查通过");
+      } catch (error) {
+        this._databaseV2StartupCheck = `失败：${displayError(error)}`;
         throw error;
       }
     });

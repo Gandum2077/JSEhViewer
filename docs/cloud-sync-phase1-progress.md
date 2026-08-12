@@ -1,7 +1,7 @@
 # 云端同步 Phase 1：本地数据库与 Repository 进展
 
 > 开始日期：2026-08-11
-> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层以及共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核也已通过真机验证。图库、标记上传者、搜索历史、搜索书签和本地标签五个实际 v2 adapter，以及数据库启动失败恢复与脱敏诊断，均已通过自动与真机隔离验证。v1/v2 正式业务契约、搜索稳定 ID facade 和业务文件直接 SQL 扫描，以及五类 v2 Repository 的集中装配和关键业务路径整库回归，也已通过自动与 JSBox 真机隔离验证。正式数据库尚未迁移，也未上传业务数据。
+> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层以及共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核也已通过真机验证。图库、标记上传者、搜索历史、搜索书签和本地标签五个实际 v2 adapter，以及数据库启动失败恢复与脱敏诊断，均已通过自动与真机隔离验证。v1/v2 正式业务契约、搜索稳定 ID facade 和业务文件直接 SQL 扫描，以及五类 v2 Repository 的集中装配和关键业务路径整库回归，也已通过自动与 JSBox 真机隔离验证。备份、迁移、runtime、可重入 seed 与就绪复核现已集中为启动状态机草案并通过自动故障注入，等待真机隔离验证。正式数据库尚未迁移，也未上传业务数据。
 
 ## 本阶段目标
 
@@ -231,6 +231,17 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 隔离诊断不直接实例化 ConfigManager，因为其构造函数还会读取正式 config、翻译、AI/WebDAV 和文件目录；改为通过编译期契约与实际调用序列覆盖同步相关关键路径。
 - 2026-08-12，该隔离诊断已在 JSBox 真机通过（51 ms）：7 个迁移对象可重入 seed，覆盖 7 种同步实体；四个业务域的关键路径、共享 HLC、`sync_versions` / outbox 一致性、关闭重开与临时文件清理均符合预期。
 
+## 自动完成、待真机验证：第十九步（v2 启动状态机与中断恢复）
+
+- 新增集中 `startDatabaseV2Draft()`，固定执行“验证一次性备份 → 打开数据库 → 原子迁移 → 创建 v2 runtime → 五类可重入 seed → 就绪复核”；正式启动不再需要在多个模块分散决定顺序。
+- 不新增迁移进度表。一次性 v1 备份、`PRAGMA user_version` 和逐对象 `sync_versions` 分别表示备份、迁移与 seed 的真实持久化进度，避免额外 marker 与实际数据库状态分叉。
+- 自动 fixture 在 10 个阶段的前/后共 20 个边界模拟进程退出；重启会跳过已提交迁移，只补缺少版本的对象，完全恢复后再次启动迁移和 seed 均为 0。
+- 迁移事务内部另有故障注入，确认表复制、替换、同步 schema 和 `user_version=2` 一起回滚，原库保持 v1。
+- `config.syncMyTags=false/0` 时 seed 本地标签；`true/1` 时保留网站镜像行但跳过 `marked.tag.local.v1`。无效值停止启动，不猜测来源。
+- 就绪复核包含 SQLite `quick_check`、外键、唯一 HLC 时钟行、outbox/version 完整对应，以及全类别重复 seed 为 0。
+- 新增 `npm run test:database-startup-v2` 和真机隔离入口“检查 v2 启动状态机与中断恢复”。详细设计见 [`cloud-sync-database-v2-startup.md`](cloud-sync-database-v2-startup.md)。
+- 该草案仍未接入正式 `DBManager`，`CURRENT_USER_VERSION` 仍为 1。
+
 ## 自动验证结果
 
 - `npm run test:sqlite-safe`：通过。
@@ -238,6 +249,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - `npm run test:database-recovery`：通过。
 - `npm run test:v2-business-paths`：通过。
 - `npm run test:repository-runtime-v2`：通过。
+- `npm run test:database-startup-v2`：通过。
 - `npm run test:database-migration-v2`：通过。
 - `npm run test:database-schema-v2`：通过。
 - `npm run test:archive-repository`：通过。
@@ -420,7 +432,20 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 该检查只创建 `assets/cloud-sync-phase1-repository-runtime-v2.db` 及其 sidecar，不读取或修改正式 `assets/database.db`，也不连接 Worker。
 
+## v2 启动状态机真机检查
+
+- [ ] 安装本次构建的开发版，进入“其他 → 云端同步”。
+- [ ] 点击“检查 v2 启动状态机与中断恢复”。
+- [ ] 确认 20 个阶段边界均可重启恢复，迁移内部故障完整回滚，一次性备份保持可读 v1。
+- [ ] 确认本地模式 seed 7 个对象；My Tags 镜像模式只 seed 6 个对象且不上传网站标签。
+- [ ] 确认完全恢复后的再次启动不重复迁移或 seed、临时文件已删除，并回传“最近结果”。
+
+预期结果：`v2 启动状态机临时库检查通过（… ms）：20 个阶段边界均可重启恢复，迁移内部故障完整回滚，一次性备份保持可读 v1；本地模式 seed 7 个对象，My Tags 镜像模式只 seed 6 个对象且不上传网站标签；完全恢复后再次启动不重复迁移或 seed，临时文件已删除。`
+
+该检查只创建 `assets/cloud-sync-phase1-database-startup-v2*.db`、专用临时备份及其 sidecar，不读取或修改正式 `assets/database.db`，也不连接 Worker。
+
 ## 下一小步
 
-1. 设计并验证“备份 → 迁移 → 创建 v2 runtime → 可重入 seed → 正式启动”的状态机与失败恢复；
-2. 在正式数据库副本的全 App 回归通过前，`CURRENT_USER_VERSION` 保持 1。
+1. 在 JSBox 真机完成第十九步隔离诊断并记录结果；
+2. 随后设计只对正式数据库副本执行的全 App v2 启动与核心业务回归；
+3. 在副本回归通过前，`CURRENT_USER_VERSION` 保持 1。

@@ -1,7 +1,7 @@
 import { Base, router, SplitViewController, TabBarController } from "jsbox-cview";
 import { configManager } from "../utils/config";
 import { EHSearchTerm, tagNamespaceMostUsedAlternateMap } from "ehentai-parser";
-import { DBSearchHistory } from "../types";
+import { DBSearchHistory, SearchEntityId } from "../types";
 import { namespaceColor } from "../utils/glv";
 import { HomepageController } from "../controllers/homepage-controller";
 import { getSearchOptions } from "../controllers/search-controller";
@@ -41,7 +41,7 @@ export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions>
                 title: "立即搜索",
                 symbol: "magnifyingglass",
                 handler: (sender, indexPath) => {
-                  const id = (sender as UIListView).object(indexPath).label.info.id as number;
+                  const id = (sender as UIListView).object(indexPath).label.info.id as SearchEntityId;
                   const searchTerms = this._searchHistory.find((item) => item.id === id)?.searchTerms;
                   if (!searchTerms) return;
                   (router.get("splitViewController") as SplitViewController).sideBarShown = false;
@@ -58,7 +58,7 @@ export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions>
                 title: "新建搜索",
                 symbol: "plus.magnifyingglass",
                 handler: async (sender, indexPath) => {
-                  const id = (sender as UIListView).object(indexPath).label.info.id as number;
+                  const id = (sender as UIListView).object(indexPath).label.info.id as SearchEntityId;
                   const searchTerms = this._searchHistory.find((item) => item.id === id)?.searchTerms;
                   if (!searchTerms) return;
                   const options = await getSearchOptions({ type: "front_page", options: { searchTerms } }, "showAll");
@@ -77,7 +77,7 @@ export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions>
                 symbol: "bookmark",
                 color: $color("orange"),
                 handler: (sender, indexPath) => {
-                  const id = (sender as UIListView).object(indexPath).label.info.id as number;
+                  const id = (sender as UIListView).object(indexPath).label.info.id as SearchEntityId;
                   const history = this._searchHistory.find((item) => item.id === id);
                   if (!history) return;
                   const success = configManager.addSearchBookmark(history.sorted_fsearch, history.searchTerms);
@@ -93,7 +93,7 @@ export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions>
                 symbol: "trash",
                 destructive: true,
                 handler: (sender, indexPath) => {
-                  const id = (sender as UIListView).object(indexPath).label.info.id as number;
+                  const id = (sender as UIListView).object(indexPath).label.info.id as SearchEntityId;
                   configManager.deleteSearchHistory(id);
                   const notEmpty = this.refreshSearchHistory(configManager.searchHistory, this._filterText);
                   if (!notEmpty) emptyHandler();
@@ -131,7 +131,7 @@ export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions>
             sender.endRefreshing();
           },
           didSelect: (sender, indexPath) => {
-            const id = (sender as UIListView).object(indexPath).label.info.id as number;
+            const id = (sender as UIListView).object(indexPath).label.info.id as SearchEntityId;
             const searchTerms = this._searchHistory.find((item) => item.id === id)?.searchTerms;
             if (!searchTerms) return;
             (router.get("splitViewController") as SplitViewController).sideBarShown = false;
@@ -250,7 +250,7 @@ export class SearchTermHistoryList extends Base<UIListView, UiTypes.ListOptions>
   }
 }
 
-export function _mapSearchTermsToRow(searchTerms: EHSearchTerm[], id: number) {
+export function _mapSearchTermsToRow(searchTerms: EHSearchTerm[], id: SearchEntityId) {
   const splits = searchTerms.map((searchTerm) => {
     const { namespace, qualifier, term, dollar, subtract, tilde } = searchTerm;
     let text = "";

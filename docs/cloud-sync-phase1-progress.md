@@ -1,7 +1,7 @@
 # 云端同步 Phase 1：本地数据库与 Repository 进展
 
 > 开始日期：2026-08-11
-> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层以及共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核也已通过真机验证。图库、标记上传者、搜索历史、搜索书签和本地标签五个实际 v2 adapter，以及数据库启动失败恢复与脱敏诊断，均已通过自动与真机隔离验证。正式数据库尚未迁移，也未上传业务数据。
+> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层以及共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核也已通过真机验证。图库、标记上传者、搜索历史、搜索书签和本地标签五个实际 v2 adapter，以及数据库启动失败恢复与脱敏诊断，均已通过自动与真机隔离验证。v1/v2 正式业务契约、搜索稳定 ID facade 和业务文件直接 SQL 扫描已通过自动验证，等待 JSBox 真机隔离检查。正式数据库尚未迁移，也未上传业务数据。
 
 ## 本阶段目标
 
@@ -208,11 +208,23 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 云端同步诊断页新增“检查启动失败恢复与诊断脱敏”。它只操作 `assets/cloud-sync-phase1-recovery-diagnostic.*` 临时文件，使用专用 secret 哨兵验证诊断不泄漏内容、原临时库与备份不变、没有自动恢复，并在结束后删除临时文件。
 - 新增 `npm run test:database-recovery` 和 [`database-startup-recovery.md`](database-startup-recovery.md)。真机诊断刻意不破坏正式数据库；实际恢复页的启动分支由类型检查、Node fixture 和 production bundle 构建覆盖。
 
+## 已完成：第十七步（v2 正式业务入口与稳定搜索 ID 契约）
+
+- 新增集中 `ArchiveRepositoryContract`、`SearchRepositoryContract`、`UploaderRepositoryContract` 与 `MarkedTagRepositoryContract`；编译期同时断言 v1 与 v2 实现满足正式业务所需的最小方法集合。
+- 审计确认图库、上传者和标签已经公共签名兼容；搜索是唯一明确断层：v1 UI 使用数字自增 ID，而 v2 历史/书签 Adapter 使用两个独立的 SHA-256 字符串 ID 接口。
+- 新增 `V2SearchRepositoryFacade`，把两个 v2 搜索实体 Adapter 组合成 ConfigManager 原有的单一业务接口；它只映射 UI 字段，不直接写表，历史、书签、HLC、版本和 outbox 仍由原 Adapter 原子处理。
+- `SearchEntityId` 允许 `number|string` 透传 UI。v1 Repository 只接受正整数旧 ID；v2 facade 只接受 64 位小写稳定 ID，数据库版本与 Repository 混用时会明确停止。
+- v2 历史补齐最近搜索词查询；历史/书签列表、菜单、选择、删除和侧栏重排不再把 `label.info.id` 强制断言为数字。
+- 新增 `npm run test:v2-business-paths`：除 v2 facade 的新增/本机删除/最近词/书签重排/tombstone 外，还静态扫描正式业务文件，禁止它们绕过 Repository 直接 SQL 访问同步候选表。当前零违规。
+- 云端同步诊断页新增“检查 v2 业务入口与稳定搜索 ID”，只使用 `assets/cloud-sync-phase1-v2-business-paths.db`，验证字符串 ID 透传、数字旧 ID 拒绝、关闭重开和临时文件清理。
+- 详细结论见 [`cloud-sync-v2-business-path-audit.md`](cloud-sync-v2-business-path-audit.md)。正式 Repository 工厂仍固定使用 v1，本步不会迁移用户数据库。
+
 ## 自动验证结果
 
 - `npm run test:sqlite-safe`：通过。
 - `npm run test:database-init`：通过。
 - `npm run test:database-recovery`：通过。
+- `npm run test:v2-business-paths`：通过。
 - `npm run test:database-migration-v2`：通过。
 - `npm run test:database-schema-v2`：通过。
 - `npm run test:archive-repository`：通过。
@@ -371,8 +383,20 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 该检查只创建 `assets/cloud-sync-phase1-recovery-diagnostic.db` 和 `assets/cloud-sync-phase1-recovery-diagnostic.backup.db` 及其 sidecar。它不会打开、导出、替换或破坏正式 `assets/database.db`，也不会人为触发真实的启动失败。
 
+## v2 业务入口契约真机检查
+
+- [ ] 安装本次构建的开发版，进入“其他 → 云端同步”。
+- [ ] 点击“检查 v2 业务入口与稳定搜索 ID”。
+- [ ] 确认搜索历史和书签的稳定字符串 ID 能穿过 Config/UI facade，数字 v1 ID 会被 v2 明确拒绝。
+- [ ] 确认历史新增、本机删除、最近搜索词、书签新增/重排/tombstone 均正确。
+- [ ] 确认关闭重开后数据完整、临时文件已删除，并回传“最近结果”。
+
+预期结果：`v2 业务入口契约临时库检查通过（… ms）：公共 Repository 签名已随构建锁定，搜索历史与书签的稳定字符串 ID 可完整穿过 Config/UI facade；历史新增、本机删除、最近搜索词、书签新增、重排和 tombstone 均正确，数字旧 ID 被拒绝；关闭重开后数据完整，临时文件已删除。`
+
+该检查只创建 `assets/cloud-sync-phase1-v2-business-paths.db` 及其 sidecar，不读取或修改正式 `assets/database.db`，也不连接 Worker。正式业务文件的直接 SQL 扫描属于构建时 Node 检查，不依赖真机读取源代码。
+
 ## 下一小步
 
-1. 审计正式业务入口与五个 v2 adapter 的签名兼容性，列出仍会直接依赖 v1 表或数字搜索 ID 的调用路径；
-2. 为启动切换补齐整库回归，并逐项消除审计结果；
-3. 所有业务读写和回归测试适配 v2 后，才把 `CURRENT_USER_VERSION` 提升为 2 并接入正式启动迁移。
+1. 完成 v2 业务入口契约与稳定搜索 ID 的 JSBox 真机检查；
+2. 在隔离临时库中装配五个 v2 正式 Repository，并补齐 ConfigManager 关键调用路径的整库回归；
+3. 整库回归通过后，再设计正式 Repository 工厂、迁移后 seed 顺序和启动切换；`CURRENT_USER_VERSION` 在此之前保持 1。

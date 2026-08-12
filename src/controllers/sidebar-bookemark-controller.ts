@@ -2,6 +2,7 @@ import { BaseController, ContentView, CustomNavigationBar, DialogSheet, List, Sy
 import { SearchTermBookmarksList } from "../components/searchterm-bookmarks-list";
 import { configManager } from "../utils/config";
 import { _mapSearchTermsToRow } from "../components/searchterm-history-list";
+import { SearchEntityId } from "../types";
 
 function getReorderIds() {
   const bookmarks = configManager.searchBookmarks;
@@ -32,7 +33,7 @@ function getReorderIds() {
       reorderFinished: (data) => {},
     },
   });
-  return new Promise<number[]>((resolve, reject) => {
+  return new Promise<SearchEntityId[]>((resolve, reject) => {
     const sheet = new DialogSheet({
       title: "重新排序",
       cview: list,

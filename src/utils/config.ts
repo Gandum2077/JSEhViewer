@@ -7,6 +7,7 @@ import {
   WebDAVService,
   DBSearchHistory,
   DBSearchBookmarks,
+  SearchEntityId,
   AITranslationService,
   AITranslationConfigFormItem,
   ReaderConfig,
@@ -807,7 +808,7 @@ class ConfigManager {
     this._searchHistory = this._querySearchHistory();
   }
 
-  deleteSearchHistory(id: number) {
+  deleteSearchHistory(id: SearchEntityId) {
     searchRepository.deleteHistoryLocally(id);
     this._searchHistory = this._querySearchHistory();
   }
@@ -822,12 +823,12 @@ class ConfigManager {
     return inserted;
   }
 
-  deleteSearchBookmark(id: number) {
+  deleteSearchBookmark(id: SearchEntityId) {
     searchRepository.deleteBookmark(id, MutationOrigin.user);
     this._searchBookmarks = this._querySearchBookmarks();
   }
 
-  reorderSearchBookmarks(resorted_ids: number[]) {
+  reorderSearchBookmarks(resorted_ids: SearchEntityId[]) {
     searchRepository.reorderBookmarks(resorted_ids, MutationOrigin.user);
     this._searchBookmarks = this._querySearchBookmarks();
   }

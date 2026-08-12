@@ -343,6 +343,35 @@ export class V2SearchHistoryRepository {
     }, "原子清理本机旧搜索历史并取消未发送版本");
   }
 
+  getSomeLastAccessSearchTerms(limit = 20): EHSearchTerm[] {
+    if (!Number.isSafeInteger(limit) || limit < 1) throw new Error("最近搜索词数量必须是正整数");
+    const rows = this.database.query(
+      `SELECT namespace, qualifier, term
+       FROM (
+         SELECT terms.namespace, terms.qualifier, terms.term,
+           history.last_access_time, history.history_id, terms.term_index,
+           ROW_NUMBER() OVER (
+             PARTITION BY terms.namespace, terms.qualifier, terms.term
+             ORDER BY history.last_access_time DESC, history.history_id DESC, terms.term_index DESC
+           ) AS row_num
+         FROM search_history_search_terms AS terms
+         JOIN search_history AS history ON terms.history_id = history.history_id
+       )
+       WHERE row_num = 1
+       ORDER BY last_access_time DESC, history_id DESC, term_index DESC
+       LIMIT ?`,
+      [limit],
+    ) as { namespace: string | null; qualifier: string | null; term: string }[];
+    return rows.map((row) => ({
+      namespace: row.namespace === null ? undefined : (row.namespace as TagNamespace),
+      qualifier: row.qualifier === null ? undefined : (row.qualifier as EHQualifier),
+      term: row.term,
+      dollar: false,
+      subtract: false,
+      tilde: false,
+    }));
+  }
+
   applyRemoteHistory(mutation: RemoteSyncMutation): ApplyRemoteSearchHistoryResult {
     if (mutation.entityType !== SEARCH_HISTORY_ENTITY_TYPE) {
       throw new Error("远端 change 的 entity type 不是 search history v1");

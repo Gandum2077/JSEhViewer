@@ -53,15 +53,17 @@ export type WebDAVService = {
   enabled: boolean;
 };
 
+export type SearchEntityId = number | string;
+
 export type DBSearchBookmarks = {
-  id: number;
+  id: SearchEntityId;
   sort_order: number;
   sorted_fsearch: string;
   searchTerms: EHSearchTerm[];
 }[];
 
 export type DBSearchHistory = {
-  id: number;
+  id: SearchEntityId;
   last_access_time: string;
   sorted_fsearch: string;
   searchTerms: EHSearchTerm[];

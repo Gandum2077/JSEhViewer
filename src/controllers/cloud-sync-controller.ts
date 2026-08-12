@@ -34,6 +34,7 @@ import { runCloudSyncSearchBookmarkRepositoryV2Diagnostic } from "../utils/cloud
 import { runCloudSyncMarkedTagRepositoryV2Diagnostic } from "../utils/cloud-sync-marked-tag-repository-v2-diagnostic";
 import { runCloudSyncArchiveRepositoryV2Diagnostic } from "../utils/cloud-sync-archive-repository-v2-diagnostic";
 import { runCloudSyncDatabaseRecoveryDiagnostic } from "../utils/cloud-sync-database-recovery-diagnostic";
+import { runCloudSyncV2BusinessPathDiagnostic } from "../utils/cloud-sync-v2-business-path-diagnostic";
 
 const BASE64URL_32_BYTES_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
@@ -120,6 +121,7 @@ export class CloudSyncController extends BaseController {
   private _markedTagRepositoryV2Check = "未检查";
   private _archiveRepositoryV2Check = "未检查";
   private _databaseRecoveryCheck = "未检查";
+  private _v2BusinessPathCheck = "未检查";
   private _lastResult = "尚未运行本次实机检查";
   private _workerInfo?: CloudSyncWorkerInfo;
   private _cryptoWaiter?: CryptoWaiter;
@@ -318,6 +320,7 @@ export class CloudSyncController extends BaseController {
           { type: "info", title: "本地标签 v2 Adapter", value: this._markedTagRepositoryV2Check },
           { type: "info", title: "图库与阅读 v2 Adapter", value: this._archiveRepositoryV2Check },
           { type: "info", title: "启动失败恢复", value: this._databaseRecoveryCheck },
+          { type: "info", title: "v2 业务入口契约", value: this._v2BusinessPathCheck },
           {
             type: "action",
             title: "检查 Keychain 与安全随机数",
@@ -397,6 +400,11 @@ export class CloudSyncController extends BaseController {
             type: "action",
             title: "检查启动失败恢复与诊断脱敏",
             value: () => void this._runDatabaseRecoveryDiagnostic(),
+          },
+          {
+            type: "action",
+            title: "检查 v2 业务入口与稳定搜索 ID",
+            value: () => void this._runV2BusinessPathDiagnostic(),
           },
         ],
       },
@@ -816,6 +824,23 @@ export class CloudSyncController extends BaseController {
     });
   }
 
+  private async _runV2BusinessPathDiagnostic(): Promise<void> {
+    await this._perform("检查 v2 业务入口与稳定搜索 ID", async () => {
+      try {
+        const result = runCloudSyncV2BusinessPathDiagnostic();
+        this._v2BusinessPathCheck = `通过：${result.durationMs} ms`;
+        this._lastResult =
+          `v2 业务入口契约临时库检查通过（${result.durationMs} ms）：公共 Repository 签名已随构建锁定，` +
+          "搜索历史与书签的稳定字符串 ID 可完整穿过 Config/UI facade；历史新增、本机删除、最近搜索词、" +
+          "书签新增、重排和 tombstone 均正确，数字旧 ID 被拒绝；关闭重开后数据完整，临时文件已删除。";
+        $ui.success("v2 业务入口契约检查通过");
+      } catch (error) {
+        this._v2BusinessPathCheck = `失败：${displayError(error)}`;
+        throw error;
+      }
+    });
+  }
+
   private _requestCryptoSelfTest(): Promise<CryptoSelfTestResult> {
     if (!this._webCryptoReady) {
       return Promise.reject(
@@ -1013,6 +1038,7 @@ export class CloudSyncController extends BaseController {
       database_initialization_check: this._databaseInitializationCheck,
       database_v2_migration_check: this._databaseV2MigrationCheck,
       database_recovery_check: this._databaseRecoveryCheck,
+      v2_business_path_check: this._v2BusinessPathCheck,
       archive_repository_check: this._archiveRepositoryCheck,
       search_repository_check: this._searchRepositoryCheck,
       uploader_repository_check: this._uploaderRepositoryCheck,

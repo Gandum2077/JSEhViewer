@@ -1,5 +1,5 @@
 import { EHQualifier, EHSearchTerm, TagNamespace } from "ehentai-parser";
-import { DBSearchBookmarks, DBSearchHistory } from "../types";
+import { DBSearchBookmarks, DBSearchHistory, SearchEntityId } from "../types";
 import { SqliteTransactionContext } from "../utils/sqlite-safe";
 import { MutationOrigin, requireMutationOrigin } from "./mutation-origin";
 import { RepositoryDatabase } from "./repository-database";
@@ -72,6 +72,13 @@ function sameIds(left: number[], right: number[]): boolean {
   return right.every((id) => leftSet.has(id));
 }
 
+function requireLegacySearchId(id: SearchEntityId, name: string): number {
+  if (!Number.isSafeInteger(id) || Number(id) <= 0) {
+    throw new Error(`${name}必须是 v1 正整数本机 ID`);
+  }
+  return Number(id);
+}
+
 export class SearchRepository {
   constructor(private readonly database: RepositoryDatabase) {}
 
@@ -126,10 +133,11 @@ export class SearchRepository {
     }, "保存搜索历史");
   }
 
-  deleteHistoryLocally(id: number): void {
+  deleteHistoryLocally(id: SearchEntityId): void {
+    const legacyId = requireLegacySearchId(id, "搜索历史 ID");
     this.database.transaction((transaction) => {
-      transaction.update("DELETE FROM search_history_search_terms WHERE search_history_id = ?", [id]);
-      transaction.update("DELETE FROM search_history WHERE id = ?", [id]);
+      transaction.update("DELETE FROM search_history_search_terms WHERE search_history_id = ?", [legacyId]);
+      transaction.update("DELETE FROM search_history WHERE id = ?", [legacyId]);
     }, "仅从本机删除搜索历史");
   }
 
@@ -223,11 +231,12 @@ export class SearchRepository {
     }, "新增搜索书签");
   }
 
-  deleteBookmark(id: number, origin: MutationOrigin): void {
+  deleteBookmark(id: SearchEntityId, origin: MutationOrigin): void {
     requireMutationOrigin(origin);
+    const legacyId = requireLegacySearchId(id, "搜索书签 ID");
     this.database.transaction((transaction) => {
-      transaction.update("DELETE FROM search_bookmarks_search_terms WHERE search_bookmarks_id = ?", [id]);
-      transaction.update("DELETE FROM search_bookmarks WHERE id = ?", [id]);
+      transaction.update("DELETE FROM search_bookmarks_search_terms WHERE search_bookmarks_id = ?", [legacyId]);
+      transaction.update("DELETE FROM search_bookmarks WHERE id = ?", [legacyId]);
       const remainingIds = transaction
         .query<{ id: number }>("SELECT id FROM search_bookmarks ORDER BY sort_order ASC, id ASC")
         .map((row) => Number(row.id));
@@ -237,14 +246,15 @@ export class SearchRepository {
     }, "删除并重排搜索书签");
   }
 
-  reorderBookmarks(ids: number[], origin: MutationOrigin): void {
+  reorderBookmarks(ids: SearchEntityId[], origin: MutationOrigin): void {
     requireMutationOrigin(origin);
+    const legacyIds = ids.map((id) => requireLegacySearchId(id, "搜索书签 ID"));
     this.database.transaction((transaction) => {
       const existingIds = transaction
         .query<{ id: number }>("SELECT id FROM search_bookmarks ORDER BY id")
         .map((row) => Number(row.id));
-      if (!sameIds(ids, existingIds)) throw new Error("书签重排必须且只能包含全部现有书签");
-      ids.forEach((id, index) => {
+      if (!sameIds(legacyIds, existingIds)) throw new Error("书签重排必须且只能包含全部现有书签");
+      legacyIds.forEach((id, index) => {
         transaction.update("UPDATE search_bookmarks SET sort_order = ? WHERE id = ?", [index, id]);
       });
     }, "重排搜索书签");

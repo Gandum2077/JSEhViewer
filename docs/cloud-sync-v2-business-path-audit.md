@@ -1,7 +1,7 @@
 # DB v2 正式业务入口审计
 
 > 审计日期：2026-08-12
-> 状态：签名断层与直接 SQL 扫描已自动验证；等待 JSBox 隔离真机检查。正式 Repository 工厂仍固定使用 v1。
+> 状态：签名断层、直接 SQL 扫描与 JSBox 隔离真机检查均已通过。正式 Repository 工厂仍固定使用 v1。
 
 ## 1. 审计目的
 
@@ -17,6 +17,8 @@ DB v2 会删除旧 `archives`，并把搜索数字自增 ID 换成 SHA-256 稳�
 ```sh
 npm run test:v2-business-paths
 ```
+
+2026-08-12，“v2 业务入口与稳定搜索 ID”隔离诊断也已在 JSBox 真机通过（27 ms）。诊断只使用临时 v2 数据库，未读写正式数据库或连接 Worker。
 
 ## 2. Repository 契约结果
 

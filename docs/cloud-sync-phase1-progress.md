@@ -1,7 +1,7 @@
 # 云端同步 Phase 1：本地数据库与 Repository 进展
 
 > 开始日期：2026-08-11
-> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层以及共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核也已通过真机验证。图库、标记上传者、搜索历史、搜索书签和本地标签五个实际 v2 adapter，以及数据库启动失败恢复与脱敏诊断，均已通过自动与真机隔离验证。v1/v2 正式业务契约、搜索稳定 ID facade 和业务文件直接 SQL 扫描已通过自动验证，等待 JSBox 真机隔离检查。正式数据库尚未迁移，也未上传业务数据。
+> 当前状态：进行中。SQLite 安全层、数据库初始化、DB v2 schema 与 v1 → v2 迁移均已通过自动验证和 JSBox 真机临时库验证；图库、搜索历史与书签、标记与屏蔽上传者、marked tags Repository 兼容层以及共享 HLC / `sync_versions` / `sync_outbox` 原子写入内核也已通过真机验证。图库、标记上传者、搜索历史、搜索书签和本地标签五个实际 v2 adapter，以及数据库启动失败恢复与脱敏诊断，均已通过自动与真机隔离验证。v1/v2 正式业务契约、搜索稳定 ID facade 和业务文件直接 SQL 扫描也已通过自动与 JSBox 真机隔离验证。正式数据库尚未迁移，也未上传业务数据。
 
 ## 本阶段目标
 
@@ -218,6 +218,7 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 - 新增 `npm run test:v2-business-paths`：除 v2 facade 的新增/本机删除/最近词/书签重排/tombstone 外，还静态扫描正式业务文件，禁止它们绕过 Repository 直接 SQL 访问同步候选表。当前零违规。
 - 云端同步诊断页新增“检查 v2 业务入口与稳定搜索 ID”，只使用 `assets/cloud-sync-phase1-v2-business-paths.db`，验证字符串 ID 透传、数字旧 ID 拒绝、关闭重开和临时文件清理。
 - 详细结论见 [`cloud-sync-v2-business-path-audit.md`](cloud-sync-v2-business-path-audit.md)。正式 Repository 工厂仍固定使用 v1，本步不会迁移用户数据库。
+- 2026-08-12，该隔离诊断已在 JSBox 真机通过（27 ms）：稳定字符串 ID 完整穿过 Config/UI facade，历史与书签写入、本机删除、最近搜索词、重排、tombstone、旧数字 ID 拒绝、关闭重开和临时文件清理均符合预期。
 
 ## 自动验证结果
 
@@ -385,11 +386,11 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 ## v2 业务入口契约真机检查
 
-- [ ] 安装本次构建的开发版，进入“其他 → 云端同步”。
-- [ ] 点击“检查 v2 业务入口与稳定搜索 ID”。
-- [ ] 确认搜索历史和书签的稳定字符串 ID 能穿过 Config/UI facade，数字 v1 ID 会被 v2 明确拒绝。
-- [ ] 确认历史新增、本机删除、最近搜索词、书签新增/重排/tombstone 均正确。
-- [ ] 确认关闭重开后数据完整、临时文件已删除，并回传“最近结果”。
+- [x] 安装本次构建的开发版，进入“其他 → 云端同步”。
+- [x] 点击“检查 v2 业务入口与稳定搜索 ID”。
+- [x] 确认搜索历史和书签的稳定字符串 ID 能穿过 Config/UI facade，数字 v1 ID 会被 v2 明确拒绝。
+- [x] 确认历史新增、本机删除、最近搜索词、书签新增/重排/tombstone 均正确。
+- [x] 确认关闭重开后数据完整、临时文件已删除，并回传“最近结果”。
 
 预期结果：`v2 业务入口契约临时库检查通过（… ms）：公共 Repository 签名已随构建锁定，搜索历史与书签的稳定字符串 ID 可完整穿过 Config/UI facade；历史新增、本机删除、最近搜索词、书签新增、重排和 tombstone 均正确，数字旧 ID 被拒绝；关闭重开后数据完整，临时文件已删除。`
 
@@ -397,6 +398,5 @@ Phase 1 不连接 Worker，不上传阅读记录、搜索历史或图库列表�
 
 ## 下一小步
 
-1. 完成 v2 业务入口契约与稳定搜索 ID 的 JSBox 真机检查；
-2. 在隔离临时库中装配五个 v2 正式 Repository，并补齐 ConfigManager 关键调用路径的整库回归；
-3. 整库回归通过后，再设计正式 Repository 工厂、迁移后 seed 顺序和启动切换；`CURRENT_USER_VERSION` 在此之前保持 1。
+1. 在隔离临时库中装配五个 v2 正式 Repository，并补齐 ConfigManager 关键调用路径的整库回归；
+2. 整库回归通过后，再设计正式 Repository 工厂、迁移后 seed 顺序和启动切换；`CURRENT_USER_VERSION` 在此之前保持 1。

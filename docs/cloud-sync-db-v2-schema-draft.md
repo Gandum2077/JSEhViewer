@@ -143,4 +143,4 @@ npm run test:database-schema-v2
 - 没有实现生产用 HMAC object key、AEAD envelope codec、网络 push/pull、ACK/cursor 提交或 Worker change apply 调度；
 - 没有把任何现有 Cookie、AI/WebDAV 配置或业务数据上传到 Worker。
 
-启动失败恢复已经通过 Node、production bundle 和 JSBox 真机隔离诊断。v1/v2 正式业务契约、搜索稳定字符串 ID facade 与业务文件直接 SQL 扫描也已建立并通过自动验证，等待 JSBox 真机隔离确认。下一步是在临时库中装配五个 v2 正式 Repository，覆盖 ConfigManager 关键调用路径。虽然迁移和单体 Adapter 已通过，也不能立刻更改 `CURRENT_USER_VERSION`；正式 Repository 工厂、迁移后 seed 顺序和整库回归仍未完成。
+启动失败恢复已经通过 Node、production bundle 和 JSBox 真机隔离诊断。v1/v2 正式业务契约、搜索稳定字符串 ID facade 与业务文件直接 SQL 扫描也已通过自动与 2026-08-12 JSBox 真机隔离验证（27 ms）。下一步是在临时库中装配五个 v2 正式 Repository，覆盖 ConfigManager 关键调用路径。虽然迁移和单体 Adapter 已通过，也不能立刻更改 `CURRENT_USER_VERSION`；正式 Repository 工厂、迁移后 seed 顺序和整库回归仍未完成。

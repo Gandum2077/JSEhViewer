@@ -1,7 +1,7 @@
 # DB v2 Repository 集中装配与整库回归
 
 > 实施日期：2026-08-12
-> 状态：Node 自动整库回归通过；等待 JSBox 隔离真机检查。正式数据库和正式 Repository 仍为 v1。
+> 状态：Node 自动整库回归与 JSBox 隔离真机检查均已通过。正式数据库和正式 Repository 仍为 v1。
 
 ## 1. 为什么增加集中装配层
 
@@ -44,6 +44,8 @@ npm run test:repository-runtime-v2
 - 五类 Adapter 共享的 HLC 版本没有重复。
 
 Node 自动检查已经通过。
+
+2026-08-12，同一整库装配也已在 JSBox 真机隔离临时库通过（51 ms）。
 
 ## 4. JSBox 隔离诊断
 

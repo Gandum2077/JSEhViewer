@@ -7,7 +7,7 @@ export function popoverWithSymbol({
 }: {
   sourceView: AllUIView;
   sourceRect: JBRect;
-  directions: number;
+  directions: UiTypes.UIPopoverOptions["directions"];
   width?: number;
   items: {
     symbol: string;
@@ -92,7 +92,7 @@ export async function popoverWithSymbolAsync({
 }: {
   sourceView: AllUIView;
   sourceRect: JBRect;
-  directions: number;
+  directions: UiTypes.UIPopoverOptions["directions"];
   width?: number;
   items: { symbol: string; title: string; autoDismiss?: boolean }[];
 }): Promise<number> {

@@ -1038,7 +1038,7 @@ class CommonButton extends Base<UIButtonView, UiTypes.ButtonOptions> {
     symbol?: string;
     image?: UIImage;
     symbolColor?: UIColor;
-    contentMode?: number;
+    contentMode?: UiTypes.BaseViewProps["contentMode"];
     symbolSize?: JBSize;
     handler: () => void;
   }) {

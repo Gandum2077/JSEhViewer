@@ -109,7 +109,7 @@ export function createDB() {
             UNIQUE(uploader)
             )`);
   // favcat_titles 和ehentai同步
-  db.update(`CREATE TABLE favcat_titles (
+  db.update(`CREATE TABLE IF NOT EXISTS favcat_titles (
               favcat INTEGER PRIMARY KEY CHECK (favcat >=0 AND favcat <= 9),
               title TEXT
             );`);
@@ -227,8 +227,10 @@ function queryDB(db: SqliteTypes.SqliteInstance, sql: string, args?: any[]) {
   const result: Record<string, any>[] = [];
   const options = args ? { sql, args } : sql;
   db.query(options, (rs, err) => {
-    if (rs === null) {
-      console.log(options);
+    if (err) {
+      throw err;
+    } else if (!rs) {
+      throw new Error("SQLite queryDB: unknown error; sql: " + sql);
     }
     while (rs.next()) {
       const values = rs.values;
@@ -243,34 +245,35 @@ function queryDB(db: SqliteTypes.SqliteInstance, sql: string, args?: any[]) {
 function updateDB(db: SqliteTypes.SqliteInstance, sql: string, args?: any[]) {
   const options = args ? { sql, args } : sql;
   db.beginTransaction();
-  db.update(options);
-  db.commit();
-}
-
-// 批量更新数据库
-function updateDBBatch(db: SqliteTypes.SqliteInstance, sql: string, manyArgs: any[][]) {
-  db.beginTransaction();
-  for (const args of manyArgs) {
-    db.update({ sql, args });
+  const { result, error } = db.update(options);
+  if (error) {
+    db.rollback();
+    throw error;
+  } else if (!result) {
+    db.rollback();
+    throw new Error("SQLite updateDB: unknown error; sql: " + sql);
+  } else {
+    db.commit();
   }
-  db.commit();
 }
 
 function transactionUpdateDB(
   db: SqliteTypes.SqliteInstance,
-  statements: { sql: string; args?: (string | number | boolean | null | undefined)[] }[],
+  statements: { sql: string; args?: any[] }[],
 ) {
   db.beginTransaction();
-  try {
-    for (const statement of statements) {
-      const options = statement.args ? { sql: statement.sql, args: statement.args } : statement.sql;
-      db.update(options);
+  for (const statement of statements) {
+    const options = statement.args ? { sql: statement.sql, args: statement.args } : statement.sql;
+    const { result, error } = db.update(options);
+    if (error) {
+      db.rollback();
+      throw error;
+    } else if (!result) {
+      db.rollback();
+      throw new Error("SQLite transactionUpdateDB: unknown error; sql: " + statement.sql);
     }
-    db.commit();
-  } catch (error) {
-    db.rollback();
-    throw error;
   }
+  db.commit();
 }
 
 /**
@@ -289,7 +292,14 @@ function insertDBBatch(db: SqliteTypes.SqliteInstance, tableName: string, column
   for (let i = 0; i < manyArgs.length; i += batchSize) {
     const batchArgs = manyArgs.slice(i, i + batchSize);
     const sql = sql0 + batchArgs.map(() => columnQuotes).join(",");
-    db.update({ sql, args: batchArgs.flat() });
+    const { result, error } = db.update({ sql, args: batchArgs.flat() });
+    if (error) {
+      db.rollback();
+      throw error;
+    } else if (!result) {
+      db.rollback();
+      throw new Error("Sqlite insertDBBatch: unknown error; tableName: " + tableName);
+    }
   }
   db.commit();
 }
@@ -384,19 +394,22 @@ class DBManager {
     return queryDB(this._db, sql, args);
   }
 
-  update(sql: string, args?: (string | number | boolean | null | undefined)[]) {
+  update(sql: string, args?: any[]) {
     return updateDB(this._db, sql, args);
   }
 
-  batchUpdate(sql: string, manyArgs: (string | number | boolean | null | undefined)[][]) {
-    return updateDBBatch(this._db, sql, manyArgs);
+  batchUpdate(sql: string, manyArgs: any[][]) {
+    return transactionUpdateDB(
+      this._db,
+      manyArgs.map((args) => ({ sql, args })),
+    );
   }
 
-  transactionUpdate(statements: { sql: string; args?: (string | number | boolean | null | undefined)[] }[]) {
+  transactionUpdate(statements: { sql: string; args?: any[] }[]) {
     return transactionUpdateDB(this._db, statements);
   }
 
-  batchInsert(tableName: string, columns: string[], manyArgs: (string | number | boolean | null | undefined)[][]) {
+  batchInsert(tableName: string, columns: string[], manyArgs: any[][]) {
     return insertDBBatch(this._db, tableName, columns, manyArgs);
   }
 }

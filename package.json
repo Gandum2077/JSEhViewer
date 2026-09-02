@@ -29,7 +29,8 @@
     "@types/cheerio": "^0.22.35",
     "@types/node": "^20.11.25",
     "@types/url-parse": "^1.4.11",
-    "jsbox-types": "^2.1.1",
+    "jsbox-types": "^2.1.2",
+    "sql-formatter": "^15.8.2",
     "webpack": "^5.104.1",
     "webpack-cli": "^5.1.4"
   }

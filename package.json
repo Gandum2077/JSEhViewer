@@ -21,8 +21,7 @@
   "dependencies": {
     "cheerio": "0.22.0",
     "ehentai-parser": "^1.15.0",
-    "jsbox-cview": "^2.0.1",
-    "prettier": "^3.8.1",
+    "jsbox-cview": "^2.1.0",
     "url-parse": "^1.5.10"
   },
   "devDependencies": {
@@ -30,6 +29,7 @@
     "@types/node": "^20.11.25",
     "@types/url-parse": "^1.4.11",
     "jsbox-types": "^2.1.2",
+    "prettier": "^3.8.1",
     "sql-formatter": "^15.8.2",
     "webpack": "^5.104.1",
     "webpack-cli": "^5.1.4"

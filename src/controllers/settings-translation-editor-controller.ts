@@ -1,11 +1,11 @@
 import {
   Base,
-  BaseController,
   CustomNavigationBar,
   DynamicPreferenceListView,
   DynamicRowHeightList,
   PrefsRow,
   PreferenceSection,
+  KeyboardAvoidanceController,
 } from "jsbox-cview";
 import { BlankView } from "../components/blank-view-for-dynamic-rowheight-list";
 import { AITranslationService } from "../types";
@@ -174,6 +174,7 @@ class InfoCard extends Base<UIView, UiTypes.ViewOptions> {
 class CodeEditorCard extends Base<UIView, UiTypes.ViewOptions> {
   private _summary: string;
   private _editing: boolean = false;
+  private _focused: boolean = false;
   private _type: "script" | "schema";
   _defineView: () => UiTypes.ViewOptions;
   constructor({
@@ -184,6 +185,7 @@ class CodeEditorCard extends Base<UIView, UiTypes.ViewOptions> {
     type,
     checkButtonTitle,
     checkHandler,
+    focusHandler,
   }: {
     title: string;
     summary: string;
@@ -192,6 +194,7 @@ class CodeEditorCard extends Base<UIView, UiTypes.ViewOptions> {
     type: "script" | "schema";
     checkButtonTitle: string;
     checkHandler: () => void;
+    focusHandler: () => void;
   }) {
     super();
     this._summary = summary;
@@ -245,6 +248,13 @@ class CodeEditorCard extends Base<UIView, UiTypes.ViewOptions> {
                 make.bottom.inset(18);
               },
               events: {
+                didBeginEditing: (sender) => {
+                  this._focused = true;
+                  focusHandler();
+                },
+                didEndEditing: (sender) => {
+                  this._focused = false;
+                },
                 didChange: (sender) => {
                   this._editing = true;
                 },
@@ -420,6 +430,10 @@ class CodeEditorCard extends Base<UIView, UiTypes.ViewOptions> {
     return this._editing;
   }
 
+  get focused() {
+    return this._focused;
+  }
+
   get valid() {
     if (this._type === "script") {
       return validateUserCustomScriptText(this.code).ok;
@@ -445,7 +459,7 @@ class CodeEditorCard extends Base<UIView, UiTypes.ViewOptions> {
   }
 }
 
-class AITranslationConfigEditorController extends BaseController {
+class AITranslationConfigEditorController extends KeyboardAvoidanceController {
   private _serviceNameKey: string = "__service_name__";
   private _serviceName: string;
   cviews: {
@@ -472,6 +486,9 @@ class AITranslationConfigEditorController extends BaseController {
             settled = true;
             reject("cancel");
           }
+        },
+        keyboardHeightChanged: (controller, height) => {
+          if (height > 0) this._scrollToFocusedEditor();
         },
       },
     });
@@ -558,6 +575,7 @@ class AITranslationConfigEditorController extends BaseController {
       type: "script",
       checkButtonTitle: "校验",
       checkHandler: () => {},
+      focusHandler: () => this._scrollToFocusedEditor(),
     });
 
     const schemaEditor = new CodeEditorCard({
@@ -567,6 +585,7 @@ class AITranslationConfigEditorController extends BaseController {
       template: CONFIG_FORM_TEMPLATE,
       type: "schema",
       checkButtonTitle: "应用",
+      focusHandler: () => this._scrollToFocusedEditor(),
       checkHandler: () => {
         const validationInfo = this.cviews.schemaEditor.validationInfo;
         const nextConfig = buildAITranslationConfig(
@@ -582,9 +601,10 @@ class AITranslationConfigEditorController extends BaseController {
     });
 
     const list = new DynamicRowHeightList({
-      rows: [new BlankView(35), infoCard, infoList, scriptEditor, new BlankView(35), schemaEditor, new BlankView(350)],
+      rows: [new BlankView(35), infoCard, infoList, scriptEditor, new BlankView(35), schemaEditor],
       props: {
         separatorHidden: true,
+        keyboardDismissMode: 2,
         bgcolor: $color("clear"),
       },
       layout: (make, view) => {
@@ -626,6 +646,35 @@ class AITranslationConfigEditorController extends BaseController {
       });
     }
     return sections;
+  }
+
+  _scrollToFocusedEditor() {
+    if (this.keyboardHeight <= 0) return;
+    const card = this.cviews.scriptEditor.focused
+      ? this.cviews.scriptEditor
+      : this.cviews.schemaEditor.focused
+        ? this.cviews.schemaEditor
+        : undefined;
+    if (!card) return;
+
+    const list = this.cviews.list.view;
+    const editor = $(card.id + "-editor") as UICodeView;
+    // 使用编辑器在列表内容中的实际位置，避免按整行定位时将编辑区域移出视口。
+    const rect = editor.ocValue().invoke("convertRect:toView:", editor.bounds, list.ocValue()).rawValue() as JBRect;
+    const visibleHeight = list.bounds.height;
+    if (visibleHeight <= 0) return;
+    const currentY = list.contentOffset.y;
+    let targetY = currentY;
+    if (rect.y < currentY || rect.height > visibleHeight) {
+      targetY = rect.y;
+    } else if (rect.y + rect.height > currentY + visibleHeight) {
+      targetY = rect.y + rect.height - visibleHeight;
+    }
+    targetY = Math.max(0, Math.min(targetY, Math.max(0, list.contentSize.height - visibleHeight)));
+    // 与收藏弹窗一致，只改变滚动偏移，不调用 List 的 scrollTo 行定位接口。
+    if (Math.abs(targetY - currentY) > 0.5) {
+      list.scrollToOffset($point(list.contentOffset.x, targetY));
+    }
   }
 }
 

@@ -1,5 +1,5 @@
 import { EHFavoriteInfo, EHGallery } from "ehentai-parser";
-import { Base, DialogSheet, DynamicRowHeightList, Label, List, ContentView } from "jsbox-cview";
+import { Base, DialogSheet, DynamicRowHeightList, Label, List, ContentView, KeyboardAvoidingView } from "jsbox-cview";
 import { api } from "../utils/api";
 import { configManager } from "../utils/config";
 import { favcatColor } from "../utils/glv";
@@ -276,12 +276,6 @@ export async function galleryFavoriteDialog(infos: EHGallery): Promise<
       bgcolor: $color("clear"),
       separatorHidden: true,
       hidden: true,
-      footer: {
-        type: "view",
-        props: {
-          height: 350,
-        },
-      },
     },
     layout: $layout.fill,
     events: {},
@@ -294,15 +288,12 @@ export async function galleryFavoriteDialog(infos: EHGallery): Promise<
     },
     layout: $layout.center,
   });
-  const cview = new ContentView({
+  const content = new ContentView({
     props: {
       bgcolor: $color("clear"),
     },
     views: [list.definition, placholder.definition],
-    layout: (make, view) => {
-      make.left.right.bottom.equalTo(view.super.safeArea);
-      make.top.equalTo(view.super.safeArea).inset(50);
-    },
+    layout: $layout.fill,
     events: {
       ready: async (sender) => {
         try {
@@ -321,6 +312,15 @@ export async function galleryFavoriteDialog(infos: EHGallery): Promise<
       },
     },
   });
+  const cview = new KeyboardAvoidingView({
+    props: {
+      content
+    },
+    layout: (make, view) => {
+      make.left.right.bottom.equalTo(view.super);
+      make.top.equalTo(view.super.safeArea).inset(50);
+    }
+  })
   const sheet = new DialogSheet({
     title: "收藏",
     bgcolor: $color("backgroundColor"),

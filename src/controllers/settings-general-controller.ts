@@ -87,6 +87,7 @@ export class GeneralSettingsController extends BaseController {
       alwaysShowWebDAVWidget: boolean;
       defaultFavcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
       autoCacheWhenReading: boolean;
+      downloadCount?: number;
       imageShareOnLongPressEnabled: boolean;
       hathLoadSettingIndex: number;
       hathRegionAttr: number;
@@ -159,6 +160,7 @@ export class GeneralSettingsController extends BaseController {
           const alwaysShowWebDAVWidget = values.alwaysShowWebDAVWidget;
           const defaultFavcat = values.defaultFavcat;
           const autoCacheWhenReading = values.autoCacheWhenReading;
+          const downloadCount = values.downloadCount ?? configManager.downloadCount;
           const imageShareOnLongPressEnabled = values.imageShareOnLongPressEnabled;
 
           const hathLoadSettingIndex = values.hathLoadSettingIndex;
@@ -270,8 +272,12 @@ export class GeneralSettingsController extends BaseController {
           if (defaultFavcat !== configManager.defaultFavcat) {
             configManager.defaultFavcat = defaultFavcat;
           }
+          if (downloadCount !== configManager.downloadCount) {
+            configManager.downloadCount = downloadCount;
+          }
           if (autoCacheWhenReading !== configManager.autoCacheWhenReading) {
             configManager.autoCacheWhenReading = autoCacheWhenReading;
+            this.cviews.list.sections = this.getCurrentSections();
           }
           if (imageShareOnLongPressEnabled !== configManager.imageShareOnLongPressEnabled) {
             configManager.imageShareOnLongPressEnabled = imageShareOnLongPressEnabled;
@@ -817,6 +823,17 @@ export class GeneralSettingsController extends BaseController {
         value:
           configManager.specificSearchtermsOnStart &&
           assembleSearchTerms(JSON.parse(configManager.specificSearchtermsOnStart)),
+      });
+    }
+
+    if (!configManager.autoCacheWhenReading) {
+      sections[5].rows.splice(3, 0, {
+        type: "integer",
+        title: "预加载张数",
+        key: "downloadCount",
+        min: 1,
+        max: Number.MAX_SAFE_INTEGER,
+        value: configManager.downloadCount,
       });
     }
 

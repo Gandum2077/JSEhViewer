@@ -1128,7 +1128,10 @@ export class ReaderController extends BaseController {
         }
         this._superGalleryController.autoCacheWhenReading = !this._superGalleryController.autoCacheWhenReading;
         // downloader进行转换
-        galleryDownloader.downloadCount = this._superGalleryController.autoCacheWhenReading ? 0 : 3;
+        galleryDownloader.downloadCount = this._superGalleryController.autoCacheWhenReading
+          ? 0
+          : configManager.downloadCount;
+        galleryDownloader.currentReadingIndex = this.cviews.footerThumbnailView.index;
         if (galleryDownloader.background) {
           // 如果启动了后台下载，需要对后台下载暂停或者继续
           if (this._superGalleryController.autoCacheWhenReading) {
@@ -1665,7 +1668,7 @@ export class ReaderController extends BaseController {
     this.refreshCurrentPage();
     const galleryDownloader = downloaderManager.get(this.gid);
     if (!galleryDownloader) throw new Error("galleryDownloader not found");
-    galleryDownloader.currentReadingIndex = Math.max(page - 1, 0);
+    galleryDownloader.currentReadingIndex = page;
     downloaderManager.startOne(this.gid);
     // 修改标题
     this.cviews.titleLabel.view.text = this._generateTitle();

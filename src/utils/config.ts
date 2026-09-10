@@ -50,6 +50,7 @@ interface Config {
   // aiTranslationSavedConfigText: string;
   autoClearCache: boolean; // 是否在关闭时自动清除缓存
   autoCacheWhenReading: boolean; // 阅读时是否自动缓存整个图库
+  downloadCount: number; // 关闭自动缓存时的预加载张数（含当前图片），正整数
   imageShareOnLongPressEnabled: boolean; // 长按图片分享
 
   // 翻页方式
@@ -109,6 +110,7 @@ const defaultConfig: Config = {
   // aiTranslationSavedConfigText: "{}",
   autoClearCache: false,
   autoCacheWhenReading: true,
+  downloadCount: 3,
   imageShareOnLongPressEnabled: true,
   pageDirection: "left_to_right",
   spreadModeEnabled: false,
@@ -449,6 +451,15 @@ class ConfigManager {
 
   set autoCacheWhenReading(value: boolean) {
     this._setConfig("autoCacheWhenReading", value);
+  }
+
+  get downloadCount() {
+    return this._config.downloadCount;
+  }
+
+  set downloadCount(value: number) {
+    if (!Number.isSafeInteger(value) || value < 1) return;
+    this._setConfig("downloadCount", value);
   }
 
   get imageShareOnLongPressEnabled() {

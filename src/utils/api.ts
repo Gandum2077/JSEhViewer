@@ -682,9 +682,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     }
 
     const canDownloadImages = (this._background && !this.backgroundPaused) || this.reading;
-    const indices = [...this.downloadIndices()];
-    const allowedIndices = new Set(indices);
-    for (const index of indices) {
+    for (const index of this.downloadIndices()) {
       const needsThumbnail = !this.result.thumbnails[index].started;
       const needsImage = canDownloadImages && !this.result.images[index].started;
       if (!needsThumbnail && !needsImage) continue;
@@ -699,13 +697,11 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
       const pageImages = this.infos.images[page];
       const info = pageImages.find((image) => image.page === index)!;
       if (needsThumbnail) {
-        // 合并缩略图必须下载整个源文件，但只裁剪、标记本次范围内未开始的项目。
-        const images = pageImages.filter(
-          (image) =>
-            image.thumbnail_url === info.thumbnail_url &&
-            allowedIndices.has(image.page) &&
-            !this.result.thumbnails[image.page].started,
-        );
+        // 范围只限制任务的触发位置；同一 URL 的已知缩略图一起裁剪和标记，
+        // 即使超出 downloadCount，也不必在之后重复下载同一个源文件。
+        const images = Object.values(this.infos.images)
+          .flat()
+          .filter((image) => image.thumbnail_url === info.thumbnail_url && !this.result.thumbnails[image.page].started);
         return this.createCompoundThumbnailTask({
           thumbnail_url: info.thumbnail_url,
           startIndex: Math.min(...images.map((image) => image.page)),

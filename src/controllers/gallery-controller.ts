@@ -390,7 +390,7 @@ export class GalleryController extends PageViewerController {
     d.currentReadingIndex = Math.max(index - 1, 0); // 提前一页加载
     // 在阅读前检查autoCacheWhenReading：如果后台下载被开启，那么自动开启缓存，否则保持不变
     this.autoCacheWhenReading = (d.background && !d.backgroundPaused) || this.autoCacheWhenReading;
-    d.autoCacheWhenReading = this.autoCacheWhenReading;
+    d.downloadCount = this.autoCacheWhenReading ? 0 : 3;
     downloaderManager.startOne(this._infos.gid);
     const readerController = new ReaderController({
       gid: this._infos.gid,

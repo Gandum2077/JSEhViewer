@@ -139,6 +139,7 @@ class DownloadList extends Base<UIListView, UiTypes.ListOptions> {
                             const d = downloaderManager.get(info.gid);
                             if (d) {
                               d.backgroundPaused = false;
+                              d.downloadCount = 0;
                               downloaderManager.startOne(info.gid);
                             }
                           } else if (info.status === "running") {
@@ -473,7 +474,10 @@ export class SettingsDownloadsController extends BaseController {
     const downloading = [...downloaderManager.galleryDownloaders.values()].filter(
       (n) => n.background && !n.isAllFinishedDespiteError,
     );
-    downloading.forEach((n) => (n.backgroundPaused = false));
+    downloading.forEach((n) => {
+      n.backgroundPaused = false;
+      n.downloadCount = 0;
+    });
     const uploading = [...downloaderManager.galleryWebDAVUploaders.values()].filter(
       (n) => !n.isAllFinishedDespiteError,
     );

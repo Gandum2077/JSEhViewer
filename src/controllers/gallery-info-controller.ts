@@ -1372,6 +1372,7 @@ export class GalleryInfoController extends BaseController {
           // 当前是暂停状态，转变为下载状态
           d.background = true;
           d.backgroundPaused = false;
+          d.downloadCount = 0;
           sender.status = "downloading";
         } else if (status === "downloading") {
           // 当前是下载状态，转变为暂停状态
@@ -1382,6 +1383,7 @@ export class GalleryInfoController extends BaseController {
           // 当前是待机状态，转变为下载状态
           d.background = true;
           d.backgroundPaused = false;
+          d.downloadCount = 0;
           // 查询下载进度
           const progress = d.finishedOfImages / d.result.images.length;
           sender.progress = progress;

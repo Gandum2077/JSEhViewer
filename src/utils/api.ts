@@ -443,7 +443,9 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
 
   currentReadingIndex = 0; // 当前正在阅读的图片的index，可以从外部设置
   reading = false; // 是否正在阅读，可以从外部设置
-  autoCacheWhenReading = true; // 阅读的时候是否自动下载，可以从外部设置
+  downloadCount = 0; // 从 currentReadingIndex 起允许下载的图片数量；0 表示不限并允许回头查找
+  private readonly downloadTopThumbnail: boolean;
+  private htmlRunning = false;
   private _background = false; // 是否后台下载，可以从外部设置
   backgroundPaused = false; // 是否后台暂停，可以从外部设置
   completeStopped = false; // 彻底停止，打开后将不能写入存储
@@ -492,16 +494,22 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
   constructor({
     infos,
     mpvAvailable,
+    downloadCount = 0,
+    downloadTopThumbnail = true,
     finishHandler,
   }: {
     infos: EHGallery;
     mpvAvailable: boolean;
+    downloadCount?: number;
+    downloadTopThumbnail?: boolean;
     finishHandler: () => void;
   }) {
     super();
     this.infos = infos;
     this.gid = infos.gid;
     this.mpvAvailable = mpvAvailable;
+    this.downloadCount = downloadCount;
+    this.downloadTopThumbnail = downloadTopThumbnail;
     this.finishHandler = finishHandler;
     this.result = {
       mpv: { success: false, error: false, started: false },
@@ -544,14 +552,19 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
    * 也可以手动调用。
    */
   initialize() {
-    // 查找已经存在的html信息
-    // 如果存在没有下载完的页面，那么抛弃全部页面
+    // 每页缩略图数量可能变化，不能混用不完整的旧分页与新请求结果。
     if (Object.keys(this.infos.images).length !== this.infos.total_pages) {
       this.infos.images = {};
+      this.result.htmls = [...Array(this.infos.total_pages)].map((_, index) => ({
+        index,
+        started: false,
+        success: false,
+        error: false,
+      }));
     } else {
-      for (let i of Object.keys(this.infos.images)) {
-        const page = parseInt(i);
-        if (isNaN(page)) continue;
+      for (const key of Object.keys(this.infos.images)) {
+        const page = Number(key);
+        if (!Number.isInteger(page) || !this.result.htmls[page]) continue;
         this.result.htmls[page].started = true;
         this.result.htmls[page].success = true;
       }
@@ -620,229 +633,88 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     });
   }
 
-  protected _getNextTask(): Task | undefined {
-    // 0. 最优先：如果images当中没有第0页，那么先获取第0页的数据
-    if (!this.infos.images[0] && !this.result.htmls[0].started) {
-      return this.createHtmlTask(0);
-    }
+  private htmlPageForImage(index: number) {
+    return this.infos.num_of_images_on_each_page ? Math.floor(index / this.infos.num_of_images_on_each_page) : 0;
+  }
 
-    // 如果第0页没有下载完，下面的任务均不进行
-    if (!this.result.htmls[0].success) {
+  private *downloadIndices() {
+    const start = Math.max(0, Math.floor(this.currentReadingIndex));
+    const count = Math.max(0, Math.floor(this.downloadCount));
+    const end = count === 0 ? this.infos.length : Math.min(this.infos.length, start + count);
+    for (let index = start; index < end; index++) yield index;
+    if (count === 0) {
+      for (let index = 0; index < Math.min(start, this.infos.length); index++) yield index;
+    }
+  }
+
+  private requiredHtmlTask(page: number): Task | undefined {
+    // started 也包括失败的任务；重试由外部显式重置状态。
+    if (this.htmlRunning || this.result.htmls[page].started) return;
+    return this.createHtmlTask(page);
+  }
+
+  protected _getNextTask(): Task | undefined {
+    // MPV 模式先取得全部图片信息，不额外请求第 0 页或预下载缩略图。
+    if (this.mpvAvailable && !this.result.mpv.success) {
+      if (!this.result.mpv.started) return this.createMpvTask();
       return;
     }
 
-    // 1. 如果顶部缩略图未开始，则下载顶部缩略图
-    if (!this.result.topThumbnail.started) {
+    if (this.downloadTopThumbnail && !this.result.topThumbnail.started) {
       return this.createTopThumbnailTask(this.infos.thumbnail_url, thumbnailPath + `${this.gid}.jpg`);
     }
 
-    // 1.5 如果mpvAvailable=true, 那么尝试获取mpvkey
-    if (this.mpvAvailable) {
-      if (!this.result.mpv.started) {
-        return this.createMpvTask();
-      } else if (!this.result.mpv.success && this.infos.thumbnail_size === "large" && "0" in this.infos.images) {
-        // 此时可以并行的任务：第一页缩略图的下载任务(最多20个)
-        // 前提：mpv任务还没有成功，thumbanil_size=large, infos中有第一页的数据
-        const compoundThumbnailsZero: CompoundThumbnail[] = [];
-        const imagesOnThisPage = this.infos.images[0].slice(0, 20);
-        let compoundThumbnail: CompoundThumbnail = {
-          thumbnail_url: imagesOnThisPage[0].thumbnail_url,
-          startIndex: imagesOnThisPage[0].page,
-          endIndex: imagesOnThisPage[0].page,
-          images: [imagesOnThisPage[0]],
-        };
-        for (let i = 1; i < imagesOnThisPage.length; i++) {
-          if (imagesOnThisPage[i].thumbnail_url === compoundThumbnail.thumbnail_url) {
-            compoundThumbnail.endIndex = imagesOnThisPage[i].page;
-            compoundThumbnail.images.push(imagesOnThisPage[i]);
-          } else {
-            compoundThumbnailsZero.push(compoundThumbnail);
-            compoundThumbnail = {
-              thumbnail_url: imagesOnThisPage[i].thumbnail_url,
-              startIndex: imagesOnThisPage[i].page,
-              endIndex: imagesOnThisPage[i].page,
-              images: [imagesOnThisPage[i]],
-            };
-          }
-        }
-        compoundThumbnailsZero.push(compoundThumbnail);
-        const compoundThumbnailItem = compoundThumbnailsZero.find((n) =>
-          this.result.thumbnails
-            .filter((i) => i.index >= n.startIndex && i.index <= n.endIndex)
-            .some((i) => i.started === false),
-        );
-        if (compoundThumbnailItem) {
-          return this.createCompoundThumbnailTask(compoundThumbnailItem);
-        }
-      }
-      // 如果没有mpvkey，则不进行下面的任务
-      if (!this.mpvkey) return;
-    }
-
-    // 2. 如果currentReadingIndex所对应的html还没有开始，则下载html
-    if (this.infos.num_of_images_on_each_page) {
-      // 如果没有num_of_images_on_each_page，则无需考虑html任务（因为只有1页）
-      const page = Math.floor(this.currentReadingIndex / this.infos.num_of_images_on_each_page);
-      if (!this.result.htmls[page].started) {
-        return this.createHtmlTask(page);
-      }
-    }
-
-    // 3. 在html任务中查找已开始但未完成的任务（started为true, success和error都是false）
-    // 如果数量小于等于1，则查找未开始的html任务。保证有两个html任务在同时下载，优先完成html任务。
-    const runningHtmlTaskNum = this.result.htmls.filter((html) => html.started && !html.success && !html.error).length;
-    if (runningHtmlTaskNum <= 1) {
-      const htmlTask = this.result.htmls.find((html) => !html.started);
-      if (htmlTask) return this.createHtmlTask(htmlTask.index);
-    }
-
-    // 插入aiTranslation任务
-    // 如果存在可执行但未开始的任务，则优先执行它们
-    // 可执行的标准为：userSelected为true，started为false, images中对应index的path存在
-    const aiTranslationItem = this.result.aiTranslations.find((task) => {
-      return task.userSelected && !task.started && this.result.images[task.index].path;
-    });
-    if (aiTranslationItem) {
-      return this.createAiTranslationTask(
-        aiTranslationItem.index,
-        this.result.images[aiTranslationItem.index].path || "",
-      );
-    }
-
-    // 插入originalImages任务
-    // 如果存在可执行但未开始的任务，则优先执行它们
-    // 可执行的标准为：对应html任务已完成，userSelected为true，started为false
-    const originalImageItem = this.result.originalImages.find((originalImage) => {
-      const page = this.infos.num_of_images_on_each_page
-        ? Math.floor(originalImage.index / this.infos.num_of_images_on_each_page)
-        : 0;
-      return this.result.htmls[page].success && originalImage.userSelected && !originalImage.started;
-    });
-
-    if (originalImageItem) {
-      const htmlPageOfFoundImageItem = this.infos.num_of_images_on_each_page
-        ? Math.floor(originalImageItem.index / this.infos.num_of_images_on_each_page)
-        : 0;
-      return this.createOriginalImageTask(
-        originalImageItem.index,
-        this.infos.images[htmlPageOfFoundImageItem].find((image) => image.page === originalImageItem.index)!.imgkey,
-      );
-    }
-
-    // 将当前的this.infos.images转换为url唯一的结构
-    const compoundThumbnails: CompoundThumbnail[] = [];
-    for (let i of Object.keys(this.infos.images)) {
-      const page = parseInt(i);
-      if (isNaN(page)) continue;
-      const imagesOnThisPage = this.infos.images[page];
-      // 从第一个开始，查找具有相同thumbnail_url的图片
-      let compoundThumbnail: CompoundThumbnail = {
-        thumbnail_url: imagesOnThisPage[0].thumbnail_url,
-        startIndex: imagesOnThisPage[0].page,
-        endIndex: imagesOnThisPage[0].page,
-        images: [imagesOnThisPage[0]],
-      };
-      for (let i = 1; i < imagesOnThisPage.length; i++) {
-        if (imagesOnThisPage[i].thumbnail_url === compoundThumbnail.thumbnail_url) {
-          compoundThumbnail.endIndex = imagesOnThisPage[i].page;
-          compoundThumbnail.images.push(imagesOnThisPage[i]);
-        } else {
-          compoundThumbnails.push(compoundThumbnail);
-          compoundThumbnail = {
-            thumbnail_url: imagesOnThisPage[i].thumbnail_url,
-            startIndex: imagesOnThisPage[i].page,
-            endIndex: imagesOnThisPage[i].page,
-            images: [imagesOnThisPage[i]],
-          };
-        }
-      }
-      compoundThumbnails.push(compoundThumbnail);
-    }
-    // 4. 查找未开始的缩略图任务
-    // 规则为：在对应html任务已经完成的缩略图任务中，先从currentReadingIndex开始找，如果找不到，则从头开始找
-    // 2024-11-20 update: 由于ehentai图库页面改版，改为从compoundThumbnails中查找
-
-    // 4.1 先从currentReadingIndex开始找
-    let compoundThumbnailItem = compoundThumbnails.find(
-      (n) =>
-        n.endIndex >= this.currentReadingIndex &&
-        this.result.thumbnails
-          .filter((i) => i.index >= n.startIndex && i.index <= n.endIndex)
-          .some((i) => i.started === false),
+    const aiTranslation = this.result.aiTranslations.find(
+      (task) => task.userSelected && !task.started && this.result.images[task.index].path,
     );
-    // 4.2 如果找不到，则从头开始找
-    if (!compoundThumbnailItem)
-      compoundThumbnailItem = compoundThumbnails.find((n) =>
-        this.result.thumbnails
-          .filter((i) => i.index >= n.startIndex && i.index <= n.endIndex)
-          .some((i) => i.started === false),
-      );
-
-    // 如果background为true且backgroundPaused为false，或者reading为true，则尝试进行图片任务
-    if ((this._background && !this.backgroundPaused) || this.reading) {
-      // 5. 查找未开始的图片任务
-      // 规则为：
-      // 1. 如果reading为true，autoCacheWhenReading为false，则需要执行一个特殊的逻辑：
-      //    只下载currentReadingIndex对应的、以及往后2张图片，不下载其他图片
-      // 2. 在对应html任务已经完成的图片任务中，先从currentReadingIndex开始找，如果找不到，则从头开始找
-      let imageItem = this.result.images.find((image) => {
-        const page = this.infos.num_of_images_on_each_page
-          ? Math.floor(image.index / this.infos.num_of_images_on_each_page)
-          : 0;
-        // 如果不处于后台下载状态，且处于阅读状态，且autoCacheWhenReading为false，
-        // 则只会下载currentReadingIndex对应的、以及往后2张图片
-        if (!(this._background && !this.backgroundPaused) && this.reading && !this.autoCacheWhenReading) {
-          return (
-            this.result.htmls[page].success &&
-            image.index >= this.currentReadingIndex &&
-            image.index <= this.currentReadingIndex + 2 &&
-            !image.started
-          );
-        } else {
-          return this.result.htmls[page].success && image.index >= this.currentReadingIndex && !image.started;
-        }
-      });
-      if (!imageItem)
-        imageItem = this.result.images.find((image) => {
-          // 如果不处于后台下载状态，且处于阅读状态，且autoCacheWhenReading为false，则不下载
-          if (!(this._background && !this.backgroundPaused) && this.reading && !this.autoCacheWhenReading) return false;
-          const page = this.infos.num_of_images_on_each_page
-            ? Math.floor(image.index / this.infos.num_of_images_on_each_page)
-            : 0;
-          return this.result.htmls[page].success && !image.started;
-        });
-      if (compoundThumbnailItem && imageItem) {
-        // 如果图片对应的缩略图还没有开始，则下载缩略图，否则下载图片
-        const imageItemIndex = imageItem.index;
-        if (imageItem.index >= compoundThumbnailItem.startIndex && imageItem.index <= compoundThumbnailItem.endIndex) {
-          return this.createCompoundThumbnailTask(compoundThumbnailItem);
-        } else {
-          const htmlPageOfFoundImageItem = this.infos.num_of_images_on_each_page
-            ? Math.floor(imageItem.index / this.infos.num_of_images_on_each_page)
-            : 0;
-          return this.createImageTask(
-            imageItem.index,
-            this.infos.images[htmlPageOfFoundImageItem].find((image) => image.page === imageItemIndex)!.imgkey,
-          );
-        }
-      } else if (compoundThumbnailItem) {
-        return this.createCompoundThumbnailTask(compoundThumbnailItem);
-      } else if (imageItem) {
-        const imageItemIndex = imageItem.index;
-        const htmlPageOfFoundImageItem = this.infos.num_of_images_on_each_page
-          ? Math.floor(imageItem.index / this.infos.num_of_images_on_each_page)
-          : 0;
-        return this.createImageTask(
-          imageItem.index,
-          this.infos.images[htmlPageOfFoundImageItem].find((image) => image.page === imageItemIndex)!.imgkey,
-        );
-      }
-    } else {
-      if (compoundThumbnailItem) {
-        return this.createCompoundThumbnailTask(compoundThumbnailItem);
-      }
+    if (aiTranslation) {
+      return this.createAiTranslationTask(aiTranslation.index, this.result.images[aiTranslation.index].path!);
     }
-    return;
+
+    for (const original of this.result.originalImages) {
+      if (!original.userSelected || original.started) continue;
+      if (!this.result.htmls[0].success) return this.requiredHtmlTask(0);
+      const page = this.htmlPageForImage(original.index);
+      if (this.result.htmls[page].error) continue;
+      if (!this.result.htmls[page].success) return this.requiredHtmlTask(page);
+      const info = this.infos.images[page].find((image) => image.page === original.index)!;
+      return this.createOriginalImageTask(original.index, info.imgkey);
+    }
+
+    const canDownloadImages = (this._background && !this.backgroundPaused) || this.reading;
+    const indices = [...this.downloadIndices()];
+    const allowedIndices = new Set(indices);
+    for (const index of indices) {
+      const needsThumbnail = !this.result.thumbnails[index].started;
+      const needsImage = canDownloadImages && !this.result.images[index].started;
+      if (!needsThumbnail && !needsImage) continue;
+
+      // 首次需要资源信息时，先用第 0 页确认当前分页大小，再定位目标 HTML。
+      // 已缓存的目标资源不需要重新取得分页信息。
+      if (!this.result.htmls[0].success) return this.requiredHtmlTask(0);
+      const page = this.htmlPageForImage(index);
+      if (this.result.htmls[page].error) continue;
+      // 先选资源，再确保其 HTML 依赖已完成；等待时不抢先加载其他 HTML 页。
+      if (!this.result.htmls[page].success) return this.requiredHtmlTask(page);
+      const pageImages = this.infos.images[page];
+      const info = pageImages.find((image) => image.page === index)!;
+      if (needsThumbnail) {
+        // 合并缩略图必须下载整个源文件，但只裁剪、标记本次范围内未开始的项目。
+        const images = pageImages.filter(
+          (image) =>
+            image.thumbnail_url === info.thumbnail_url &&
+            allowedIndices.has(image.page) &&
+            !this.result.thumbnails[image.page].started,
+        );
+        return this.createCompoundThumbnailTask({
+          thumbnail_url: info.thumbnail_url,
+          startIndex: Math.min(...images.map((image) => image.page)),
+          endIndex: Math.max(...images.map((image) => image.page)),
+          images,
+        });
+      }
+      return this.createImageTask(index, info.imgkey);
+    }
   }
 
   private createMpvTask() {
@@ -886,72 +758,83 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     return {
       index,
       handler: async () => {
-        appLog(`开始下载图库页面: gid=${this.gid}, index=${index}`, "debug");
+        this.htmlRunning = true;
         this.result.htmls[index].started = true;
-        const result = await api.getGalleryImagesWithTwoRetries(this.gid, this.infos.token, index);
-        if (result.success && result.info.thumbnail_size === "normal") {
-          throw new FatalError("参数错误: thumbnail_size不应为normal");
-        }
-        // 如果是第0页，那么修改infos.total_pages、infos.num_of_images_on_each_page、result.html的数据
-        if (result.success && index === 0) {
-          this.infos.total_pages = result.info.total_pages;
-          this.infos.num_of_images_on_each_page = result.info.num_of_images_on_each_page;
-          this.result.htmls = [...Array(this.infos.total_pages)].map((_, i) => ({
-            index: i,
-            success: false,
-            error: false,
-            started: false,
-          }));
-        }
-        if (
-          result.success &&
-          result.info.total_pages === this.infos.total_pages &&
-          result.info.num_of_images_on_each_page === this.infos.num_of_images_on_each_page
-        ) {
-          // 需要total_pages、num_of_images_on_each_page都不变，才算成功
-          // 如果改变，说明网页版设置在应用使用中被更改，需要判为失败
-          appLog(`图库页面下载成功: gid=${this.gid}, index=${index}`, "debug");
-          this.result.htmls[index].success = true;
-          this.infos.images[index] = result.images[index];
-          // 特殊：在完成后，重新启动任务
-          if (!this._paused) this._run();
-        } else {
-          this.result.htmls[index].error = true;
-          // 除了html任务自己标记为失败，与此任务关联的未开始的缩略图和图片任务也标记为失败
-          if (this.infos.num_of_images_on_each_page) {
-            // 如果没有num_of_images_on_each_page，则无需考虑此种情况（因为只有1页）
-            const startIndex = index * this.infos.num_of_images_on_each_page;
-            const endIndex = startIndex + this.infos.num_of_images_on_each_page;
-            this.result.thumbnails
-              .filter((thumbnail) => {
-                return thumbnail.index >= startIndex && thumbnail.index < endIndex && !thumbnail.started;
-              })
-              .forEach((thumbnail) => {
-                thumbnail.started = true;
-                thumbnail.error = true;
-              });
-            this.result.images
-              .filter((image) => {
-                return image.index >= startIndex && image.index < endIndex && !image.started;
-              })
-              .forEach((image) => {
-                image.started = true;
-                image.error = true;
-              });
+        try {
+          appLog(`开始下载图库页面: gid=${this.gid}, index=${index}`, "debug");
+          const result = await api.getGalleryImagesWithTwoRetries(this.gid, this.infos.token, index);
+          if (result.success && result.info.thumbnail_size === "normal") {
+            throw new FatalError("参数错误: thumbnail_size不应为normal");
           }
-        }
+          // 如果是第0页，那么修改infos.total_pages、infos.num_of_images_on_each_page、result.html的数据
+          if (
+            result.success &&
+            index === 0 &&
+            (result.info.total_pages !== this.infos.total_pages ||
+              result.info.num_of_images_on_each_page !== this.infos.num_of_images_on_each_page)
+          ) {
+            this.infos.total_pages = result.info.total_pages;
+            this.infos.num_of_images_on_each_page = result.info.num_of_images_on_each_page;
+            this.result.htmls = [...Array(this.infos.total_pages)].map((_, i) => ({
+              index: i,
+              success: false,
+              error: false,
+              started: false,
+            }));
+          }
+          if (
+            result.success &&
+            result.info.total_pages === this.infos.total_pages &&
+            result.info.num_of_images_on_each_page === this.infos.num_of_images_on_each_page
+          ) {
+            // 需要total_pages、num_of_images_on_each_page都不变，才算成功
+            // 如果改变，说明网页版设置在应用使用中被更改，需要判为失败
+            appLog(`图库页面下载成功: gid=${this.gid}, index=${index}`, "debug");
+            this.result.htmls[index].started = true;
+            this.result.htmls[index].success = true;
+            this.infos.images[index] = result.images[index];
+            // 特殊：在完成后，重新启动任务
+            if (!this._paused) this._run();
+          } else {
+            this.result.htmls[index].error = true;
+            // 除了html任务自己标记为失败，与此任务关联的未开始的缩略图和图片任务也标记为失败
+            if (this.infos.num_of_images_on_each_page) {
+              // 如果没有num_of_images_on_each_page，则无需考虑此种情况（因为只有1页）
+              const startIndex = index * this.infos.num_of_images_on_each_page;
+              const endIndex = startIndex + this.infos.num_of_images_on_each_page;
+              this.result.thumbnails
+                .filter((thumbnail) => {
+                  return thumbnail.index >= startIndex && thumbnail.index < endIndex && !thumbnail.started;
+                })
+                .forEach((thumbnail) => {
+                  thumbnail.started = true;
+                  thumbnail.error = true;
+                });
+              this.result.images
+                .filter((image) => {
+                  return image.index >= startIndex && image.index < endIndex && !image.started;
+                })
+                .forEach((image) => {
+                  image.started = true;
+                  image.error = true;
+                });
+            }
+          }
 
-        if (this.result.htmls.every((n) => n.success)) {
-          // 在html全部下载完成后，保存到本地
-          const text = JSON.stringify(this.infos, null, 2);
-          $file.write({
-            data: $data({ string: text }),
-            path: galleryInfoPath + `${this.gid}.json`,
-          });
-        }
+          if (this.result.htmls.every((n) => n.success)) {
+            // 在html全部下载完成后，保存到本地
+            const text = JSON.stringify(this.infos, null, 2);
+            $file.write({
+              data: $data({ string: text }),
+              path: galleryInfoPath + `${this.gid}.json`,
+            });
+          }
 
-        if (!this._paused && this.isAllFinishedDespiteError) {
-          this.finishHandler();
+          if (!this._paused && this.isAllFinishedDespiteError) {
+            this.finishHandler();
+          }
+        } finally {
+          this.htmlRunning = false;
         }
       },
     };
@@ -986,12 +869,13 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     const endIndex = compoundThumbnailItem.endIndex;
     const url = compoundThumbnailItem.thumbnail_url;
     const images = compoundThumbnailItem.images;
+    const indices = new Set(images.map((image) => image.page));
     return {
       index: startIndex,
       handler: async () => {
         appLog(`开始下载图库缩略图: gid=${this.gid}, startIndex=${startIndex}, endIndex=${endIndex}`, "debug");
         this.result.thumbnails
-          .filter((thumbnail) => thumbnail.index >= startIndex && thumbnail.index <= endIndex)
+          .filter((thumbnail) => indices.has(thumbnail.index))
           .forEach((thumbnail) => {
             thumbnail.started = true;
           });
@@ -1001,9 +885,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           const data = result.data;
           const image = data.image;
           // 此处的读取image必须放在循环外面，以减少调用次数，否则会出现莫名其妙为空的情况
-          const filtered = this.result.thumbnails.filter(
-            (thumbnail) => thumbnail.index >= startIndex && thumbnail.index <= endIndex,
-          );
+          const filtered = this.result.thumbnails.filter((thumbnail) => indices.has(thumbnail.index));
           for (let i = 0; i < filtered.length; i++) {
             const thumbnail = filtered[i];
             const index = thumbnail.index;
@@ -1026,7 +908,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
           }
         } else {
           this.result.thumbnails
-            .filter((thumbnail) => thumbnail.index >= startIndex && thumbnail.index <= endIndex)
+            .filter((thumbnail) => indices.has(thumbnail.index))
             .forEach((thumbnail) => {
               thumbnail.error = true;
             });
@@ -1161,7 +1043,10 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
 
   get pending() {
     return (
-      this.pendingOfHtmls + this.pendingOfThumbnails + this.pendingOfImages + (this.result.topThumbnail.started ? 0 : 1)
+      this.pendingOfHtmls +
+      this.pendingOfThumbnails +
+      this.pendingOfImages +
+      (this.downloadTopThumbnail && !this.result.topThumbnail.started ? 1 : 0)
     );
   }
 
@@ -1179,16 +1064,26 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
 
   get finished() {
     return (
-      this.finishedOfHtmls + this.finishedOfThumbnails + this.finishedOfImages + (this.result.topThumbnail.path ? 1 : 0)
+      this.finishedOfHtmls +
+      this.finishedOfThumbnails +
+      this.finishedOfImages +
+      (this.downloadTopThumbnail && this.result.topThumbnail.path ? 1 : 0)
     );
   }
 
   get isAllFinished(): boolean {
-    return this.finished === this.result.htmls.length + this.result.thumbnails.length + this.result.images.length + 1;
+    return (
+      this.finished ===
+      this.result.htmls.length +
+        this.result.thumbnails.length +
+        this.result.images.length +
+        (this.downloadTopThumbnail ? 1 : 0)
+    );
   }
 
   get isAllFinishedDespiteError(): boolean {
-    const topThumbnailFinishedDespiteError = this.result.topThumbnail.path || this.result.topThumbnail.error;
+    const topThumbnailFinishedDespiteError =
+      !this.downloadTopThumbnail || this.result.topThumbnail.path || this.result.topThumbnail.error;
     const finishedOfHtmlsDespiteError = this.result.htmls.filter((html) => html.success || html.error).length;
     const finishedOfThumbnailsDespiteError = this.result.thumbnails.filter(
       (thumbnail) => thumbnail.path || thumbnail.error,
@@ -1384,10 +1279,11 @@ class DownloaderManager {
    * @param gid 图库id
    * @param infos 图库信息
    */
-  add(gid: number, infos: EHGallery) {
+  add(gid: number, infos: EHGallery, options: { downloadCount?: number; downloadTopThumbnail?: boolean } = {}) {
     if (this.galleryDownloaders.has(gid)) throw new Error("Unable to add duplicate image downloader");
     const downloader = new GalleryCommonDownloader({
       infos,
+      ...options,
       mpvAvailable: configManager.mpvAvailable,
       finishHandler: () => {
         for (const [k, v] of this.galleryWebDAVUploaders) {
@@ -1431,20 +1327,9 @@ class DownloaderManager {
    * 启动某一个图库下载器，并暂停其他全部图库下载器
    */
   startOne(gid: number) {
-    // 先检测该下载器是否还有未完成的任务，如果没有，则不启动
-    // 两种情况：
-    // 1. reading为true，autoCacheWhenReading为false，只下载currentReadingIndex对应的、以及往后2张图片
-    // 2. 其他情况，下载所有未开始的图片
     const d = this.galleryDownloaders.get(gid);
     if (!d) return false;
-    if (!(d.background && !d.backgroundPaused) && d.reading && !d.autoCacheWhenReading) {
-      const hasPendingImages = d.result.images
-        .slice(d.currentReadingIndex, d.currentReadingIndex + 3)
-        .some((n) => !n.started);
-      if (!hasPendingImages) return false;
-    } else if (d.isAllFinishedDespiteError) {
-      return false;
-    }
+    // 是否有可运行的任务交给调度器判断，不能仅用普通图片阻止缩略图等任务启动。
     let success = false;
     for (const [k, v] of this.galleryDownloaders) {
       if (k === gid) {

@@ -888,6 +888,7 @@ export class ReaderController extends BaseController {
             last_read_page: this.cviews.footerThumbnailView.index,
           });
           downloaderManager.get(this.gid)!.reading = false;
+          downloaderManager.get(this.gid)!.downloadCount = 0;
           globalTimer.removeTask(this.gid.toString() + "reader");
           if (lastUITapGestureRecognizer) {
             $objc_release(lastUITapGestureRecognizer);
@@ -1127,7 +1128,7 @@ export class ReaderController extends BaseController {
         }
         this._superGalleryController.autoCacheWhenReading = !this._superGalleryController.autoCacheWhenReading;
         // downloader进行转换
-        galleryDownloader.autoCacheWhenReading = this._superGalleryController.autoCacheWhenReading;
+        galleryDownloader.downloadCount = this._superGalleryController.autoCacheWhenReading ? 0 : 3;
         if (galleryDownloader.background) {
           // 如果启动了后台下载，需要对后台下载暂停或者继续
           if (this._superGalleryController.autoCacheWhenReading) {
@@ -1665,15 +1666,7 @@ export class ReaderController extends BaseController {
     const galleryDownloader = downloaderManager.get(this.gid);
     if (!galleryDownloader) throw new Error("galleryDownloader not found");
     galleryDownloader.currentReadingIndex = Math.max(page - 1, 0);
-    if (!this._superGalleryController.autoCacheWhenReading) {
-      // 检查前后三张图片是否存在 未开始 的任务
-      const shouldStartDownloader = galleryDownloader.result.images
-        .slice(galleryDownloader.currentReadingIndex, galleryDownloader.currentReadingIndex + 3)
-        .some((n) => !n.started);
-      if (shouldStartDownloader) {
-        downloaderManager.startOne(this.gid);
-      }
-    }
+    downloaderManager.startOne(this.gid);
     // 修改标题
     this.cviews.titleLabel.view.text = this._generateTitle();
 

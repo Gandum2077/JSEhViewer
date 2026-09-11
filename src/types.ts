@@ -109,6 +109,7 @@ export type DBFavoriteImageGroup = {
   title: string;
 };
 
+/** file_name / thumbnail_file_name 为原缓存的完整路径；缺失时为空字符串。 */
 export type FavoriteImageFile = {
   page_index: number;
   thumbnail_file_name: string;

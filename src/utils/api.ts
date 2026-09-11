@@ -279,6 +279,8 @@ abstract class ConcurrentDownloaderBase {
   constructor() {}
 
   protected abstract _getNextTask(): Task | undefined;
+  onIdle?: () => void;
+  onError?: (error: unknown) => void;
 
   protected async _runSingleTask() {
     if (this._paused) return;
@@ -288,17 +290,27 @@ abstract class ConcurrentDownloaderBase {
       try {
         appLog(`开始任务: 任务数量=${this._running}`, "debug");
         await task.handler();
+      } catch (error) {
+        if (this.onError) this.onError(error);
+        else throw error;
       } finally {
         this._running--;
         await this._runSingleTask();
+        if (this._running === 0) this.onIdle?.();
       }
+    } else if (this._running === 0) {
+      this.onIdle?.();
     }
   }
 
   protected _run() {
     const remainedConcurrency = this._maxConcurrency - this._running;
     for (let i = 0; i < remainedConcurrency; i++) {
-      this._runSingleTask().then();
+      this._runSingleTask().catch((error) => {
+        if (!this.onError) throw error;
+        this.onError(error);
+        if (this._running === 0) this.onIdle?.();
+      });
     }
   }
 
@@ -1288,6 +1300,77 @@ class DownloaderManager {
     this.galleryWebDAVUploaders = new Map() as Map<number, GalleryWebDAVUploader>;
   }
 
+  private cancelSinglePage?: () => void;
+  private singlePageDownloader?: GalleryCommonDownloader;
+
+  downloadSinglePage(infos: EHGallery, pageIndex: number) {
+    this.pauseAll();
+    let cancelled = false;
+    let downloader: GalleryCommonDownloader | undefined;
+    let settle!: () => void;
+    const done = new Promise<void>((resolve) => {
+      settle = resolve;
+    });
+    const cancel = () => {
+      cancelled = true;
+      downloader?.pause();
+    };
+    this.cancelSinglePage = cancel;
+    void (async () => {
+      // 暂停无法取消在途请求，先等它们结束再派发单页任务。
+      while (
+        this.singlePageDownloader?.running ||
+        [
+          ...this.galleryDownloaders.values(),
+          ...this.tabDownloaders.values(),
+          ...this.galleryWebDAVUploaders.values(),
+        ].some((task) => task.running)
+      ) {
+        if (cancelled) return;
+        await $wait(0.1);
+      }
+      if (cancelled || pageIndex < 0 || pageIndex >= infos.length) return;
+      downloader = new GalleryCommonDownloader({
+        infos,
+        mpvAvailable: configManager.mpvAvailable,
+        imageDownloadCount: 1,
+        thumbnailDownloadCount: 1,
+        downloadTopThumbnail: false,
+        finishHandler: () => {},
+      });
+      this.singlePageDownloader = downloader;
+      downloader.currentReadingIndex = pageIndex;
+      downloader.currentThumbnailIndex = pageIndex;
+      downloader.reading = true;
+      downloader.onError = (error) => {
+        console.error(error);
+        downloader!.pause();
+      };
+      await new Promise<void>((resolve) => {
+        downloader!.onIdle = resolve;
+        downloader!.start();
+      });
+    })()
+      .catch((error) => console.error(error))
+      .finally(() => {
+        // 原有下载器继续复用新缓存，但不改变它的范围、位置或任务错误状态。
+        const existing = this.galleryDownloaders.get(infos.gid);
+        if (existing && downloader) {
+          for (const kind of ["images", "thumbnails"] as const) {
+            for (const item of downloader.result[kind]) {
+              if (item.path && existing.result[kind][item.index]) {
+                Object.assign(existing.result[kind][item.index], { path: item.path, started: true, error: false });
+              }
+            }
+          }
+        }
+        if (this.cancelSinglePage === cancel) this.cancelSinglePage = undefined;
+        if (this.singlePageDownloader === downloader) this.singlePageDownloader = undefined;
+        settle();
+      });
+    return { done, cancel, isCancelled: () => cancelled };
+  }
+
   /**
    * 添加一个图库下载器
    * 不能重复添加，如果gid重复，会直接报错
@@ -1346,6 +1429,7 @@ class DownloaderManager {
    * 启动某一个图库下载器，并暂停其他全部图库下载器
    */
   startOne(gid: number) {
+    this.cancelSinglePage?.();
     const d = this.galleryDownloaders.get(gid);
     if (!d) return false;
     // 是否有可运行的任务交给调度器判断，不能仅用普通图片阻止缩略图等任务启动。
@@ -1459,6 +1543,7 @@ class DownloaderManager {
    * 启动指定的标签缩略图下载器，并暂停其他全部下载器
    */
   startTabDownloader(id: string) {
+    this.cancelSinglePage?.();
     const downloader = this.tabDownloaders.get(id);
     if (!downloader) return false;
     if (downloader.isAllFinishedDespiteError) return false;
@@ -1531,6 +1616,7 @@ class DownloaderManager {
    * 启动指定的图库WebDAV上传器，并暂停其他全部下载器
    */
   startGalleryWebDAVUploader(gid: number) {
+    this.cancelSinglePage?.();
     const uploader = this.galleryWebDAVUploaders.get(gid);
     if (!uploader) return false;
     if (uploader.isAllFinishedDespiteError) return false;
@@ -1646,6 +1732,7 @@ class DownloaderManager {
    * 暂停所有图库下载器
    */
   pauseAll() {
+    this.cancelSinglePage?.();
     for (const v of this.tabDownloaders.values()) {
       v.pause();
     }

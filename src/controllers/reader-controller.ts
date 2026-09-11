@@ -1346,17 +1346,7 @@ export class ReaderController extends BaseController {
             }
           } else {
             // 收藏
-            const originalImage = galleryDownloader.result.originalImages[index];
-            const isOriginal = this.reloadedPageSet.has(index) && Boolean(originalImage.path);
-            const image = isOriginal ? originalImage : galleryDownloader.result.images[index];
-            const thumbnail = galleryDownloader.result.thumbnails[index];
-            if (!image.path) {
-              $ui.warning("请等待当前图片加载");
-              return;
-            } else if (!thumbnail.path) {
-              $ui.warning("请等待当前图片缩略图加载");
-              return;
-            } else if (favoriteImageManager.add(this.gid, index, image.path, thumbnail.path, isOriginal)) {
+            if (favoriteImageManager.add(this.gid, index)) {
               favoriteImageButton.symbol = "heart.fill";
               favoriteImageButton.tintColor = $color("orange");
               this._favoriteImageSet.add(index);

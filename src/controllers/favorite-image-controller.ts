@@ -16,8 +16,7 @@ import {
   FavoriteImageSort,
 } from "../types";
 import { configManager } from "../utils/config";
-import { favoriteImageManager } from "../utils/favorite-image";
-import { favoriteImagePath } from "../utils/glv";
+import { FavoriteImageDownloadQueue, favoriteImageManager } from "../utils/favorite-image";
 import { statusManager } from "../utils/status";
 import { FavoriteImageReaderController } from "./favorite-image-reader-controller";
 import { getSearchOptions } from "./search-controller";
@@ -199,6 +198,8 @@ export class FavoriteImageController extends BaseController {
   };
   sortOptions: SortPopoverOptions;
   searchOptions: ArchiveSearchOptions = { fromPage: 0, toPage: 0 };
+  private _downloads = new FavoriteImageDownloadQueue();
+  private _visible = false;
   private _groups: FavoriteImageGroupWithFiles[] = [];
   constructor() {
     super({
@@ -208,7 +209,16 @@ export class FavoriteImageController extends BaseController {
           this.fullRefresh();
         },
         didAppear: () => {
+          this._visible = true;
           this.fullRefresh();
+        },
+        didDisappear: () => {
+          this._visible = false;
+          this._downloads.stop();
+        },
+        didRemove: () => {
+          this._visible = false;
+          this._downloads.stop();
         },
       },
     });
@@ -383,7 +393,8 @@ export class FavoriteImageController extends BaseController {
     );
   }
 
-  fullRefresh() {
+  fullRefresh(scheduleDownloads = true) {
+    if (scheduleDownloads) this._downloads.stop();
     // 如果存在搜索项，搜索按钮变成橙色
     this.cviews.searchButton.tintColor = this.hasSearchOptions ? $color("orange") : $color("primaryText");
 
@@ -422,7 +433,7 @@ export class FavoriteImageController extends BaseController {
         return {
           title: group.title,
           items: group.pages.map((page) => ({
-            image: { src: page.thumbnail_file_name ? favoriteImagePath + page.thumbnail_file_name : "" },
+            image: { src: page.thumbnail_file_name ? page.thumbnail_file_name : "" },
             info: { gid: group.gid, index: page.page_index },
           })),
         };
@@ -436,17 +447,29 @@ export class FavoriteImageController extends BaseController {
       this.cviews.matrixNoTitle.data = groups
         .map((group) =>
           group.pages.map((page) => ({
-            image: { src: page.thumbnail_file_name ? favoriteImagePath + page.thumbnail_file_name : "" },
+            image: { src: page.thumbnail_file_name ? page.thumbnail_file_name : "" },
             info: { gid: group.gid, index: page.page_index },
           })),
         )
         .flat();
     }
+    if (scheduleDownloads && this._visible) {
+      this._downloads.start(
+        groups.flatMap((group) =>
+          group.pages.map((page) => ({
+            gid: group.gid,
+            token: group.token,
+            pageIndex: page.page_index,
+          })),
+        ),
+        () => this.fullRefresh(false),
+      );
+    }
   }
 
   private _openViewer(gid: number, pageIndex: number) {
     const group = this._groups.find((item) => item.gid === gid);
-    if (!group || !group.pages.some((page) => page.page_index === pageIndex && page.file_name)) {
+    if (!group || !group.pages.some((page) => page.page_index === pageIndex)) {
       $ui.error("收藏图片文件不存在");
       return;
     }

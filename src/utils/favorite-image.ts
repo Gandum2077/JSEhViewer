@@ -5,135 +5,54 @@ import {
   FavoriteImageGroupWithFiles,
   FavoriteImageGroupQueryOptions,
 } from "../types";
+import { EHGallery } from "ehentai-parser";
 import { dbManager } from "./database";
-import { favoriteImagePath, favoriteImageTempPath } from "./glv";
-
-const FAVORITE_IMAGE_FILE_NAME_PATTERN = /^(\d+)_(\d+)(_original|_thumbnail)?\.([^.]+)$/i;
-type FavoriteImageFileSource = "favorite" | "temporary";
+import { imagePath, thumbnailPath, galleryInfoPath } from "./glv";
+import { api, downloaderManager } from "./api";
 
 class FavoriteImageManager {
-  add(
-    gid: number,
-    pageIndex: number,
-    imagePath?: string,
-    thumbnailPath?: string,
-    isOriginal = false,
-    favoritedAt: string = new Date().toISOString(),
-  ): boolean {
-    if (this._getAvailablePageFile(favoriteImageTempPath, gid, pageIndex)) {
-      return this.restoreFromTemporary(gid, pageIndex, favoritedAt);
-    }
-
-    if (!imagePath || !thumbnailPath || !$file.exists(imagePath) || !$file.exists(thumbnailPath)) return false;
-    if (!$file.exists(favoriteImagePath) && !$file.mkdir(favoriteImagePath)) return false;
-    if (!this._removeFiles(favoriteImagePath, gid, pageIndex)) return false;
-
-    const imageFileName = `${gid}_${pageIndex}${isOriginal ? "_original" : ""}.${this._getExtension(imagePath)}`;
-    const thumbnailFileName = `${gid}_${pageIndex}_thumbnail.${this._getExtension(thumbnailPath)}`;
-    const imageDestination = favoriteImagePath + imageFileName;
-    const thumbnailDestination = favoriteImagePath + thumbnailFileName;
-
-    if (!$file.copy({ src: imagePath, dst: imageDestination })) return false;
-    if (!$file.copy({ src: thumbnailPath, dst: thumbnailDestination })) {
-      $file.delete(imageDestination);
-      return false;
-    }
-
+  add(gid: number, pageIndex: number, favoritedAt = new Date().toISOString()): boolean {
     try {
       dbManager.update(
-        `INSERT INTO favorite_images (gid, page_index, favorited_at)
-        VALUES (?, ?, ?)
+        `INSERT INTO favorite_images (gid, page_index, favorited_at) VALUES (?, ?, ?)
         ON CONFLICT(gid, page_index) DO UPDATE SET favorited_at = excluded.favorited_at`,
         [gid, pageIndex, favoritedAt],
       );
-      this._removeFiles(favoriteImageTempPath, gid, pageIndex);
       return true;
     } catch (error) {
-      $file.delete(imageDestination);
-      $file.delete(thumbnailDestination);
       console.error(error);
       return false;
     }
   }
 
   remove(gid: number, pageIndex: number): boolean {
-    return this.moveToTemporary(gid, pageIndex);
-  }
-
-  removeByGid(gid: number): boolean {
-    if (!this._removeFiles(favoriteImagePath, gid)) return false;
-    if (!this._removeFiles(favoriteImageTempPath, gid)) return false;
-    dbManager.update("DELETE FROM favorite_images WHERE gid = ?", [gid]);
-    return true;
-  }
-
-  moveToTemporary(gid: number, pageIndex: number): boolean {
-    const fileNames = this._getPageFileNames(favoriteImagePath, gid, pageIndex);
-    const movedFileNames: string[] = [];
-
-    if (fileNames.length > 0) {
-      if (!$file.exists(favoriteImageTempPath) && !$file.mkdir(favoriteImageTempPath)) return false;
-
-      for (const fileName of fileNames) {
-        const destination = favoriteImageTempPath + fileName;
-        if ($file.exists(destination) && !$file.delete(destination)) {
-          this._rollbackMoves(movedFileNames, favoriteImageTempPath, favoriteImagePath);
-          return false;
-        }
-        if (!$file.move({ src: favoriteImagePath + fileName, dst: destination })) {
-          this._rollbackMoves(movedFileNames, favoriteImageTempPath, favoriteImagePath);
-          return false;
-        }
-        movedFileNames.push(fileName);
-      }
-    }
-
     try {
       dbManager.update("DELETE FROM favorite_images WHERE gid = ? AND page_index = ?", [gid, pageIndex]);
       return true;
     } catch (error) {
-      this._rollbackMoves(movedFileNames, favoriteImageTempPath, favoriteImagePath);
       console.error(error);
       return false;
     }
   }
 
-  restoreFromTemporary(gid: number, pageIndex: number, favoritedAt = new Date().toISOString()): boolean {
-    const fileNames = this._getPageFileNames(favoriteImageTempPath, gid, pageIndex);
-    if (!this._getAvailablePageFile(favoriteImageTempPath, gid, pageIndex)) return false;
-    if (!$file.exists(favoriteImagePath) && !$file.mkdir(favoriteImagePath)) return false;
-    if (!this._removeFiles(favoriteImagePath, gid, pageIndex)) return false;
-
-    const movedFileNames: string[] = [];
-    for (const fileName of fileNames) {
-      if (!$file.move({ src: favoriteImageTempPath + fileName, dst: favoriteImagePath + fileName })) {
-        this._rollbackMoves(movedFileNames, favoriteImagePath, favoriteImageTempPath);
-        return false;
-      }
-      movedFileNames.push(fileName);
-    }
-
-    try {
-      dbManager.update(
-        `INSERT INTO favorite_images (gid, page_index, favorited_at)
-         VALUES (?, ?, ?)
-         ON CONFLICT(gid, page_index) DO UPDATE SET favorited_at = excluded.favorited_at`,
-        [gid, pageIndex, favoritedAt],
-      );
-      return true;
-    } catch (error) {
-      this._rollbackMoves(movedFileNames, favoriteImagePath, favoriteImageTempPath);
-      console.error(error);
-      return false;
-    }
+  removeByGid(gid: number): boolean {
+    dbManager.update("DELETE FROM favorite_images WHERE gid = ?", [gid]);
+    return true;
   }
 
-  clearTemporaryFiles() {
-    if ($file.exists(favoriteImageTempPath)) $file.delete(favoriteImageTempPath);
-  }
-
-  getFile(gid: number, pageIndex: number, source: FavoriteImageFileSource = "favorite"): FavoriteImageFile | undefined {
-    return this._getPageFile(source === "favorite" ? favoriteImagePath : favoriteImageTempPath, gid, pageIndex);
+  // 字段保留以兼容现有视图，内容改为原缓存的完整路径。
+  getFile(gid: number, pageIndex: number): FavoriteImageFile {
+    const directory = imagePath + gid + "/";
+    const name = ($file.list(directory) ?? []).find(
+      (name) => /\.(png|jpe?g|gif|webp)$/i.test(name) && Number(name.split(".")[0].split("_")[0]) === pageIndex + 1,
+    );
+    const thumbnail = thumbnailPath + `${gid}/${pageIndex + 1}.jpg`;
+    return {
+      page_index: pageIndex,
+      file_name: name ? directory + name : "",
+      thumbnail_file_name: $file.exists(thumbnail) ? thumbnail : "",
+      is_original: false,
+    };
   }
 
   get(gid: number, pageIndex: number): DBFavoriteImageItem | undefined {
@@ -200,120 +119,68 @@ class FavoriteImageManager {
   }
 
   queryGroupWithFileNames(options: FavoriteImageGroupQueryOptions): FavoriteImageGroupWithFiles[] {
-    const groups = this.queryGroups(options);
-    const filesByPage = new Map<string, FavoriteImageFile>();
-
-    for (const fileName of $file.list(favoriteImagePath) ?? []) {
-      const match = FAVORITE_IMAGE_FILE_NAME_PATTERN.exec(fileName);
-      if (!match) continue;
-
-      const gid = Number(match[1]);
-      const pageIndex = Number(match[2]);
-      const suffix = match[3]?.toLowerCase();
-      const isOriginal = suffix === "_original";
-      const isThumbnail = suffix === "_thumbnail";
-      const key = `${gid}:${pageIndex}`;
-      const current = filesByPage.get(key);
-
-      if (!current) {
-        filesByPage.set(key, {
-          page_index: pageIndex,
-          file_name: "",
-          is_original: false,
-          thumbnail_file_name: "",
-        });
-      }
-
-      const file = filesByPage.get(key)!;
-      if (isThumbnail) {
-        file.thumbnail_file_name = fileName;
-      } else if (isOriginal || !file.file_name) {
-        file.file_name = fileName;
-        file.is_original = isOriginal;
-      }
-    }
-
-    return groups.map(({ pages, ...group }) => ({
+    return this.queryGroups(options).map(({ pages, ...group }) => ({
       ...group,
-      pages: pages.map((pageIndex) => {
-        const file = filesByPage.get(`${group.gid}:${pageIndex}`);
-        return (
-          file ?? {
-            page_index: pageIndex,
-            file_name: "",
-            is_original: false,
-            thumbnail_file_name: "",
-          }
-        );
-      }),
+      pages: pages.map((page) => this.getFile(group.gid, page)),
     }));
-  }
-
-  private _getExtension(path: string): string {
-    return path.split(".").at(-1) || "jpg";
-  }
-
-  private _removeFiles(path: string, gid: number, pageIndex?: number): boolean {
-    const fileNames = this._getPageFileNames(path, gid, pageIndex);
-
-    let success = true;
-    for (const fileName of fileNames) {
-      if (!$file.delete(path + fileName)) success = false;
-    }
-    return success;
-  }
-
-  private _getAvailablePageFile(path: string, gid: number, pageIndex: number): FavoriteImageFile | undefined {
-    const file = this._getPageFile(path, gid, pageIndex);
-    if (!file?.file_name || !file.thumbnail_file_name) return undefined;
-    return file;
-  }
-
-  private _getPageFile(path: string, gid: number, pageIndex: number): FavoriteImageFile | undefined {
-    let file: FavoriteImageFile | undefined;
-    for (const fileName of this._getPageFileNames(path, gid, pageIndex)) {
-      const match = FAVORITE_IMAGE_FILE_NAME_PATTERN.exec(fileName);
-      if (!match) continue;
-
-      const suffix = match[3]?.toLowerCase();
-      const isOriginal = suffix === "_original";
-      const isThumbnail = suffix === "_thumbnail";
-
-      if (!file) {
-        file = {
-          page_index: pageIndex,
-          file_name: "",
-          is_original: false,
-          thumbnail_file_name: "",
-        };
-      }
-
-      if (isThumbnail) {
-        file.thumbnail_file_name = fileName;
-      } else if (isOriginal || !file.file_name) {
-        file.file_name = fileName;
-        file.is_original = isOriginal;
-      }
-    }
-    return file;
-  }
-
-  private _getPageFileNames(path: string, gid: number, pageIndex?: number): string[] {
-    return ($file.list(path) ?? []).filter((fileName) => {
-      const match = FAVORITE_IMAGE_FILE_NAME_PATTERN.exec(fileName);
-      if (!match || Number(match[1]) !== gid) return false;
-      return pageIndex === undefined || Number(match[2]) === pageIndex;
-    });
-  }
-
-  private _rollbackMoves(fileNames: string[], sourcePath: string, destinationPath: string) {
-    for (const fileName of fileNames) {
-      const source = sourcePath + fileName;
-      if ($file.exists(source) && !$file.move({ src: source, dst: destinationPath + fileName })) {
-        console.error(`Failed to roll back favorite image file: ${source}`);
-      }
-    }
   }
 }
 
 export const favoriteImageManager = new FavoriteImageManager();
+
+/** 每个可见浏览页面拥有自己的队列；退出时停止派发，完成后立即继续下一张。 */
+export class FavoriteImageDownloadQueue {
+  private generation = 0;
+  private cancelCurrent?: () => void;
+
+  stop() {
+    this.generation++;
+    this.cancelCurrent?.();
+    this.cancelCurrent = undefined;
+  }
+
+  start(items: { gid: number; token: string; pageIndex: number }[], changed: () => void) {
+    this.stop();
+    const generation = this.generation;
+    const active = () => generation === this.generation;
+    void (async () => {
+      const infosByGid = new Map<number, EHGallery>();
+      for (const item of items) {
+        if (!active()) return;
+        const file = favoriteImageManager.getFile(item.gid, item.pageIndex);
+        if (file.file_name && file.thumbnail_file_name) continue;
+        try {
+          let infos = infosByGid.get(item.gid);
+          if (!infos) {
+            const cached = downloaderManager.get(item.gid)?.infos;
+            const path = galleryInfoPath + `${item.gid}.json`;
+            if (cached) infos = JSON.parse(JSON.stringify(cached)) as EHGallery;
+            else if ($file.exists(path)) {
+              try {
+                infos = JSON.parse($file.read(path).string || "") as EHGallery;
+              } catch (_) {
+                /* 重新获取 */
+              }
+            }
+            if (!infos) {
+              if (!item.token) continue;
+              infos = await api.getGalleryInfo(item.gid, item.token, false);
+            }
+            infosByGid.set(item.gid, infos);
+          }
+          if (!active()) return;
+          const task = downloaderManager.downloadSinglePage(infos, item.pageIndex);
+          this.cancelCurrent = task.cancel;
+          await task.done;
+          if (task.isCancelled()) return;
+        } catch (error) {
+          console.error(error);
+        }
+        if (!active()) return;
+        this.cancelCurrent = undefined;
+        changed();
+      }
+      if (active()) downloaderManager.startIfIdle();
+    })().catch((error) => console.error(error));
+  }
+}

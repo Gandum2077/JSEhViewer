@@ -11,15 +11,13 @@ import {
 } from "jsbox-cview";
 import { CustomImagePager } from "../components/custom-image-pager";
 import { NoscrollImagePager } from "../components/noscroll-image-pager";
-import { FavoriteImageFile, FavoriteImageGroupWithFiles } from "../types";
+import { FavoriteImageGroupWithFiles } from "../types";
 import { configManager } from "../utils/config";
-import { favoriteImageManager } from "../utils/favorite-image";
-import { favoriteImagePath, favoriteImageTempPath } from "../utils/glv";
+import { FavoriteImageDownloadQueue, favoriteImageManager } from "../utils/favorite-image";
 import { globalTimer } from "../utils/timer";
 import { GalleryController } from "./gallery-controller";
 
 type FavoriteImagePagingGesture = "tap_and_swipe" | "swipe" | "tap";
-type FavoriteImageReaderFileSource = "favorite" | "temporary";
 
 let lastFavoriteImageTapGestureRecognizer: any;
 
@@ -195,7 +193,6 @@ type FavoriteImageReaderItem = {
   title: string;
   pageIndex: number;
   fileName: string;
-  fileSource: FavoriteImageReaderFileSource;
   isOriginal: boolean;
   isFavorite: boolean;
 };
@@ -258,6 +255,8 @@ class FavoriteImageReaderTitleView extends Base<UIView, UiTypes.ViewOptions> {
 }
 
 export class FavoriteImageReaderController extends BaseController {
+  private _downloads = new FavoriteImageDownloadQueue();
+  private _visible = false;
   private _items: FavoriteImageReaderItem[];
   private _index: number;
   private _pagingGesture: FavoriteImagePagingGesture;
@@ -292,34 +291,35 @@ export class FavoriteImageReaderController extends BaseController {
         },
         didAppear: () => {
           globalTimer.resumeTask(this._timerId);
+          this._visible = true;
           this._reconcileItems();
+          this._downloadMissing();
         },
         didDisappear: () => {
+          this._visible = false;
+          this._downloads.stop();
           globalTimer.pauseTask(this._timerId);
         },
         didRemove: () => {
           globalTimer.removeTask(this._timerId);
           releaseFavoriteImageTapGestureRecognizer();
           this._imagePager = undefined;
-          favoriteImageManager.clearTemporaryFiles();
+          this._downloads.stop();
         },
       },
     });
 
     this._items = groups.flatMap((group) =>
-      group.pages
-        .filter((page) => page.file_name)
-        .map((page) => ({
-          gid: group.gid,
-          token: group.token,
-          length: group.length,
-          title: group.title,
-          pageIndex: page.page_index,
-          fileName: page.file_name,
-          fileSource: "favorite",
-          isOriginal: page.is_original,
-          isFavorite: true,
-        })),
+      group.pages.map((page) => ({
+        gid: group.gid,
+        token: group.token,
+        length: group.length,
+        title: group.title,
+        pageIndex: page.page_index,
+        fileName: page.file_name,
+        isOriginal: page.is_original,
+        isFavorite: true,
+      })),
     );
     if (this._items.length === 0) throw new Error("Favorite image list is empty");
     this._index = Math.max(
@@ -494,7 +494,7 @@ export class FavoriteImageReaderController extends BaseController {
 
   private _generateSrcs() {
     return this._items.map((item) => ({
-      path: (item.fileSource === "favorite" ? favoriteImagePath : favoriteImageTempPath) + item.fileName,
+      path: item.fileName || undefined,
       error: false,
       type: item.isOriginal ? ("reloaded" as const) : ("normal" as const),
     }));
@@ -557,6 +557,7 @@ export class FavoriteImageReaderController extends BaseController {
   private _turnTo(index: number) {
     if (index < 0 || index >= this._items.length) return;
     this._index = index;
+    this._downloadMissing();
     if (this._imagePager && this._imagePager.page !== index) this._imagePager.page = index;
     this._autoPagerCountDown = this._autoPagerInterval;
     this._updateControls();
@@ -607,7 +608,7 @@ export class FavoriteImageReaderController extends BaseController {
     }
 
     item.isFavorite = nextIsFavorite;
-    this._applyLatestFile(item, nextIsFavorite ? "favorite" : "temporary");
+    this._applyLatestFile(item);
     if (this._imagePager) this._imagePager.srcs = this._generateSrcs();
     this._updateControls();
   }
@@ -623,7 +624,7 @@ export class FavoriteImageReaderController extends BaseController {
         shouldUpdateControls = true;
       }
 
-      if (this._applyLatestFile(item, isFavorite ? "favorite" : "temporary")) {
+      if (this._applyLatestFile(item)) {
         shouldRefreshSrcs = true;
       }
     }
@@ -632,19 +633,18 @@ export class FavoriteImageReaderController extends BaseController {
     if (shouldUpdateControls || shouldRefreshSrcs) this._updateControls();
   }
 
-  private _applyLatestFile(item: FavoriteImageReaderItem, source: FavoriteImageReaderFileSource): boolean {
-    const file = favoriteImageManager.getFile(item.gid, item.pageIndex, source);
-    if (!file?.file_name) return false;
-    return this._applyFile(item, file, source);
+  private _applyLatestFile(item: FavoriteImageReaderItem): boolean {
+    const file = favoriteImageManager.getFile(item.gid, item.pageIndex);
+    const changed = item.fileName !== file.file_name;
+    item.fileName = file.file_name;
+    item.isOriginal = false;
+    return changed;
   }
 
-  private _applyFile(item: FavoriteImageReaderItem, file: FavoriteImageFile, source: FavoriteImageReaderFileSource) {
-    const changed =
-      item.fileName !== file.file_name || item.fileSource !== source || item.isOriginal !== file.is_original;
-    item.fileName = file.file_name;
-    item.fileSource = source;
-    item.isOriginal = file.is_original;
-    return changed;
+  private _downloadMissing() {
+    if (!this._visible) return;
+    const items = [...this._items.slice(this._index), ...this._items.slice(0, this._index)];
+    this._downloads.start(items, () => this._reconcileItems());
   }
 
   private _startAutoPager(interval: number) {
@@ -673,7 +673,8 @@ export class FavoriteImageReaderController extends BaseController {
   }
 
   private _shareCurrentImage() {
-    const data = $file.read(this._generateSrcs()[this._index].path);
+    const path = this._generateSrcs()[this._index].path;
+    const data = path ? $file.read(path) : undefined;
     if (data?.image) {
       $share.universal(data.image);
     } else {

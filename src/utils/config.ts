@@ -12,14 +12,7 @@ import {
   ReaderConfig,
 } from "../types";
 import { dbManager } from "./database";
-import {
-  aiTranslationPath,
-  favoriteImagePath,
-  favoriteImageTempPath,
-  imagePath,
-  originalImagePath,
-  thumbnailPath,
-} from "./glv";
+import { aiTranslationPath, imagePath, originalImagePath, thumbnailPath } from "./glv";
 import { appLog } from "./tools";
 
 interface Config {
@@ -1361,25 +1354,39 @@ LIMIT 20;
   /**
    * 清除缓存
    * 规则：
-   * 1. 删除thumbnailPath
+   * 1. 删除未收藏图片的缩略图
    * 2. 删除originalImagePath
    * 3. 删除aiTranslationPath
-   * 4. 在imagePath中，查找所有没有被标注为"downloaded"的文件夹，删除它们
+   * 4. 普通图片保留下载图库及收藏页，其余删除
    */
   clearCache() {
-    $file.delete(thumbnailPath);
     $file.delete(originalImagePath);
     $file.delete(aiTranslationPath);
-    const sql = "SELECT gid FROM archives WHERE downloaded = 1";
-    const data = dbManager.query(sql) as {
+    const downloadedGids = new Set(
+      (dbManager.query("SELECT gid FROM archives WHERE downloaded = 1") as { gid: number }[]).map((item) => item.gid),
+    );
+    const favorites = new Map<number, Set<number>>();
+    for (const item of dbManager.query("SELECT gid, page_index FROM favorite_images") as {
       gid: number;
-    }[];
-    const downloadedGids = data.map((n) => n.gid);
-    const imageDirs = $file.list(imagePath)!;
-    for (const dir of imageDirs) {
-      const gid = parseInt(dir);
-      if (!downloadedGids.includes(gid)) {
-        $file.delete(imagePath + dir);
+      page_index: number;
+    }[]) {
+      if (!favorites.has(item.gid)) favorites.set(item.gid, new Set());
+      favorites.get(item.gid)!.add(item.page_index);
+    }
+    // 保留收藏普通图片及缩略图；图库元数据保留，以支持缺失资源恢复。
+    for (const root of [thumbnailPath, imagePath]) {
+      for (const name of $file.list(root) ?? []) {
+        const gid = /^\d+$/.test(name) ? Number(name) : undefined;
+        if (root === imagePath && gid !== undefined && downloadedGids.has(gid)) continue;
+        const pages = gid === undefined ? undefined : favorites.get(gid);
+        if (!pages) {
+          $file.delete(root + name);
+          continue;
+        }
+        for (const file of $file.list(root + name) ?? []) {
+          const match = /^(\d+)(?:_[^.]+)?\.(?:png|jpe?g|gif|webp)$/i.exec(file);
+          if (!match || !pages.has(Number(match[1]) - 1)) $file.delete(root + name + "/" + file);
+        }
       }
     }
   }
@@ -1392,8 +1399,6 @@ LIMIT 20;
     $file.delete(originalImagePath);
     $file.delete(aiTranslationPath);
     $file.delete(imagePath);
-    $file.delete(favoriteImagePath);
-    $file.delete(favoriteImageTempPath);
     dbManager.transactionUpdate([
       { sql: "DELETE FROM favorite_images" },
       { sql: "DELETE FROM archive_taglist" },

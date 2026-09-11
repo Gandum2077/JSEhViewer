@@ -19,15 +19,7 @@ import {
   extractGidToken,
   ParsedCookie,
 } from "ehentai-parser";
-import {
-  aiTranslationPath,
-  imagePath,
-  thumbnailPath,
-  originalImagePath,
-  galleryInfoPath,
-  favoriteImagePath,
-  favoriteImageTempPath,
-} from "./utils/glv";
+import { aiTranslationPath, imagePath, thumbnailPath, originalImagePath, galleryInfoPath } from "./utils/glv";
 import { globalTimer } from "./utils/timer";
 import { StatusTabOptions } from "./types";
 import { dbManager } from "./utils/database";
@@ -44,8 +36,10 @@ async function init(url?: string) {
   if (!$file.exists(aiTranslationPath)) $file.mkdir(aiTranslationPath);
   if (!$file.exists(originalImagePath)) $file.mkdir(originalImagePath);
   if (!$file.exists(galleryInfoPath)) $file.mkdir(galleryInfoPath);
-  if (!$file.exists(favoriteImagePath)) $file.mkdir(favoriteImagePath);
-  if ($file.exists(favoriteImageTempPath)) $file.delete(favoriteImageTempPath);
+  // 旧版收藏副本不再使用，缺失资源由收藏浏览按页重新下载。
+  for (const path of ["assets/favorite-image/", "assets/favorite-image-temp/"]) {
+    if ($file.exists(path)) $file.delete(path);
+  }
 
   const homepageController = new HomepageController();
   const archiveController = new ArchiveController();

@@ -829,7 +829,7 @@ export class GeneralSettingsController extends BaseController {
     if (!configManager.autoCacheWhenReading) {
       sections[5].rows.splice(3, 0, {
         type: "integer",
-        title: "预加载张数",
+        title: "图片预加载",
         key: "downloadCount",
         min: 1,
         max: Number.MAX_SAFE_INTEGER,

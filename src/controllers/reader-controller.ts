@@ -888,7 +888,7 @@ export class ReaderController extends BaseController {
             last_read_page: this.cviews.footerThumbnailView.index,
           });
           downloaderManager.get(this.gid)!.reading = false;
-          downloaderManager.get(this.gid)!.downloadCount = 0;
+          downloaderManager.get(this.gid)!.imageDownloadCount = 0;
           globalTimer.removeTask(this.gid.toString() + "reader");
           if (lastUITapGestureRecognizer) {
             $objc_release(lastUITapGestureRecognizer);
@@ -1128,10 +1128,11 @@ export class ReaderController extends BaseController {
         }
         this._superGalleryController.autoCacheWhenReading = !this._superGalleryController.autoCacheWhenReading;
         // downloader进行转换
-        galleryDownloader.downloadCount = this._superGalleryController.autoCacheWhenReading
+        galleryDownloader.imageDownloadCount = this._superGalleryController.autoCacheWhenReading
           ? 0
           : configManager.downloadCount;
         galleryDownloader.currentReadingIndex = this.cviews.footerThumbnailView.index;
+        galleryDownloader.currentThumbnailIndex = this.cviews.footerThumbnailView.index;
         if (galleryDownloader.background) {
           // 如果启动了后台下载，需要对后台下载暂停或者继续
           if (this._superGalleryController.autoCacheWhenReading) {
@@ -1669,6 +1670,7 @@ export class ReaderController extends BaseController {
     const galleryDownloader = downloaderManager.get(this.gid);
     if (!galleryDownloader) throw new Error("galleryDownloader not found");
     galleryDownloader.currentReadingIndex = page;
+    galleryDownloader.currentThumbnailIndex = page;
     downloaderManager.startOne(this.gid);
     // 修改标题
     this.cviews.titleLabel.view.text = this._generateTitle();

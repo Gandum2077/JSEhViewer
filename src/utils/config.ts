@@ -50,7 +50,7 @@ interface Config {
   // aiTranslationSavedConfigText: string;
   autoClearCache: boolean; // 是否在关闭时自动清除缓存
   autoCacheWhenReading: boolean; // 阅读时是否自动缓存整个图库
-  downloadCount: number; // 关闭自动缓存时的预加载张数（含当前图片），正整数
+  downloadCount: number; // 关闭自动缓存时的普通图片预加载张数（含当前图片），正整数
   imageShareOnLongPressEnabled: boolean; // 长按图片分享
 
   // 翻页方式

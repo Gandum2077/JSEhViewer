@@ -443,7 +443,10 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
 
   currentReadingIndex = 0; // 当前正在阅读的图片的index，可以从外部设置
   reading = false; // 是否正在阅读，可以从外部设置
-  downloadCount = 0; // 从 currentReadingIndex 起允许下载的图片数量；0 表示不限并允许回头查找
+  imageDownloadCount = 0; // 从 currentReadingIndex 起允许下载的图片数量；0 表示不限并允许回头查找
+  currentThumbnailIndex = 0; // 缩略图浏览的优先位置，与图片阅读位置独立
+  thumbnailDownloadCount = 0; // 0 表示不限并允许回头查找，正数限定从 currentThumbnailIndex 起的数量
+  private preferImageTask = false;
   private readonly downloadTopThumbnail: boolean;
   private htmlRunning = false;
   private _background = false; // 是否后台下载，可以从外部设置
@@ -494,13 +497,15 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
   constructor({
     infos,
     mpvAvailable,
-    downloadCount = 0,
+    imageDownloadCount = 0,
+    thumbnailDownloadCount = 0,
     downloadTopThumbnail = true,
     finishHandler,
   }: {
     infos: EHGallery;
     mpvAvailable: boolean;
-    downloadCount?: number;
+    imageDownloadCount?: number;
+    thumbnailDownloadCount?: number;
     downloadTopThumbnail?: boolean;
     finishHandler: () => void;
   }) {
@@ -508,7 +513,8 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     this.infos = infos;
     this.gid = infos.gid;
     this.mpvAvailable = mpvAvailable;
-    this.downloadCount = downloadCount;
+    this.imageDownloadCount = imageDownloadCount;
+    this.thumbnailDownloadCount = thumbnailDownloadCount;
     this.downloadTopThumbnail = downloadTopThumbnail;
     this.finishHandler = finishHandler;
     this.result = {
@@ -637,9 +643,9 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     return this.infos.num_of_images_on_each_page ? Math.floor(index / this.infos.num_of_images_on_each_page) : 0;
   }
 
-  private *downloadIndices() {
-    const start = Math.max(0, Math.floor(this.currentReadingIndex));
-    const count = Math.max(0, Math.floor(this.downloadCount));
+  private *downloadIndices(startIndex: number, downloadCount: number) {
+    const start = Math.max(0, Math.floor(startIndex));
+    const count = Math.max(0, Math.floor(downloadCount));
     const end = count === 0 ? this.infos.length : Math.min(this.infos.length, start + count);
     for (let index = start; index < end; index++) yield index;
     if (count === 0) {
@@ -682,35 +688,48 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     }
 
     const canDownloadImages = (this._background && !this.backgroundPaused) || this.reading;
-    for (const index of this.downloadIndices()) {
-      const needsThumbnail = !this.result.thumbnails[index].started;
-      const needsImage = canDownloadImages && !this.result.images[index].started;
-      if (!needsThumbnail && !needsImage) continue;
-
-      // 首次需要资源信息时，先用第 0 页确认当前分页大小，再定位目标 HTML。
-      // 已缓存的目标资源不需要重新取得分页信息。
-      if (!this.result.htmls[0].success) return this.requiredHtmlTask(0);
-      const page = this.htmlPageForImage(index);
-      if (this.result.htmls[page].error) continue;
-      // 先选资源，再确保其 HTML 依赖已完成；等待时不抢先加载其他 HTML 页。
-      if (!this.result.htmls[page].success) return this.requiredHtmlTask(page);
-      const pageImages = this.infos.images[page];
-      const info = pageImages.find((image) => image.page === index)!;
-      if (needsThumbnail) {
-        // 范围只限制任务的触发位置；同一 URL 的已知缩略图一起裁剪和标记，
-        // 即使超出 downloadCount，也不必在之后重复下载同一个源文件。
-        const images = Object.values(this.infos.images)
-          .flat()
-          .filter((image) => image.thumbnail_url === info.thumbnail_url && !this.result.thumbnails[image.page].started);
-        return this.createCompoundThumbnailTask({
-          thumbnail_url: info.thumbnail_url,
-          startIndex: Math.min(...images.map((image) => image.page)),
-          endIndex: Math.max(...images.map((image) => image.page)),
-          images,
-        });
+    const findPending = (kind: "image" | "thumbnail") => {
+      const items = kind === "image" ? this.result.images : this.result.thumbnails;
+      const start = kind === "image" ? this.currentReadingIndex : this.currentThumbnailIndex;
+      const count = kind === "image" ? this.imageDownloadCount : this.thumbnailDownloadCount;
+      for (const index of this.downloadIndices(start, count)) {
+        if (items[index].started) continue;
+        // 第 0 页完成前分页大小尚未确认，不能使用旧分页状态排除候选。
+        if (this.result.htmls[0].success && this.result.htmls[this.htmlPageForImage(index)].error) continue;
+        return index;
       }
+    };
+    const imageIndex = canDownloadImages ? findPending("image") : undefined;
+    const thumbnailIndex = findPending("thumbnail");
+    if (imageIndex === undefined && thumbnailIndex === undefined) return;
+
+    // 阅读时优先保障当前图片（及其候选缩略图）；其余图片与缩略图交替调度，避免饥饿。
+    const currentImagePending = this.reading && imageIndex === this.currentReadingIndex;
+    const useImage =
+      imageIndex !== undefined &&
+      (thumbnailIndex === undefined || (currentImagePending ? thumbnailIndex !== imageIndex : this.preferImageTask));
+    const index = (useImage ? imageIndex : thumbnailIndex)!;
+    if (!this.result.htmls[0].success) return this.requiredHtmlTask(0);
+    const page = this.htmlPageForImage(index);
+    if (!this.result.htmls[page].success) return this.requiredHtmlTask(page);
+    const info = this.infos.images[page].find((image) => image.page === index)!;
+    if (useImage) {
+      this.preferImageTask = false;
       return this.createImageTask(index, info.imgkey);
     }
+
+    // 范围只限制任务的触发位置；同一 URL 的已知缩略图一起裁剪和标记，
+    // 即使超出 thumbnailDownloadCount，也不必之后重复下载同一个源文件。
+    const images = Object.values(this.infos.images)
+      .flat()
+      .filter((image) => image.thumbnail_url === info.thumbnail_url && !this.result.thumbnails[image.page].started);
+    this.preferImageTask = true;
+    return this.createCompoundThumbnailTask({
+      thumbnail_url: info.thumbnail_url,
+      startIndex: Math.min(...images.map((image) => image.page)),
+      endIndex: Math.max(...images.map((image) => image.page)),
+      images,
+    });
   }
 
   private createMpvTask() {
@@ -1275,7 +1294,11 @@ class DownloaderManager {
    * @param gid 图库id
    * @param infos 图库信息
    */
-  add(gid: number, infos: EHGallery, options: { downloadCount?: number; downloadTopThumbnail?: boolean } = {}) {
+  add(
+    gid: number,
+    infos: EHGallery,
+    options: { imageDownloadCount?: number; thumbnailDownloadCount?: number; downloadTopThumbnail?: boolean } = {},
+  ) {
     if (this.galleryDownloaders.has(gid)) throw new Error("Unable to add duplicate image downloader");
     const downloader = new GalleryCommonDownloader({
       infos,

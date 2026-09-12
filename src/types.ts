@@ -43,6 +43,7 @@ export type MarkedTag = {
 export type MarkedTagDict = Map<TagNamespace, Map<string, MarkedTag>>;
 
 export type WebDAVService = {
+  id?: string;
   name: string;
   host: string;
   port?: number;
@@ -54,14 +55,14 @@ export type WebDAVService = {
 };
 
 export type DBSearchBookmarks = {
-  id: number;
+  id: string;
   sort_order: number;
   sorted_fsearch: string;
   searchTerms: EHSearchTerm[];
 }[];
 
 export type DBSearchHistory = {
-  id: number;
+  id: string;
   last_access_time: string;
   sorted_fsearch: string;
   searchTerms: EHSearchTerm[];
@@ -316,7 +317,7 @@ export type AITranslationConfigFormItem =
     });
 
 export type AITranslationService = {
-  id?: number;
+  id?: string;
   name: string;
   selected: boolean;
   scriptText: string;

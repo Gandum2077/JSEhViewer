@@ -13,10 +13,12 @@ import { api, downloaderManager } from "./api";
 class FavoriteImageManager {
   add(gid: number, pageIndex: number, favoritedAt = new Date().toISOString()): boolean {
     try {
+      if (!dbManager.query("SELECT id FROM archive_entries_v2 WHERE id = ? AND deleted = 0", [String(gid)]).length)
+        return false;
       dbManager.update(
-        `INSERT INTO favorite_images (gid, page_index, favorited_at) VALUES (?, ?, ?)
-        ON CONFLICT(gid, page_index) DO UPDATE SET favorited_at = excluded.favorited_at`,
-        [gid, pageIndex, favoritedAt],
+        `INSERT INTO favorite_images_v2 (id, gid, page_index, favorited_at) VALUES (?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET deleted = 0, favorited_at = excluded.favorited_at`,
+        [`${gid}:${pageIndex}`, gid, pageIndex, favoritedAt],
       );
       return true;
     } catch (error) {
@@ -27,7 +29,7 @@ class FavoriteImageManager {
 
   remove(gid: number, pageIndex: number): boolean {
     try {
-      dbManager.update("DELETE FROM favorite_images WHERE gid = ? AND page_index = ?", [gid, pageIndex]);
+      dbManager.update("UPDATE favorite_images_v2 SET deleted = 1 WHERE gid = ? AND page_index = ?", [gid, pageIndex]);
       return true;
     } catch (error) {
       console.error(error);
@@ -36,7 +38,7 @@ class FavoriteImageManager {
   }
 
   removeByGid(gid: number): boolean {
-    dbManager.update("DELETE FROM favorite_images WHERE gid = ?", [gid]);
+    dbManager.update("UPDATE favorite_images_v2 SET deleted = 1 WHERE gid = ?", [gid]);
     return true;
   }
 
@@ -57,8 +59,8 @@ class FavoriteImageManager {
 
   get(gid: number, pageIndex: number): DBFavoriteImageItem | undefined {
     const rows = dbManager.query(
-      `SELECT * FROM favorite_images 
-      WHERE gid = ? AND page_index = ?`,
+      `SELECT * FROM favorite_images_v2
+      WHERE deleted = 0 AND gid = ? AND page_index = ?`,
       [gid, pageIndex],
     ) as DBFavoriteImageItem[];
     return rows.length ? rows[0] : undefined;
@@ -71,7 +73,7 @@ class FavoriteImageManager {
   queryAll(order: "asc" | "desc" = "desc"): DBFavoriteImageItem[] {
     const sqlOrder = order.toUpperCase();
     const rows = dbManager.query(
-      `SELECT * FROM favorite_images 
+      `SELECT * FROM favorite_images_v2 WHERE deleted = 0
       ORDER BY favorited_at ${sqlOrder}, gid ${sqlOrder}, page_index ASC`,
     ) as DBFavoriteImageItem[];
     return rows;
@@ -79,8 +81,8 @@ class FavoriteImageManager {
 
   queryByGid(gid: number): DBFavoriteImageItem[] {
     const rows = dbManager.query(
-      `SELECT * FROM favorite_images 
-      WHERE gid = ? ORDER BY page_index ASC`,
+      `SELECT * FROM favorite_images_v2
+      WHERE deleted = 0 AND gid = ? ORDER BY page_index ASC`,
       [gid],
     ) as DBFavoriteImageItem[];
     return rows;
@@ -102,8 +104,9 @@ class FavoriteImageManager {
             ''
         ) AS title,
         json_group_array(f.page_index) AS pages
-      FROM favorite_images f
-      LEFT JOIN archives a ON a.gid = f.gid
+      FROM favorite_images_v2 f
+      JOIN archive_entries_v2 a ON a.id = CAST(f.gid AS TEXT) AND a.deleted = 0
+      WHERE f.deleted = 0
       GROUP BY f.gid
       ORDER BY ${sort === "favorited_at" ? "latest_favorited_at" : "f.gid"} ${order === "desc" ? "DESC" : "ASC"};
     `) as { gid: number; token: string; length: number; latest_favorited_at: string; title: string; pages: string }[];

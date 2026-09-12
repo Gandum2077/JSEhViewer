@@ -26,7 +26,7 @@ export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOption
                 title: "立即搜索",
                 symbol: "magnifyingglass",
                 handler: (sender, indexPath) => {
-                  const id = (sender as UIListView).object(indexPath).label.info.id as number;
+                  const id = (sender as UIListView).object(indexPath).label.info.id as string;
                   const searchTerms = this._searchBookmarks.find((item) => item.id === id)?.searchTerms;
                   if (!searchTerms) return;
                   (router.get("splitViewController") as SplitViewController).sideBarShown = false;
@@ -43,7 +43,7 @@ export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOption
                 title: "新建搜索",
                 symbol: "plus.magnifyingglass",
                 handler: async (sender, indexPath) => {
-                  const id = (sender as UIListView).object(indexPath).label.info.id as number;
+                  const id = (sender as UIListView).object(indexPath).label.info.id as string;
                   const searchTerms = this._searchBookmarks.find((item) => item.id === id)?.searchTerms;
                   if (!searchTerms) return;
                   const options = await getSearchOptions({ type: "front_page", options: { searchTerms } }, "showAll");
@@ -61,7 +61,7 @@ export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOption
                 title: "取消书签",
                 symbol: "bookmark.slash",
                 handler: (sender, indexPath) => {
-                  const id = (sender as UIListView).object(indexPath).label.info.id as number;
+                  const id = (sender as UIListView).object(indexPath).label.info.id as string;
                   configManager.deleteSearchBookmark(id);
                   const bookmarks = configManager.searchBookmarks;
                   this.refreshSearchBookmarks(bookmarks, this._filterText);
@@ -99,7 +99,7 @@ export class SearchTermBookmarksList extends Base<UIListView, UiTypes.ListOption
             sender.endRefreshing();
           },
           didSelect: (sender, indexPath) => {
-            const id = (sender as UIListView).object(indexPath).label.info.id as number;
+            const id = (sender as UIListView).object(indexPath).label.info.id as string;
             const searchTerms = this._searchBookmarks.find((item) => item.id === id)?.searchTerms;
             if (!searchTerms) return;
             (router.get("splitViewController") as SplitViewController).sideBarShown = false;

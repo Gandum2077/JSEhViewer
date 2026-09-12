@@ -18,6 +18,7 @@ import {
 } from "ehentai-parser";
 import { api, downloaderManager } from "./api";
 import { dbManager } from "./database";
+import { archiveDeletionStatements, storeArchiveRecord } from "./database-records";
 import {
   ArchiveSearchOptions,
   ArchiveTabOptions,
@@ -79,20 +80,20 @@ function buildArchiveSearchSQLQuery(
     SELECT 
       COUNT(*) as total
     FROM 
-      archives
+      archive_records_v2
   `
     : gidOnly
       ? `
     SELECT
-      archives.gid
+      archive_records_v2.gid
     FROM
-      archives
+      archive_records_v2
   `
       : `
     SELECT 
-      archives.*
+      archive_records_v2.*
     FROM 
-      archives
+      archive_records_v2
   `;
 
   const conditions: string[] = [];
@@ -225,13 +226,13 @@ function buildArchiveSearchSQLQuery(
 
     // 下面需要创建一个子查询，用于处理tag修饰词，类似于以下SQL语句
     // SELECT DISTINCT gid
-    // FROM archive_taglist
+    // FROM (SELECT CAST(id AS INTEGER) AS gid, namespace, tag FROM archive_taglist_v2)
     // WHERE (namespace = 'language' AND tag = 'chinese')
     //   OR (namespace = 'female' AND tag like 'ga%')
     //   OR (namespace='female' AND tag <> "zz")
     //   AND gid in (
     //     SELECT DISTINCT gid
-    //     FROM archive_taglist
+    //     FROM (SELECT CAST(id AS INTEGER) AS gid, namespace, tag FROM archive_taglist_v2)
     //     WHERE (namespace = 'artist' AND tag = 'ito fleda')
     //       OR (namespace = 'female' AND tag like 'gaa%')
     //   )
@@ -290,11 +291,11 @@ function buildArchiveSearchSQLQuery(
     if (subConditions.length > 0 && subsubConditions.length > 0) {
       const subQuery = `
         SELECT DISTINCT gid
-        FROM archive_taglist
+        FROM (SELECT CAST(id AS INTEGER) AS gid, namespace, tag FROM archive_taglist_v2)
         WHERE ${subConditions.join(" OR ")}
           AND gid IN (
             SELECT DISTINCT gid
-            FROM archive_taglist
+            FROM (SELECT CAST(id AS INTEGER) AS gid, namespace, tag FROM archive_taglist_v2)
             WHERE ${subsubConditions.join(" OR ")}
           )
         GROUP BY gid
@@ -304,7 +305,7 @@ function buildArchiveSearchSQLQuery(
     } else if (subConditions.length > 0) {
       const subQuery = `
         SELECT DISTINCT gid
-        FROM archive_taglist
+        FROM (SELECT CAST(id AS INTEGER) AS gid, namespace, tag FROM archive_taglist_v2)
         WHERE ${subConditions.join(" OR ")}
         GROUP BY gid
         HAVING COUNT(*) = ${subConditions.length}
@@ -313,7 +314,7 @@ function buildArchiveSearchSQLQuery(
     } else if (subsubConditions.length > 0) {
       const subQuery = `
         SELECT DISTINCT gid
-        FROM archive_taglist
+        FROM (SELECT CAST(id AS INTEGER) AS gid, namespace, tag FROM archive_taglist_v2)
         WHERE ${subsubConditions.join(" OR ")}
       `;
       conditions.push(`gid IN (${subQuery})`);
@@ -1256,8 +1257,8 @@ class StatusManager {
   }
 
   getArchiveItem(gid: number) {
-    const sql = `SELECT * FROM archives WHERE gid = ?;`;
-    const args = [gid];
+    const sql = `SELECT * FROM archive_records_v2 WHERE id = ?;`;
+    const args = [String(gid)];
     const rawData = dbManager.query(sql, args) as ArchiveItemDBRawData[];
     if (!rawData || rawData.length === 0) return;
     const row = rawData[0];
@@ -1318,132 +1319,24 @@ class StatusManager {
     downloaded?: boolean;
     last_read_page?: number;
   }) {
-    const sql_insert = `INSERT OR REPLACE INTO archives (
-      "gid",
-      "readlater",
-      "downloaded",
-      "first_access_time",
-      "last_access_time",
-      "token",
-      "title",
-      "english_title",
-      "japanese_title",
-      "thumbnail_url",
-      "category",
-      "posted_time",
-      "visible",
-      "rating",
-      "is_my_rating",
-      "length",
-      "torrent_available",
-      "favorited",
-      "favcat",
-      "uploader",
-      "disowned",
-      "taglist",
-      "comment",
-      "last_read_page"
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ${forceUpdate ? "" : "ON CONFLICT(gid) DO NOTHING"}`;
-    const sql_delete_taglist = `DELETE FROM archive_taglist WHERE gid = ?;`;
-    // 将EHGallery | EHListExtendedItem | EHListCompactItem转换为DBArchiveItem
-    let title = "";
-    let english_title = "";
-    let japanese_title = "";
-    let rating = 0;
-    let torrent_available = false;
-    let comment = "";
-    if ("type" in infos) {
-      title = infos.title;
-      rating = infos.estimated_display_rating;
-      torrent_available = infos.torrent_available;
-    } else {
-      title = infos.japanese_title || infos.english_title;
-      english_title = infos.english_title;
-      japanese_title = infos.japanese_title;
-      rating = infos.display_rating;
-      torrent_available = infos.torrent_count > 0;
-      comment =
-        infos.comments.length > 0 && infos.comments[0].is_uploader
-          ? $text.HTMLUnescape(infos.comments[0].comment_div)
-          : "";
-    }
-    const dateNow = new Date().toISOString();
-    const data: DBArchiveItem = {
-      gid: infos.gid,
+    storeArchiveRecord({
+      infos,
+      first_access_time,
+      last_access_time,
+      forceUpdate,
       readlater,
       downloaded,
-      first_access_time: first_access_time || dateNow,
-      last_access_time: last_access_time || dateNow,
-      token: infos.token,
-      title,
-      english_title,
-      japanese_title,
-      thumbnail_url: infos.thumbnail_url,
-      category: infos.category,
-      posted_time: infos.posted_time,
-      visible: infos.visible,
-      rating,
-      is_my_rating: infos.is_my_rating,
-      length: infos.length,
-      torrent_available,
-      favorited: infos.favorited,
-      favcat: infos.favcat,
-      uploader: infos.uploader,
-      disowned: infos.disowned,
-      taglist: infos.taglist,
-      comment,
       last_read_page,
-    };
-    const taglist_string: [number, TagNamespace, string][] = [];
-    infos.taglist.map((item) => {
-      item.tags.forEach((tag) => {
-        taglist_string.push([infos.gid, item.namespace, tag]);
-      });
     });
-    dbManager.update(sql_insert, [
-      data.gid,
-      data.readlater,
-      data.downloaded,
-      data.first_access_time,
-      data.last_access_time,
-      data.token,
-      data.title,
-      data.english_title,
-      data.japanese_title,
-      data.thumbnail_url,
-      data.category,
-      data.posted_time,
-      data.visible,
-      data.rating,
-      data.is_my_rating,
-      data.length,
-      data.torrent_available,
-      data.favorited,
-      data.favcat,
-      data.uploader,
-      data.disowned,
-      JSON.stringify(data.taglist),
-      data.comment,
-      data.last_read_page,
-    ]);
-    if (forceUpdate) {
-      dbManager.update(sql_delete_taglist, [infos.gid]);
-    }
-    dbManager.batchInsert("archive_taglist", ["gid", "namespace", "tag"], taglist_string);
   }
 
   deleteArchiveItem(gid: number) {
-    const sql = `DELETE FROM archives WHERE gid = ?;`;
-    dbManager.update(sql, [gid]);
-    const sql_taglist = `DELETE FROM archive_taglist WHERE gid = ?;`;
-    dbManager.update(sql_taglist, [gid]);
-    configManager.deleteGalleryReaderConfig(gid);
+    dbManager.transactionUpdate(archiveDeletionStatements(gid));
   }
 
   getLastReadPage(gid: number) {
-    const sql = `SELECT last_read_page FROM archives WHERE gid = ?;`;
-    const rawData = dbManager.query(sql, [gid]) as { last_read_page: number }[];
+    const sql = `SELECT last_read_page FROM archive_records_v2 WHERE id = ?;`;
+    const rawData = dbManager.query(sql, [String(gid)]) as { last_read_page: number }[];
     if (rawData.length === 0) return 0;
     return rawData[0].last_read_page;
   }
@@ -1461,8 +1354,8 @@ class StatusManager {
     },
   ) {
     // 先查询是否存在
-    const sql_query = `SELECT * FROM archives WHERE gid = ?;`;
-    const rawData = dbManager.query(sql_query, [gid]) as ArchiveItemDBRawData[];
+    const sql_query = `SELECT * FROM archive_records_v2 WHERE id = ?;`;
+    const rawData = dbManager.query(sql_query, [String(gid)]) as ArchiveItemDBRawData[];
     if (rawData.length === 0) {
       if (options.infos) {
         // 情况1: 数据库内不存在该条数据，但是有options.infos，那么直接存储
@@ -1518,17 +1411,17 @@ class StatusManager {
           last_read_page: options.last_read_page ?? oldInfos.last_read_page,
         });
         // 然后更新my_rating和favorited
-        const sql_update_my_rating = `UPDATE archives SET is_my_rating = ?, rating = ? WHERE gid = ?;`;
-        const sql_update_unfavorited = `UPDATE archives SET favorited = ? WHERE gid = ?;`;
-        const sql_update_favorited = `UPDATE archives SET favorited = ?, favcat = ? WHERE gid = ?;`;
+        const sql_update_my_rating = `UPDATE archive_rate_state_v2 SET is_my_rating = ?, display_rating = ? WHERE id = ?;`;
+        const sql_update_unfavorited = `UPDATE archive_favorite_state_v2 SET favorited = ? WHERE id = ?;`;
+        const sql_update_favorited = `UPDATE archive_favorite_state_v2 SET favorited = ?, favcat = ? WHERE id = ?;`;
         if (options.my_rating !== undefined) {
-          dbManager.update(sql_update_my_rating, [true, options.my_rating, gid]);
+          dbManager.update(sql_update_my_rating, [true, options.my_rating, String(gid)]);
         }
         if (options.favorite_info) {
           if (options.favorite_info.favorited) {
-            dbManager.update(sql_update_favorited, [true, options.favorite_info.favcat, gid]);
+            dbManager.update(sql_update_favorited, [true, options.favorite_info.favcat, String(gid)]);
           } else {
-            dbManager.update(sql_update_unfavorited, [false, gid]);
+            dbManager.update(sql_update_unfavorited, [false, String(gid)]);
           }
         }
       } else {
@@ -1559,33 +1452,33 @@ class StatusManager {
           }
         }
         // 情况5: 数据库内存在该条数据，但是没有options.info，那么options里存在什么就更新什么
-        const sql_update_readlater = `UPDATE archives SET readlater = ? WHERE gid = ?;`;
-        const sql_update_downloaded = `UPDATE archives SET downloaded = ? WHERE gid = ?;`;
-        const sql_update_last_read_page = `UPDATE archives SET last_read_page = ? WHERE gid = ?;`;
-        const sql_update_last_access_time = `UPDATE archives SET last_access_time = ? WHERE gid = ?;`;
-        const sql_update_my_rating = `UPDATE archives SET is_my_rating = ?, rating = ? WHERE gid = ?;`;
-        const sql_update_unfavorited = `UPDATE archives SET favorited = ? WHERE gid = ?;`;
-        const sql_update_favorited = `UPDATE archives SET favorited = ?, favcat = ? WHERE gid = ?;`;
+        const sql_update_readlater = `UPDATE archive_read_state_v2 SET readlater = ? WHERE id = ?;`;
+        const sql_update_downloaded = `INSERT INTO archive_download_state_v2 (downloaded, id, finished) VALUES (?, ?, 1) ON CONFLICT(id) DO UPDATE SET downloaded = excluded.downloaded;`;
+        const sql_update_last_read_page = `UPDATE archive_read_state_v2 SET last_read_page = ? WHERE id = ?;`;
+        const sql_update_last_access_time = `UPDATE archive_read_state_v2 SET last_access_time = ? WHERE id = ?;`;
+        const sql_update_my_rating = `UPDATE archive_rate_state_v2 SET is_my_rating = ?, display_rating = ? WHERE id = ?;`;
+        const sql_update_unfavorited = `UPDATE archive_favorite_state_v2 SET favorited = ? WHERE id = ?;`;
+        const sql_update_favorited = `UPDATE archive_favorite_state_v2 SET favorited = ?, favcat = ? WHERE id = ?;`;
         if (options.readlater !== undefined) {
-          dbManager.update(sql_update_readlater, [options.readlater, gid]);
+          dbManager.update(sql_update_readlater, [options.readlater, String(gid)]);
         }
         if (options.downloaded !== undefined) {
-          dbManager.update(sql_update_downloaded, [options.downloaded, gid]);
+          dbManager.update(sql_update_downloaded, [options.downloaded, String(gid)]);
         }
         if (options.last_read_page !== undefined) {
-          dbManager.update(sql_update_last_read_page, [options.last_read_page, gid]);
+          dbManager.update(sql_update_last_read_page, [options.last_read_page, String(gid)]);
         }
         if (options.updateLastAccessTime) {
-          dbManager.update(sql_update_last_access_time, [new Date().toISOString(), gid]);
+          dbManager.update(sql_update_last_access_time, [new Date().toISOString(), String(gid)]);
         }
         if (options.my_rating !== undefined) {
-          dbManager.update(sql_update_my_rating, [true, options.my_rating, gid]);
+          dbManager.update(sql_update_my_rating, [true, options.my_rating, String(gid)]);
         }
         if (options.favorite_info) {
           if (options.favorite_info.favorited) {
-            dbManager.update(sql_update_favorited, [true, options.favorite_info.favcat, gid]);
+            dbManager.update(sql_update_favorited, [true, options.favorite_info.favcat, String(gid)]);
           } else {
-            dbManager.update(sql_update_unfavorited, [false, gid]);
+            dbManager.update(sql_update_unfavorited, [false, String(gid)]);
           }
         }
       }

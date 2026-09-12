@@ -32,7 +32,7 @@ function getReorderIds() {
       reorderFinished: (data) => {},
     },
   });
-  return new Promise<number[]>((resolve, reject) => {
+  return new Promise<string[]>((resolve, reject) => {
     const sheet = new DialogSheet({
       title: "重新排序",
       cview: list,

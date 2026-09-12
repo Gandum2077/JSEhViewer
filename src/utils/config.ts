@@ -11,7 +11,8 @@ import {
   AITranslationConfigFormItem,
   ReaderConfig,
 } from "../types";
-import { dbManager } from "./database";
+import { dbManager, DatabaseStatement } from "./database";
+import { allocateContentId, archiveDeletionStatements, bookmarkPosition } from "./database-records";
 import { aiTranslationPath, imagePath, originalImagePath, thumbnailPath } from "./glv";
 import { appLog } from "./tools";
 
@@ -37,9 +38,9 @@ interface Config {
   defaultFavcat: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9; // 默认收藏到
   mytagsApiuid: number;
   mytagsApikey: string;
-  // Deprecated: 已迁移到 ai_translation_services 表
+  // Deprecated: 已迁移到 ai_translation_services_v2 表
   // selectedAiTranslationService: string;
-  // Deprecated: 已迁移到 ai_translation_services 表
+  // Deprecated: 已迁移到 ai_translation_services_v2 表
   // aiTranslationSavedConfigText: string;
   autoClearCache: boolean; // 是否在关闭时自动清除缓存
   autoCacheWhenReading: boolean; // 阅读时是否自动缓存整个图库
@@ -76,6 +77,14 @@ interface Config {
   favoriteImageShowTitle: boolean;
   favoriteImagePagingGesture: "tap_and_swipe" | "swipe" | "tap";
 }
+
+const READER_CONFIG_KEYS = [
+  "pageDirection",
+  "spreadModeEnabled",
+  "skipFirstPageInSpread",
+  "skipLandscapePagesInSpread",
+  "pagingGesture",
+];
 
 const defaultConfig: Config = {
   cookie: "",
@@ -230,15 +239,27 @@ class ConfigManager {
   private _initConfig() {
     dbManager.batchUpdate(
       `INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING;`,
-      Object.entries(defaultConfig).map(([key, value]) => [key, JSON.stringify(value)]),
+      Object.entries(defaultConfig)
+        .filter(([key]) => !READER_CONFIG_KEYS.includes(key))
+        .map(([key, value]) => [key, JSON.stringify(value)]),
     );
     const existingConfig = dbManager.query("SELECT * FROM config").map(({ key, value }) => [key, JSON.parse(value)]);
-    return Object.fromEntries(existingConfig) as Config;
+    const config = Object.fromEntries(existingConfig) as Config;
+    const [reader] = dbManager.query("SELECT * FROM global_reader_config_v2 WHERE id = '1'");
+    if (!reader) throw new Error("缺少全局阅读设置");
+    for (const key of READER_CONFIG_KEYS) {
+      (config as any)[key] = typeof (defaultConfig as any)[key] === "boolean" ? Boolean(reader[key]) : reader[key];
+    }
+    return config;
   }
 
   private _setConfig(key: keyof Config, value: number | boolean | string) {
+    if (READER_CONFIG_KEYS.includes(key)) {
+      dbManager.update(`UPDATE global_reader_config_v2 SET ${key} = ? WHERE id = '1'`, [value]);
+    } else {
+      dbManager.update("UPDATE config SET value = ? WHERE key = ?", [JSON.stringify(value), key]);
+    }
     (this._config[key] as any) = value;
-    dbManager.update("UPDATE config SET value = ? WHERE key = ?", [JSON.stringify(value), key]);
   }
 
   /***CONFIG***/
@@ -402,20 +423,20 @@ class ConfigManager {
     if (value) {
       dbManager.transactionUpdate([
         {
-          sql: "UPDATE ai_translation_services SET selected = 0 WHERE selected = 1",
+          sql: "UPDATE ai_translation_services_v2 SET selected = 0 WHERE deleted = 0 AND selected = 1",
         },
         {
-          sql: "UPDATE ai_translation_services SET selected = 1 WHERE name = ?",
+          sql: "UPDATE ai_translation_services_v2 SET selected = 1 WHERE deleted = 0 AND name = ?",
           args: [value],
         },
       ]);
     } else {
-      dbManager.update("UPDATE ai_translation_services SET selected = 0 WHERE selected = 1");
+      dbManager.update("UPDATE ai_translation_services_v2 SET selected = 0 WHERE deleted = 0 AND selected = 1");
     }
     this._aiTranslationServices = this._queryAITranslationServices();
   }
 
-  /* Deprecated: 已迁移到 ai_translation_services 表
+  /* Deprecated: 已迁移到 ai_translation_services_v2 表
   get aiTranslationSavedConfigText() {
     return JSON.stringify(this.aiTranslationServiceConfig);
   }
@@ -625,7 +646,12 @@ class ConfigManager {
   }
 
   private _getMarkedTagsDict() {
-    const sql = "SELECT * FROM marked_tags";
+    const sql = `SELECT 0 AS tagid, namespace, name, watched, hidden, color, weight
+      FROM local_marked_tags_v2 WHERE deleted = 0
+      UNION ALL SELECT tagid, namespace, name, watched, hidden, color, weight
+      FROM downloaded_marked_tags_v2 AS remote
+      WHERE NOT EXISTS (SELECT 1 FROM local_marked_tags_v2 AS local
+        WHERE local.namespace = remote.namespace AND local.name = remote.name)`;
     const data = dbManager.query(sql) as {
       tagid: number;
       namespace: TagNamespace;
@@ -653,56 +679,55 @@ class ConfigManager {
   }
 
   updateAllMarkedTags(markedTags: MarkedTag[]) {
-    // 更新marked_tags表, 从服务器获取数据后调用（而非本地添加/删除）
-    const sql_remove = "DELETE FROM marked_tags";
-    dbManager.update(sql_remove);
-    dbManager.batchInsert(
-      "marked_tags",
-      ["tagid", "namespace", "name", "watched", "hidden", "color", "weight"],
-      markedTags.map((t) => [t.tagid, t.namespace, t.name, t.watched, t.hidden, t.color || "", t.weight]),
-    );
-    const result = new Map() as MarkedTagDict;
-    for (const namespace of tagNamespaces) {
-      const data: [string, MarkedTag][] = markedTags.filter((t) => t.namespace === namespace).map((t) => [t.name, t]);
-      result.set(namespace, new Map(data));
-    }
-    this._markedTagDict = result;
+    dbManager.transactionUpdate([
+      { sql: "DELETE FROM downloaded_marked_tags_v2" },
+      ...markedTags.map((tag) => ({
+        sql: "INSERT INTO downloaded_marked_tags_v2 (tagid, namespace, name, watched, hidden, color, weight) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        args: [tag.tagid, tag.namespace, tag.name, tag.watched, tag.hidden, tag.color || "", tag.weight],
+      })),
+    ]);
+    this._markedTagDict = this._getMarkedTagsDict();
   }
 
   getMarkedTag(namespace: TagNamespace, name: string): MarkedTag | undefined {
-    const data = this._markedTagDict.get(namespace)?.get(name);
-    return data;
+    return this._markedTagDict.get(namespace)?.get(name);
   }
 
   updateMarkedTag(tag: MarkedTag) {
-    const sql =
-      "UPDATE marked_tags SET tagid = ?, watched = ?, hidden = ?, color = ?, weight = ? WHERE namespace = ? AND name = ?";
-    const args = [tag.tagid, tag.watched, tag.hidden, tag.color, tag.weight, tag.namespace, tag.name];
-    dbManager.update(sql, args);
-    if (!this._markedTagDict.get(tag.namespace)) {
-      this._markedTagDict.set(tag.namespace, new Map());
+    if (this.syncMyTags && tag.tagid !== 0) {
+      dbManager.update(
+        `INSERT INTO downloaded_marked_tags_v2 (tagid, namespace, name, watched, hidden, color, weight)
+        VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(namespace, name) DO UPDATE SET
+        tagid=excluded.tagid, watched=excluded.watched, hidden=excluded.hidden, color=excluded.color, weight=excluded.weight`,
+        [tag.tagid, tag.namespace, tag.name, tag.watched, tag.hidden, tag.color || "", tag.weight],
+      );
+    } else {
+      dbManager.update(
+        `INSERT INTO local_marked_tags_v2 (id, namespace, name, watched, hidden, color, weight)
+        VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET deleted=0,
+        watched=excluded.watched, hidden=excluded.hidden, color=excluded.color, weight=excluded.weight`,
+        [`${tag.namespace}:${tag.name}`, tag.namespace, tag.name, tag.watched, tag.hidden, tag.color || "", tag.weight],
+      );
     }
-    this._markedTagDict.get(tag.namespace)!.set(tag.name, tag);
+    this._markedTagDict = this._getMarkedTagsDict();
   }
 
   addMarkedTag(tag: MarkedTag) {
-    // 添加marked_tags中的记录, 仅用于本地添加
-    const sql =
-      "INSERT INTO marked_tags (tagid, namespace, name, watched, hidden, color, weight) VALUES (?, ?, ?, ?, ?, ?, ?)";
-    const args = [tag.tagid, tag.namespace, tag.name, tag.watched, tag.hidden, tag.color || "", tag.weight];
-    dbManager.update(sql, args);
-    if (!this._markedTagDict.get(tag.namespace)) {
-      this._markedTagDict.set(tag.namespace, new Map());
-    }
-    this._markedTagDict.get(tag.namespace)!.set(tag.name, tag);
+    this.updateMarkedTag(tag);
   }
 
   deleteMarkedTag(namespace: TagNamespace, name: string) {
-    // 删除marked_tags中的记录, 仅用于本地删除
-    const sql = "DELETE FROM marked_tags WHERE namespace = ? AND name = ?";
-    const args = [namespace, name];
-    dbManager.update(sql, args);
-    this._markedTagDict.get(namespace)!.delete(name);
+    if (this.syncMyTags) {
+      dbManager.update("DELETE FROM downloaded_marked_tags_v2 WHERE namespace = ? AND name = ?", [namespace, name]);
+    } else {
+      // A tombstone also hides a downloaded tag when it is removed locally.
+      dbManager.update(
+        `INSERT INTO local_marked_tags_v2 (id, namespace, name, deleted) VALUES (?, ?, ?, 1)
+        ON CONFLICT(id) DO UPDATE SET deleted=1`,
+        [`${namespace}:${name}`, namespace, name],
+      );
+    }
+    this._markedTagDict = this._getMarkedTagsDict();
   }
 
   get markedUploaders() {
@@ -710,7 +735,7 @@ class ConfigManager {
   }
 
   private _queryMarkedUploaders() {
-    const sql = "SELECT * FROM marked_uploaders";
+    const sql = "SELECT id AS uploader FROM marked_uploaders_v2 WHERE deleted = 0";
     const data = dbManager.query(sql) as {
       uploader: string;
     }[];
@@ -718,14 +743,14 @@ class ConfigManager {
   }
 
   addMarkedUploader(uploader: string) {
-    const sql = "INSERT INTO marked_uploaders (uploader) VALUES (?) ON CONFLICT (uploader) DO NOTHING";
+    const sql = "INSERT INTO marked_uploaders_v2 (id) VALUES (?) ON CONFLICT (id) DO UPDATE SET deleted = 0";
     const args = [uploader];
     dbManager.update(sql, args);
     this._markedUploaders = this._queryMarkedUploaders();
   }
 
   deleteMarkedUploader(uploader: string) {
-    const sql = "DELETE FROM marked_uploaders WHERE uploader = ?";
+    const sql = "UPDATE marked_uploaders_v2 SET deleted = 1 WHERE id = ?";
     const args = [uploader];
     dbManager.update(sql, args);
     this._markedUploaders = this._queryMarkedUploaders();
@@ -746,7 +771,7 @@ class ConfigManager {
   updateAllBannedUploaders(uploaders: string[]) {
     const sql_remove = "DELETE FROM banned_uploaders";
     // 另外需要删除marked_uploaders中的被禁止的上传者
-    const sql_remove_marked = `DELETE FROM marked_uploaders WHERE uploader IN (SELECT uploader FROM banned_uploaders);`;
+    const sql_remove_marked = `UPDATE marked_uploaders_v2 SET deleted = 1 WHERE id IN (SELECT uploader FROM banned_uploaders);`;
     dbManager.update(sql_remove);
     dbManager.batchInsert(
       "banned_uploaders",
@@ -837,220 +862,125 @@ class ConfigManager {
     this._translationDict = r.translationDict;
   }
 
-  private _querySearchHistory() {
-    const sql = `
-SELECT 
-    h.id,
-    h.last_access_time,
-    h.sorted_fsearch,
-    GROUP_CONCAT(
-        COALESCE(t.namespace, '') || '|' ||
-        COALESCE(t.qualifier, '') || '|' ||
-        COALESCE(t.term, '') || '|' ||
-        COALESCE(t.dollar, 0) || '|' ||
-        COALESCE(t.subtract, 0) || '|' ||
-        COALESCE(t.tilde, 0), ';'
-    ) AS search_terms
-FROM 
-    search_history AS h
-LEFT JOIN 
-    search_history_search_terms AS t
-ON 
-    h.id = t.search_history_id
-GROUP BY 
-    h.id;
-`;
-    const rows = dbManager.query(sql) as {
-      id: number;
-      last_access_time: string;
-      sorted_fsearch: string;
-      search_terms: string;
-    }[];
-    const result = rows
+  private _querySearchTerms(
+    table: "search_history_search_terms_v2" | "search_bookmarks_search_terms_v2",
+    parent: string,
+  ): EHSearchTerm[] {
+    const column = table === "search_history_search_terms_v2" ? "history_id" : "bookmark_id";
+    return dbManager.query(`SELECT * FROM ${table} WHERE ${column} = ? ORDER BY term_index`, [parent]).map((term) => ({
+      namespace: term.namespace || undefined,
+      qualifier: term.qualifier || undefined,
+      term: term.term,
+      dollar: Boolean(term.dollar),
+      subtract: Boolean(term.subtract),
+      tilde: Boolean(term.tilde),
+    }));
+  }
+
+  private _searchTermStatements(
+    table: "search_history_search_terms_v2" | "search_bookmarks_search_terms_v2",
+    id: string,
+    terms: EHSearchTerm[],
+  ): DatabaseStatement[] {
+    const parent = table === "search_history_search_terms_v2" ? "history_id" : "bookmark_id";
+    return [
+      { sql: `DELETE FROM ${table} WHERE ${parent} = ?`, args: [id] },
+      ...terms.map((term, index) => ({
+        sql: `INSERT INTO ${table} (${parent}, term_index, namespace, qualifier, term, dollar, subtract, tilde) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          id,
+          index,
+          term.namespace,
+          term.qualifier,
+          term.term,
+          Boolean(term.dollar),
+          Boolean(term.subtract),
+          Boolean(term.tilde),
+        ],
+      })),
+    ];
+  }
+
+  private _querySearchHistory(): DBSearchHistory {
+    return dbManager
+      .query("SELECT id, last_access_time FROM search_history_v2 WHERE deleted = 0 ORDER BY last_access_time DESC")
       .map((row) => ({
         id: row.id,
+        sorted_fsearch: row.id,
         last_access_time: row.last_access_time,
-        sorted_fsearch: row.sorted_fsearch,
-        searchTerms: row.search_terms
-          ? row.search_terms.split(";").map((term) => {
-              const [namespace, qualifier, termText, dollar, subtract, tilde] = term.split("|");
-              return {
-                namespace: namespace ? (namespace as TagNamespace) : undefined,
-                qualifier: qualifier ? (qualifier as EHQualifier) : undefined,
-                term: termText,
-                dollar: Boolean(Number(dollar)),
-                subtract: Boolean(Number(subtract)),
-                tilde: Boolean(Number(tilde)),
-              };
-            })
-          : [],
-      }))
-      .sort((a, b) => b.last_access_time.localeCompare(a.last_access_time));
-    return result;
+        searchTerms: this._querySearchTerms("search_history_search_terms_v2", row.id),
+      }));
   }
 
   addOrUpdateSearchHistory(sortedFsearch: string, searchTerms: EHSearchTerm[]) {
-    const sql_check = "SELECT id FROM search_history WHERE sorted_fsearch = ?";
-    const args_check = [sortedFsearch];
-    const id = dbManager.query(sql_check, args_check)[0]?.id;
-    const last_access_time = new Date().toISOString();
-    if (id) {
-      const sql_update = "UPDATE search_history SET last_access_time = ? WHERE id = ?";
-      const args_update = [last_access_time, id];
-      dbManager.update(sql_update, args_update);
-      this._searchHistory.find((item) => item.id === id)!.last_access_time = last_access_time;
-      this._searchHistory.sort((a, b) => b.last_access_time.localeCompare(a.last_access_time));
-    } else {
-      const sql_insert_history = "INSERT INTO search_history (last_access_time, sorted_fsearch) VALUES (?, ?)";
-      const args_insert_history = [last_access_time, sortedFsearch];
-      dbManager.update(sql_insert_history, args_insert_history);
-      const sql_get_id = "SELECT id FROM search_history WHERE sorted_fsearch = ?";
-      const args_get_id = [sortedFsearch];
-      const id = dbManager.query(sql_get_id, args_get_id)[0].id;
-      const sql_insert_terms =
-        "INSERT INTO search_history_search_terms (search_history_id, namespace, qualifier, term, dollar, subtract, tilde) VALUES (?, ?, ?, ?, ?, ?, ?)";
-      const args_insert_terms = searchTerms.map((term) => [
-        id,
-        term.namespace,
-        term.qualifier,
-        term.term,
-        Number(term.dollar),
-        Number(term.subtract),
-        Number(term.tilde),
-      ]);
-      dbManager.batchUpdate(sql_insert_terms, args_insert_terms);
-      this._searchHistory.unshift({
-        id,
-        last_access_time,
-        sorted_fsearch: sortedFsearch,
-        searchTerms,
-      });
-    }
+    dbManager.transactionUpdate([
+      {
+        sql: `INSERT INTO search_history_v2 (id, last_access_time) VALUES (?, ?)
+        ON CONFLICT(id) DO UPDATE SET deleted=0, last_access_time=excluded.last_access_time`,
+        args: [sortedFsearch, new Date().toISOString()],
+      },
+      ...this._searchTermStatements("search_history_search_terms_v2", sortedFsearch, searchTerms),
+    ]);
+    this._searchHistory = this._querySearchHistory();
   }
 
-  deleteSearchHistory(id: number) {
-    const sql_delete = "DELETE FROM search_history WHERE id = ?";
-    dbManager.update(sql_delete, [id]);
-    const sql_delete_terms = "DELETE FROM search_history_search_terms WHERE search_history_id = ?";
-    dbManager.update(sql_delete_terms, [id]);
-    const index_delete = this._searchHistory.findIndex((item) => item.id === id);
-    if (index_delete !== -1) {
-      this._searchHistory.splice(index_delete, 1);
-    }
+  deleteSearchHistory(id: string) {
+    dbManager.update("UPDATE search_history_v2 SET deleted = 1 WHERE id = ?", [id]);
+    this._searchHistory = this._querySearchHistory();
   }
 
-  private _querySearchBookmarks() {
-    const sql = `
-SELECT
-    b.id,
-    b.sort_order,
-    b.sorted_fsearch,
-    GROUP_CONCAT(
-        COALESCE(t.namespace, '') || '|' ||
-        COALESCE(t.qualifier, '') || '|' ||
-        COALESCE(t.term, '') || '|' ||
-        COALESCE(t.dollar, 0) || '|' ||
-        COALESCE(t.subtract, 0) || '|' ||
-        COALESCE(t.tilde, 0), ';'
-    ) AS search_terms
-FROM 
-    search_bookmarks AS b
-LEFT JOIN 
-    search_bookmarks_search_terms AS t
-ON 
-    b.id = t.search_bookmarks_id
-GROUP BY 
-    b.id;
-`;
-    const rows = dbManager.query(sql) as {
-      id: number;
-      sort_order: number;
-      sorted_fsearch: string;
-      search_terms: string;
-    }[];
-    const result = rows
-      .map((row) => ({
+  private _querySearchBookmarks(): DBSearchBookmarks {
+    return dbManager
+      .query("SELECT id, position_key FROM search_bookmarks_v2 WHERE deleted = 0 ORDER BY position_key, id")
+      .map((row, index) => ({
         id: row.id,
-        sort_order: row.sort_order,
-        sorted_fsearch: row.sorted_fsearch,
-        searchTerms: row.search_terms
-          ? row.search_terms.split(";").map((term) => {
-              const [namespace, qualifier, termText, dollar, subtract, tilde] = term.split("|");
-              return {
-                namespace: namespace ? (namespace as TagNamespace) : undefined,
-                qualifier: qualifier ? (qualifier as EHQualifier) : undefined,
-                term: termText,
-                dollar: Boolean(Number(dollar)),
-                subtract: Boolean(Number(subtract)),
-                tilde: Boolean(Number(tilde)),
-              };
-            })
-          : [],
-      }))
-      .sort((a, b) => a.sort_order - b.sort_order);
-    return result;
+        sorted_fsearch: row.id,
+        sort_order: index,
+        searchTerms: this._querySearchTerms("search_bookmarks_search_terms_v2", row.id),
+      }));
   }
 
   addSearchBookmark(sortedFsearch: string, searchTerms: EHSearchTerm[]) {
-    const sql_check = "SELECT id FROM search_bookmarks WHERE sorted_fsearch = ?";
-    const args_check = [sortedFsearch];
-    const id = dbManager.query(sql_check, args_check)[0]?.id;
-    if (id) {
-      return false;
-    } else {
-      const sql_insert_bookmark = "INSERT INTO search_bookmarks (sort_order, sorted_fsearch) VALUES (?, ?)";
-      const newSortOrder =
-        this._searchBookmarks.length === 0 ? 0 : this._searchBookmarks[this._searchBookmarks.length - 1].sort_order + 1;
-      const args_insert_bookmark = [newSortOrder, sortedFsearch];
-      dbManager.update(sql_insert_bookmark, args_insert_bookmark);
-      const sql_get_id = "SELECT id FROM search_bookmarks WHERE sorted_fsearch = ?";
-      const args_get_id = [sortedFsearch];
-      const id = dbManager.query(sql_get_id, args_get_id)[0].id;
-      const sql_insert_terms =
-        "INSERT INTO search_bookmarks_search_terms (search_bookmarks_id, namespace, qualifier, term, dollar, subtract, tilde) VALUES (?, ?, ?, ?, ?, ?, ?)";
-      const args_insert_terms = searchTerms.map((term) => [
-        id,
-        term.namespace,
-        term.qualifier,
-        term.term,
-        Number(term.dollar),
-        Number(term.subtract),
-        Number(term.tilde),
-      ]);
-      dbManager.batchUpdate(sql_insert_terms, args_insert_terms);
-      this._searchBookmarks.push({
-        id,
-        sort_order: newSortOrder,
-        sorted_fsearch: sortedFsearch,
-        searchTerms,
-      });
-      return true;
-    }
+    if (this._searchBookmarks.some((bookmark) => bookmark.id === sortedFsearch)) return false;
+    // Reindex all active rows together, so migrated and newly created keys share one order.
+    const ids = [...this._searchBookmarks.map((bookmark) => bookmark.id), sortedFsearch];
+    dbManager.transactionUpdate([
+      {
+        sql: `INSERT INTO search_bookmarks_v2 (id, position_key) VALUES (?, ?)
+        ON CONFLICT(id) DO UPDATE SET deleted=0, position_key=excluded.position_key`,
+        args: [sortedFsearch, bookmarkPosition(ids.length - 1)],
+      },
+      ...this._searchTermStatements("search_bookmarks_search_terms_v2", sortedFsearch, searchTerms),
+      ...ids.map((id, index) => ({
+        sql: "UPDATE search_bookmarks_v2 SET position_key = ? WHERE id = ?",
+        args: [bookmarkPosition(index), id],
+      })),
+    ]);
+    this._searchBookmarks = this._querySearchBookmarks();
+    return true;
   }
 
-  deleteSearchBookmark(id: number) {
-    const sql_delete = "DELETE FROM search_bookmarks WHERE id = ?";
-    dbManager.update(sql_delete, [id]);
-    const sql_delete_terms = "DELETE FROM search_bookmarks_search_terms WHERE search_bookmarks_id = ?";
-    dbManager.update(sql_delete_terms, [id]);
-    const index_delete = this._searchBookmarks.findIndex((item) => item.id === id);
-    if (index_delete !== -1) {
-      this._searchBookmarks.splice(index_delete, 1);
-    }
-    this.reorderSearchBookmarks(this._searchBookmarks.map((item) => item.id));
+  deleteSearchBookmark(id: string) {
+    dbManager.update("UPDATE search_bookmarks_v2 SET deleted = 1 WHERE id = ?", [id]);
+    this._searchBookmarks = this._querySearchBookmarks();
   }
 
-  reorderSearchBookmarks(resorted_ids: number[]) {
-    const sql_update = "UPDATE search_bookmarks SET sort_order = ? WHERE id = ?";
+  reorderSearchBookmarks(ids: string[]) {
+    if (
+      ids.length !== this._searchBookmarks.length ||
+      new Set(ids).size !== ids.length ||
+      ids.some((id) => !this._searchBookmarks.some((bookmark) => bookmark.id === id))
+    )
+      throw new Error("书签排序列表不完整");
     dbManager.batchUpdate(
-      sql_update,
-      resorted_ids.map((id, index) => [index, id]),
+      "UPDATE search_bookmarks_v2 SET position_key = ? WHERE id = ?",
+      ids.map((id, index) => [bookmarkPosition(index), id]),
     );
     this._searchBookmarks = this._querySearchBookmarks();
   }
 
   getTenMostAccessedTags() {
-    const sql = "SELECT * FROM tag_access_count ORDER BY count DESC LIMIT 10";
+    const sql = "SELECT * FROM tag_access_count_v2 WHERE deleted = 0 ORDER BY count DESC LIMIT 10";
     const data = dbManager.query(sql) as {
       namespace: TagNamespace;
       qualifier: EHQualifier;
@@ -1062,71 +992,48 @@ GROUP BY
 
   updateTagAccessCount(tags: EHSearchTerm[]) {
     const sql = `
-INSERT INTO tag_access_count (namespace, qualifier, term, count)
-VALUES (?, ?, ?, 1)
+INSERT INTO tag_access_count_v2 (id, namespace, qualifier, term, count)
+VALUES (?, ?, ?, ?, 1)
 ON CONFLICT(namespace, qualifier, term)
-DO UPDATE SET count = count + 1;
+DO UPDATE SET deleted = 0, count = count + 1;
 `;
     // qualifier仅保留uploader
     dbManager.batchUpdate(
       sql,
-      tags.map((tag) => [tag.namespace || "", tag.qualifier || "", tag.term || ""]),
+      tags.map((tag) => [
+        `${tag.qualifier || ""}:${tag.namespace || ""}:${tag.term || ""}`,
+        tag.namespace || "",
+        tag.qualifier || "",
+        tag.term || "",
+      ]),
     );
   }
 
   getSomeLastAccessSearchTerms(): EHSearchTerm[] {
-    const sql = `
-SELECT 
-    namespace,
-    qualifier,
-    term
-FROM (
-    SELECT 
-        search_history_search_terms.namespace,
-        search_history_search_terms.qualifier,
-        search_history_search_terms.term,
-        search_history.last_access_time,
-        ROW_NUMBER() OVER (
-            PARTITION BY 
-                search_history_search_terms.namespace,
-                search_history_search_terms.qualifier,
-                search_history_search_terms.term
-            ORDER BY 
-                search_history.last_access_time DESC
-        ) AS row_num
-    FROM 
-        search_history_search_terms
-    JOIN 
-        search_history
-    ON 
-        search_history_search_terms.search_history_id = search_history.id
-) 
-WHERE row_num = 1
-ORDER BY last_access_time DESC
-LIMIT 20;
-`;
-    const data = dbManager.query(sql) as {
-      namespace: string;
-      term: string;
-      qualifier: string;
-      dollar: number;
-      subtract: number;
-      tilde: number;
-      last_access_time: string;
-    }[];
-    return data.map((n) => ({
-      namespace: n.namespace ? (n.namespace as TagNamespace) : undefined,
-      term: n.term,
-      qualifier: n.qualifier ? (n.qualifier as EHQualifier) : undefined,
-      dollar: Boolean(n.dollar),
-      subtract: Boolean(n.subtract),
-      tilde: Boolean(n.tilde),
-    }));
+    return dbManager
+      .query(
+        `SELECT namespace, qualifier, term FROM (
+      SELECT t.*, h.last_access_time, ROW_NUMBER() OVER (
+        PARTITION BY namespace, qualifier, term ORDER BY h.last_access_time DESC, t.term_index
+      ) AS row_num
+      FROM search_history_search_terms_v2 AS t JOIN search_history_v2 AS h ON t.history_id=h.id
+      WHERE h.deleted=0
+    ) WHERE row_num=1 ORDER BY last_access_time DESC LIMIT 20`,
+      )
+      .map((row) => ({
+        namespace: row.namespace || undefined,
+        qualifier: row.qualifier || undefined,
+        term: row.term,
+        dollar: false,
+        subtract: false,
+        tilde: false,
+      }));
   }
 
   private _queryWebDAVServices(): WebDAVService[] {
-    const sql = "SELECT * FROM webdav_services";
+    const sql = "SELECT * FROM webdav_services_v2 WHERE deleted = 0 ORDER BY rowid";
     const data = dbManager.query(sql) as {
+      id: string;
       name: string;
       host: string;
       port: number | null;
@@ -1137,6 +1044,7 @@ LIMIT 20;
       enabled: 0 | 1;
     }[];
     return data.map((n) => ({
+      id: n.id,
       name: n.name,
       host: n.host,
       port: n.port || undefined,
@@ -1149,24 +1057,46 @@ LIMIT 20;
   }
 
   updateAllWebDAVServices(services: WebDAVService[]) {
-    const sql_remove = "DELETE FROM webdav_services";
-    const sql_update =
-      "INSERT INTO webdav_services (name, host, port, https, path, username, password, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-    dbManager.update(sql_remove);
-    dbManager.batchUpdate(
-      sql_update,
-      services.map((service) => [
-        service.name,
-        service.host,
-        service.port,
-        service.https,
-        service.path,
-        service.username,
-        service.password,
-        service.enabled,
-      ]),
-    );
-    this._webDAVServices = services;
+    const usedIds = new Set<string>(dbManager.query("SELECT id FROM webdav_services_v2").map((row) => row.id));
+    const records = services.map((service) => ({
+      ...service,
+      id:
+        service.id ??
+        allocateContentId(
+          [
+            "webdav_service_v2",
+            service.name,
+            service.host,
+            service.port ?? null,
+            Number(service.https),
+            service.path ?? null,
+            service.username ?? null,
+            service.password ?? null,
+          ],
+          usedIds,
+        ),
+    }));
+    dbManager.transactionUpdate([
+      { sql: "UPDATE webdav_services_v2 SET deleted = 1, enabled = 0 WHERE deleted = 0" },
+      ...records.map((service) => ({
+        sql: `INSERT INTO webdav_services_v2 (id, name, host, port, https, path, username, password, enabled)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET deleted=0, name=excluded.name,
+          host=excluded.host, port=excluded.port, https=excluded.https, path=excluded.path, username=excluded.username,
+          password=excluded.password, enabled=excluded.enabled`,
+        args: [
+          service.id,
+          service.name,
+          service.host,
+          service.port,
+          service.https,
+          service.path,
+          service.username,
+          service.password,
+          service.enabled,
+        ],
+      })),
+    ]);
+    this._webDAVServices = this._queryWebDAVServices();
   }
 
   getCopiedWebDAVServices() {
@@ -1183,9 +1113,10 @@ LIMIT 20;
   }
 
   private _queryAITranslationServices(): AITranslationService[] {
-    const sql = "SELECT id, name, selected, script_text, config_form, config FROM ai_translation_services";
+    const sql =
+      "SELECT id, name, selected, script_text, config_form, config FROM ai_translation_services_v2 WHERE deleted = 0 ORDER BY rowid";
     const rows = dbManager.query(sql) as {
-      id: number;
+      id: string;
       name: string;
       selected: 0 | 1;
       script_text: string;
@@ -1213,13 +1144,24 @@ LIMIT 20;
 
     if (service.selected) {
       statements.push({
-        sql: "UPDATE ai_translation_services SET selected = 0 WHERE selected = 1",
+        sql: "UPDATE ai_translation_services_v2 SET selected = 0 WHERE deleted = 0 AND selected = 1",
       });
     }
 
+    const id = allocateContentId(
+      [
+        "ai_translation_service_v2",
+        service.name,
+        service.scriptText,
+        service.configForm ? JSON.stringify(service.configForm) : null,
+        service.config ? JSON.stringify(service.config) : null,
+      ],
+      new Set<string>(dbManager.query("SELECT id FROM ai_translation_services_v2").map((row) => row.id)),
+    );
     statements.push({
-      sql: `INSERT INTO ai_translation_services (name, selected, script_text, config_form, config) VALUES (?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO ai_translation_services_v2 (id, name, selected, script_text, config_form, config) VALUES (?, ?, ?, ?, ?, ?)`,
       args: [
+        id,
         service.name,
         Number(service.selected),
         service.scriptText,
@@ -1242,13 +1184,13 @@ LIMIT 20;
 
     if (service.selected) {
       statements.push({
-        sql: "UPDATE ai_translation_services SET selected = 0 WHERE selected = 1 AND id != ?",
+        sql: "UPDATE ai_translation_services_v2 SET selected = 0 WHERE deleted = 0 AND selected = 1 AND id != ?",
         args: [service.id],
       });
     }
 
     statements.push({
-      sql: `UPDATE ai_translation_services
+      sql: `UPDATE ai_translation_services_v2
             SET name = ?, selected = ?, script_text = ?, config_form = ?, config = ?
             WHERE id = ?`,
       args: [
@@ -1267,7 +1209,9 @@ LIMIT 20;
   }
 
   deleteAITranslationService(name: string) {
-    dbManager.update("DELETE FROM ai_translation_services WHERE name = ?", [name]);
+    dbManager.update("UPDATE ai_translation_services_v2 SET deleted = 1, selected = 0 WHERE name = ? AND deleted = 0", [
+      name,
+    ]);
     this._aiTranslationServices = this._queryAITranslationServices();
   }
 
@@ -1291,22 +1235,9 @@ LIMIT 20;
     } else {
       date.setFullYear(date.getFullYear() - 1);
     }
-    // 再根据日期对出符合条件的id
-    const sql = "SELECT id FROM search_history WHERE last_access_time < ?";
-    const data = dbManager.query(sql, [date.toISOString()]) as {
-      id: number;
-    }[];
-    const needDeleteIds = data.map((n) => n.id);
-    const sql_delete = "DELETE FROM search_history WHERE id = ?";
-    const sql_delete_terms = "DELETE FROM search_history_search_terms WHERE search_history_id = ?";
-    dbManager.batchUpdate(
-      sql_delete_terms,
-      needDeleteIds.map((id) => [id]),
-    );
-    dbManager.batchUpdate(
-      sql_delete,
-      needDeleteIds.map((id) => [id]),
-    );
+    dbManager.update("UPDATE search_history_v2 SET deleted = 1 WHERE last_access_time < ? AND deleted = 0", [
+      date.toISOString(),
+    ]);
     this._searchHistory = this._querySearchHistory();
   }
 
@@ -1329,11 +1260,11 @@ LIMIT 20;
     // 再根据日期对出符合条件的gid
     const sql = `
       SELECT a.gid
-      FROM archives a
+      FROM archive_records_v2 a
       WHERE a.last_access_time < ?
         AND COALESCE(a.downloaded, 0) <> 1
         AND NOT EXISTS (
-          SELECT 1 FROM favorite_images f WHERE f.gid = a.gid
+          SELECT 1 FROM favorite_images_v2 f WHERE f.gid = a.gid AND f.deleted = 0
         )
     `;
     const data = dbManager.query(sql, [date.toISOString()]) as {
@@ -1342,13 +1273,7 @@ LIMIT 20;
     const needDeleteGids = data.map((n) => n.gid);
     if (needDeleteGids.length === 0) return;
 
-    dbManager.transactionUpdate(
-      needDeleteGids.flatMap((gid) => [
-        { sql: "DELETE FROM archive_taglist WHERE gid = ?", args: [gid] },
-        { sql: "DELETE FROM gallery_reader_config WHERE gid = ?", args: [gid] },
-        { sql: "DELETE FROM archives WHERE gid = ?", args: [gid] },
-      ]),
-    );
+    dbManager.transactionUpdate(needDeleteGids.flatMap((gid) => archiveDeletionStatements(gid)));
   }
 
   /**
@@ -1363,10 +1288,12 @@ LIMIT 20;
     $file.delete(originalImagePath);
     $file.delete(aiTranslationPath);
     const downloadedGids = new Set(
-      (dbManager.query("SELECT gid FROM archives WHERE downloaded = 1") as { gid: number }[]).map((item) => item.gid),
+      (dbManager.query("SELECT gid FROM archive_records_v2 WHERE downloaded = 1") as { gid: number }[]).map(
+        (item) => item.gid,
+      ),
     );
     const favorites = new Map<number, Set<number>>();
-    for (const item of dbManager.query("SELECT gid, page_index FROM favorite_images") as {
+    for (const item of dbManager.query("SELECT gid, page_index FROM favorite_images_v2 WHERE deleted = 0") as {
       gid: number;
       page_index: number;
     }[]) {
@@ -1399,21 +1326,15 @@ LIMIT 20;
     $file.delete(originalImagePath);
     $file.delete(aiTranslationPath);
     $file.delete(imagePath);
-    dbManager.transactionUpdate([
-      { sql: "DELETE FROM favorite_images" },
-      { sql: "DELETE FROM archive_taglist" },
-      { sql: "DELETE FROM gallery_reader_config" },
-      { sql: "DELETE FROM archives" },
-      { sql: "DELETE FROM download_records" },
-    ]);
+    dbManager.transactionUpdate(archiveDeletionStatements());
   }
 
   /**
    * 获得特定图库的阅读器参数
    */
   getGalleryReaderConfig(gid: number): ReaderConfig | undefined {
-    const sql = "SELECT * FROM gallery_reader_config WHERE gid = ?";
-    const data = dbManager.query(sql, [gid]) as {
+    const sql = "SELECT * FROM gallery_reader_config_v2 WHERE id = ? AND deleted = 0";
+    const data = dbManager.query(sql, [String(gid)]) as {
       gid: number;
       pageDirection: string;
       spreadModeEnabled: number;
@@ -1442,10 +1363,11 @@ LIMIT 20;
    */
   setGalleryReaderConfig(gid: number, config: ReaderConfig) {
     const sql_update = `
-    INSERT INTO gallery_reader_config
-    (gid, pageDirection, spreadModeEnabled, skipFirstPageInSpread, skipLandscapePagesInSpread, pagingGesture)
+    INSERT INTO gallery_reader_config_v2
+    (id, pageDirection, spreadModeEnabled, skipFirstPageInSpread, skipLandscapePagesInSpread, pagingGesture)
     VALUES (?, ?, ?, ?, ?, ?)
-    ON CONFLICT(gid) DO UPDATE SET
+    ON CONFLICT(id) DO UPDATE SET
+      deleted = 0,
       pageDirection = excluded.pageDirection,
       spreadModeEnabled = excluded.spreadModeEnabled,
       skipFirstPageInSpread = excluded.skipFirstPageInSpread,
@@ -1453,7 +1375,7 @@ LIMIT 20;
       pagingGesture = excluded.pagingGesture
     `;
     const args_update = [
-      gid,
+      String(gid),
       config.pageDirection,
       config.spreadModeEnabled,
       config.skipFirstPageInSpread,
@@ -1464,8 +1386,8 @@ LIMIT 20;
   }
 
   deleteGalleryReaderConfig(gid: number) {
-    const sql_delete = "DELETE FROM gallery_reader_config WHERE gid = ?";
-    dbManager.update(sql_delete, [gid]);
+    const sql_delete = "UPDATE gallery_reader_config_v2 SET deleted = 1 WHERE id = ?";
+    dbManager.update(sql_delete, [String(gid)]);
   }
 
   getCommonReaderConfig(): ReaderConfig {
@@ -1479,11 +1401,18 @@ LIMIT 20;
   }
 
   setCommonReaderConfig(config: ReaderConfig) {
-    this.pageDirection = config.pageDirection;
-    this.spreadModeEnabled = config.spreadModeEnabled;
-    this.skipFirstPageInSpread = config.skipFirstPageInSpread;
-    this.skipLandscapePagesInSpread = config.skipLandscapePagesInSpread;
-    this.pagingGesture = config.pagingGesture;
+    dbManager.update(
+      `UPDATE global_reader_config_v2 SET pageDirection = ?, spreadModeEnabled = ?,
+      skipFirstPageInSpread = ?, skipLandscapePagesInSpread = ?, pagingGesture = ? WHERE id = '1'`,
+      [
+        config.pageDirection,
+        config.spreadModeEnabled,
+        config.skipFirstPageInSpread,
+        config.skipLandscapePagesInSpread,
+        config.pagingGesture,
+      ],
+    );
+    Object.assign(this._config, config);
   }
 }
 

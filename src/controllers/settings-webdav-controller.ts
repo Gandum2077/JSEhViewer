@@ -396,6 +396,7 @@ async function showWebdavServiceEditor(defaultName: string, oldService?: WebDAVS
   };
 
   return {
+    id: oldService?.id,
     name: result.name.trim(),
     host: result.host,
     port: result.port || undefined,

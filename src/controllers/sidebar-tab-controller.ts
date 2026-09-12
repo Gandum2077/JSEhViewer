@@ -194,7 +194,7 @@ function getTabInfoData() {
           tintColor,
         },
         label: {
-          styledText: _mapSearchTermsToRow(tab.data.options.searchTerms, 0).label.styledText,
+          styledText: _mapSearchTermsToRow(tab.data.options.searchTerms, "").label.styledText,
         },
         searchOptionsIndicator: {
           hidden: !tab.hasSearchOptions,

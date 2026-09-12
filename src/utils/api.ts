@@ -6,6 +6,7 @@ import { WebDAVClient } from "./webdav";
 import { configManager } from "./config";
 import { FatalError } from "./error";
 import { dbManager } from "./database";
+import { storeArchiveRecord } from "./database-records";
 
 type CompoundThumbnail = {
   thumbnail_url: string;
@@ -528,7 +529,10 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     this.imageDownloadCount = imageDownloadCount;
     this.thumbnailDownloadCount = thumbnailDownloadCount;
     this.downloadTopThumbnail = downloadTopThumbnail;
-    this.finishHandler = finishHandler;
+    this.finishHandler = () => {
+      if (this._background) this.persistDownloadState();
+      finishHandler();
+    };
     this.result = {
       mpv: { success: false, error: false, started: false },
       htmls: [...Array(this.infos.total_pages)].map((_, i) => ({
@@ -1048,12 +1052,20 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
   }
 
   set background(value: boolean) {
-    dbManager.update(
-      `INSERT INTO download_records (gid, length, finished) VALUES (?,?,?) 
-      ON CONFLICT(gid) DO NOTHING`,
-      [this.gid, this.infos.length, false],
-    );
+    if (value) storeArchiveRecord({ infos: this.infos });
+    if (value) this.persistDownloadState();
+    else dbManager.update("UPDATE archive_download_state_v2 SET finished = 1 WHERE id = ?", [String(this.gid)]);
     this._background = value;
+  }
+
+  private persistDownloadState() {
+    const finished = this.isAllFinished;
+    dbManager.update(
+      `INSERT INTO archive_download_state_v2 (id, finished, downloaded_at) VALUES (?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET finished=excluded.finished,
+      downloaded_at=CASE WHEN excluded.finished=1 THEN COALESCE(archive_download_state_v2.downloaded_at, excluded.downloaded_at) ELSE NULL END`,
+      [String(this.gid), finished, finished ? new Date().toISOString() : null],
+    );
   }
 
   get pendingOfHtmls() {

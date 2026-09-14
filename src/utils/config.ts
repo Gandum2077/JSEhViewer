@@ -13,7 +13,14 @@ import {
 } from "../types";
 import { dbManager, DatabaseStatement } from "./database";
 import { allocateContentId, archiveDeletionStatements, bookmarkPosition } from "./database-records";
-import { aiTranslationPath, imagePath, originalImagePath, thumbnailPath } from "./glv";
+import { aiTranslationPath, databasePath, imagePath, originalImagePath, thumbnailPath } from "./glv";
+import {
+  CREDENTIALS_REVISION_KEY,
+  Credentials,
+  credentialsPathForDatabase,
+  prepareCredentialsUpdate,
+  readCredentials,
+} from "./credentials";
 import { appLog } from "./tools";
 import {
   readAITranslationSecrets,
@@ -22,7 +29,6 @@ import {
 } from "../ai-translations/secure-config";
 
 interface Config {
-  cookie: string; // 登录Cookie
   exhentai: boolean; // 是否登录Exhentai
   syncMyTags: boolean; // 是否同步我的标签
   mpvAvailable: boolean; // 是否可用MPV
@@ -92,7 +98,6 @@ const READER_CONFIG_KEYS = [
 ];
 
 const defaultConfig: Config = {
-  cookie: "",
   exhentai: false,
   syncMyTags: false,
   mpvAvailable: false,
@@ -268,12 +273,38 @@ class ConfigManager {
   }
 
   /***CONFIG***/
+  private _readCredentials(): Credentials {
+    const value = dbManager.query("SELECT value FROM config WHERE key = ?", [CREDENTIALS_REVISION_KEY])[0]?.value;
+    return readCredentials(credentialsPathForDatabase(databasePath), value ? JSON.parse(value) : undefined);
+  }
+
+  private _saveCredentials(credentials: Credentials, statements: DatabaseStatement[] = []) {
+    const update = prepareCredentialsUpdate(
+      credentialsPathForDatabase(databasePath),
+      this._readCredentials(),
+      credentials,
+    );
+    try {
+      dbManager.transactionUpdate([
+        ...statements,
+        {
+          sql: "INSERT INTO config (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+          args: [CREDENTIALS_REVISION_KEY, JSON.stringify(update.revision)],
+        },
+      ]);
+    } catch (error) {
+      update.rollback();
+      throw error;
+    }
+    update.finish();
+  }
+
   get cookie() {
-    return this._config.cookie;
+    return this._readCredentials().cookie;
   }
 
   set cookie(value: string) {
-    this._setConfig("cookie", value);
+    this._saveCredentials({ ...this._readCredentials(), cookie: value });
   }
 
   get exhentai() {
@@ -1044,10 +1075,9 @@ DO UPDATE SET deleted = 0, count = count + 1;
       port: number | null;
       path: string | null;
       https: 0 | 1;
-      username: string | null;
-      password: string | null;
       enabled: 0 | 1;
     }[];
+    const credentials = this._readCredentials().webdav;
     return data.map((n) => ({
       id: n.id,
       name: n.name,
@@ -1055,8 +1085,8 @@ DO UPDATE SET deleted = 0, count = count + 1;
       port: n.port || undefined,
       path: n.path || undefined,
       https: Boolean(n.https),
-      username: n.username || undefined,
-      password: n.password || undefined,
+      username: credentials[n.id]?.username ?? undefined,
+      password: credentials[n.id]?.password ?? undefined,
       enabled: Boolean(n.enabled),
     }));
   }
@@ -1075,32 +1105,33 @@ DO UPDATE SET deleted = 0, count = count + 1;
             service.port ?? null,
             Number(service.https),
             service.path ?? null,
-            service.username ?? null,
-            service.password ?? null,
           ],
           usedIds,
         ),
     }));
-    dbManager.transactionUpdate([
-      { sql: "UPDATE webdav_services_v2 SET deleted = 1, enabled = 0 WHERE deleted = 0" },
-      ...records.map((service) => ({
-        sql: `INSERT INTO webdav_services_v2 (id, name, host, port, https, path, username, password, enabled)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET deleted=0, name=excluded.name,
-          host=excluded.host, port=excluded.port, https=excluded.https, path=excluded.path, username=excluded.username,
-          password=excluded.password, enabled=excluded.enabled`,
-        args: [
-          service.id,
-          service.name,
-          service.host,
-          service.port,
-          service.https,
-          service.path,
-          service.username,
-          service.password,
-          service.enabled,
-        ],
-      })),
-    ]);
+    this._saveCredentials(
+      {
+        ...this._readCredentials(),
+        webdav: Object.fromEntries(
+          records.map((service) => [
+            service.id,
+            {
+              username: service.username ?? null,
+              password: service.password ?? null,
+            },
+          ]),
+        ),
+      },
+      [
+        { sql: "UPDATE webdav_services_v2 SET deleted = 1, enabled = 0 WHERE deleted = 0" },
+        ...records.map((service) => ({
+          sql: `INSERT INTO webdav_services_v2 (id, name, host, port, https, path, enabled)
+          VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET deleted=0, name=excluded.name,
+          host=excluded.host, port=excluded.port, https=excluded.https, path=excluded.path, enabled=excluded.enabled`,
+          args: [service.id, service.name, service.host, service.port, service.https, service.path, service.enabled],
+        })),
+      ],
+    );
     this._webDAVServices = this._queryWebDAVServices();
   }
 

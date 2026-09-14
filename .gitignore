@@ -136,3 +136,7 @@ database.db
 JSEhViewer.box
 upload.js
 webpack.config.test.js
+
+# Local credentials and database migration backups
+app/assets/credentials.json
+app/assets/database.db*

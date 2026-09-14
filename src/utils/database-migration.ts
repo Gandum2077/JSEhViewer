@@ -18,6 +18,14 @@ import {
   SqlValue,
 } from "./sqlite";
 
+import {
+  CREDENTIALS_REVISION_KEY,
+  Credentials,
+  credentialsPathForDatabase,
+  prepareCredentialsUpdate,
+  readCredentials,
+} from "./credentials";
+
 export const CURRENT_USER_VERSION = 2;
 
 interface LegacyAiService extends SqlRow {
@@ -164,7 +172,7 @@ function migrateAiServices(db: SqliteTypes.SqliteInstance): void {
   }
 }
 
-function migrateWebdavServices(db: SqliteTypes.SqliteInstance): void {
+function migrateWebdavServices(db: SqliteTypes.SqliteInstance, credentials: Credentials): void {
   const services = query(
     db,
     `SELECT rowid AS legacy_rowid, name, host, port, https, path, username, password, enabled
@@ -176,36 +184,18 @@ function migrateWebdavServices(db: SqliteTypes.SqliteInstance): void {
 
   for (const service of services) {
     const id = allocateContentId(
-      canonicalJson([
-        "webdav_service_v2",
-        service.name,
-        service.host,
-        service.port,
-        service.https,
-        service.path,
-        service.username,
-        service.password,
-      ]),
+      canonicalJson(["webdav_service_v2", service.name, service.host, service.port, service.https, service.path]),
       usedIds,
     );
     const enabled = service.enabled === 1 && !enabledAlreadyMigrated ? 1 : 0;
+    credentials.webdav[id] = { username: service.username, password: service.password };
     if (enabled === 1) enabledAlreadyMigrated = true;
     update(
       db,
       `INSERT INTO webdav_services_v2
-         (id, sync_version, deleted, name, host, port, https, path, username, password, enabled)
-       VALUES (?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        service.name,
-        service.host,
-        service.port,
-        service.https === 1 ? 1 : 0,
-        service.path,
-        service.username,
-        service.password,
-        enabled,
-      ],
+         (id, sync_version, deleted, name, host, port, https, path, enabled)
+       VALUES (?, 0, 0, ?, ?, ?, ?, ?, ?)`,
+      [id, service.name, service.host, service.port, service.https === 1 ? 1 : 0, service.path, enabled],
     );
   }
 }
@@ -345,20 +335,70 @@ function seedLegacyAiServices(db: SqliteTypes.SqliteInstance): void {
     );
 }
 
+function readCredentialsRevision(db: SqliteTypes.SqliteInstance): string | undefined {
+  if (!scalarNumber(db, "SELECT COUNT(*) FROM sqlite_master WHERE name = 'config' AND type = 'table'")) return;
+  const value = query(db, "SELECT value FROM config WHERE key = ?", [CREDENTIALS_REVISION_KEY])[0]?.value;
+  return value ? JSON.parse(value) : undefined;
+}
+
+function migrateStoredCredentials(db: SqliteTypes.SqliteInstance, credentials: Credentials): void {
+  const cookie = query(db, "SELECT value FROM config WHERE key = 'cookie'")[0];
+  if (cookie) {
+    try {
+      const value = cookie.value === null ? "" : JSON.parse(cookie.value);
+      if (typeof value !== "string") throw new Error();
+      credentials.cookie = value;
+    } catch {
+      throw new Error("旧版 cookie 格式无效，已停止迁移");
+    }
+  }
+  const columns = query(db, "PRAGMA table_info(webdav_services_v2)").map((row) => row.name);
+  if (!columns.includes("username") && !columns.includes("password")) return;
+  // Also support databases generated during this unreleased migration's testing.
+  for (const row of query(
+    db,
+    `SELECT id, ${columns.includes("username") ? "username" : "NULL AS username"},
+    ${columns.includes("password") ? "password" : "NULL AS password"} FROM webdav_services_v2 WHERE deleted = 0`,
+  )) {
+    credentials.webdav[row.id] = { username: row.username, password: row.password };
+  }
+  update(db, "DROP INDEX IF EXISTS idx_webdav_services_v2_single_enabled");
+  update(db, "ALTER TABLE webdav_services_v2 RENAME TO webdav_services_with_credentials");
+  executeScript(db, "db-v2.sql");
+  update(
+    db,
+    `INSERT INTO webdav_services_v2 (id,sync_version,deleted,name,host,port,https,path,enabled)
+    SELECT id,sync_version,deleted,name,host,port,https,path,enabled FROM webdav_services_with_credentials ORDER BY rowid`,
+  );
+  update(db, "DROP TABLE webdav_services_with_credentials");
+}
+
 function readDatabaseState(db: SqliteTypes.SqliteInstance) {
   const version = scalarNumber(db, "PRAGMA user_version");
   const hasLegacyTables =
     scalarNumber(db, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'archives'") !== 0;
   const hasViews =
     scalarNumber(db, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'view' AND name = 'archive_records_v2'") !== 0;
-  return { version, ready: version === CURRENT_USER_VERSION && !hasLegacyTables && hasViews };
+  const hasCredentialsColumns = query(db, "PRAGMA table_info(webdav_services_v2)").some(
+    (row) => row.name === "username" || row.name === "password",
+  );
+  const hasCookie =
+    scalarNumber(db, "SELECT COUNT(*) FROM sqlite_master WHERE name = 'config' AND type = 'table'") !== 0 &&
+    scalarNumber(db, "SELECT COUNT(*) FROM config WHERE key = 'cookie'") !== 0;
+  return {
+    version,
+    ready: version === CURRENT_USER_VERSION && !hasLegacyTables && hasViews && !hasCredentialsColumns && !hasCookie,
+  };
 }
 
 /** Run on the startup worker: opening may also recover an interrupted transaction. */
 export function isDatabaseReady(databasePath: string): boolean {
   const db = $sqlite.open(databasePath);
   try {
-    return readDatabaseState(db).ready;
+    const state = readDatabaseState(db);
+    if (![0, 1, CURRENT_USER_VERSION].includes(state.version)) return false;
+    readCredentials(credentialsPathForDatabase(databasePath), readCredentialsRevision(db));
+    return state.ready;
   } finally {
     $sqlite.close(db);
   }
@@ -369,6 +409,7 @@ export function initializeDatabase(databasePath: string, progress: (phase: strin
   progress("打开数据库，恢复未完成的事务");
   const db = $sqlite.open(databasePath);
   let transactionStarted = false;
+  let credentialsUpdate: ReturnType<typeof prepareCredentialsUpdate> | undefined;
   const script = (fileName: string, phase: string) =>
     executeScript(db, fileName, (index, total, sql) => progress(`${phase} ${index}/${total}: ${sql.split("\n")[0]}`));
   try {
@@ -379,7 +420,10 @@ export function initializeDatabase(databasePath: string, progress: (phase: strin
     if (![0, 1, CURRENT_USER_VERSION].includes(version)) {
       throw new Error(`未找到从数据库版本 ${version} 到 ${CURRENT_USER_VERSION} 的升级方案`);
     }
+    const credentialsPath = credentialsPathForDatabase(databasePath);
+    const previousCredentials = readCredentials(credentialsPath, readCredentialsRevision(db));
     if (ready) return;
+    const credentials: Credentials = { ...previousCredentials, webdav: { ...previousCredentials.webdav } };
 
     // VACUUM INTO includes committed WAL contents; a plain file copy would not.
     const hasUserTables =
@@ -388,6 +432,12 @@ export function initializeDatabase(databasePath: string, progress: (phase: strin
       const backupPath = `${databasePath}.before-v2-${$text.uuid}.db`;
       progress("创建迁移前备份");
       update(db, "VACUUM INTO ?", [$file.absolutePath(backupPath)]);
+      if (
+        $file.exists(credentialsPath) &&
+        !$file.copy({ src: credentialsPath, dst: `${backupPath}.credentials.json` })
+      ) {
+        throw new Error("无法备份 credentials.json，已停止迁移");
+      }
     }
     progress("开始迁移事务");
     update(db, "BEGIN IMMEDIATE");
@@ -405,7 +455,7 @@ export function initializeDatabase(databasePath: string, progress: (phase: strin
       progress("迁移 AI 服务");
       migrateAiServices(db);
       progress("迁移 WebDAV 服务");
-      migrateWebdavServices(db);
+      migrateWebdavServices(db, credentials);
       progress("迁移搜索书签");
       migrateSearchBookmarks(db);
       validateMigration(db, progress);
@@ -421,6 +471,14 @@ export function initializeDatabase(databasePath: string, progress: (phase: strin
         `Favorites ${index}`,
       ]);
     }
+    progress("迁移 cookie 和 WebDAV 凭据到 credentials.json");
+    migrateStoredCredentials(db, credentials);
+    credentialsUpdate = prepareCredentialsUpdate(credentialsPath, previousCredentials, credentials);
+    update(db, "INSERT INTO config (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", [
+      CREDENTIALS_REVISION_KEY,
+      JSON.stringify(credentialsUpdate.revision),
+    ]);
+    update(db, "DELETE FROM config WHERE key = 'cookie'");
     script("db-v1-delete.sql", "清理旧版表");
     progress("清理旧版设置并检查外键");
     for (const [key] of GLOBAL_READER_CONFIG_FIELDS) update(db, "DELETE FROM config WHERE key = ?", [key]);
@@ -429,8 +487,10 @@ export function initializeDatabase(databasePath: string, progress: (phase: strin
     progress("提交迁移事务");
     update(db, "COMMIT");
     transactionStarted = false;
+    credentialsUpdate.finish();
   } catch (error) {
     if (transactionStarted) update(db, "ROLLBACK");
+    credentialsUpdate?.rollback();
     throw error;
   } finally {
     $sqlite.close(db);

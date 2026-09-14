@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS ai_translation_services_v2 (
 );
 
 -- webdav服务
--- Cloudflare D1 只同步 username 和 password 以外的字段
+-- username 和 password 保存在本机 assets/credentials.json，以服务 id 关联
 CREATE TABLE IF NOT EXISTS webdav_services_v2 (
   id TEXT PRIMARY KEY,  -- 初次创建后根据内容计算hash作为ID，如果重复则使用UUID作为ID
   sync_version INTEGER NOT NULL DEFAULT 0 CHECK (sync_version >= 0),
@@ -173,8 +173,6 @@ CREATE TABLE IF NOT EXISTS webdav_services_v2 (
   port INTEGER,
   https INTEGER NOT NULL DEFAULT 0 CHECK (https IN (0, 1)),
   path TEXT,
-  username TEXT,
-  password TEXT,
   enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1))
 );
 

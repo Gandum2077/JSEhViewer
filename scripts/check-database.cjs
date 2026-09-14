@@ -16,7 +16,15 @@ execFileSync("tsc", ["--outDir", output], { cwd: root, stdio: "pipe" });
 const legacy = fs.readFileSync(path.join(root, "app/assets/migrations/db-v1.sql"), "utf8");
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
-function setup({ version, seed = "", failSql, assets = {}, keychain = new Map(), failKeychain } = {}) {
+function setup({
+  version,
+  seed = "",
+  failSql,
+  assets = {},
+  keychain = new Map(),
+  failKeychain,
+  failCredentialsWrite,
+} = {}) {
   const dir = fs.mkdtempSync(path.join(output, "db-"));
   const dbPath = path.join(dir, "database.db");
   if (version !== undefined) {
@@ -84,6 +92,7 @@ function setup({ version, seed = "", failSql, assets = {}, keychain = new Map(),
     "utils/sqlite",
     "utils/database-records",
     "utils/config",
+    "utils/credentials",
     "utils/status",
     "utils/favorite-image",
     "utils/api",
@@ -111,8 +120,16 @@ function setup({ version, seed = "", failSql, assets = {}, keychain = new Map(),
     },
     $file: {
       absolutePath: (filename) => filename,
-      read: (filename) => ({ string: assets[filename] ?? fs.readFileSync(path.join(root, "app", filename), "utf8") }),
-      exists: () => false,
+      read: (filename) => ({
+        string:
+          assets[filename] ??
+          fs.readFileSync(path.isAbsolute(filename) ? filename : path.join(root, "app", filename), "utf8"),
+      }),
+      exists: (filename) => path.isAbsolute(filename) && fs.existsSync(filename),
+      copy({ src, dst }) {
+        fs.copyFileSync(src, dst);
+        return true;
+      },
       mkdir() {},
       delete() {},
       list: () => [],
@@ -125,7 +142,19 @@ function setup({ version, seed = "", failSql, assets = {}, keychain = new Map(),
       },
       HTMLUnescape: (text) => text,
     },
-    $data: (value) => value,
+    $data: (value) => ({
+      ...value,
+      ocValue: () => ({
+        invoke(method, filename, atomic) {
+          assert.equal(method, "writeToFile:atomically:");
+          assert.equal(atomic, true);
+          if (failCredentialsWrite?.(JSON.parse(value.string))) return false;
+          fs.writeFileSync(filename + ".tmp", value.string);
+          fs.renameSync(filename + ".tmp", filename);
+          return true;
+        },
+      }),
+    }),
     $wait: async () => {},
   };
   const context = vm.createContext(globals);
@@ -168,6 +197,7 @@ function setup({ version, seed = "", failSql, assets = {}, keychain = new Map(),
   return {
     dir,
     dbPath,
+    credentialsPath: path.join(dir, "credentials.json"),
     load,
     reload: (id) => {
       modules.delete(id);
@@ -175,7 +205,7 @@ function setup({ version, seed = "", failSql, assets = {}, keychain = new Map(),
     },
     inspect,
     connectionCount: () => connections.size,
-    backups: () => fs.readdirSync(dir).filter((name) => name.includes(".before-v2-")),
+    backups: () => fs.readdirSync(dir).filter((name) => name.includes(".before-v2-") && name.endsWith(".db")),
     close: () => {
       for (const db of [...connections]) db.close();
     },
@@ -1010,6 +1040,228 @@ test("reading a service with persisted secure fields moves values and clears sen
         .apiKey,
       "old-config-secret",
     );
+  } finally {
+    env.close();
+  }
+});
+
+const sampleCookie = '[{"name":"session","value":"cookie-secret"}]';
+const readCredentialsFile = (env) => JSON.parse(fs.readFileSync(env.credentialsPath, "utf8"));
+
+test("v0 and v1 migrate cookie and WebDAV credentials into the file without sensitive SQL columns", () => {
+  for (const version of [0, 1]) {
+    const env = setup({ version, seed: seedV1 });
+    try {
+      const native = new DatabaseSync(env.dbPath);
+      native.prepare("INSERT INTO config VALUES('cookie',?)").run(JSON.stringify(sampleCookie));
+      native.close();
+      const config = env.load("utils/config").configManager;
+      const credentials = readCredentialsFile(env);
+      assert.equal(credentials.cookie, sampleCookie);
+      assert.equal(config.cookie, sampleCookie);
+      assert.equal(config.webDAVServices[0].username, "user");
+      assert.equal(config.webDAVServices[0].password, "test-password");
+      assert.deepEqual(credentials.webdav[config.webDAVServices[0].id], {
+        username: "user",
+        password: "test-password",
+      });
+      assert.equal(credentials.transaction, undefined);
+      assert.equal(env.inspect("SELECT * FROM config WHERE key='cookie'").length, 0);
+      assert.ok(
+        env
+          .inspect("PRAGMA table_info(webdav_services_v2)")
+          .every((row) => !["username", "password"].includes(row.name)),
+      );
+      assert.equal(env.inspect("PRAGMA user_version")[0].user_version, 2);
+      assert.doesNotMatch(JSON.stringify(env.inspect("SELECT * FROM webdav_services_v2")), /test-password/);
+      const before = fs.readFileSync(env.credentialsPath, "utf8");
+      env.load("utils/database-migration").initializeDatabase(env.dbPath);
+      assert.equal(fs.readFileSync(env.credentialsPath, "utf8"), before);
+    } finally {
+      env.close();
+    }
+  }
+});
+
+test("draft v2 removes old credential columns while preserving IDs, sync versions and tombstones", () => {
+  const env = setup();
+  try {
+    const migration = env.load("utils/database-migration");
+    migration.initializeDatabase(env.dbPath);
+    const previous = readCredentialsFile(env);
+    const native = new DatabaseSync(env.dbPath);
+    native.exec(
+      "ALTER TABLE webdav_services_v2 ADD COLUMN username TEXT; ALTER TABLE webdav_services_v2 ADD COLUMN password TEXT",
+    );
+    native.exec(
+      "INSERT INTO webdav_services_v2(id,sync_version,deleted,name,host,username,password,enabled) VALUES('stable',7,0,'dav','host','draft-user','draft-password',1),('deleted',9,1,'gone','host','removed','removed',0)",
+    );
+    native.prepare("INSERT INTO config VALUES('cookie',?)").run(JSON.stringify(sampleCookie));
+    native.close();
+    assert.equal(migration.isDatabaseReady(env.dbPath), false);
+    migration.initializeDatabase(env.dbPath);
+    assert.equal(migration.isDatabaseReady(env.dbPath), true);
+    assert.deepEqual(
+      env.inspect("SELECT id,sync_version,deleted FROM webdav_services_v2 ORDER BY rowid"),
+      [
+        { id: "stable", sync_version: 7, deleted: 0 },
+        { id: "deleted", sync_version: 9, deleted: 1 },
+      ].map((row) => Object.assign(Object.create(null), row)),
+    );
+    assert.deepEqual(readCredentialsFile(env).webdav.stable, { username: "draft-user", password: "draft-password" });
+    assert.equal(readCredentialsFile(env).webdav.deleted, undefined);
+    assert.equal(readCredentialsFile(env).cookie, sampleCookie);
+    assert.equal(env.inspect("PRAGMA foreign_key_check").length, 0);
+    assert.deepEqual(
+      JSON.parse(fs.readFileSync(path.join(env.dir, env.backups()[0] + ".credentials.json"), "utf8")),
+      previous,
+    );
+  } finally {
+    env.close();
+  }
+});
+
+test("cookie and WebDAV edits, rename, deletion and reload use credentials.json", () => {
+  const env = setup();
+  try {
+    let config = env.load("utils/config").configManager;
+    assert.equal(config.cookie, "");
+    config.cookie = sampleCookie;
+    config.updateAllWebDAVServices([
+      { name: "dav", host: "host", https: true, enabled: true, username: "user", password: "password-one" },
+    ]);
+    let service = config.webDAVServices[0];
+    const id = service.id;
+    config.updateAllWebDAVServices([{ ...service, name: "renamed", password: "password-two" }]);
+    config = env.reload("utils/config").configManager;
+    service = config.webDAVServices[0];
+    assert.equal(service.id, id);
+    assert.equal(service.password, "password-two");
+    assert.equal(config.cookie, sampleCookie);
+    config.cookie = "";
+    assert.equal(readCredentialsFile(env).webdav[id].password, "password-two");
+    config.updateAllWebDAVServices([]);
+    assert.deepEqual(readCredentialsFile(env).webdav, {});
+    assert.equal(readCredentialsFile(env).cookie, "");
+    assert.equal(env.inspect("SELECT deleted FROM webdav_services_v2 WHERE id=?", [id])[0].deleted, 1);
+    assert.equal(env.inspect("SELECT * FROM config WHERE key='cookie'").length, 0);
+    assert.doesNotMatch(JSON.stringify(env.inspect("SELECT * FROM config")), /cookie-secret/);
+  } finally {
+    env.close();
+  }
+});
+
+test("credential file and SQL failures preserve the previous database and credentials", () => {
+  let failFile = false,
+    failCommit = false;
+  const env = setup({ failCredentialsWrite: () => failFile, failSql: (sql) => failCommit && sql === "COMMIT" });
+  try {
+    const config = env.load("utils/config").configManager;
+    config.cookie = "before";
+    config.updateAllWebDAVServices([
+      { name: "before", host: "before", https: true, enabled: true, password: "before" },
+    ]);
+    const previous = readCredentialsFile(env);
+    failFile = true;
+    assert.throws(() => {
+      config.cookie = "after";
+    }, /credentials.json/);
+    assert.deepEqual(readCredentialsFile(env), previous);
+    failFile = false;
+    failCommit = true;
+    assert.throws(
+      () => config.updateAllWebDAVServices([{ ...config.webDAVServices[0], name: "after", password: "after" }]),
+      /injected/,
+    );
+    assert.deepEqual(readCredentialsFile(env), previous);
+    assert.equal(env.inspect("SELECT name FROM webdav_services_v2 WHERE deleted=0")[0].name, "before");
+    failCommit = false;
+    assert.equal(config.cookie, "before");
+  } finally {
+    env.close();
+  }
+});
+
+test("migration stops before deleting secrets when credentials cannot be written", () => {
+  const env = setup({ version: 1, seed: seedV1, failCredentialsWrite: () => true });
+  try {
+    assert.throws(() => env.load("utils/database-migration").initializeDatabase(env.dbPath), /credentials.json/);
+    assert.equal(env.inspect("PRAGMA user_version")[0].user_version, 1);
+    assert.equal(env.inspect("SELECT password FROM webdav_services")[0].password, "test-password");
+    assert.equal(env.inspect("SELECT name FROM sqlite_master WHERE name='webdav_services_v2'").length, 0);
+  } finally {
+    env.close();
+  }
+});
+
+test("restart resolves interrupted credential writes from the committed SQL revision", () => {
+  for (const committed of [false, true]) {
+    const env = setup();
+    try {
+      const migration = env.load("utils/database-migration");
+      migration.initializeDatabase(env.dbPath);
+      const { prepareCredentialsUpdate, CREDENTIALS_REVISION_KEY } = env.load("utils/credentials");
+      const previous = readCredentialsFile(env);
+      const next = { ...previous, cookie: "next-cookie" };
+      const pending = prepareCredentialsUpdate(env.credentialsPath, previous, next);
+      if (committed) {
+        const native = new DatabaseSync(env.dbPath);
+        native
+          .prepare("UPDATE config SET value=? WHERE key=?")
+          .run(JSON.stringify(pending.revision), CREDENTIALS_REVISION_KEY);
+        native.close();
+      }
+      // Simulate process death: neither finish() nor rollback() runs.
+      assert.equal(migration.isDatabaseReady(env.dbPath), true);
+      assert.deepEqual(readCredentialsFile(env), committed ? next : previous);
+    } finally {
+      env.close();
+    }
+  }
+});
+
+test("invalid credentials are not overwritten and parser errors do not disclose their contents", () => {
+  const env = setup({ version: 1, seed: seedV1 });
+  try {
+    const malformed = '{"cookie":"secret-do-not-log"';
+    fs.writeFileSync(env.credentialsPath, malformed);
+    assert.throws(
+      () => env.load("utils/database-migration").initializeDatabase(env.dbPath),
+      (error) => /credentials.json/.test(error.message) && !/secret-do-not-log/.test(error.message),
+    );
+    assert.equal(fs.readFileSync(env.credentialsPath, "utf8"), malformed);
+    assert.equal(env.inspect("PRAGMA user_version")[0].user_version, 1);
+  } finally {
+    env.close();
+  }
+});
+
+test("failed migration COMMIT restores both the legacy credentials and the preexisting JSON file", () => {
+  const env = setup({ version: 1, seed: seedV1, failSql: (sql) => sql === "COMMIT" });
+  try {
+    const previous = { version: 1, cookie: "previous-cookie", webdav: {} };
+    fs.writeFileSync(env.credentialsPath, JSON.stringify(previous));
+    assert.throws(() => env.load("utils/database-migration").initializeDatabase(env.dbPath), /injected/);
+    assert.deepEqual(readCredentialsFile(env), previous);
+    assert.equal(env.inspect("PRAGMA user_version")[0].user_version, 1);
+    assert.equal(env.inspect("SELECT password FROM webdav_services")[0].password, "test-password");
+  } finally {
+    env.close();
+  }
+});
+
+test("a committed credential update remains readable if recovery snapshot cleanup fails", () => {
+  let failCleanup = false;
+  const env = setup({ failCredentialsWrite: (document) => failCleanup && !document.transaction });
+  try {
+    const config = env.load("utils/config").configManager;
+    failCleanup = true;
+    config.cookie = "committed-cookie";
+    assert.ok(readCredentialsFile(env).transaction);
+    assert.equal(config.cookie, "committed-cookie");
+    failCleanup = false;
+    assert.equal(config.cookie, "committed-cookie");
+    assert.equal(readCredentialsFile(env).transaction, undefined);
   } finally {
     env.close();
   }

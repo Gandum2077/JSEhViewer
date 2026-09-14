@@ -271,8 +271,24 @@ export function validateUserCustomConfigFormText(configFormText: string): UserCu
       return;
     }
 
+    if ("secure" in row && (rowType !== "string" || typeof row.secure !== "boolean")) {
+      issues.push(
+        createIssue("configForm", "`secure` 仅适用于 `string` 类型，且必须是布尔值。", { rowIndex: index, key }),
+      );
+      rowHasError = true;
+    }
+
     switch (rowType) {
       case "string":
+        if (row.secure === true && row.default !== "") {
+          issues.push(
+            createIssue("configForm", "敏感字段的 `default` 必须为空字符串，请在生成的配置表单中填写敏感值。", {
+              rowIndex: index,
+              key,
+            }),
+          );
+          rowHasError = true;
+        }
         if (typeof row.default !== "string") {
           issues.push(
             createIssue("configForm", "`string` 类型的 `default` 必须是字符串。", {
@@ -408,6 +424,7 @@ export function validateUserCustomConfigFormText(configFormText: string): UserCu
             title,
             key,
             summary,
+            secure: row.secure,
             default: row.default,
           });
           break;

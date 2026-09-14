@@ -94,12 +94,14 @@ export class AITranslationConfigPickerController extends BaseController {
                   const name = getNextCustomScriptName(
                     configManager.aiTranslationServices.map((service) => service.name),
                   );
-                  const service = await editAITranslationService({
-                    name,
-                    selected: false,
-                    scriptText: DEFAULT_CUSTOM_AI_TRANSLATION_SCRIPT,
-                  });
-                  configManager.addAITranslationService(service);
+                  await editAITranslationService(
+                    {
+                      name,
+                      selected: false,
+                      scriptText: DEFAULT_CUSTOM_AI_TRANSLATION_SCRIPT,
+                    },
+                    (service) => configManager.addAITranslationService(service),
+                  );
                   this.refresh();
                 },
               },
@@ -243,8 +245,9 @@ export class AITranslationConfigPickerController extends BaseController {
                         tapped: async (sender) => {
                           const index = sender.info.index as number;
                           const service = configManager.aiTranslationServices[index];
-                          const newService = await editAITranslationService(service);
-                          configManager.editAITranslationService(newService);
+                          await editAITranslationService(service, (draft) =>
+                            configManager.editAITranslationService(draft),
+                          );
                           this.refresh();
                         },
                       },

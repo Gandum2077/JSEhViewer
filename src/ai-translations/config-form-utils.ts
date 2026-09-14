@@ -64,6 +64,7 @@ function formatAITranslationConfigValue(item: AITranslationConfigFormItem, confi
   switch (item.type) {
     case "string": {
       const value = getAITranslationConfigValue(item, config);
+      if (item.secure) return value ? "已填写" : "未填写";
       return value.trim() ? value : "未填写";
     }
     case "integer":

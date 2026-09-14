@@ -25,14 +25,16 @@ const DESCRIPTION = `在本页面你可以设置自定义 AI 翻译服务。你�
 
 如果提供了配置表单定义，请点击对应区域的“应用”按钮，会在下方生成配置表单。
 
+API Key 等敏感参数请使用 string 类型并设置 secure: true，默认值留空。敏感值保存在本机钥匙串中，不写入数据库。
+
 点击右上方问号可以查看更详细的说明文档。在一切完成后，请记得点击保存按钮。`;
 
-function mapTranslationConfigRows(service: Pick<AITranslationService, "configForm" | "config">): PrefsRow[] {
+export function mapTranslationConfigRows(service: Pick<AITranslationService, "configForm" | "config">): PrefsRow[] {
   return (service.configForm ?? []).map((item) => {
     switch (item.type) {
       case "string":
         return {
-          type: "string",
+          type: item.secure ? "secure" : "string",
           title: item.title,
           key: item.key,
           value: getAITranslationConfigValue(item, service.config),
@@ -65,7 +67,7 @@ function mapTranslationConfigRows(service: Pick<AITranslationService, "configFor
   });
 }
 
-class DynamicPreferenceListViewWithoutSectionTitle extends DynamicPreferenceListView {
+class DynamicPreferenceListViewWithoutSectionTitle extends DynamicPreferenceListView<Record<string, any>> {
   constructor({
     sections,
     props,
@@ -474,6 +476,7 @@ class AITranslationConfigEditorController extends KeyboardAvoidanceController {
     service: AITranslationService,
     resolve: (service: AITranslationService) => void,
     reject: (reason?: any) => void,
+    save?: (service: AITranslationService) => void,
   ) {
     let settled = false;
     super({
@@ -534,15 +537,22 @@ class AITranslationConfigEditorController extends KeyboardAvoidanceController {
               const name = values[this._serviceNameKey] as string;
               delete values[this._serviceNameKey];
 
-              settled = true;
-              resolve({
+              const draft: AITranslationService = {
                 id: service.id,
                 name,
                 selected: service.selected,
                 scriptText: scriptValidation.normalizedScriptText || "",
                 configForm: schemaValidation.configForm,
                 config: buildAITranslationConfig(schemaValidation.configForm, values),
-              });
+              };
+              try {
+                save?.(draft);
+              } catch (error) {
+                $ui.alert({ title: "保存失败", message: error instanceof Error ? error.message : String(error) });
+                return;
+              }
+              settled = true;
+              resolve(draft);
               $ui.pop();
             },
           },
@@ -678,9 +688,12 @@ class AITranslationConfigEditorController extends KeyboardAvoidanceController {
   }
 }
 
-export function editAITranslationService(service: AITranslationService) {
+export function editAITranslationService(
+  service: AITranslationService,
+  save?: (service: AITranslationService) => void,
+) {
   return new Promise<AITranslationService>((resolve, reject) => {
-    const controller = new AITranslationConfigEditorController(service, resolve, reject);
+    const controller = new AITranslationConfigEditorController(service, resolve, reject, save);
     controller.uipush({
       navBarHidden: true,
       statusBarStyle: 0,

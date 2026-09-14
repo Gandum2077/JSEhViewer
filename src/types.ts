@@ -298,6 +298,7 @@ type AITranslationConfigFormItemBase = {
 export type AITranslationConfigFormItem =
   | (AITranslationConfigFormItemBase & {
       type: "string";
+      secure?: boolean;
       default: string;
     })
   | (AITranslationConfigFormItemBase & {

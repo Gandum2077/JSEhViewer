@@ -48,12 +48,15 @@ async (imageData, config) => {
 额外说明：
 
 - `integer` 类型还可以包含 `min` 和 `max`，用于限制输入范围。
+- `string` 类型可以包含可选布尔值 `secure`，默认是 `false`。设为 `true` 表示敏感字段，配置列表及输入框会遮蔽其内容。其值保存在本机钥匙串中，不写入数据库；重启后仍可使用。其他类型不能设置 `secure`。
 - `list` 类型必须包含 `items`，用于描述可选项列表。
 - 所有类型都可以额外包含 `summary`，它是一个可选布尔值。设为 `true` 后，该配置项会显示在 “AI翻译设置” 页的服务卡片摘要中，方便快速查看当前配置。可以同时标记多个配置项。
+- 敏感字段即使设置了 `summary: true`，摘要也只显示“已填写”或“未填写”，不会显示明文。
 
 每种类型的 `default` 需要与类型匹配：
 
 - `string` 的 `default` 需要是一个字符串。
+- `secure: true` 的 `default` 必须是空字符串 `""`。请在应用表单定义后填写密钥，不要把密钥写进脚本或表单默认值，因为这些定义仍保存在数据库中。
 - `integer` 的 `default` 需要是一个整数，并且在 `min` 和 `max` 范围内（如果有的话）。
 - `boolean` 的 `default` 只能是 `true` 或 `false`。
 - `list` 的 `default` 需要是一个整数，表示默认选项在 `items` 中的索引。
@@ -68,6 +71,13 @@ async (imageData, config) => {
     "key": "host",
     "summary": true,
     "default": "192.168.1.1"
+  },
+  {
+    "type": "string",
+    "title": "API Key",
+    "key": "apiKey",
+    "secure": true,
+    "default": ""
   },
   {
     "type": "integer",
@@ -99,11 +109,14 @@ async (imageData, config) => {
 ```javascript
 {
   host: "192.168.1.1",
+  apiKey: "在配置表单中填写的密钥",
   port: 5003,
   https: false,
   list: 2
 }
 ```
+
+翻译函数仍通过 `config.apiKey` 读取敏感值，与普通配置的用法相同。保存数据库或以后同步服务定义时不会包含这个值，其他设备需要重新填写。删除服务会同时删除它在本机钥匙串中的敏感配置；将普通字段改为 `secure: true` 后保存，会把当前值移出数据库。
 
 ## 参考案例
 

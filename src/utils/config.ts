@@ -15,6 +15,11 @@ import { dbManager, DatabaseStatement } from "./database";
 import { allocateContentId, archiveDeletionStatements, bookmarkPosition } from "./database-records";
 import { aiTranslationPath, imagePath, originalImagePath, thumbnailPath } from "./glv";
 import { appLog } from "./tools";
+import {
+  readAITranslationSecrets,
+  saveAITranslationSecrets,
+  splitAITranslationConfig,
+} from "../ai-translations/secure-config";
 
 interface Config {
   cookie: string; // 登录Cookie
@@ -1124,7 +1129,7 @@ DO UPDATE SET deleted = 0, count = count + 1;
       config: string | null;
     }[];
     return rows.map((row) => {
-      return {
+      const service: AITranslationService = {
         id: row.id,
         name: row.name,
         selected: Boolean(row.selected),
@@ -1132,6 +1137,23 @@ DO UPDATE SET deleted = 0, count = count + 1;
         configForm: row.config_form ? (JSON.parse(row.config_form) as AITranslationConfigFormItem[]) : undefined,
         config: row.config ? (JSON.parse(row.config) as Record<string, any>) : undefined,
       };
+      const split = splitAITranslationConfig(service);
+      const keys = Object.keys(split.secrets);
+      if (!keys.length) return service;
+      const saved = readAITranslationSecrets(row.id);
+      const secrets = Object.fromEntries(
+        keys.map((key) => [key, Object.prototype.hasOwnProperty.call(saved, key) ? saved[key] : split.secrets[key]]),
+      );
+      if (split.hasPersistedSecrets) {
+        saveAITranslationSecrets(row.id, secrets, () =>
+          dbManager.update("UPDATE ai_translation_services_v2 SET config_form = ?, config = ? WHERE id = ?", [
+            JSON.stringify(split.configForm),
+            split.config ? JSON.stringify(split.config) : null,
+            row.id,
+          ]),
+        );
+      }
+      return { ...service, configForm: split.configForm, config: { ...split.config, ...secrets } };
     });
   }
 
@@ -1139,6 +1161,8 @@ DO UPDATE SET deleted = 0, count = count + 1;
     if (service.id !== undefined) {
       throw new Error("addAITranslationService 只能用于新增服务");
     }
+    const { secrets, ...split } = splitAITranslationConfig(service);
+    service = { ...service, configForm: split.configForm, config: split.config };
 
     const statements: { sql: string; args?: (string | number | boolean | null | undefined)[] }[] = [];
 
@@ -1170,7 +1194,7 @@ DO UPDATE SET deleted = 0, count = count + 1;
       ],
     });
 
-    dbManager.transactionUpdate(statements);
+    saveAITranslationSecrets(id, secrets, () => dbManager.transactionUpdate(statements));
 
     this._aiTranslationServices = this._queryAITranslationServices();
   }
@@ -1179,6 +1203,9 @@ DO UPDATE SET deleted = 0, count = count + 1;
     if (service.id === undefined) {
       throw new Error("editAITranslationService 只能用于编辑已有服务");
     }
+    const id = service.id;
+    const { secrets, ...split } = splitAITranslationConfig(service);
+    service = { ...service, configForm: split.configForm, config: split.config };
 
     const statements: { sql: string; args?: (string | number | boolean | null | undefined)[] }[] = [];
 
@@ -1203,15 +1230,17 @@ DO UPDATE SET deleted = 0, count = count + 1;
       ],
     });
 
-    dbManager.transactionUpdate(statements);
+    saveAITranslationSecrets(id, secrets, () => dbManager.transactionUpdate(statements));
 
     this._aiTranslationServices = this._queryAITranslationServices();
   }
 
   deleteAITranslationService(name: string) {
-    dbManager.update("UPDATE ai_translation_services_v2 SET deleted = 1, selected = 0 WHERE name = ? AND deleted = 0", [
-      name,
-    ]);
+    const service = this._aiTranslationServices.find((service) => service.name === name);
+    if (!service?.id) return;
+    saveAITranslationSecrets(service.id, {}, () =>
+      dbManager.update("UPDATE ai_translation_services_v2 SET deleted = 1, selected = 0 WHERE id = ?", [service.id]),
+    );
     this._aiTranslationServices = this._queryAITranslationServices();
   }
 

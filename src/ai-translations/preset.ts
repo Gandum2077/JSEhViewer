@@ -1,6 +1,7 @@
 export const DEFAULT_CUSTOM_AI_TRANSLATION_SCRIPT = `async (imageData, config) => {
   // 在此处编写自定义翻译的逻辑
   // 此函数将使用eval()直接运行，请只修改函数内的部分
+  // 密钥请通过 secure: true 的 string 表单项填写，再从 config.apiKey 读取
   return newImageData;
 }`;
 
@@ -207,6 +208,13 @@ export const CONFIG_FORM_TEMPLATE = `[
     "key": "host",
     "summary": true,
     "default": "192.168.1.1"
+  },
+  {
+    "type": "string",
+    "title": "API Key",
+    "key": "apiKey",
+    "secure": true,
+    "default": ""
   },
   {
     "type": "integer",

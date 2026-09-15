@@ -257,15 +257,17 @@ INSERT INTO tag_access_count_v2 (
   id,
   sync_version,
   deleted,
+  device_id,
   namespace,
   qualifier,
   term,
   count
 )
 SELECT
-  qualifier || ':' || namespace || ':' || term,
+  json_extract((SELECT value FROM config WHERE key = '_sync_device_id'), '$') || ':' || qualifier || ':' || namespace || ':' || term,
   0,
   0,
+  json_extract((SELECT value FROM config WHERE key = '_sync_device_id'), '$'),
   namespace,
   qualifier,
   term,

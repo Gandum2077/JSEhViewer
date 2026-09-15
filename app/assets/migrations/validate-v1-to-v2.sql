@@ -136,8 +136,8 @@ WHERE id = '1';
 SELECT COUNT(*) AS missing_tag_access_counts
 FROM tag_access_count AS old
 LEFT JOIN tag_access_count_v2 AS migrated
-  ON migrated.id = old.qualifier || ':' || old.namespace || ':' || old.term
-WHERE migrated.id IS NULL;
+  ON migrated.id = json_extract((SELECT value FROM config WHERE key = '_sync_device_id'), '$') || ':' || old.qualifier || ':' || old.namespace || ':' || old.term
+WHERE migrated.id IS NULL OR migrated.count <> COALESCE(old.count, 0) OR migrated.deleted <> 0;
 
 SELECT COUNT(*) AS missing_favorite_images
 FROM favorite_images AS old

@@ -93,6 +93,8 @@ function setup({
     "utils/database-records",
     "utils/config",
     "utils/credentials",
+    "utils/device-identity",
+    "utils/tag-access-counts",
     "utils/status",
     "utils/favorite-image",
     "utils/api",
@@ -412,7 +414,9 @@ test("search history and bookmarks round-trip punctuation, empty IDs, soft delet
     config.deleteSearchBookmark("second");
     config.addSearchBookmark("second", [term]);
     assert.deepEqual(plain(config.searchBookmarks.map((b) => b.id)), ["", "second"]);
-    config.updateTagAccessCount([term, term]);
+    assert.throws(() => config.updateTagAccessCount([term]), /冒号/);
+    const countTerm = { ...term, term: 'a;|b "quoted"' };
+    config.updateTagAccessCount([countTerm, countTerm]);
     assert.equal(config.getTenMostAccessedTags()[0].count, 2);
   } finally {
     env.close();
@@ -1262,6 +1266,152 @@ test("a committed credential update remains readable if recovery snapshot cleanu
     failCleanup = false;
     assert.equal(config.cookie, "committed-cookie");
     assert.equal(readCredentialsFile(env).transaction, undefined);
+  } finally {
+    env.close();
+  }
+});
+
+test("device counters preserve local visits while merging remote components and retries", () => {
+  const env = setup({ version: 1, seed: seedV1 });
+  try {
+    const { configManager: config } = env.load("utils/config");
+    const counters = env.load("utils/tag-access-counts");
+    const { dbManager } = env.load("utils/database");
+    const own = counters.getLocalTagAccessCounts()[0];
+    assert.equal(own.count, 8);
+    assert.equal(own.device_id, dbManager.deviceId);
+    assert.equal(own.id, `${dbManager.deviceId}::artist:tag`);
+    const other = {
+      ...plain(own),
+      device_id: "other-device",
+      id: "other-device::artist:tag",
+      count: 5,
+      sync_version: 1,
+    };
+    counters.applyRemoteTagAccessCounts([other, own, other]);
+    assert.equal(config.getTenMostAccessedTags()[0].count, 13);
+    config.updateTagAccessCount([{ namespace: "artist", term: "tag" }]);
+    counters.applyRemoteTagAccessCounts([{ ...other, count: 3, sync_version: 0 }, own]);
+    assert.equal(config.getTenMostAccessedTags()[0].count, 14);
+    assert.equal(counters.getLocalTagAccessCounts().length, 1);
+    assert.equal(counters.getLocalTagAccessCounts()[0].count, 9);
+    // Full snapshots replace other devices only; local visits made during download survive.
+    counters.applyRemoteTagAccessCounts([{ ...other, count: 6, sync_version: 2 }, own], true);
+    assert.equal(config.getTenMostAccessedTags()[0].count, 15);
+    assert.throws(() => counters.applyRemoteTagAccessCounts([{ ...other, id: "wrong" }], true), /无效/);
+    assert.equal(config.getTenMostAccessedTags()[0].count, 15);
+    counters.applyRemoteTagAccessCounts([], true);
+    assert.equal(config.getTenMostAccessedTags()[0].count, 9);
+    assert.equal(env.reload("utils/database").dbManager.deviceId, dbManager.deviceId);
+    assert.equal(env.reload("utils/config").configManager.getTenMostAccessedTags()[0].count, 9);
+  } finally {
+    env.close();
+  }
+});
+
+test("counter ranking sums device contributions before taking the top ten", () => {
+  const env = setup();
+  try {
+    const { configManager: config } = env.load("utils/config");
+    const counters = env.load("utils/tag-access-counts");
+    const row = (device, term, count) => ({
+      id: `${device}:::${term}`,
+      device_id: device,
+      qualifier: "",
+      namespace: "",
+      term,
+      count,
+      sync_version: 0,
+      deleted: 0,
+    });
+    counters.applyRemoteTagAccessCounts([
+      ...Array.from({ length: 11 }, (_, i) => row("other", `tag-${i}`, 10 + i)),
+      row("device-a", "combined", 11),
+      row("device-b", "combined", 11),
+    ]);
+    const top = config.getTenMostAccessedTags();
+    assert.equal(top.length, 10);
+    assert.equal(top[0].term, "combined");
+    assert.equal(top[0].count, 22);
+    assert.equal(counters.getLocalTagAccessCounts().length, 0);
+  } finally {
+    env.close();
+  }
+});
+
+test("draft v2 counters acquire a stable local identity and failed upgrades roll back", () => {
+  for (const failCommit of [false, true]) {
+    let fail = false;
+    const env = setup({ failSql: (sql) => fail && sql === "COMMIT" });
+    try {
+      const migration = env.load("utils/database-migration");
+      migration.initializeDatabase(env.dbPath);
+      const db = new DatabaseSync(env.dbPath);
+      db.exec(`DROP TABLE tag_access_count_v2;
+        DELETE FROM config WHERE key='_sync_device_id';
+        CREATE TABLE tag_access_count_v2(id TEXT PRIMARY KEY,sync_version INTEGER DEFAULT 0,deleted INTEGER DEFAULT 0,
+          namespace TEXT DEFAULT '',qualifier TEXT DEFAULT '',term TEXT DEFAULT '',count INTEGER DEFAULT 0);
+        INSERT INTO tag_access_count_v2 VALUES(':artist:tag',0,0,'artist','','tag',17);`);
+      db.close();
+      assert.equal(migration.isDatabaseReady(env.dbPath), false);
+      fail = failCommit;
+      if (fail) {
+        assert.throws(() => migration.initializeDatabase(env.dbPath), /injected/);
+        assert.equal(
+          env.inspect("PRAGMA table_info(tag_access_count_v2)").some((c) => c.name === "device_id"),
+          false,
+        );
+        assert.equal(env.inspect("SELECT count FROM tag_access_count_v2")[0].count, 17);
+        assert.equal(env.inspect("SELECT * FROM config WHERE key='_sync_device_id'").length, 0);
+        fail = false;
+      }
+      migration.initializeDatabase(env.dbPath);
+      const own = env.load("utils/tag-access-counts").getLocalTagAccessCounts()[0];
+      assert.equal(own.count, 17);
+      assert.equal(own.id, `${own.device_id}::artist:tag`);
+      assert.equal(migration.isDatabaseReady(env.dbPath), true);
+      const backups = fs.readdirSync(env.dir).filter((n) => n.includes("before-v2"));
+      migration.initializeDatabase(env.dbPath);
+      assert.deepEqual(
+        fs.readdirSync(env.dir).filter((n) => n.includes("before-v2")),
+        backups,
+      );
+    } finally {
+      env.close();
+    }
+  }
+});
+
+test("invalid or overflowing device counts do not partially apply", () => {
+  let fail = false;
+  const env = setup({ failSql: (sql) => fail && sql.includes("INSERT INTO tag_access_count_v2") });
+  try {
+    const { configManager: config } = env.load("utils/config");
+    const counters = env.load("utils/tag-access-counts");
+    const remote = {
+      id: "other:::tag",
+      device_id: "other",
+      qualifier: "",
+      namespace: "",
+      term: "tag",
+      count: 5,
+      sync_version: 0,
+      deleted: 0,
+    };
+    counters.applyRemoteTagAccessCounts([remote]);
+    for (const patch of [
+      { count: -1 },
+      { count: 1.5 },
+      { count: Number.MAX_SAFE_INTEGER + 1 },
+      { deleted: 1 },
+      { sync_version: -1 },
+    ])
+      assert.throws(() => counters.applyRemoteTagAccessCounts([{ ...remote, ...patch }], true), /无效/);
+    assert.throws(() => config.updateTagAccessCount([{ term: "valid" }, { term: "bad:term" }]), /冒号/);
+    assert.equal(counters.getLocalTagAccessCounts().length, 0);
+    fail = true;
+    assert.throws(() => counters.applyRemoteTagAccessCounts([{ ...remote, count: 6 }], true), /injected/);
+    assert.equal(config.getTenMostAccessedTags()[0].count, 5);
   } finally {
     env.close();
   }

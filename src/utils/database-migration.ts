@@ -25,6 +25,7 @@ import {
   prepareCredentialsUpdate,
   readCredentials,
 } from "./credentials";
+import { ensureDeviceId, readDeviceId } from "./device-identity";
 
 export const CURRENT_USER_VERSION = 2;
 
@@ -385,9 +386,18 @@ function readDatabaseState(db: SqliteTypes.SqliteInstance) {
   const hasCookie =
     scalarNumber(db, "SELECT COUNT(*) FROM sqlite_master WHERE name = 'config' AND type = 'table'") !== 0 &&
     scalarNumber(db, "SELECT COUNT(*) FROM config WHERE key = 'cookie'") !== 0;
+  const hasDeviceCounters = query(db, "PRAGMA table_info(tag_access_count_v2)").some((row) => row.name === "device_id");
+  const hasDeviceId = hasDeviceCounters && Boolean(readDeviceId(db));
   return {
     version,
-    ready: version === CURRENT_USER_VERSION && !hasLegacyTables && hasViews && !hasCredentialsColumns && !hasCookie,
+    ready:
+      version === CURRENT_USER_VERSION &&
+      !hasLegacyTables &&
+      hasViews &&
+      !hasCredentialsColumns &&
+      !hasCookie &&
+      hasDeviceCounters &&
+      hasDeviceId,
   };
 }
 
@@ -442,7 +452,29 @@ export function initializeDatabase(databasePath: string, progress: (phase: strin
     progress("开始迁移事务");
     update(db, "BEGIN IMMEDIATE");
     transactionStarted = true;
+    const counterColumns = query(db, "PRAGMA table_info(tag_access_count_v2)");
+    const hasDraftCounters = counterColumns.length > 0 && !counterColumns.some((row) => row.name === "device_id");
+    if (hasDraftCounters) {
+      update(db, "DROP INDEX IF EXISTS idx_tag_access_count_v2_term");
+      update(db, "ALTER TABLE tag_access_count_v2 RENAME TO tag_access_count_draft");
+    }
     script("db-v2.sql", "创建 v2 表和视图");
+    if (!readDeviceId(db) && scalarNumber(db, "SELECT COUNT(*) FROM tag_access_count_v2") > 0) {
+      throw new Error("已有设备计数但缺少本机设备标识，请恢复数据库备份");
+    }
+    const deviceId = ensureDeviceId(db);
+    if (hasDraftCounters) {
+      progress("将旧版标签计数归入本机设备");
+      update(
+        db,
+        `INSERT INTO tag_access_count_v2
+        (id,sync_version,deleted,device_id,namespace,qualifier,term,count)
+        SELECT ? || ':' || qualifier || ':' || namespace || ':' || term,0,deleted,?,namespace,qualifier,term,count
+        FROM tag_access_count_draft`,
+        [deviceId, deviceId],
+      );
+      update(db, "DROP TABLE tag_access_count_draft");
+    }
     if (version < CURRENT_USER_VERSION) {
       // v1 received additive tables without version bumps; create any missing ones.
       script("db-v1.sql", "补齐旧版表结构");

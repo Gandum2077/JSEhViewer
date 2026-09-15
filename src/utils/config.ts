@@ -13,6 +13,7 @@ import {
 } from "../types";
 import { dbManager, DatabaseStatement } from "./database";
 import { allocateContentId, archiveDeletionStatements, bookmarkPosition } from "./database-records";
+import { incrementLocalTagAccessCounts } from "./tag-access-counts";
 import { aiTranslationPath, databasePath, imagePath, originalImagePath, thumbnailPath } from "./glv";
 import {
   CREDENTIALS_REVISION_KEY,
@@ -1016,7 +1017,9 @@ class ConfigManager {
   }
 
   getTenMostAccessedTags() {
-    const sql = "SELECT * FROM tag_access_count_v2 WHERE deleted = 0 ORDER BY count DESC LIMIT 10";
+    const sql = `SELECT namespace,qualifier,term,SUM(count) AS count
+      FROM tag_access_count_v2 WHERE deleted=0 GROUP BY namespace,qualifier,term
+      ORDER BY count DESC,namespace,qualifier,term LIMIT 10`;
     const data = dbManager.query(sql) as {
       namespace: TagNamespace;
       qualifier: EHQualifier;
@@ -1027,22 +1030,7 @@ class ConfigManager {
   }
 
   updateTagAccessCount(tags: EHSearchTerm[]) {
-    const sql = `
-INSERT INTO tag_access_count_v2 (id, namespace, qualifier, term, count)
-VALUES (?, ?, ?, ?, 1)
-ON CONFLICT(namespace, qualifier, term)
-DO UPDATE SET deleted = 0, count = count + 1;
-`;
-    // qualifier仅保留uploader
-    dbManager.batchUpdate(
-      sql,
-      tags.map((tag) => [
-        `${tag.qualifier || ""}:${tag.namespace || ""}:${tag.term || ""}`,
-        tag.namespace || "",
-        tag.qualifier || "",
-        tag.term || "",
-      ]),
-    );
+    incrementLocalTagAccessCounts(tags);
   }
 
   getSomeLastAccessSearchTerms(): EHSearchTerm[] {

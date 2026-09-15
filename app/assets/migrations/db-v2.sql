@@ -210,17 +210,22 @@ CREATE TABLE IF NOT EXISTS marked_uploaders_v2 (
   deleted INTEGER NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1))
   );
 
--- 标签访问次数统计
+-- 每台设备独立累计；展示时按搜索词对所有设备求和。
 CREATE TABLE IF NOT EXISTS tag_access_count_v2 (
-  id TEXT PRIMARY KEY,  -- 使用 qualifier:namespace:term 作为 id；三个组成部分禁止包含冒号
+  id TEXT PRIMARY KEY NOT NULL,  -- device_id:qualifier:namespace:term
   sync_version INTEGER NOT NULL DEFAULT 0 CHECK (sync_version >= 0),
   deleted INTEGER NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1)),
-  namespace TEXT NOT NULL DEFAULT '',
-  qualifier TEXT NOT NULL DEFAULT '',
-  term TEXT NOT NULL DEFAULT '',
-  count INTEGER NOT NULL DEFAULT 0,
-  UNIQUE (namespace, qualifier, term)
+  device_id TEXT NOT NULL CHECK (length(device_id) BETWEEN 1 AND 200 AND instr(device_id, ':') = 0),
+  namespace TEXT NOT NULL DEFAULT '' CHECK (instr(namespace, ':') = 0),
+  qualifier TEXT NOT NULL DEFAULT '' CHECK (instr(qualifier, ':') = 0),
+  term TEXT NOT NULL DEFAULT '' CHECK (instr(term, ':') = 0),
+  count INTEGER NOT NULL DEFAULT 0 CHECK (count BETWEEN 0 AND 9007199254740991),
+  UNIQUE (device_id, namespace, qualifier, term),
+  CHECK (id = device_id || ':' || qualifier || ':' || namespace || ':' || term)
 );
+
+CREATE INDEX IF NOT EXISTS idx_tag_access_count_v2_term
+ON tag_access_count_v2 (namespace, qualifier, term) WHERE deleted = 0;
 
 -- 图片收藏表
 CREATE TABLE IF NOT EXISTS favorite_images_v2 (

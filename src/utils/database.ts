@@ -1,6 +1,7 @@
 import { databasePath } from "./glv";
 import { initializeDatabase } from "./database-migration";
 import { query, update } from "./sqlite";
+import { readDeviceId } from "./device-identity";
 
 export function createDB() {
   initializeDatabase(databasePath);
@@ -10,6 +11,7 @@ export type DatabaseStatement = { sql: string; args?: any[] };
 
 export class DBManager {
   private _db: SqliteTypes.SqliteInstance;
+  readonly deviceId: string;
 
   constructor(path = databasePath) {
     initializeDatabase(path);
@@ -19,6 +21,9 @@ export class DBManager {
       if (query(this._db, "PRAGMA foreign_keys")[0]?.foreign_keys !== 1) {
         throw new Error("当前 SQLite 连接无法启用外键");
       }
+      const deviceId = readDeviceId(this._db);
+      if (!deviceId) throw new Error("数据库缺少本机设备标识");
+      this.deviceId = deviceId;
     } catch (error) {
       $sqlite.close(this._db);
       throw error;

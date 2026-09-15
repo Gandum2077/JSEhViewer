@@ -707,7 +707,8 @@ export class GeneralSettingsController extends BaseController {
             value: () => {
               $ui.alert({
                 title: "全部删除",
-                message: "此操作会删除所有缓存、下载内容和图片收藏，然后重启本应用，是否继续？",
+                message:
+                  "此操作会删除本机图库记录、缓存、下载和图片收藏。开启数据库同步后，记录删除也会传到其他设备。完成后重启，是否继续？",
                 actions: [
                   {
                     title: "取消",

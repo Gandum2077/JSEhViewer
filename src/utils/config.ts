@@ -304,6 +304,34 @@ class ConfigManager {
     return this._readCredentials().cookie;
   }
 
+  get syncCredentials() {
+    return this._readCredentials().sync;
+  }
+
+  set syncCredentials(value: Credentials["sync"]) {
+    const next = { ...this._readCredentials() };
+    if (value) next.sync = value;
+    else delete next.sync;
+    this._saveCredentials(next);
+  }
+
+  saveSyncConnection(value: Credentials["sync"], statements: DatabaseStatement[]) {
+    const next = { ...this._readCredentials() };
+    if (value) next.sync = value;
+    else delete next.sync;
+    this._saveCredentials(next, statements);
+  }
+
+  reloadSyncedData() {
+    this._config = this._initConfig();
+    this._markedTagDict = this._getMarkedTagsDict();
+    this._markedUploaders = this._queryMarkedUploaders();
+    this._searchHistory = this._querySearchHistory();
+    this._searchBookmarks = this._querySearchBookmarks();
+    this._webDAVServices = this._queryWebDAVServices();
+    this._aiTranslationServices = this._queryAITranslationServices();
+  }
+
   set cookie(value: string) {
     this._saveCredentials({ ...this._readCredentials(), cookie: value });
   }
@@ -1076,6 +1104,7 @@ class ConfigManager {
       username: credentials[n.id]?.username ?? undefined,
       password: credentials[n.id]?.password ?? undefined,
       enabled: Boolean(n.enabled),
+      credentialsConfigured: Object.prototype.hasOwnProperty.call(credentials, n.id),
     }));
   }
 
@@ -1101,13 +1130,20 @@ class ConfigManager {
       {
         ...this._readCredentials(),
         webdav: Object.fromEntries(
-          records.map((service) => [
-            service.id,
-            {
-              username: service.username ?? null,
-              password: service.password ?? null,
-            },
-          ]),
+          records
+            .filter(
+              (service) =>
+                service.credentialsConfigured !== false ||
+                service.username !== undefined ||
+                service.password !== undefined,
+            )
+            .map((service) => [
+              service.id,
+              {
+                username: service.username ?? null,
+                password: service.password ?? null,
+              },
+            ]),
         ),
       },
       [
@@ -1133,7 +1169,7 @@ class ConfigManager {
 
   get currentWebDAVService() {
     if (!this.webdavEnabled) return;
-    return this._webDAVServices.find((service) => service.enabled);
+    return this._webDAVServices.find((service) => service.enabled && service.credentialsConfigured !== false);
   }
 
   private _queryAITranslationServices(): AITranslationService[] {

@@ -14,7 +14,8 @@
     "check:version": "node scripts/sync-version.js --check",
     "check:database": "node --test scripts/check-database.cjs",
     "format": "prettier --write .",
-    "version": "node scripts/sync-version.js"
+    "version": "node scripts/sync-version.js",
+    "check:sync": "node --test scripts/check-sync.cjs"
   },
   "keywords": [],
   "author": "Gandum2077",

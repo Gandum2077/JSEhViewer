@@ -162,9 +162,15 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
               }
             } else if (this._services.length > 0 && indexPath.section === 1) {
               const index = indexPath.row;
+              const needsCredentials = this._services[index].credentialsConfigured === false;
+              if (needsCredentials) {
+                const configured = await showWebdavServiceEditor(this._services[index].name, this._services[index]);
+                if (!configured) return;
+                this._services[index] = configured;
+              }
               this._services.forEach((s, i) => {
                 if (i === index) {
-                  s.enabled = !s.enabled;
+                  s.enabled = needsCredentials || !s.enabled;
                 } else {
                   s.enabled = false;
                 }
@@ -241,7 +247,7 @@ class WebDAVSettingsList extends Base<UIListView, UiTypes.ListOptions> {
         },
         url: {
           hidden: false,
-          text: service.name,
+          text: service.name + (service.credentialsConfigured === false ? "（待配置认证）" : ""),
           textColor: service.enabled ? $color("systemLink") : $color("primaryText"),
         },
         title: { hidden: true },
@@ -405,6 +411,7 @@ async function showWebdavServiceEditor(defaultName: string, oldService?: WebDAVS
     username: result.username || undefined,
     password: result.password || undefined,
     enabled: oldService ? oldService.enabled : false,
+    credentialsConfigured: true,
   };
 }
 

@@ -1,3 +1,4 @@
+import { syncEngine } from "./sync/engine";
 import { login } from "./controllers/login";
 import { SplitViewController, TabBarController } from "jsbox-cview";
 import { HomepageController } from "./controllers/homepage-controller";
@@ -148,6 +149,18 @@ async function init(url?: string) {
 
   // 启动全局定时器
   globalTimer.init();
+  globalTimer.addTask({ id: "database-sync", interval: 30, handler: () => syncEngine.tick() });
+  $app.listen({ resume: () => syncEngine.tick() });
+  let lastSyncApplied = syncEngine.status.lastApplied;
+  syncEngine.subscribe(() => {
+    const state = syncEngine.status;
+    if (!state.busy && state.lastApplied !== lastSyncApplied) {
+      lastSyncApplied = state.lastApplied;
+      archiveController.silentRefresh();
+      tagManagerController.refresh();
+    }
+  });
+  syncEngine.tick();
   // 主界面显示"请等待配置同步……"
   // 为什么要延迟0.2秒：matrix从属的footer，可能会延后出现（matrix能查找的时候，footer可能还没出现）
   $delay(0.2, () => {

@@ -15,6 +15,7 @@ import { downloaderManager } from "../utils/api";
 import { globalTimer } from "../utils/timer";
 import { toLocalTimeString } from "../utils/tools";
 import { FavoriteImageController } from "./favorite-image-controller";
+import { SettingsSyncController } from "./settings-sync-controller";
 
 export class MoreController extends BaseController {
   cviews: { navbar: CustomNavigationBar; list: DynamicItemSizeMatrix };
@@ -270,6 +271,9 @@ export class MoreController extends BaseController {
             case 7:
               $app.openURL("https://e-hentai.org/uconfig.php");
               break;
+            case 8:
+              new SettingsSyncController().uipush({ navBarHidden: true, statusBarStyle: 0 });
+              break;
             default:
               break;
           }
@@ -443,6 +447,13 @@ export class MoreController extends BaseController {
         blur: { hidden: false },
         button: { text: "在浏览器查看" },
       }, //b8cc1c A6BC00
+      {
+        bgview: { bgcolor: $color("#2563EB") },
+        icon: { symbol: "arrow.triangle.2.circlepath" },
+        title: { text: "数据库同步" },
+        content: { text: "连接 Cloudflare Worker\n同步设置与设备管理" },
+        blur: { hidden: true },
+      },
     ];
     return data;
   }

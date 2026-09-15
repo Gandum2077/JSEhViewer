@@ -87,6 +87,12 @@ function setup({
   };
   const modules = new Map();
   const allowed = new Set([
+    "sync/domain",
+    "sync/storage",
+    "sync/entities",
+    "sync/state",
+    "sync/engine",
+    "sync/transport",
     "utils/database",
     "utils/database-migration",
     "utils/sqlite",
@@ -161,6 +167,7 @@ function setup({
   };
   const context = vm.createContext(globals);
   function load(id) {
+    if (id === "url-parse") return require("url-parse");
     if (id === "utils/glv")
       return { databasePath: dbPath, imagePath: "image/", thumbnailPath: "thumb/", galleryInfoPath: "info/" };
     if (id === "utils/tools") return { appLog() {} };
@@ -1416,3 +1423,6 @@ test("invalid or overflowing device counts do not partially apply", () => {
     env.close();
   }
 });
+
+// Shared real-SQLite application harness for the sibling Worker integration checks.
+module.exports = { setup };

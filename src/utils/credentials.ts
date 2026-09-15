@@ -4,6 +4,7 @@ export interface Credentials {
   version: 1;
   cookie: string;
   webdav: Record<string, { username: string | null; password: string | null }>;
+  sync?: { apiUrl: string; masterKey: string };
 }
 
 interface CredentialsDocument extends Credentials {
@@ -19,6 +20,8 @@ function validCredentials(value: any): value is Credentials {
     value &&
     value.version === 1 &&
     typeof value.cookie === "string" &&
+    (value.sync === undefined ||
+      (value.sync && typeof value.sync.apiUrl === "string" && typeof value.sync.masterKey === "string")) &&
     value.webdav &&
     typeof value.webdav === "object" &&
     !Array.isArray(value.webdav) &&

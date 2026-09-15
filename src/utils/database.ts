@@ -2,6 +2,7 @@ import { databasePath } from "./glv";
 import { initializeDatabase } from "./database-migration";
 import { query, update } from "./sqlite";
 import { readDeviceId } from "./device-identity";
+import { initializeSyncStorage } from "../sync/storage";
 
 export function createDB() {
   initializeDatabase(databasePath);
@@ -24,6 +25,7 @@ export class DBManager {
       const deviceId = readDeviceId(this._db);
       if (!deviceId) throw new Error("数据库缺少本机设备标识");
       this.deviceId = deviceId;
+      initializeSyncStorage(this._db);
     } catch (error) {
       $sqlite.close(this._db);
       throw error;
@@ -40,6 +42,10 @@ export class DBManager {
       sql,
       args?.map((value) => value ?? null),
     );
+  }
+
+  backup(path: string) {
+    update(this._db, "VACUUM INTO ?", [$file.absolutePath(path)]);
   }
 
   update(sql: string, args?: any[]) {

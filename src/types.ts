@@ -51,8 +51,6 @@ export type WebDAVService = {
   path?: string;
   username?: string;
   password?: string;
-  /** Local readiness only; never synchronized. */
-  credentialsConfigured?: boolean;
   enabled: boolean;
 };
 

@@ -304,6 +304,25 @@ class ConfigManager {
     return this._readCredentials().cookie;
   }
 
+  get syncCredentials() {
+    return this._readCredentials().sync;
+  }
+
+  saveSyncCredentials(value: { url: string; masterKey: string }, statements: DatabaseStatement[] = []) {
+    this._saveCredentials({ ...this._readCredentials(), sync: value }, statements);
+  }
+
+  /** Refresh cached business projections after a committed sync application. */
+  reloadAfterSync() {
+    this._config = this._initConfig();
+    this._markedTagDict = this._getMarkedTagsDict();
+    this._markedUploaders = this._queryMarkedUploaders();
+    this._searchHistory = this._querySearchHistory();
+    this._searchBookmarks = this._querySearchBookmarks();
+    this._webDAVServices = this._queryWebDAVServices();
+    this._aiTranslationServices = this._queryAITranslationServices();
+  }
+
   set cookie(value: string) {
     this._saveCredentials({ ...this._readCredentials(), cookie: value });
   }

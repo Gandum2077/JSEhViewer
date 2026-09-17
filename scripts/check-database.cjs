@@ -87,6 +87,9 @@ function setup({
   };
   const modules = new Map();
   const allowed = new Set([
+    "sync/schema",
+    "sync/store",
+    "sync/engine",
     "utils/database",
     "utils/database-migration",
     "utils/sqlite",
@@ -161,6 +164,7 @@ function setup({
   };
   const context = vm.createContext(globals);
   function load(id) {
+    if (id === "url-parse") return require("url-parse");
     if (id === "utils/glv")
       return { databasePath: dbPath, imagePath: "image/", thumbnailPath: "thumb/", galleryInfoPath: "info/" };
     if (id === "utils/tools") return { appLog() {} };
@@ -1403,7 +1407,7 @@ test("invalid or overflowing device counts do not partially apply", () => {
       { count: -1 },
       { count: 1.5 },
       { count: Number.MAX_SAFE_INTEGER + 1 },
-      { deleted: 1 },
+      { deleted: 2 },
       { sync_version: -1 },
     ])
       assert.throws(() => counters.applyRemoteTagAccessCounts([{ ...remote, ...patch }], true), /无效/);
@@ -1412,6 +1416,455 @@ test("invalid or overflowing device counts do not partially apply", () => {
     fail = true;
     assert.throws(() => counters.applyRemoteTagAccessCounts([{ ...remote, count: 6 }], true), /injected/);
     assert.equal(config.getTenMostAccessedTags()[0].count, 5);
+  } finally {
+    env.close();
+  }
+});
+
+// Protocol simulator deliberately returns current records, supports split pages,
+// caches exact request bytes, and can lose a response after committing a write.
+function syncServer() {
+  const records = new Map(),
+    devices = new Map(),
+    writes = [],
+    reads = [];
+  let seq = 0;
+  const key = (table, id) => JSON.stringify([table, id]);
+  const put = (record) => {
+    records.set(key(record.tablename, record.id), plain(record));
+    seq++;
+  };
+  const server = { records, devices, writes, reads, put, loseWrite: false, onRead: null, onWrite: null };
+  server.transport = async (method, path, raw) => {
+    const b = raw ? JSON.parse(raw) : {};
+    if (method === "PUT") {
+      const id = decodeURIComponent(path.split("/").pop());
+      if (!devices.has(id)) devices.set(id, { id, last_request_seq: 0, disabled: false });
+      return { device: plain(devices.get(id)) };
+    }
+    if (path === "/v1/write") {
+      writes.push(raw);
+      const d = devices.get(b.device_id);
+      if (b.request_seq === d.last_request_seq) {
+        assert.equal(raw, d.raw);
+        return plain(d.result);
+      }
+      assert.equal(b.request_seq, d.last_request_seq + 1);
+      const results = b.operations.map((op, index) => {
+        const current = records.get(key(op.tablename, op.id));
+        const result = { index, tablename: op.tablename, id: op.id };
+        let code;
+        if (!op.forced) {
+          if (op.operation === "create" && current && !current.deleted) code = "ALREADY_EXISTS";
+          if (op.operation !== "create" && (!current || current.deleted)) code = "ENTITY_NOT_FOUND";
+          else if (op.operation !== "create" && current.sync_version !== op.base_sync_version)
+            code = "VERSION_CONFLICT";
+        }
+        if (code) return { ...result, success: false, code };
+        const record = {
+          tablename: op.tablename,
+          id: op.id,
+          sync_version: (current?.sync_version ?? 0) + 1,
+          deleted: op.operation === "delete",
+          ...(op.operation === "delete" ? {} : { content: op.content }),
+        };
+        put(record);
+        return { ...result, success: true, sync_version: record.sync_version, deleted: record.deleted };
+      });
+      d.last_request_seq = b.request_seq;
+      d.raw = raw;
+      d.result = { request_seq: b.request_seq, results };
+      if (server.onWrite) {
+        const callback = server.onWrite;
+        server.onWrite = null;
+        callback();
+      }
+      if (server.loseWrite) {
+        server.loseWrite = false;
+        throw new Error("simulated lost response");
+      }
+      return plain(d.result);
+    }
+    if (path === "/v1/full-download") {
+      reads.push(b);
+      const sorted = [...records.values()].sort(
+        (a, b) => a.tablename.localeCompare(b.tablename) || a.id.localeCompare(b.id),
+      );
+      const offset = b.cursor?.offset ?? 0;
+      const data = sorted.slice(offset, offset + 1),
+        more = offset + 1 < sorted.length;
+      const start = b.cursor?.start_seq ?? seq;
+      return {
+        start_seq: start,
+        data: plain(data),
+        has_more: more,
+        next_cursor: more
+          ? { start_seq: start, after: { tablename: data[0].tablename, id: data[0].id }, offset: offset + 1 }
+          : null,
+      };
+    }
+    if (path === "/v1/sync") {
+      reads.push(b);
+      if (server.onRead) {
+        const callback = server.onRead;
+        server.onRead = null;
+        callback();
+      }
+      return { changes: b.seq < seq ? plain([...records.values()]) : [], next_seq: seq, has_more: false };
+    }
+    throw new Error(`unexpected ${method} ${path}`);
+  };
+  return server;
+}
+
+function syncSetup(env, names, server = syncServer()) {
+  const store = env.load("sync/store"),
+    { SyncEngine } = env.load("sync/engine");
+  const engine = new SyncEngine(server.transport);
+  engine.configure("https://sync.example.com", "a".repeat(64));
+  store.selectTables(names);
+  return { store, engine, server, db: env.load("utils/database").dbManager };
+}
+
+test("sync credentials are file-only, preserve old credentials, and roll back with SQL failure", () => {
+  let fail = false;
+  const env = setup({ version: 1, seed: seedV1, failSql: (sql) => fail && sql.includes("INSERT INTO sync_meta") });
+  try {
+    const { engine } = syncSetup(env, ["search_history_v2"]);
+    const before = readCredentialsFile(env);
+    assert.equal(before.sync.url, "https://sync.example.com");
+    assert.ok(Object.values(before.webdav).some((v) => v.password === "test-password"));
+    assert.equal(
+      env.inspect("SELECT value FROM config WHERE value LIKE '%sync.example.com%' OR value LIKE '%aaaaaaaaaaaaaaaa%' ")
+        .length,
+      0,
+    );
+    fail = true;
+    assert.throws(() => engine.configure("https://other.example.com", "b".repeat(64)), /injected/);
+    assert.deepEqual(readCredentialsFile(env), before);
+  } finally {
+    env.close();
+  }
+});
+
+test("sync tracks aggregate edits atomically and ignores local-only service selection", () => {
+  let fail = false;
+  const env = setup({ failSql: (sql) => fail && sql === "SELECT injected" });
+  try {
+    const { db, store } = syncSetup(env, ["search_history_v2", "webdav_services_v2"]);
+    const config = env.load("utils/config").configManager;
+    config.addOrUpdateSearchHistory("x", [{ term: "x" }]);
+    assert.equal(db.query("SELECT * FROM sync_pending WHERE id='x'").length, 1);
+    assert.equal(store.localRecord("search_history_v2", "x").content.children[0].term, "x");
+    db.update("INSERT INTO webdav_services_v2(id,enabled) VALUES('dav',0)");
+    db.update("DELETE FROM sync_pending");
+    db.update("UPDATE webdav_services_v2 SET enabled=1 WHERE id='dav'");
+    assert.equal(db.query("SELECT * FROM sync_pending").length, 0);
+    fail = true;
+    assert.throws(() =>
+      db.transactionUpdate([
+        { sql: "UPDATE search_history_v2 SET last_access_time='edited' WHERE id='x'" },
+        { sql: "SELECT injected" },
+      ]),
+    );
+    assert.equal(db.query("SELECT * FROM sync_pending").length, 0);
+    assert.throws(() => store.selectTables(["favorite_images_v2"]), /图库记录/);
+  } finally {
+    env.close();
+  }
+});
+
+test("sync replays identical bytes after a lost response and preserves edits made during upload", async () => {
+  const env = setup();
+  try {
+    const { db, store, engine, server } = syncSetup(env, ["marked_uploaders_v2"]);
+    db.update("INSERT INTO marked_uploaders_v2(id) VALUES('alice')");
+    server.loseWrite = true;
+    server.onWrite = () => db.update("UPDATE marked_uploaders_v2 SET deleted=1 WHERE id='alice'");
+    await assert.rejects(engine.synchronize(), /lost response/);
+    const saved = store.getMeta("inflight", null);
+    assert.ok(saved);
+    assert.equal(db.query("SELECT deleted FROM marked_uploaders_v2 WHERE id='alice'")[0].deleted, 1);
+    assert.throws(() => store.selectTables([]), /未完成/);
+    await engine.synchronize();
+    assert.equal(server.writes[0], server.writes[1]);
+    assert.equal(server.records.get(JSON.stringify(["marked_uploaders_v2", "alice"])).deleted, true);
+    assert.equal(store.getMeta("inflight", null), null);
+    assert.equal(db.query("SELECT * FROM sync_pending").length, 0);
+  } finally {
+    env.close();
+  }
+});
+
+test("sync stages all pages, logs orphan rows, retries them when their parent arrives, and applies tombstones without content", async () => {
+  const env = setup();
+  try {
+    const { db, store, engine, server } = syncSetup(env, ["archive_entries_v2", "archive_read_state_v2"]);
+    server.put({
+      tablename: "archive_read_state_v2",
+      id: "77",
+      content: { first_access_time: "a", last_access_time: "b", readlater: 0, last_read_page: 2 },
+      sync_version: 1,
+      deleted: false,
+    });
+    await engine.synchronize();
+    assert.equal(db.query("SELECT * FROM archive_read_state_v2 WHERE id='77'").length, 0);
+    assert.equal(db.query("SELECT code FROM sync_log WHERE id='77'")[0].code, "FOREIGN_KEY");
+    assert.ok(store.mirror("archive_read_state_v2", "77"));
+    db.atomic((tx) => tx.execute("INSERT INTO archive_entries_v2(id,title) VALUES('77','parent')"), true);
+    const content = plain(store.localRecord("archive_entries_v2", "77").content);
+    db.atomic((tx) => tx.execute("DELETE FROM archive_entries_v2 WHERE id='77'"), true);
+    server.put({ tablename: "archive_entries_v2", id: "77", content, sync_version: 1, deleted: false });
+    await engine.synchronize();
+    assert.equal(db.query("SELECT last_read_page FROM archive_read_state_v2 WHERE id='77'")[0].last_read_page, 2);
+    assert.equal(db.query("SELECT * FROM sync_log WHERE id='77'").length, 0);
+    server.put({ tablename: "archive_read_state_v2", id: "missing", deleted: true, sync_version: 2 });
+    await engine.synchronize();
+    assert.equal(store.mirror("archive_read_state_v2", "missing").deleted, true);
+    assert.equal(db.query("SELECT * FROM sync_pending").length, 0);
+  } finally {
+    env.close();
+  }
+});
+
+test("sync keeps local edits during download and requires explicit conflict resolution", async () => {
+  const env = setup();
+  try {
+    const { db, store, engine, server } = syncSetup(env, ["search_history_v2"]);
+    const config = env.load("utils/config").configManager;
+    config.addOrUpdateSearchHistory("x", [{ term: "local" }]);
+    server.put({
+      tablename: "search_history_v2",
+      id: "x",
+      content: {
+        last_access_time: "remote",
+        children: [
+          { term_index: 0, namespace: null, qualifier: null, term: "cloud", dollar: 0, subtract: 0, tilde: 0 },
+        ],
+      },
+      deleted: false,
+      sync_version: 2,
+    });
+    server.onRead = () => config.addOrUpdateSearchHistory("x", [{ term: "new-local" }]);
+    await engine.synchronize();
+    assert.equal(store.localRecord("search_history_v2", "x").content.children[0].term, "new-local");
+    assert.equal(db.query("SELECT conflict FROM sync_pending WHERE id='x'")[0].conflict, "ALREADY_EXISTS");
+    engine.resolve("search_history_v2", "x", "local");
+    await engine.synchronize();
+    assert.equal(server.records.get(JSON.stringify(["search_history_v2", "x"])).content.children[0].term, "new-local");
+    assert.equal(db.query("SELECT * FROM sync_pending").length, 0);
+    assert.equal(JSON.parse(server.writes.at(-1)).operations[0].forced, true);
+  } finally {
+    env.close();
+  }
+});
+
+test("newly selected tables get full history and downloaded services remain off without changing local selection", async () => {
+  const env = setup();
+  try {
+    const { db, store, engine, server } = syncSetup(env, ["marked_uploaders_v2"]);
+    server.put({
+      tablename: "webdav_services_v2",
+      id: "remote",
+      content: { name: "Remote", host: "host", port: null, https: 1, path: null },
+      sync_version: 1,
+      deleted: false,
+    });
+    await engine.synchronize();
+    assert.equal(db.query("SELECT * FROM webdav_services_v2 WHERE id='remote'").length, 0);
+    store.selectTables(["marked_uploaders_v2", "webdav_services_v2"]);
+    await engine.synchronize();
+    assert.equal(db.query("SELECT enabled FROM webdav_services_v2 WHERE id='remote'")[0].enabled, 0);
+    db.update("UPDATE webdav_services_v2 SET enabled=1 WHERE id='remote'");
+    await engine.synchronize();
+    assert.equal(db.query("SELECT enabled FROM webdav_services_v2 WHERE id='remote'")[0].enabled, 1);
+    assert.equal(db.query("SELECT * FROM sync_pending").length, 0);
+    assert.equal(store.localRecord("webdav_services_v2", "remote").content.enabled, undefined);
+  } finally {
+    env.close();
+  }
+});
+
+test("sync commits no partial pages or cursor when a later download fails", async () => {
+  const env = setup();
+  try {
+    const server = syncServer();
+    server.put({ tablename: "marked_uploaders_v2", id: "a", content: {}, sync_version: 1, deleted: false });
+    server.put({ tablename: "marked_uploaders_v2", id: "b", content: {}, sync_version: 1, deleted: false });
+    const transport = server.transport;
+    let fail = true;
+    server.transport = async (method, path, raw) => {
+      if (fail && path === "/v1/full-download" && JSON.parse(raw).cursor) throw new Error("page interrupted");
+      return transport(method, path, raw);
+    };
+    const { db, store, engine } = syncSetup(env, ["marked_uploaders_v2"], server);
+    await assert.rejects(engine.synchronize(), /page interrupted/);
+    assert.equal(db.query("SELECT * FROM marked_uploaders_v2").length, 0);
+    assert.equal(store.getMeta("seq", 0), 0);
+    assert.equal(db.query("SELECT * FROM sync_stage").length, 1);
+    fail = false;
+    await engine.synchronize();
+    assert.equal(db.query("SELECT * FROM marked_uploaders_v2 WHERE deleted=0").length, 2);
+    assert.equal(store.getMeta("seq", 0), 2);
+    assert.equal(db.query("SELECT * FROM sync_stage").length, 0);
+  } finally {
+    env.close();
+  }
+});
+
+test("counter sync uses versions and tombstones, preserves local unconfirmed visits, and never uploads other devices", async () => {
+  const env = setup();
+  try {
+    const { db, engine, server } = syncSetup(env, ["tag_access_count_v2"]);
+    const content = { device_id: "other", namespace: "artist", qualifier: "", term: "x", count: 10 };
+    server.put({ tablename: "tag_access_count_v2", id: "other::artist:x", content, sync_version: 5, deleted: false });
+    await engine.synchronize();
+    server.put({
+      tablename: "tag_access_count_v2",
+      id: "other::artist:x",
+      content: { ...content, count: 2 },
+      sync_version: 6,
+      deleted: false,
+    });
+    await engine.synchronize();
+    assert.equal(db.query("SELECT count FROM tag_access_count_v2 WHERE device_id='other'")[0].count, 2);
+    server.put({ tablename: "tag_access_count_v2", id: "other::artist:x", sync_version: 7, deleted: true });
+    await engine.synchronize();
+    assert.equal(env.load("utils/config").configManager.getTenMostAccessedTags().length, 0);
+    assert.equal(server.writes.length, 0);
+    env.load("utils/config").configManager.updateTagAccessCount([{ term: "mine" }]);
+    server.onWrite = () => env.load("utils/config").configManager.updateTagAccessCount([{ term: "mine" }]);
+    await engine.synchronize();
+    assert.equal(db.query("SELECT * FROM sync_pending").length, 1);
+    assert.equal(db.query("SELECT count FROM tag_access_count_v2 WHERE device_id=?", [db.deviceId])[0].count, 2);
+    await engine.synchronize();
+    assert.equal(db.query("SELECT * FROM sync_pending").length, 0);
+    assert.ok(
+      server.writes.every((body) => JSON.parse(body).operations.every((op) => op.content.device_id === db.deviceId)),
+    );
+  } finally {
+    env.close();
+  }
+});
+
+// Optional actual Worker + workerd/D1 contract check. Uses only ephemeral storage
+// and a fixed fake master key, never the sibling repository's .dev.vars.
+test("sync interoperates with the rebuilt Worker on real workerd/D1", { skip: !process.env.D1_SYNC_REPO }, async () => {
+  const repo = process.env.D1_SYNC_REPO;
+  const { createRequire } = require("node:module");
+  const backendRequire = createRequire(path.join(repo, "package.json"));
+  const { build } = backendRequire("esbuild");
+  const { Miniflare, convertV4MiniflareOptions } = backendRequire("miniflare");
+  const bundle = await build({
+    entryPoints: [path.join(repo, "src/index.ts")],
+    bundle: true,
+    format: "esm",
+    platform: "browser",
+    external: ["node:*"],
+    target: "es2022",
+    write: false,
+  });
+  const mf = new Miniflare(
+    convertV4MiniflareOptions({
+      name: "sync",
+      modules: true,
+      script: bundle.outputFiles[0].text,
+      compatibilityDate: "2026-08-15",
+      compatibilityFlags: ["nodejs_compat"],
+      d1Databases: ["DB"],
+      bindings: { MASTER_KEY: "a".repeat(64) },
+      ratelimits: { API_LIMITER: { namespace_id: "1001", simple: { limit: 10000, period: 60 } } },
+    }),
+  );
+  const a = setup(),
+    b = setup();
+  try {
+    const d1 = await mf.getD1Database("DB");
+    const sql = fs.readFileSync(path.join(repo, "migrations/0001_initial.sql"), "utf8");
+    for (const statement of sql
+      .split(";")
+      .map((s) => s.trim())
+      .filter(Boolean))
+      await d1.prepare(statement).run();
+    const transport = async (method, p, raw) => {
+      const response = await mf.dispatchFetch("http://sync.local" + p, {
+        method,
+        headers: { Authorization: "Bearer " + "a".repeat(64), "Content-Type": "application/json" },
+        ...(raw ? { body: raw } : {}),
+      });
+      const result = await response.json();
+      assert.ok(response.ok, JSON.stringify(result));
+      return result;
+    };
+    const left = syncSetup(a, ["search_history_v2"], { transport });
+    const right = syncSetup(b, ["search_history_v2"], { transport });
+    a.load("utils/config").configManager.addOrUpdateSearchHistory("shared", [{ term: "hello" }]);
+    await left.engine.synchronize();
+    await right.engine.synchronize();
+    assert.equal(right.store.localRecord("search_history_v2", "shared").content.children[0].term, "hello");
+    a.load("utils/config").configManager.addOrUpdateSearchHistory("shared", [{ term: "left" }]);
+    b.load("utils/config").configManager.addOrUpdateSearchHistory("shared", [{ term: "right" }]);
+    await left.engine.synchronize();
+    await right.engine.synchronize();
+    assert.equal(right.db.query("SELECT conflict FROM sync_pending WHERE id='shared'")[0].conflict, "VERSION_CONFLICT");
+    right.engine.resolve("search_history_v2", "shared", "cloud");
+    assert.equal(right.store.localRecord("search_history_v2", "shared").content.children[0].term, "left");
+    a.load("utils/config").configManager.deleteSearchHistory("shared");
+    await left.engine.synchronize();
+    await right.engine.synchronize();
+    assert.equal(right.store.localRecord("search_history_v2", "shared").deleted, true);
+    left.store.selectTables(["search_history_v2", "marked_uploaders_v2"]);
+    right.store.selectTables(["search_history_v2", "marked_uploaders_v2"]);
+    left.db.batchUpdate(
+      "INSERT INTO marked_uploaders_v2(id) VALUES(?)",
+      Array.from({ length: 105 }, (_, i) => [`uploader-${i}`]),
+    );
+    await left.engine.synchronize();
+    await right.engine.synchronize();
+    assert.equal(right.db.query("SELECT COUNT(*) AS n FROM marked_uploaders_v2 WHERE deleted=0")[0].n, 105);
+    assert.equal(left.db.query("SELECT * FROM sync_pending").length, 0);
+  } finally {
+    a.close();
+    b.close();
+    await mf.dispose();
+  }
+});
+
+test("an unseen tag tombstone is uploaded and hides website tags on a new device", async () => {
+  const a = setup(),
+    b = setup(),
+    server = syncServer();
+  try {
+    const left = syncSetup(a, ["local_marked_tags_v2"], server);
+    const right = syncSetup(b, ["local_marked_tags_v2"], server);
+    a.load("utils/config").configManager.deleteMarkedTag("artist", "hidden");
+    await left.engine.synchronize();
+    const record = server.records.get(JSON.stringify(["local_marked_tags_v2", "artist:hidden"]));
+    assert.equal(record.deleted, true);
+    assert.equal(record.sync_version, 2);
+    right.db.update("INSERT INTO downloaded_marked_tags_v2(namespace,name,tagid) VALUES('artist','hidden',5)");
+    await right.engine.synchronize();
+    assert.equal(right.db.query("SELECT deleted FROM local_marked_tags_v2 WHERE id='artist:hidden'")[0].deleted, 1);
+    assert.equal(b.load("utils/config").configManager.getMarkedTag("artist", "hidden"), undefined);
+    assert.equal(right.db.query("SELECT * FROM sync_pending").length, 0);
+  } finally {
+    a.close();
+    b.close();
+  }
+});
+
+test("deleting an unsynced key cannot erase a cloud record without explicit resolution", async () => {
+  const env = setup();
+  try {
+    const { db, engine, server } = syncSetup(env, ["marked_uploaders_v2"]);
+    db.update("INSERT INTO marked_uploaders_v2(id,deleted) VALUES('same',1)");
+    server.put({ tablename: "marked_uploaders_v2", id: "same", content: {}, sync_version: 1, deleted: false });
+    await engine.synchronize();
+    assert.equal(server.writes.length, 0);
+    assert.equal(db.query("SELECT conflict FROM sync_pending WHERE id='same'")[0].conflict, "VERSION_CONFLICT");
+    engine.resolve("marked_uploaders_v2", "same", "local");
+    await engine.synchronize();
+    assert.equal(server.records.get(JSON.stringify(["marked_uploaders_v2", "same"])).deleted, true);
   } finally {
     env.close();
   }

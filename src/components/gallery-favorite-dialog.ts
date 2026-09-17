@@ -314,13 +314,13 @@ export async function galleryFavoriteDialog(infos: EHGallery): Promise<
   });
   const cview = new KeyboardAvoidingView({
     props: {
-      content
+      content,
     },
     layout: (make, view) => {
       make.left.right.bottom.equalTo(view.super);
       make.top.equalTo(view.super.safeArea).inset(50);
-    }
-  })
+    },
+  });
   const sheet = new DialogSheet({
     title: "收藏",
     bgcolor: $color("backgroundColor"),

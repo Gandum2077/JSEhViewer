@@ -15,6 +15,7 @@ import { downloaderManager } from "../utils/api";
 import { globalTimer } from "../utils/timer";
 import { toLocalTimeString } from "../utils/tools";
 import { FavoriteImageController } from "./favorite-image-controller";
+import { SettingsSyncController } from "./settings-sync-controller";
 
 export class MoreController extends BaseController {
   cviews: { navbar: CustomNavigationBar; list: DynamicItemSizeMatrix };
@@ -238,36 +239,43 @@ export class MoreController extends BaseController {
               });
               break;
             case 2:
+              const syncController = new SettingsSyncController();
+              syncController.uipush({
+                navBarHidden: true,
+                statusBarStyle: 0,
+              });
+              break;
+            case 3:
               const downloadsController = new SettingsDownloadsController();
               downloadsController.uipush({
                 navBarHidden: true,
                 statusBarStyle: 0,
               });
               break;
-            case 3:
+            case 4:
               const favoriteImageController = new FavoriteImageController();
               favoriteImageController.uipush({
                 navBarHidden: true,
                 statusBarStyle: 0,
               });
               break;
-            case 4:
+            case 5:
               const values = await setWebDAVConfig();
               configManager.webdavEnabled = values.enabled;
               configManager.webdavAutoUpload = values.autoUpload;
               configManager.updateAllWebDAVServices(values.services);
               break;
-            case 5:
+            case 6:
               const controller = new AITranslationConfigPickerController();
               controller.uipush({
                 navBarHidden: true,
                 statusBarStyle: 0,
               });
               break;
-            case 6:
+            case 7:
               $app.openURL("https://e-hentai.org/mytags");
               break;
-            case 7:
+            case 8:
               $app.openURL("https://e-hentai.org/uconfig.php");
               break;
             default:
@@ -353,9 +361,6 @@ export class MoreController extends BaseController {
     }
     const data = [
       {
-        // gradient: { colors: [$color("#DA8080"), $color("#BE3737")] },
-        // bgview: { bgcolor: $color("#CC5C5C") },
-        // gradient: { colors: [$color("#0F9ED5"), $color("#40C3EA")] },
         bgview: { bgcolor: $color("#0F9ED5") },
         icon: { icon: $icon("177", $color("white")) },
         title: { text: "GitHub" },
@@ -366,9 +371,6 @@ export class MoreController extends BaseController {
         button: { text: "在浏览器查看" },
       },
       {
-        // gradient: { colors: [$color("#E18B7A"), $color("#C7472D")] },
-        // bgview: { bgcolor: $color("#D46954") },
-        // gradient: { colors: [$color("#7B61FF"), $color("#9B8AFB")] },
         bgview: { bgcolor: $color("#7B61FF") },
         icon: { symbol: "gear" },
         title: { text: "通用" },
@@ -380,9 +382,13 @@ export class MoreController extends BaseController {
         blur: { hidden: true },
       },
       {
-        // gradient: { colors: [$color("#D7AD6B"), $color("#AD7E2F")] },
-        // bgview: { bgcolor: $color("#C2964D") },
-        // gradient: { colors: [$color("#F97316"), $color("#FB923C")] },
+        bgview: { bgcolor: $color("#2563EB") },
+        icon: { symbol: "icloud.and.arrow.up" },
+        title: { text: "数据库同步" },
+        content: { text: "连接 Cloudflare Worker 进行数据库同步" },
+        blur: { hidden: true },
+      },
+      {
         bgview: { bgcolor: $color("#F97316") },
         icon: { symbol: "arrow.up.arrow.down.circle" },
         title: { text: "下载与上传" },
@@ -390,9 +396,6 @@ export class MoreController extends BaseController {
         blur: { hidden: true },
       },
       {
-        // gradient: { colors: [$color("#D7AD6B"), $color("#AD7E2F")] },
-        // bgview: { bgcolor: $color("#C2964D") },
-        // gradient: { colors: [$color("#F97316"), $color("#FB923C")] },
         bgview: { bgcolor: $color("#A5B40E") },
         icon: { symbol: "photo.stack" },
         title: { text: "图片收藏" },
@@ -400,9 +403,6 @@ export class MoreController extends BaseController {
         blur: { hidden: true },
       },
       {
-        // gradient: { colors: [$color("#B8CC1C"), $color("#919B00")] },
-        // bgview: { bgcolor: $color("#A5B40E") },
-        // gradient: { colors: [$color("#22C55E"), $color("#4ADE80")] },
         bgview: { bgcolor: $color("#22C55E") },
         icon: { symbol: "externaldrive.connected.to.line.below" },
         title: { text: "WebDAV" },
@@ -410,9 +410,6 @@ export class MoreController extends BaseController {
         blur: { hidden: true },
       },
       {
-        // gradient: { colors: [$color("#8AB46A"), $color("#587A3D")] },
-        // bgview: { bgcolor: $color("#719754") },
-        // gradient: { colors: [$color("#EC4899"), $color("#F472B6")] },
         bgview: { bgcolor: $color("#EC4899") },
         icon: { symbol: "globe" },
         title: { text: "AI翻译" },
@@ -420,9 +417,6 @@ export class MoreController extends BaseController {
         blur: { hidden: true },
       },
       {
-        // gradient: { colors: [$color("#8CB1C0"), $color("#518294")] },
-        // bgview: { bgcolor: $color("#6F9AAA") },
-        // gradient: { colors: [$color("#FACC15"), $color("#FDE047")] },
         bgview: { bgcolor: $color("#fcba03") },
         icon: { symbol: "flag.and.flag.filled.crossed" },
         title: { text: "EHentai标签" },
@@ -431,9 +425,6 @@ export class MoreController extends BaseController {
         button: { text: "在浏览器查看" },
       },
       {
-        // gradient: { colors: [$color("#8E96CD"), $color("#4B58A9")] },
-        // bgview: { bgcolor: $color("#6D77BB") },
-        /// gradient: { colors: [$color("#06B6D4"), $color("#67E8F9")] },
         bgview: { bgcolor: $color("#06B6D4") },
         icon: { symbol: "square.text.square" },
         title: { text: "EHentai设置" },

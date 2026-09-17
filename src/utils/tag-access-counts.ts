@@ -53,7 +53,8 @@ export function getLocalTagAccessCounts(): TagAccessCount[] {
   ]) as TagAccessCount[];
 }
 
-/** Complete counter payloads from the Worker; repeated/out-of-order pages are safe. */
+/** Business-row adapter. The sync engine persists protocol tombstones in its
+ * mirror before projecting them. Counts follow record versions, never MAX(count). */
 export function applyRemoteTagAccessCounts(rows: TagAccessCount[], replaceOtherDevices = false): void {
   const statements: DatabaseStatement[] = rows.map((row) => {
     if (
@@ -62,14 +63,16 @@ export function applyRemoteTagAccessCounts(rows: TagAccessCount[], replaceOtherD
       row.count < 0 ||
       !Number.isSafeInteger(row.sync_version) ||
       row.sync_version < 0 ||
-      row.deleted !== 0
+      ![0, 1].includes(row.deleted)
     )
       throw new Error("云端标签计数无效");
     return {
       sql: `INSERT INTO tag_access_count_v2 (id,device_id,namespace,qualifier,term,count,sync_version,deleted)
-        VALUES (?,?,?,?,?,?,?,0) ON CONFLICT(id) DO UPDATE SET
-        count=MAX(count,excluded.count),sync_version=MAX(sync_version,excluded.sync_version),deleted=0`,
-      args: [row.id, row.device_id, row.namespace, row.qualifier, row.term, row.count, row.sync_version],
+        VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET
+        count=excluded.count,sync_version=excluded.sync_version,deleted=excluded.deleted
+        WHERE excluded.sync_version>tag_access_count_v2.sync_version
+        AND NOT EXISTS(SELECT 1 FROM sync_pending WHERE tablename='tag_access_count_v2' AND id=excluded.id)`,
+      args: [row.id, row.device_id, row.namespace, row.qualifier, row.term, row.count, row.sync_version, row.deleted],
     };
   });
   // Use only after a complete cloud snapshot, or to discard another endpoint's cache.
@@ -79,5 +82,7 @@ export function applyRemoteTagAccessCounts(rows: TagAccessCount[], replaceOtherD
       sql: "DELETE FROM tag_access_count_v2 WHERE device_id<>?",
       args: [dbManager.deviceId],
     });
-  dbManager.transactionUpdate(statements);
+  dbManager.atomic((tx) => {
+    for (const statement of statements) tx.execute(statement.sql, statement.args);
+  }, true);
 }

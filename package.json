@@ -22,7 +22,7 @@
   "dependencies": {
     "cheerio": "0.22.0",
     "ehentai-parser": "^1.15.0",
-    "jsbox-cview": "^2.1.0",
+    "jsbox-cview": "^2.2.0",
     "url-parse": "^1.5.10"
   },
   "devDependencies": {

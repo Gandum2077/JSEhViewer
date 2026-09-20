@@ -2,13 +2,20 @@
 // 因此整个过程为：主界面加载 -> 检查登录（加载本模块） -> 数据加载
 // 本模块需要的文件：get-cookie.ts
 
-import { Image, PresentedPageController, PageViewer, ContentView, PageControl, Button } from "jsbox-cview";
+import { PresentedPageController, ContentView, WelcomeView, DynamicPreferenceScrollView } from "jsbox-cview";
 import { getCookie } from "../utils/get-cookie";
 import { defaultButtonColor } from "../utils/glv";
 import { clearCookie } from "../utils/tools";
 import { configManager } from "../utils/config";
 import { api } from "../utils/api";
-import { LoginOptionsView } from "../components/login-options-view";
+import { showIntroductionSheet } from "../components/show-introduction-sheet";
+
+interface LoginOptions {
+  loginMethod: number;
+  exhentai: boolean;
+  syncMyTags: boolean;
+  githubToken: string;
+}
 
 const galleryOneText = `欢迎使用[JSEhViewer](https://github.com/Gandum2077/JSEhViewer)，一款运行在JSBox平台的E-Hentai阅读应用。
 
@@ -28,24 +35,82 @@ class WelcomeController extends PresentedPageController {
         interactiveDismissalDisabled: true,
       },
     });
-    const optionList = new LoginOptionsView({
-      layout: (make, view) => {
-        make.centerX.equalTo(view.super);
-        make.centerY.equalTo(view.super).offset(-5);
-        make.height.equalTo(219);
-        make.width.greaterThanOrEqualTo(300).priority(1000);
-        make.width.lessThanOrEqualTo(600).priority(999);
-        make.width.equalTo(view.super).offset(-75).priority(998);
+    const optionList = new DynamicPreferenceScrollView<LoginOptions>({
+      props: {
+        bgcolor: $color("clear"),
+        scrollEnabled: false,
+        tabWidth: 150,
       },
+      layout: $layout.fill,
+      sections: [
+        {
+          title: "",
+          rows: [
+            {
+              type: "boolean",
+              title: "登录里站",
+              key: "exhentai",
+              value: false,
+            },
+            {
+              type: "boolean",
+              title: "同步我的标签",
+              key: "syncMyTags",
+              value: false,
+            },
+          ],
+          footer: {
+            text: "关于同步我的标签，点击查看帮助",
+            tapped: () => {
+              showIntroductionSheet({
+                title: "同步标签",
+                path: "assets/sync-mytags-introduction.md",
+              });
+            },
+          },
+        },
+        {
+          title: "",
+          rows: [
+            {
+              type: "secure",
+              title: "GitHub Token",
+              key: "githubToken",
+              value: "",
+              placeholder: "github_pat_xxx",
+            },
+          ],
+          footer: {
+            text: "如果遇到GitHub API限额错误（429），建议使用GitHub Token，点击查看帮助",
+            tapped: () => {
+              showIntroductionSheet({
+                title: "关于GitHub Token",
+                path: "assets/github-token-introduction.md",
+              });
+            },
+          },
+        },
+        {
+          title: "",
+          rows: [
+            {
+              type: "tab",
+              title: "登录方式",
+              key: "loginMethod",
+              items: ["网页", "Cookie"],
+              value: 0,
+            },
+          ],
+        },
+      ],
     });
-    const tappedEvent = async (sender: UIButtonView, type: "cookie" | "web") => {
+    const tappedEvent = async (sender: UIButtonView) => {
       try {
-        const { exhentai, syncMyTags, githubToken } = optionList.values;
+        const { loginMethod, exhentai, syncMyTags, githubToken } = optionList.values;
         configManager.githubToken = githubToken;
         sender.title = "获取账号信息...";
-        cookieLoginButton.view.enabled = false;
-        webLoginButton.view.enabled = false;
-        const cookie = await getCookie({ exhentai, isManualCookieInput: type === "cookie" });
+        sender.enabled = false;
+        const cookie = await getCookie({ exhentai, isManualCookieInput: loginMethod === 1 });
         api.updateCookie(cookie);
         api.exhentai = exhentai;
         sender.title = "获取标签翻译...";
@@ -70,150 +135,93 @@ class WelcomeController extends PresentedPageController {
             message: e.message,
           });
         }
-        cookieLoginButton.view.title = "Cookie登录";
-        cookieLoginButton.view.enabled = true;
-        webLoginButton.view.title = "网页登录";
-        webLoginButton.view.enabled = true;
+        sender.title = "登录";
+        sender.enabled = true;
       }
     };
-    const cookieLoginButton = new Button({
+    const welcomeView: WelcomeView = new WelcomeView({
       props: {
-        title: "Cookie登录",
-        bgcolor: defaultButtonColor,
-      },
-      layout: (make, view) => {
-        make.centerX.equalTo(view.super);
-        make.top.greaterThanOrEqualTo(view.prev.bottom).offset(50).priority(1000);
-        make.centerY.equalTo(view.super).multipliedBy(1.7).priority(999);
-        make.height.equalTo(50);
-        make.width.equalTo(view.prev);
-      },
-      events: { tapped: (sender) => tappedEvent(sender, "cookie") },
-    });
-    const webLoginButton = new Button({
-      props: {
-        title: "网页登录",
-        bgcolor: defaultButtonColor,
-      },
-      layout: (make, view) => {
-        make.centerX.equalTo(view.super);
-        make.bottom.equalTo(view.prev.top).inset(20);
-        make.height.equalTo(50);
-        make.width.equalTo(view.prev);
-      },
-      events: { tapped: (sender) => tappedEvent(sender, "web") },
-    });
-    const gallery = new PageViewer({
-      props: {
-        page: 0,
-        cviews: [
-          new ContentView({
-            props: {
-              bgcolor: $color("#F7CD82", "#925f07"),
-            },
-            layout: $layout.fill,
-            views: [
-              {
-                type: "text",
-                props: {
-                  tintColor: $color("systemLink"),
-                  textColor: $color("primaryText"),
-                  styledText: galleryOneText,
-                  font: $font(16),
-                  align: $align.left,
-                  bgcolor: $color("clear"),
-                  editable: false,
-                  scrollEnabled: false,
-                  selectable: false,
-                  insets: $insets(0, 0, 0, 0),
-                },
-                layout: (make, view) => {
-                  make.center.equalTo(view.super);
-                  make.height.equalTo(240);
-                  make.width.greaterThanOrEqualTo(300).priority(1000);
-                  make.width.lessThanOrEqualTo(600).priority(999);
-                  make.width.equalTo(view.super).offset(-75).priority(998);
-                },
+        pages: [
+          {
+            mode: "logo-content",
+            logo: {
+              props: {
+                src: "assets/icon-large.png",
               },
-              {
-                type: "button",
-                props: {
-                  title: "我已了解",
-                  bgcolor: defaultButtonColor,
-                },
-                layout: (make, view) => {
-                  make.centerX.equalTo(view.super);
-                  make.top.greaterThanOrEqualTo(view.prev.bottom).offset(50).priority(1000);
-                  make.centerY.equalTo(view.super).multipliedBy(1.7).priority(999);
-                  make.height.equalTo(50);
-                  make.width.equalTo(view.prev);
-                },
-                events: {
-                  tapped: (sender) => {
-                    gallery.scrollToPage(1);
+              size: 128,
+            },
+            bgcolor: $color("#F7CD82", "#A57E43"),
+            content: new ContentView({
+              props: {
+                bgcolor: $color("clear"),
+              },
+              layout: $layout.fill,
+              views: [
+                {
+                  type: "text",
+                  props: {
+                    tintColor: $color("systemLink"),
+                    textColor: $color("primaryText"),
+                    styledText: galleryOneText,
+                    font: $font(16),
+                    align: $align.left,
+                    bgcolor: $color("clear"),
+                    editable: false,
+                    scrollEnabled: false,
+                    selectable: false,
+                    insets: $insets(0, 0, 0, 0),
+                  },
+                  layout: (make, view) => {
+                    make.top.inset(35);
+                    make.left.right.bottom.inset(0);
                   },
                 },
+              ],
+            }),
+            contentHeight: 386,
+            buttons: [
+              {
+                props: {
+                  title: "我已了解",
+                  titleColor: $color("white"),
+                  bgcolor: defaultButtonColor,
+                },
+                tapped: () => welcomeView.scrollToPage(1),
               },
             ],
-          }),
-          new ContentView({
-            props: {
-              bgcolor: $color("backgroundColor"),
+          },
+          {
+            mode: "logo-content",
+            logo: {
+              props: {
+                src: "assets/icon-large.png",
+              },
+              size: 128,
             },
-            layout: $layout.fill,
-            views: [optionList.definition, cookieLoginButton.definition, webLoginButton.definition],
-          }),
+            bgcolor: $color("backgroundColor"),
+            content: optionList,
+            contentHeight: (width) => optionList.heightToWidth(width),
+            buttons: [
+              {
+                props: {
+                  title: "登录",
+                  titleColor: $color("white"),
+                  bgcolor: defaultButtonColor,
+                },
+                tapped: tappedEvent,
+              },
+            ],
+          },
         ],
+        leadingSymbol: "xmark",
+        leadingSymbolColor: $color("primaryText"),
       },
       layout: $layout.fill,
       events: {
-        changed: (sender, page) => {
-          pagecontrol.currentPage = page;
-        },
+        leadingTapped: () => $app.close(),
       },
     });
-    const pagecontrol = new PageControl({
-      props: {
-        numberOfPages: 2,
-        currentPage: 0,
-      },
-      layout: (make, view) => {
-        make.centerX.equalTo(view.super);
-        make.bottom.equalTo(view.super.safeAreaBottom).inset(2);
-      },
-      events: {
-        changed: (sender, page) => {
-          gallery.scrollToPage(page);
-        },
-      },
-    });
-    const closeButton = new Image({
-      props: {
-        symbol: "xmark",
-        tintColor: $color("primaryText"),
-        userInteractionEnabled: true,
-      },
-      layout: (make, view) => {
-        make.height.width.equalTo(25);
-        make.left.inset(25);
-        make.top.equalTo(view.super.safeArea).offset(12.5);
-      },
-      events: {
-        tapped: () => $app.close(),
-      },
-    });
-    const logo = new Image({
-      props: {
-        src: "assets/icon-large.png",
-      },
-      layout: (make, view) => {
-        make.height.width.equalTo(128);
-        make.centerX.equalTo(view.super);
-        make.centerY.lessThanOrEqualTo(view.super).offset(-200).priority(1000);
-        make.centerY.equalTo(view.super).multipliedBy(0.4).priority(999);
-      },
-    });
-    this.rootView.views = [gallery, closeButton, logo, pagecontrol];
+    this.rootView.views = [welcomeView];
   }
 }
 

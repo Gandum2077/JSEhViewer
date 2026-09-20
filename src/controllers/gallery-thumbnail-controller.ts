@@ -73,7 +73,10 @@ export class GalleryThumbnailController extends BaseController {
             Math.max(currentThumbnailRow * matrix.columns, 0),
             d.result.thumbnails.length - 1,
           );
+          if (d.currentThumbnailIndex === currentThumbnailIndex) return;
           d.currentThumbnailIndex = currentThumbnailIndex;
+          // 有限预加载范围完成后下载器会闲置，滚动到新位置时重新调度。
+          downloaderManager.startOne(this.gid);
         },
       },
     });

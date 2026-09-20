@@ -511,7 +511,7 @@ class GalleryCommonDownloader extends ConcurrentDownloaderBase {
     infos,
     mpvAvailable,
     imageDownloadCount = 0,
-    thumbnailDownloadCount = 0,
+    thumbnailDownloadCount = mpvAvailable ? 0 : 20,
     downloadTopThumbnail = true,
     finishHandler,
   }: {

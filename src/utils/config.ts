@@ -123,7 +123,7 @@ const defaultConfig: Config = {
   // aiTranslationSavedConfigText: "{}",
   autoClearCache: false,
   autoCacheWhenReading: true,
-  downloadCount: 3,
+  downloadCount: 8,
   imageShareOnLongPressEnabled: true,
   pageDirection: "left_to_right",
   spreadModeEnabled: false,

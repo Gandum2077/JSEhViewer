@@ -24,6 +24,10 @@ function setup({
   keychain = new Map(),
   failKeychain,
   failCredentialsWrite,
+  onSql,
+  onQuery,
+  onWait,
+  httpRequest,
 } = {}) {
   const dir = fs.mkdtempSync(path.join(output, "db-"));
   const dbPath = path.join(dir, "database.db");
@@ -45,6 +49,7 @@ function setup({
     const adapter = {
       update(options) {
         const sql = sqlOf(options);
+        onSql?.(sql);
         try {
           if (failSql?.(sql)) throw new Error("injected database failure");
           native.prepare(sql).run(...bind(options));
@@ -59,6 +64,7 @@ function setup({
           const statement = native.prepare(sqlOf(options));
           columns = statement.columns().map((column) => column.name);
           rows = statement.all(...bind(options));
+          onQuery?.(sqlOf(options), rows.length);
         } catch (error) {
           callback(null, error);
           return;
@@ -90,6 +96,7 @@ function setup({
     "sync/schema",
     "sync/store",
     "sync/engine",
+    "sync/errors",
     "utils/database",
     "utils/database-migration",
     "utils/sqlite",
@@ -160,7 +167,8 @@ function setup({
         },
       }),
     }),
-    $wait: async () => {},
+    $wait: onWait ?? (async () => {}),
+    $http: { request: httpRequest },
   };
   const context = vm.createContext(globals);
   function load(id) {
@@ -1780,7 +1788,13 @@ test("sync interoperates with the rebuilt Worker on real workerd/D1", { skip: !p
     b = setup();
   try {
     const d1 = await mf.getD1Database("DB");
-    const sql = fs.readFileSync(path.join(repo, "migrations/0001_initial.sql"), "utf8");
+    const migrationsDir = path.join(repo, "migrations");
+    const sql = fs
+      .readdirSync(migrationsDir)
+      .filter((name) => name.endsWith(".sql"))
+      .sort()
+      .map((name) => fs.readFileSync(path.join(migrationsDir, name), "utf8"))
+      .join("\n");
     for (const statement of sql
       .split(";")
       .map((s) => s.trim())
@@ -1865,6 +1879,396 @@ test("deleting an unsynced key cannot erase a cloud record without explicit reso
     engine.resolve("marked_uploaders_v2", "same", "local");
     await engine.synchronize();
     assert.equal(server.records.get(JSON.stringify(["marked_uploaders_v2", "same"])).deleted, true);
+  } finally {
+    env.close();
+  }
+});
+
+// Linear simulator for the performance fixture, with real 100-record pages and
+// 10-operation requests. Server time is excluded from SQL-operation assertions.
+function scaleSyncServer(initial = []) {
+  const records = [...initial],
+    devices = new Map();
+  let writes = 0;
+  return {
+    get writes() {
+      return writes;
+    },
+    transport: async (method, path, raw) => {
+      const b = raw ? JSON.parse(raw) : {};
+      if (method === "PUT") {
+        const id = decodeURIComponent(path.split("/").pop());
+        if (!devices.has(id)) devices.set(id, 0);
+        return { device: { id, last_request_seq: devices.get(id), disabled: false } };
+      }
+      if (path === "/v1/write") {
+        assert.ok(b.operations.length <= 10);
+        assert.equal(b.request_seq, devices.get(b.device_id) + 1);
+        devices.set(b.device_id, b.request_seq);
+        writes++;
+        return {
+          request_seq: b.request_seq,
+          results: b.operations.map((op, index) => {
+            assert.equal(op.operation, "create");
+            records.push({ tablename: op.tablename, id: op.id, content: op.content, sync_version: 1, deleted: false });
+            return { index, tablename: op.tablename, id: op.id, success: true, sync_version: 1, deleted: false };
+          }),
+        };
+      }
+      if (path === "/v1/full-download") {
+        const start = b.cursor?.start_seq ?? records.length;
+        const offset = b.cursor?.offset ?? 0;
+        const data = records.slice(offset, offset + 100),
+          has_more = offset + data.length < records.length;
+        const last = data.at(-1);
+        return {
+          start_seq: start,
+          data,
+          has_more,
+          next_cursor: has_more
+            ? { start_seq: start, after: { tablename: last.tablename, id: last.id }, offset: offset + data.length }
+            : null,
+        };
+      }
+      if (path === "/v1/sync") {
+        const next = Math.min(records.length, b.seq + b.limit);
+        return { changes: records.slice(b.seq, next), next_seq: next, has_more: next < records.length };
+      }
+      throw new Error("unexpected scale-test request");
+    },
+  };
+}
+
+for (const direction of ["upload", "download"])
+  test(`15000-record ${direction} has bounded SQL work and no repeated history reloads`, async (t) => {
+    const size = 15000;
+    let measuring = false,
+      pendingRows = 0,
+      mirrorRows = 0,
+      maxPendingPage = 0,
+      businessInserts = 0,
+      termQueries = 0,
+      waits = 0;
+    const env = setup({
+      onSql: (sql) => {
+        if (measuring && /^INSERT INTO search_history(?:_v2|_search_terms_v2)/.test(sql)) businessInserts++;
+      },
+      onQuery: (sql, count) => {
+        if (!measuring) return;
+        if (sql.includes("SELECT * FROM sync_pending INDEXED")) {
+          pendingRows += count;
+          maxPendingPage = Math.max(maxPendingPage, count);
+        }
+        if (sql.includes("SELECT m.* FROM")) mirrorRows += count;
+        if (sql.startsWith("SELECT t.* FROM search_history_search_terms_v2")) termQueries++;
+      },
+      onWait: () =>
+        new Promise((resolve) =>
+          setImmediate(() => {
+            waits++;
+            resolve();
+          }),
+        ),
+    });
+    try {
+      const record = (i) => ({
+        tablename: "search_history_v2",
+        id: `history-${String(i).padStart(5, "0")}`,
+        sync_version: 1,
+        deleted: false,
+        content: {
+          last_access_time: "2026-09-20",
+          children: [0, 1, 2].map((term_index) => ({
+            term_index,
+            namespace: null,
+            qualifier: null,
+            term: `term-${i}-${term_index}`,
+            dollar: 0,
+            subtract: 0,
+            tilde: 0,
+          })),
+        },
+      });
+      const server = scaleSyncServer(direction === "download" ? Array.from({ length: size }, (_, i) => record(i)) : []);
+      const { db, engine, store } = syncSetup(env, ["search_history_v2"], server);
+      if (direction === "upload")
+        db.atomic((tx) => {
+          for (let i = 0; i < size; i++) {
+            const row = record(i);
+            tx.execute("INSERT INTO search_history_v2(id,last_access_time) VALUES(?,?)", [
+              row.id,
+              row.content.last_access_time,
+            ]);
+            for (const c of row.content.children)
+              tx.execute("INSERT INTO search_history_search_terms_v2(history_id,term_index,term) VALUES(?,?,?)", [
+                row.id,
+                c.term_index,
+                c.term,
+              ]);
+          }
+        });
+      const plan = env.inspect(
+        "EXPLAIN QUERY PLAN SELECT * FROM sync_pending INDEXED BY sync_pending_ready WHERE tablename=? AND conflict IS NULL AND revision<=? ORDER BY revision,id LIMIT 10",
+        ["search_history_v2", 9999999],
+      );
+      assert.ok(plan.some((r) => r.detail.includes("SEARCH sync_pending USING INDEX sync_pending_ready")));
+      assert.ok(plan.every((r) => !r.detail.includes("TEMP B-TREE")));
+      let maxTransactionMs = 0;
+      const atomic = db.atomic.bind(db);
+      db.atomic = (...args) => {
+        const start = performance.now();
+        try {
+          return atomic(...args);
+        } finally {
+          maxTransactionMs = Math.max(maxTransactionMs, performance.now() - start);
+        }
+      };
+      measuring = true;
+      const started = performance.now();
+      await engine.synchronize();
+      const elapsed = Math.round(performance.now() - started);
+      assert.equal(db.query("SELECT COUNT(*) AS n FROM search_history_v2 WHERE deleted=0")[0].n, size);
+      assert.equal(db.query("SELECT COUNT(*) AS n FROM search_history_search_terms_v2")[0].n, size * 3);
+      assert.equal(store.getMeta("seq", 0), size);
+      assert.equal(db.query("SELECT * FROM sync_pending").length, 0);
+      if (direction === "upload") {
+        assert.equal(server.writes, size / 10);
+        assert.equal(pendingRows, size);
+        assert.equal(maxPendingPage, 10);
+        assert.equal(businessInserts, 0); // acknowledgements must never replay business rows
+        assert.equal(termQueries, 0);
+        assert.equal(mirrorRows, 0); // own echoed records already have acknowledged versions
+        assert.ok(waits >= size / 10);
+      } else {
+        assert.equal(server.writes, 0);
+        assert.equal(mirrorRows, size);
+        assert.ok(businessInserts <= (size / 100) * 4); // 1 parent + 3 child statements per 100 records
+        assert.equal(termQueries, 1); // one joined query, not 15000 per-record queries
+        assert.equal(env.load("utils/config").configManager.searchHistory.length, size);
+      }
+      const previous = { businessInserts, termQueries, mirrorRows, pendingRows };
+      await engine.synchronize();
+      assert.deepEqual({ businessInserts, termQueries, mirrorRows, pendingRows }, previous);
+      t.diagnostic(
+        `${direction}: ${elapsed} ms local test, max transaction ${Math.round(maxTransactionMs)} ms, pending rows ${pendingRows}, projected rows ${mirrorRows}, business INSERT calls ${businessInserts}, history-term queries ${termQueries}`,
+      );
+    } finally {
+      env.close();
+    }
+  });
+
+test("bulk projection isolates a bad aggregate and commits valid neighbours", async () => {
+  const env = setup();
+  try {
+    const make = (id, term_index) => ({
+      tablename: "search_history_v2",
+      id,
+      sync_version: 1,
+      deleted: false,
+      content: {
+        last_access_time: "2026-09-20",
+        children: [{ term_index, namespace: null, qualifier: null, term: "x", dollar: 0, subtract: 0, tilde: 0 }],
+      },
+    });
+    const server = scaleSyncServer([make("good-before", 0), make("invalid", -1), make("good-after", 0)]);
+    const { db, engine, store } = syncSetup(env, ["search_history_v2"], server);
+    await engine.synchronize();
+    assert.deepEqual(plain(db.query("SELECT id FROM search_history_v2 ORDER BY id").map((r) => r.id)), [
+      "good-after",
+      "good-before",
+    ]);
+    assert.equal(db.query("SELECT COUNT(*) AS n FROM search_history_search_terms_v2")[0].n, 2);
+    assert.equal(db.query("SELECT code FROM sync_log WHERE id='invalid'")[0].code, "INVALID_CONTENT");
+    assert.ok(store.mirror("search_history_v2", "invalid"));
+    assert.equal(store.getMeta("seq", 0), 3);
+  } finally {
+    env.close();
+  }
+});
+
+test("bulk projection failure rolls back all business rows and the formal cursor", async () => {
+  let armed = false,
+    projecting = false,
+    fail = true;
+  const env = setup({
+    onSql: (sql) => {
+      if (armed && sql.startsWith("INSERT INTO search_history_v2")) projecting = true;
+    },
+    failSql: (sql) => {
+      if (fail && projecting && sql === "COMMIT") {
+        fail = false;
+        return true;
+      }
+      return false;
+    },
+  });
+  try {
+    const server = scaleSyncServer(
+      Array.from({ length: 120 }, (_, i) => ({
+        tablename: "search_history_v2",
+        id: `x-${i}`,
+        sync_version: 1,
+        deleted: false,
+        content: { last_access_time: "2026-09-20", children: [] },
+      })),
+    );
+    const { db, engine, store } = syncSetup(env, ["search_history_v2"], server);
+    armed = true;
+    await assert.rejects(engine.synchronize(), /injected/);
+    assert.equal(db.query("SELECT COUNT(*) AS n FROM search_history_v2")[0].n, 0);
+    assert.equal(db.query("SELECT COUNT(*) AS n FROM sync_mirror")[0].n, 0);
+    assert.equal(store.getMeta("seq", 0), 0);
+    assert.equal(db.query("SELECT COUNT(*) AS n FROM sync_stage")[0].n, 120);
+    await engine.synchronize();
+    assert.equal(db.query("SELECT COUNT(*) AS n FROM search_history_v2")[0].n, 120);
+    assert.equal(store.getMeta("seq", 0), 120);
+  } finally {
+    env.close();
+  }
+});
+
+for (const [code, word, httpStatus] of [
+  ["D1_READ_QUOTA_EXCEEDED", "读取额度", 429],
+  ["D1_WRITE_QUOTA_EXCEEDED", "写入额度", 429],
+  ["D1_STORAGE_QUOTA_EXCEEDED", "账户存储", 507],
+  ["D1_DATABASE_SIZE_EXCEEDED", "数据库容量", 507],
+]) {
+  test(`sync transport preserves ${code} without automatic retry`, async () => {
+    let requests = 0;
+    const env = setup({
+      httpRequest: async () => {
+        requests++;
+        return {
+          response: { statusCode: httpStatus, headers: { "Retry-After": "3600" } },
+          error: { description: "HTTP error" },
+          rawData: { string: JSON.stringify({ error: { code, message: "untrusted details" } }) },
+        };
+      },
+      onWait: () => assert.fail("quota errors must not retry"),
+    });
+    try {
+      const { SyncEngine } = env.load("sync/engine");
+      const engine = new SyncEngine();
+      engine.configure("https://sync.example.com", "a".repeat(64));
+      await assert.rejects(engine.connectionTest(), { message: code });
+      assert.equal(requests, 1);
+      assert.ok(env.load("sync/errors").syncErrorMessages[code].includes(word));
+      assert.equal(engine.busy, false);
+    } finally {
+      env.close();
+    }
+  });
+}
+
+test("quota failure preserves the exact unconfirmed upload for later recovery", async () => {
+  const server = syncServer();
+  let exhausted = true;
+  const uploads = [];
+  const env = setup({
+    httpRequest: async (request) => {
+      const route = new URL(request.url).pathname;
+      if (route === "/v1/write") {
+        uploads.push(request.body.string);
+        if (exhausted)
+          return {
+            response: { statusCode: 429 },
+            rawData: { string: JSON.stringify({ error: { code: "D1_WRITE_QUOTA_EXCEEDED" } }) },
+          };
+      }
+      return {
+        response: { statusCode: 200 },
+        rawData: { string: JSON.stringify(await server.transport(request.method, route, request.body?.string)) },
+      };
+    },
+  });
+  try {
+    const { SyncEngine } = env.load("sync/engine"),
+      store = env.load("sync/store"),
+      db = env.load("utils/database").dbManager;
+    const engine = new SyncEngine();
+    engine.configure("https://sync.example.com", "a".repeat(64));
+    store.selectTables(["search_history_v2"]);
+    env.load("utils/config").configManager.addOrUpdateSearchHistory("pending", [{ term: "preserved" }]);
+    await assert.rejects(engine.synchronize(), { message: "D1_WRITE_QUOTA_EXCEEDED" });
+    assert.equal(uploads.length, 1);
+    assert.equal(store.getMeta("inflight", null).body, uploads[0]);
+    assert.equal(db.query("SELECT * FROM sync_pending").length, 1);
+    assert.equal(db.query("SELECT code FROM sync_log WHERE tablename='' AND id=''")[0].code, "D1_WRITE_QUOTA_EXCEEDED");
+    exhausted = false;
+    await engine.synchronize();
+    assert.equal(uploads.length, 2);
+    assert.equal(uploads[0], uploads[1]);
+    assert.equal(store.getMeta("inflight", null), null);
+    assert.equal(db.query("SELECT * FROM sync_pending").length, 0);
+  } finally {
+    env.close();
+  }
+});
+
+test("HTTP 200 streamed quota errors discard the page and preserve the cursor", async () => {
+  const server = syncServer();
+  let pages = 0;
+  const env = setup({
+    httpRequest: async (request) => {
+      const route = new URL(request.url).pathname;
+      if (route === "/v1/full-download") {
+        pages++;
+        return {
+          response: { statusCode: 200 },
+          rawData: {
+            string: JSON.stringify({
+              data: [{ tablename: "search_history_v2", id: "partial", sync_version: 1, deleted: false, content: {} }],
+              error: { code: "D1_READ_QUOTA_EXCEEDED" },
+            }),
+          },
+        };
+      }
+      return {
+        response: { statusCode: 200 },
+        rawData: { string: JSON.stringify(await server.transport(request.method, route, request.body?.string)) },
+      };
+    },
+  });
+  try {
+    const { SyncEngine } = env.load("sync/engine"),
+      store = env.load("sync/store"),
+      db = env.load("utils/database").dbManager;
+    const engine = new SyncEngine();
+    engine.configure("https://sync.example.com", "a".repeat(64));
+    store.selectTables(["search_history_v2"]);
+    const before = store.getMeta("seq", 0);
+    await assert.rejects(engine.synchronize(), { message: "D1_READ_QUOTA_EXCEEDED" });
+    assert.equal(pages, 1);
+    assert.equal(store.getMeta("seq", 0), before);
+    assert.equal(store.getMeta("needsFull", true), true);
+    for (const table of ["sync_stage", "sync_mirror", "search_history_v2"])
+      assert.equal(db.query(`SELECT * FROM ${table}`).length, 0);
+  } finally {
+    env.close();
+  }
+});
+
+test("transient database failures still retry and retain their original code", async () => {
+  let requests = 0;
+  const waits = [];
+  const env = setup({
+    httpRequest: async () => {
+      requests++;
+      return {
+        response: { statusCode: 503 },
+        rawData: { string: JSON.stringify({ error: { code: "DATABASE_UNAVAILABLE" } }) },
+      };
+    },
+    onWait: async (delay) => {
+      waits.push(delay);
+    },
+  });
+  try {
+    const engine = new (env.load("sync/engine").SyncEngine)();
+    engine.configure("https://sync.example.com", "a".repeat(64));
+    await assert.rejects(engine.connectionTest(), { message: "DATABASE_UNAVAILABLE" });
+    assert.equal(requests, 3);
+    assert.deepEqual(waits, [1, 2]);
   } finally {
     env.close();
   }

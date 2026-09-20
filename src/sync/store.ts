@@ -129,36 +129,179 @@ export function logRecord(tx: DatabaseTransaction, table: string, id: string, co
 }
 /** Keep cloud records even if a business projection cannot be applied. Never log
  * SQL, credentials, remote contents, or raw transport errors. */
-export function applyMirror(tx: DatabaseTransaction) {
+export function applyMirror(tx: DatabaseTransaction, keys?: Pick<CloudRecord, "tablename" | "id">[]): Set<string> {
+  const changed = new Set<string>();
   for (const spec of SYNC_TABLES) {
     if (!tx.query("SELECT 1 FROM sync_enabled WHERE tablename=?", [spec.name]).length) continue;
-    let after: string | undefined;
-    while (true) {
-      const rows = tx.query(
-        `SELECT * FROM sync_mirror m WHERE tablename=? ${after === undefined ? "" : "AND id>?"}
-        AND NOT EXISTS(SELECT 1 FROM sync_pending p WHERE p.tablename=m.tablename AND p.id=m.id) ORDER BY id LIMIT 100`,
-        after === undefined ? [spec.name] : [spec.name, after],
-      );
-      if (!rows.length) break;
-      for (const row of rows) {
-        tx.execute("SAVEPOINT sync_record");
-        try {
-          applyRecord(tx, spec, unpack(row));
-          tx.execute("DELETE FROM sync_log WHERE tablename=? AND id=?", [spec.name, row.id]);
-          tx.execute("RELEASE sync_record");
-        } catch (error) {
-          tx.execute("ROLLBACK TO sync_record");
-          tx.execute("RELEASE sync_record");
-          const message = String(error);
-          // Only data/constraint failures may be skipped. Disk/transaction failures abort the round.
-          if (!/constraint|约束|同步内容|FOREIGN KEY/i.test(message)) throw error;
-          logRecord(tx, spec.name, row.id, /FOREIGN KEY/i.test(message) ? "FOREIGN_KEY" : "INVALID_CONTENT");
-        }
+    // Retry previously rejected rows, then only visit keys downloaded this round.
+    // Source PKs drive the joins; pagination never rescans the entire mirror.
+    for (const source of ["sync_log", ...(keys ? [] : ["sync_stage"])]) {
+      let after: string | undefined;
+      while (true) {
+        const rows = tx.query(
+          `SELECT m.* FROM ${source} s CROSS JOIN sync_mirror m
+           LEFT JOIN ${spec.name} b ON b.id=m.id
+           WHERE s.tablename=? ${after === undefined ? "" : "AND s.id>?"}
+           AND m.tablename=s.tablename AND m.id=s.id
+           ${source === "sync_log" ? "" : "AND (b.id IS NULL OR b.sync_version<>m.sync_version)"}
+           AND NOT EXISTS(SELECT 1 FROM sync_pending p WHERE p.tablename=m.tablename AND p.id=m.id)
+           ORDER BY s.id LIMIT 100`,
+          after === undefined ? [spec.name] : [spec.name, after],
+        );
+        if (!rows.length) break;
+        if (applyPage(tx, spec, rows)) changed.add(spec.name);
+        after = rows[rows.length - 1].id;
       }
-      after = rows[rows.length - 1].id;
+    }
+    for (const key of keys ?? [])
+      if (key.tablename === spec.name) {
+        const rows = tx.query(
+          `SELECT m.* FROM sync_mirror m WHERE tablename=? AND id=?
+        AND NOT EXISTS(SELECT 1 FROM sync_pending p WHERE p.tablename=m.tablename AND p.id=m.id)`,
+          [key.tablename, key.id],
+        );
+        if (rows.length && applyPage(tx, spec, rows)) changed.add(spec.name);
+      }
+  }
+  return changed;
+}
+
+function dataError(error: unknown) {
+  return /constraint|约束|同步内容|FOREIGN KEY/i.test(String(error));
+}
+function applyPage(tx: DatabaseTransaction, spec: TableSpec, rows: Record<string, any>[]): boolean {
+  // Normal pages use a handful of native SQLite calls instead of a JS/native
+  // round-trip per field/child/record. A bad page falls back to record isolation.
+  tx.execute("SAVEPOINT sync_page");
+  try {
+    applyBulk(tx, spec, rows.map(unpack));
+    tx.execute(`DELETE FROM sync_log WHERE tablename=? AND id IN (${rows.map(() => "?").join(",")})`, [
+      spec.name,
+      ...rows.map((r) => r.id),
+    ]);
+    tx.execute("RELEASE sync_page");
+    return true;
+  } catch (error) {
+    tx.execute("ROLLBACK TO sync_page");
+    tx.execute("RELEASE sync_page");
+    if (!dataError(error)) throw error;
+  }
+  let changed = false;
+  for (const row of rows) {
+    tx.execute("SAVEPOINT sync_record");
+    try {
+      applyRecord(tx, spec, unpack(row));
+      tx.execute("DELETE FROM sync_log WHERE tablename=? AND id=?", [spec.name, row.id]);
+      tx.execute("RELEASE sync_record");
+      changed = true;
+    } catch (error) {
+      tx.execute("ROLLBACK TO sync_record");
+      tx.execute("RELEASE sync_record");
+      if (!dataError(error)) throw error;
+      logRecord(tx, spec.name, row.id, /FOREIGN KEY/i.test(String(error)) ? "FOREIGN_KEY" : "INVALID_CONTENT");
     }
   }
+  return changed;
 }
+
+function insertRows(tx: DatabaseTransaction, table: string, names: string[], values: any[][], upsert = false) {
+  // Below the variable limit on supported iOS SQLite versions, including wide rows.
+  const batchSize = Math.max(1, Math.floor(900 / names.length));
+  for (let offset = 0; offset < values.length; offset += batchSize) {
+    const batch = values.slice(offset, offset + batchSize);
+    tx.execute(
+      `INSERT INTO ${table}(${names.join(",")}) VALUES ${batch.map(() => `(${names.map(() => "?").join(",")})`).join(",")}
+      ${
+        upsert
+          ? `ON CONFLICT(id) DO UPDATE SET ${names
+              .slice(1)
+              .map((c) => `${c}=excluded.${c}`)
+              .join(",")}`
+          : ""
+      }`,
+      batch.flat(),
+    );
+  }
+}
+function applyBulk(tx: DatabaseTransaction, spec: TableSpec, rows: CloudRecord[]) {
+  const live = rows.filter((r) => !r.deleted),
+    deleted = rows.filter((r) => r.deleted);
+  const fields = columns(spec);
+  for (const row of live) validateContent(spec, row);
+  insertRows(
+    tx,
+    spec.name,
+    ["id", "sync_version", "deleted", ...fields],
+    live.map((r) => [r.id, r.sync_version, 0, ...fields.map((f) => r.content![f])]),
+    true,
+  );
+  if ("children" in spec && live.length) {
+    const c = spec.children;
+    tx.execute(
+      `DELETE FROM ${c.table} WHERE ${c.key} IN (${live.map(() => "?").join(",")})`,
+      live.map((r) => r.id),
+    );
+    insertRows(
+      tx,
+      c.table,
+      [c.key, ...c.fields],
+      live.flatMap((r) =>
+        r.content!.children.map((child: Record<string, any>) => [r.id, ...c.fields.map((f) => child[f])]),
+      ),
+    );
+  }
+  if (spec.name === "global_reader_config_v2" || spec.name === "local_marked_tags_v2") {
+    for (const row of deleted) applyRecord(tx, spec, row);
+  } else if (deleted.length) {
+    const off =
+      spec.name === "webdav_services_v2"
+        ? ",enabled=0"
+        : spec.name === "ai_translation_services_v2"
+          ? ",selected=0"
+          : "";
+    tx.execute(
+      `UPDATE ${spec.name} SET deleted=1,sync_version=CASE id ${deleted.map(() => "WHEN ? THEN ?").join(" ")} END${off}
+      WHERE id IN (${deleted.map(() => "?").join(",")})`,
+      [...deleted.flatMap((r) => [r.id, r.sync_version]), ...deleted.map((r) => r.id)],
+    );
+  }
+}
+
+function validateContent(spec: TableSpec, row: CloudRecord) {
+  const content = row.content,
+    fields = columns(spec);
+  if (spec.name === "global_reader_config_v2" && row.id !== "1") throw new Error("同步内容的全局设置 ID 无效");
+  if (
+    !content ||
+    Array.isArray(content) ||
+    typeof content !== "object" ||
+    fields.some((c) => !Object.prototype.hasOwnProperty.call(content, c))
+  )
+    throw new Error("同步内容缺少业务字段");
+  for (const field of fields)
+    if (content[field] !== null && !["string", "number", "boolean"].includes(typeof content[field]))
+      throw new Error("同步内容字段类型无效");
+  try {
+    sanitizeService(spec.name, content);
+  } catch {
+    throw new Error("同步内容的 AI 配置无效");
+  }
+  if ("children" in spec) {
+    const c = spec.children;
+    if (!Array.isArray(content.children)) throw new Error("同步内容缺少附属记录");
+    for (const child of content.children)
+      if (
+        !child ||
+        c.fields.some(
+          (f) =>
+            !Object.prototype.hasOwnProperty.call(child, f) ||
+            (child[f] !== null && !["string", "number", "boolean"].includes(typeof child[f])),
+        )
+      )
+        throw new Error("同步内容附属记录无效");
+  }
+}
+
 function applyRecord(tx: DatabaseTransaction, spec: TableSpec, row: CloudRecord) {
   if (spec.name === "global_reader_config_v2" && row.id !== "1") throw new Error("同步内容的全局设置 ID 无效");
   if (row.deleted) {
@@ -187,23 +330,9 @@ function applyRecord(tx: DatabaseTransaction, spec: TableSpec, row: CloudRecord)
     }
     return;
   }
-  const content = row.content;
-  const fields = columns(spec);
-  if (
-    !content ||
-    Array.isArray(content) ||
-    typeof content !== "object" ||
-    fields.some((c) => !Object.prototype.hasOwnProperty.call(content, c))
-  )
-    throw new Error("同步内容缺少业务字段");
-  for (const field of fields)
-    if (content[field] !== null && !["string", "number", "boolean"].includes(typeof content[field]))
-      throw new Error("同步内容字段类型无效");
-  try {
-    sanitizeService(spec.name, content);
-  } catch {
-    throw new Error("同步内容的 AI 配置无效");
-  }
+  validateContent(spec, row);
+  const content = row.content!,
+    fields = columns(spec);
   const names = ["id", "sync_version", "deleted", ...fields];
   tx.execute(
     `INSERT INTO ${spec.name}(${names.join(",")}) VALUES(${names.map(() => "?").join(",")})

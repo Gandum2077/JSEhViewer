@@ -313,14 +313,15 @@ class ConfigManager {
   }
 
   /** Refresh cached business projections after a committed sync application. */
-  reloadAfterSync() {
-    this._config = this._initConfig();
-    this._markedTagDict = this._getMarkedTagsDict();
-    this._markedUploaders = this._queryMarkedUploaders();
-    this._searchHistory = this._querySearchHistory();
-    this._searchBookmarks = this._querySearchBookmarks();
-    this._webDAVServices = this._queryWebDAVServices();
-    this._aiTranslationServices = this._queryAITranslationServices();
+  reloadAfterSync(tables?: ReadonlySet<string>) {
+    const changed = (table: string) => !tables || tables.has(table);
+    if (changed("global_reader_config_v2")) this._config = this._initConfig();
+    if (changed("local_marked_tags_v2")) this._markedTagDict = this._getMarkedTagsDict();
+    if (changed("marked_uploaders_v2")) this._markedUploaders = this._queryMarkedUploaders();
+    if (changed("search_history_v2")) this._searchHistory = this._querySearchHistory();
+    if (changed("search_bookmarks_v2")) this._searchBookmarks = this._querySearchBookmarks();
+    if (changed("webdav_services_v2")) this._webDAVServices = this._queryWebDAVServices();
+    if (changed("ai_translation_services_v2")) this._aiTranslationServices = this._queryAITranslationServices();
   }
 
   set cookie(value: string) {
@@ -920,17 +921,25 @@ class ConfigManager {
 
   private _querySearchTerms(
     table: "search_history_search_terms_v2" | "search_bookmarks_search_terms_v2",
-    parent: string,
-  ): EHSearchTerm[] {
+  ): Map<string, EHSearchTerm[]> {
     const column = table === "search_history_search_terms_v2" ? "history_id" : "bookmark_id";
-    return dbManager.query(`SELECT * FROM ${table} WHERE ${column} = ? ORDER BY term_index`, [parent]).map((term) => ({
-      namespace: term.namespace || undefined,
-      qualifier: term.qualifier || undefined,
-      term: term.term,
-      dollar: Boolean(term.dollar),
-      subtract: Boolean(term.subtract),
-      tilde: Boolean(term.tilde),
-    }));
+    const parent = table === "search_history_search_terms_v2" ? "search_history_v2" : "search_bookmarks_v2";
+    const result = new Map<string, EHSearchTerm[]>();
+    for (const term of dbManager.query(
+      `SELECT t.* FROM ${table} t JOIN ${parent} p ON p.id=t.${column} WHERE p.deleted=0 ORDER BY t.${column},t.term_index`,
+    )) {
+      const terms = result.get(term[column]) ?? [];
+      terms.push({
+        namespace: term.namespace || undefined,
+        qualifier: term.qualifier || undefined,
+        term: term.term,
+        dollar: Boolean(term.dollar),
+        subtract: Boolean(term.subtract),
+        tilde: Boolean(term.tilde),
+      });
+      result.set(term[column], terms);
+    }
+    return result;
   }
 
   private _searchTermStatements(
@@ -958,13 +967,14 @@ class ConfigManager {
   }
 
   private _querySearchHistory(): DBSearchHistory {
+    const terms = this._querySearchTerms("search_history_search_terms_v2");
     return dbManager
       .query("SELECT id, last_access_time FROM search_history_v2 WHERE deleted = 0 ORDER BY last_access_time DESC")
       .map((row) => ({
         id: row.id,
         sorted_fsearch: row.id,
         last_access_time: row.last_access_time,
-        searchTerms: this._querySearchTerms("search_history_search_terms_v2", row.id),
+        searchTerms: terms.get(row.id) ?? [],
       }));
   }
 
@@ -986,13 +996,14 @@ class ConfigManager {
   }
 
   private _querySearchBookmarks(): DBSearchBookmarks {
+    const terms = this._querySearchTerms("search_bookmarks_search_terms_v2");
     return dbManager
       .query("SELECT id, position_key FROM search_bookmarks_v2 WHERE deleted = 0 ORDER BY position_key, id")
       .map((row, index) => ({
         id: row.id,
         sorted_fsearch: row.id,
         sort_order: index,
-        searchTerms: this._querySearchTerms("search_bookmarks_search_terms_v2", row.id),
+        searchTerms: terms.get(row.id) ?? [],
       }));
   }
 

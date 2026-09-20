@@ -1,7 +1,15 @@
-import { Base, BaseController, controllerStatus, CustomNavigationBar, DynamicRowHeightList, formDialog } from "jsbox-cview";
+import {
+  Base,
+  BaseController,
+  controllerStatus,
+  CustomNavigationBar,
+  DynamicRowHeightList,
+  formDialog,
+} from "jsbox-cview";
 import { configManager } from "../utils/config";
 import { dbManager } from "../utils/database";
 import { normalizeEndpoint, syncEngine } from "../sync/engine";
+import { syncErrorMessages as errors } from "../sync/errors";
 import { SYNC_TABLES } from "../sync/schema";
 import { getMeta, selectedTables, selectTables } from "../sync/store";
 
@@ -28,7 +36,12 @@ class SyncCard extends Base<UIView, UiTypes.ViewOptions> {
           views: [
             {
               type: "label",
-              props: { text: title, font: $font("bold", 17), textColor: $color(action ? "systemLink" : "primaryText") },
+              props: {
+                id: this.id + "-title",
+                text: this.title,
+                font: $font("bold", 17),
+                textColor: $color(action ? "systemLink" : "primaryText"),
+              },
               layout: (make) => {
                 make.left.right.inset(18);
                 make.top.inset(14);
@@ -37,7 +50,13 @@ class SyncCard extends Base<UIView, UiTypes.ViewOptions> {
             },
             {
               type: "label",
-              props: { text: summary, font: $font(13), textColor: $color("secondaryText"), lines: 0 },
+              props: {
+                id: this.id + "-summary",
+                text: this.summary,
+                font: $font(13),
+                textColor: $color("secondaryText"),
+                lines: 0,
+              },
               layout: (make, view) => {
                 make.left.right.inset(18);
                 make.top.equalTo(view.prev.bottom).offset(6);
@@ -50,6 +69,15 @@ class SyncCard extends Base<UIView, UiTypes.ViewOptions> {
       ],
     });
   }
+  updateProgress(summary: string) {
+    this.title = "同步进行中";
+    this.summary = summary;
+    // No list rebuild, layout measurement, credential reads, or COUNT queries.
+    const title = $(this.id + "-title") as UILabelView | undefined;
+    const label = $(this.id + "-summary") as UILabelView | undefined;
+    if (title) title.text = this.title;
+    if (label) label.text = this.summary;
+  }
   heightToWidth(width: number) {
     return (
       66 + Math.ceil($text.sizeThatFits({ text: this.summary, width: Math.max(1, width - 68), font: $font(13) }).height)
@@ -57,20 +85,11 @@ class SyncCard extends Base<UIView, UiTypes.ViewOptions> {
   }
 }
 
-const errors: Record<string, string> = {
-  UNAUTHORIZED: "主密钥无效，请检查连接设置。",
-  DEVICE_DISABLED: "本设备已被禁用，可在设备管理中重新启用。",
-  RATE_LIMITED: "请求过于频繁，请稍后再同步。",
-  PAYLOAD_TOO_LARGE: "某条记录超过服务端存储限制，请检查待上传内容。",
-  REQUEST_SEQ_REUSED: "请求编号与云端记录不一致，请恢复正确的本地同步状态。",
-  REQUEST_EXPIRED: "原请求结果已过期，请恢复正确的本地同步状态。",
-  REQUEST_OUT_OF_ORDER: "上传请求编号不连续，请检查本地同步状态。",
-};
-
 export class SettingsSyncController extends BaseController {
   cviews: { navbar: CustomNavigationBar; list: DynamicRowHeightList };
   private syncStatus = "按下方步骤配置，然后手动执行同步。";
   private acting = false;
+  private lastProgressRefresh = 0;
   private sections: { title: string; rows: SyncCard[] }[] = [];
   constructor() {
     super({
@@ -130,8 +149,7 @@ export class SettingsSyncController extends BaseController {
           `${this.syncStatus}\n待上传 ${pending} 条 · 冲突 ${conflicts} 条${last ? `\n上次完成：${new Date(last).toLocaleString()}` : ""}`,
           action(async () => {
             await syncEngine.synchronize((message) => {
-              this.syncStatus = message;
-              this.refresh();
+              this.updateProgress(message);
             });
             this.syncStatus = "同步完成。冲突和无法应用的记录请在下方管理。";
           }),
@@ -156,8 +174,7 @@ export class SettingsSyncController extends BaseController {
           "重新下载所选内容并补拉变化，保留本机待上传修改。",
           action(async () => {
             await syncEngine.synchronize((message) => {
-              this.syncStatus = message;
-              this.refresh();
+              this.updateProgress(message);
             }, true);
           }),
         ),
@@ -183,6 +200,13 @@ export class SettingsSyncController extends BaseController {
         title: s.title,
         rows: s.rows.map((r) => r.definition),
       }));
+  }
+
+  private updateProgress(message: string) {
+    this.syncStatus = message;
+    if (this.status !== controllerStatus.loaded || Date.now() - this.lastProgressRefresh < 500) return;
+    this.lastProgressRefresh = Date.now();
+    this.sections[0]?.rows[3]?.updateProgress(`${message}\n待上传数量和冲突信息将在本轮结束后更新。`);
   }
 
   private async run(fn: () => Promise<void> | void) {

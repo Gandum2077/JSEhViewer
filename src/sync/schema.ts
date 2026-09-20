@@ -60,6 +60,7 @@ export function initializeSyncSchema(db: SqliteTypes.SqliteInstance) {
       "CREATE TABLE IF NOT EXISTS sync_mirror (tablename TEXT NOT NULL,id TEXT NOT NULL,content TEXT,sync_version INTEGER NOT NULL,deleted INTEGER NOT NULL,PRIMARY KEY(tablename,id))",
       "CREATE TABLE IF NOT EXISTS sync_stage (tablename TEXT NOT NULL,id TEXT NOT NULL,content TEXT,sync_version INTEGER NOT NULL,deleted INTEGER NOT NULL,PRIMARY KEY(tablename,id))",
       "CREATE TABLE IF NOT EXISTS sync_pending (tablename TEXT NOT NULL,id TEXT NOT NULL,revision INTEGER NOT NULL,base_version INTEGER NOT NULL,conflict TEXT,forced INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(tablename,id))",
+      "CREATE INDEX IF NOT EXISTS sync_pending_ready ON sync_pending(tablename,revision,id) WHERE conflict IS NULL",
       "CREATE TABLE IF NOT EXISTS sync_log (tablename TEXT NOT NULL,id TEXT NOT NULL,code TEXT NOT NULL,updated_at TEXT NOT NULL,PRIMARY KEY(tablename,id))",
     ])
       update(db, sql);

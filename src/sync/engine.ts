@@ -1,4 +1,6 @@
 import URLParse from "url-parse";
+import { SYNC_TABLES, tableSpec } from "./schema";
+import { quotaErrorCodes } from "./errors";
 import { configManager } from "../utils/config";
 import { dbManager } from "../utils/database";
 import {
@@ -32,6 +34,7 @@ class SyncError extends Error {
   }
 }
 const knownErrors = new Set([
+  ...quotaErrorCodes,
   "INVALID_REQUEST",
   "INVALID_CURSOR",
   "UNAUTHORIZED",
@@ -84,6 +87,17 @@ async function httpTransport(method: string, path: string, body?: string): Promi
       throw new Error("网络请求失败，未确认的上传已保留；请重试同步");
     }
     const status = response.response?.statusCode ?? 0;
+    let data: any;
+    let parsed = false;
+    try {
+      data = JSON.parse(response.rawData?.string ?? "");
+      parsed = true;
+    } catch {
+      // Transient HTTP failures may have non-JSON responses and can still retry.
+    }
+    // Quotas cannot recover in a short retry loop. Streamed pages can carry an
+    // error after HTTP 200; reject them before staging data or advancing cursors.
+    if (status && quotaErrorCodes.has(data?.error?.code)) throw new SyncError(data.error.code);
     if ((response.error || status === 429 || status >= 500) && attempt < 2) {
       const retry = Number(response.response?.headers?.["Retry-After"]);
       // Do not retry earlier than the server asks. Long waits are left to the user.
@@ -91,13 +105,12 @@ async function httpTransport(method: string, path: string, body?: string): Promi
       await $wait(Math.max(2 ** attempt, Number.isFinite(retry) ? retry : 0));
       continue;
     }
+    if (status && data?.error)
+      throw new SyncError(
+        knownErrors.has(data.error.code) ? data.error.code : status === 200 ? "INTERNAL_ERROR" : `HTTP_${status}`,
+      );
     if (response.error || !status) throw new Error("网络请求失败，未确认的上传已保留；请重试同步");
-    let data: any;
-    try {
-      data = JSON.parse(response.rawData.string ?? "");
-    } catch {
-      throw new Error("同步响应不完整，已保留原游标和未确认请求");
-    }
+    if (!parsed) throw new Error("同步响应不完整，已保留原游标和未确认请求");
     if (status < 200 || status >= 300)
       throw new SyncError(knownErrors.has(data?.error?.code) ? data.error.code : `HTTP_${status}`);
     return data;
@@ -181,14 +194,14 @@ export class SyncEngine {
       // remain queued for the next run rather than extending this run indefinitely.
       const boundary = dbManager.query("SELECT tick FROM sync_control WHERE id=1")[0].tick;
       let batches = 0;
-      while (this.prepareBatch(boundary)) {
+      while (await this.prepareBatch(boundary)) {
         progress(`上传第 ${++batches} 批…`);
         await this.sendInflight();
+        await $wait(0.001);
       }
       progress("核对云端变化…");
       await this.download(false, progress);
       dbManager.atomic((tx) => setMeta(tx, "lastSuccess", new Date().toISOString()));
-      configManager.reloadAfterSync();
       progress("同步完成");
     } catch (error) {
       dbManager.atomic((tx) => logRecord(tx, "", "", error instanceof SyncError ? error.code : "SYNC_INTERRUPTED"));
@@ -255,17 +268,20 @@ export class SyncEngine {
           more = response.has_more;
           progress(`补拉变化第 ${++page} 页…`);
         } while (more);
-        dbManager.atomic((tx) => {
+        progress("正在应用下载的数据…");
+        await $wait(0.001);
+        const changed = dbManager.atomic((tx) => {
           if (full) tx.execute("DELETE FROM sync_mirror WHERE tablename IN (SELECT tablename FROM sync_enabled)");
           tx.execute(`INSERT INTO sync_mirror SELECT * FROM sync_stage WHERE true
             ON CONFLICT(tablename,id) DO UPDATE SET content=excluded.content,sync_version=excluded.sync_version,deleted=excluded.deleted
             WHERE excluded.sync_version>sync_mirror.sync_version`);
-          applyMirror(tx);
+          const changed = applyMirror(tx);
           setMeta(tx, "seq", seq);
           setMeta(tx, "needsFull", false);
           tx.execute("DELETE FROM sync_stage");
+          return changed;
         }, true);
-        configManager.reloadAfterSync();
+        configManager.reloadAfterSync(changed);
         // Explicitly acknowledge only the committed cursor. Ignore this response;
         // a later run will fetch anything newer than the committed cursor.
         await this.transport("POST", "/v1/sync", JSON.stringify({ device_id: getMeta("deviceId", ""), seq, limit: 1 }));
@@ -290,12 +306,26 @@ export class SyncEngine {
       for (const row of rows) if (selected.has(row.tablename)) saveRecord(tx, "sync_stage", row);
     });
   }
-  private prepareBatch(boundary: number) {
-    const candidates = dbManager.query(
-      `SELECT p.* FROM sync_pending p JOIN sync_enabled e USING(tablename)
-      WHERE p.conflict IS NULL AND p.revision<=? ORDER BY CASE WHEN p.tablename='archive_entries_v2' THEN 0 ELSE 1 END,p.tablename,p.id`,
-      [boundary],
-    ) as Pending[];
+  private async prepareBatch(boundary: number) {
+    const selected = new Set(selectedTables());
+    for (const spec of SYNC_TABLES) {
+      if (!selected.has(spec.name)) continue;
+      while (true) {
+        const candidates = dbManager.query(
+          `SELECT * FROM sync_pending INDEXED BY sync_pending_ready
+           WHERE tablename=? AND conflict IS NULL AND revision<=?
+           ORDER BY revision,id LIMIT 10`,
+          [spec.name, boundary],
+        ) as Pending[];
+        if (!candidates.length) break;
+        if (this.prepareCandidates(candidates)) return true;
+        // Even thousands of identical/locally deleted records yield to UIKit.
+        await $wait(0.001);
+      }
+    }
+    return false;
+  }
+  private prepareCandidates(candidates: Pending[]) {
     const operations: Operation[] = [],
       pending: Pending[] = [];
     dbManager.atomic((tx) => {
@@ -317,6 +347,11 @@ export class SyncEngine {
             p.id,
             p.revision,
           ]);
+          if (remote)
+            tx.execute(`UPDATE ${tableSpec(p.tablename).name} SET sync_version=? WHERE id=?`, [
+              remote.sync_version,
+              p.id,
+            ]);
           continue;
         }
         if (local.deleted && p.base_version === 0) {
@@ -407,6 +442,14 @@ export class SyncEngine {
             p.tablename,
             p.id,
           ]);
+          // The successful payload was read from this business row. Do not replay
+          // the cloud mirror or overwrite edits made while the request was in flight.
+          tx.execute(`UPDATE ${tableSpec(p.tablename).name} SET sync_version=? WHERE id=? AND sync_version<?`, [
+            r.sync_version,
+            p.id,
+            r.sync_version,
+          ]);
+          tx.execute("DELETE FROM sync_log WHERE tablename=? AND id=?", [p.tablename, p.id]);
         } else
           tx.execute("UPDATE sync_pending SET conflict=?,forced=0 WHERE tablename=? AND id=?", [
             r.code,
@@ -416,9 +459,7 @@ export class SyncEngine {
       });
       setMeta(tx, "requestSeq", response.request_seq);
       setMeta(tx, "inflight", null);
-      applyMirror(tx);
     }, true);
-    configManager.reloadAfterSync();
   }
   resolve(table: string, id: string, choice: "cloud" | "local") {
     this.idle();
@@ -430,18 +471,19 @@ export class SyncEngine {
       return;
     const remote = mirror(table, id);
     if (!remote) throw new Error("请先完成同步，取得冲突记录的云端状态");
-    dbManager.atomic((tx) => {
+    const changed = dbManager.atomic((tx) => {
       if (choice === "cloud") {
         tx.execute("DELETE FROM sync_pending WHERE tablename=? AND id=?", [table, id]);
-        applyMirror(tx);
+        return applyMirror(tx, [{ tablename: table, id }]);
       } else
         tx.execute("UPDATE sync_pending SET base_version=?,conflict=NULL,forced=1 WHERE tablename=? AND id=?", [
           remote.sync_version,
           table,
           id,
         ]);
+      return new Set<string>();
     }, true);
-    configManager.reloadAfterSync();
+    configManager.reloadAfterSync(changed);
   }
   /** Explicit recovery when request state was restored from an obsolete backup. */
   resetIdentity() {

@@ -3,6 +3,7 @@ import {
   BaseController,
   ContentView,
   CustomNavigationBar,
+  cvid,
   DynamicItemSizeMatrix,
   DynamicItemSizeSectionMatrix,
   DynamicPreferenceListView,
@@ -18,6 +19,7 @@ import {
 import { configManager } from "../utils/config";
 import { FavoriteImageDownloadQueue, favoriteImageManager } from "../utils/favorite-image";
 import { statusManager } from "../utils/status";
+import { globalTimer } from "../utils/timer";
 import { FavoriteImageReaderController } from "./favorite-image-reader-controller";
 import { getSearchOptions } from "./search-controller";
 
@@ -200,25 +202,35 @@ export class FavoriteImageController extends BaseController {
   searchOptions: ArchiveSearchOptions = { fromPage: 0, toPage: 0 };
   private _downloads = new FavoriteImageDownloadQueue();
   private _visible = false;
+  private _timerId = `favorite-image-${cvid.newId}`;
   private _groups: FavoriteImageGroupWithFiles[] = [];
   constructor() {
     super({
       props: { bgcolor: $color("backgroundColor") },
       events: {
         didLoad: () => {
+          globalTimer.addTask({
+            id: this._timerId,
+            interval: 1,
+            paused: true,
+            handler: () => this.scheduledRefresh(),
+          });
           this.fullRefresh();
         },
         didAppear: () => {
           this._visible = true;
           this.fullRefresh();
+          globalTimer.resumeTask(this._timerId);
         },
         didDisappear: () => {
           this._visible = false;
           this._downloads.stop();
+          globalTimer.pauseTask(this._timerId);
         },
         didRemove: () => {
           this._visible = false;
           this._downloads.stop();
+          globalTimer.removeTask(this._timerId);
         },
       },
     });
@@ -395,6 +407,7 @@ export class FavoriteImageController extends BaseController {
 
   fullRefresh(scheduleDownloads = true) {
     if (scheduleDownloads) this._downloads.stop();
+    this._groups = [];
     // 如果存在搜索项，搜索按钮变成橙色
     this.cviews.searchButton.tintColor = this.hasSearchOptions ? $color("orange") : $color("primaryText");
 
@@ -454,16 +467,33 @@ export class FavoriteImageController extends BaseController {
         .flat();
     }
     if (scheduleDownloads && this._visible) {
-      this._downloads.start(
-        groups.flatMap((group) =>
-          group.pages.map((page) => ({
+      const missingItems = groups.flatMap((group) =>
+        group.pages
+          .filter((page) => !page.thumbnail_file_name || !page.file_name)
+          .map((page) => ({
             gid: group.gid,
             token: group.token,
             pageIndex: page.page_index,
           })),
-        ),
-        () => this.fullRefresh(false),
       );
+      if (missingItems.length) {
+        this._downloads.start(missingItems, () => this.scheduledRefresh());
+      }
+    }
+  }
+
+  scheduledRefresh() {
+    if (!this._visible) return;
+    for (const group of this._groups) {
+      for (const page of group.pages) {
+        if (page.thumbnail_file_name && page.file_name) continue;
+        const file = favoriteImageManager.getFile(group.gid, page.page_index);
+        if (file.thumbnail_file_name !== page.thumbnail_file_name || file.file_name !== page.file_name) {
+          // 缩略图可能先于图片完成；刷新缓存状态时保留正在运行的下载队列。
+          this.fullRefresh(false);
+          return;
+        }
+      }
     }
   }
 

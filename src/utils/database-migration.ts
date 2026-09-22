@@ -1,3 +1,4 @@
+import { mergeAITranslationSecrets, splitAITranslationConfig } from "../ai-translations/secure-config";
 import {
   DEFAULT_CUSTOM_AI_TRANSLATION_SCRIPT,
   MANGA_IMAGE_TRANSLATOR_PRESET_CONFIG,
@@ -143,7 +144,19 @@ function allocateContentId(canonicalContent: string, usedIds: Set<string>): stri
   return id;
 }
 
-function migrateAiServices(db: SqliteTypes.SqliteInstance): void {
+function readAiConfig(row: { config_form: string | null; config: string | null }) {
+  try {
+    return {
+      configForm: row.config_form ? JSON.parse(row.config_form) : undefined,
+      config: row.config ? JSON.parse(row.config) : undefined,
+    };
+  } catch {
+    // Parser errors can quote a secret from either JSON document.
+    throw new Error("旧版 AI 翻译配置格式无效，已停止迁移");
+  }
+}
+
+function migrateAiServices(db: SqliteTypes.SqliteInstance, credentials: Credentials): void {
   const services = query(
     db,
     `SELECT id, name, selected, script_text, config_form, config
@@ -153,22 +166,20 @@ function migrateAiServices(db: SqliteTypes.SqliteInstance): void {
   const usedIds = new Set<string>();
 
   for (const service of services) {
+    const split = splitAITranslationConfig(readAiConfig(service));
+    const configForm = split.configForm ? JSON.stringify(split.configForm) : null;
+    const config = split.config ? JSON.stringify(split.config) : null;
     const id = allocateContentId(
-      canonicalJson([
-        "ai_translation_service_v2",
-        service.name,
-        service.script_text,
-        service.config_form,
-        service.config,
-      ]),
+      canonicalJson(["ai_translation_service_v2", service.name, service.script_text, configForm, config]),
       usedIds,
     );
+    if (Object.keys(split.secrets).length) credentials.aiTranslation![id] = split.secrets;
     update(
       db,
       `INSERT INTO ai_translation_services_v2
          (id, sync_version, deleted, name, selected, script_text, config_form, config)
        VALUES (?, 0, 0, ?, ?, ?, ?, ?)`,
-      [id, service.name, service.selected === 1 ? 1 : 0, service.script_text, service.config_form, service.config],
+      [id, service.name, service.selected === 1 ? 1 : 0, service.script_text, configForm, config],
     );
   }
 }
@@ -343,15 +354,28 @@ function readCredentialsRevision(db: SqliteTypes.SqliteInstance): string | undef
 }
 
 function migrateStoredCredentials(db: SqliteTypes.SqliteInstance, credentials: Credentials): void {
-  const cookie = query(db, "SELECT value FROM config WHERE key = 'cookie'")[0];
-  if (cookie) {
+  for (const key of ["cookie", "githubToken"] as const) {
+    const row = query(db, "SELECT value FROM config WHERE key = ?", [key])[0];
+    if (!row) continue;
     try {
-      const value = cookie.value === null ? "" : JSON.parse(cookie.value);
+      const value = row.value === null ? "" : JSON.parse(row.value);
       if (typeof value !== "string") throw new Error();
-      credentials.cookie = value;
+      credentials[key] = value;
     } catch {
-      throw new Error("旧版 cookie 格式无效，已停止迁移");
+      throw new Error(`旧版 ${key} 格式无效，已停止迁移`);
     }
+  }
+  for (const row of query(db, "SELECT id, deleted, config_form, config FROM ai_translation_services_v2")) {
+    const split = splitAITranslationConfig(
+      mergeAITranslationSecrets(readAiConfig(row as LegacyAiService), credentials.aiTranslation?.[row.id]),
+    );
+    if (!row.deleted && Object.keys(split.secrets).length) credentials.aiTranslation![row.id] = split.secrets;
+    else delete credentials.aiTranslation![row.id];
+    update(db, "UPDATE ai_translation_services_v2 SET config_form = ?, config = ? WHERE id = ?", [
+      split.configForm ? JSON.stringify(split.configForm) : null,
+      split.config ? JSON.stringify(split.config) : null,
+      row.id,
+    ]);
   }
   const columns = query(db, "PRAGMA table_info(webdav_services_v2)").map((row) => row.name);
   if (!columns.includes("username") && !columns.includes("password")) return;
@@ -383,9 +407,19 @@ function readDatabaseState(db: SqliteTypes.SqliteInstance) {
   const hasCredentialsColumns = query(db, "PRAGMA table_info(webdav_services_v2)").some(
     (row) => row.name === "username" || row.name === "password",
   );
-  const hasCookie =
+  const hasStoredCredentials =
     scalarNumber(db, "SELECT COUNT(*) FROM sqlite_master WHERE name = 'config' AND type = 'table'") !== 0 &&
-    scalarNumber(db, "SELECT COUNT(*) FROM config WHERE key = 'cookie'") !== 0;
+    scalarNumber(db, "SELECT COUNT(*) FROM config WHERE key IN ('cookie', 'githubToken')") !== 0;
+  const hasAiTable =
+    scalarNumber(
+      db,
+      "SELECT COUNT(*) FROM sqlite_master WHERE name = 'ai_translation_services_v2' AND type = 'table'",
+    ) !== 0;
+  const hasAiSecrets =
+    hasAiTable &&
+    query(db, "SELECT config_form, config FROM ai_translation_services_v2").some(
+      (row) => splitAITranslationConfig(readAiConfig(row as LegacyAiService)).hasPersistedSecrets,
+    );
   const hasDeviceCounters = query(db, "PRAGMA table_info(tag_access_count_v2)").some((row) => row.name === "device_id");
   const hasDeviceId = hasDeviceCounters && Boolean(readDeviceId(db));
   return {
@@ -395,7 +429,8 @@ function readDatabaseState(db: SqliteTypes.SqliteInstance) {
       !hasLegacyTables &&
       hasViews &&
       !hasCredentialsColumns &&
-      !hasCookie &&
+      !hasStoredCredentials &&
+      !hasAiSecrets &&
       hasDeviceCounters &&
       hasDeviceId,
   };
@@ -433,7 +468,11 @@ export function initializeDatabase(databasePath: string, progress: (phase: strin
     const credentialsPath = credentialsPathForDatabase(databasePath);
     const previousCredentials = readCredentials(credentialsPath, readCredentialsRevision(db));
     if (ready) return;
-    const credentials: Credentials = { ...previousCredentials, webdav: { ...previousCredentials.webdav } };
+    const credentials: Credentials = {
+      ...previousCredentials,
+      webdav: { ...previousCredentials.webdav },
+      aiTranslation: { ...previousCredentials.aiTranslation },
+    };
 
     // VACUUM INTO includes committed WAL contents; a plain file copy would not.
     const hasUserTables =
@@ -485,7 +524,7 @@ export function initializeDatabase(databasePath: string, progress: (phase: strin
       progress("迁移全局阅读设置");
       migrateGlobalReaderConfig(db);
       progress("迁移 AI 服务");
-      migrateAiServices(db);
+      migrateAiServices(db, credentials);
       progress("迁移 WebDAV 服务");
       migrateWebdavServices(db, credentials);
       progress("迁移搜索书签");
@@ -503,14 +542,14 @@ export function initializeDatabase(databasePath: string, progress: (phase: strin
         `Favorites ${index}`,
       ]);
     }
-    progress("迁移 cookie 和 WebDAV 凭据到 credentials.json");
+    progress("迁移 cookie、GitHub Token、WebDAV 和 AI 敏感配置到 credentials.json");
     migrateStoredCredentials(db, credentials);
     credentialsUpdate = prepareCredentialsUpdate(credentialsPath, previousCredentials, credentials);
     update(db, "INSERT INTO config (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", [
       CREDENTIALS_REVISION_KEY,
       JSON.stringify(credentialsUpdate.revision),
     ]);
-    update(db, "DELETE FROM config WHERE key = 'cookie'");
+    update(db, "DELETE FROM config WHERE key IN ('cookie', 'githubToken', 'aiTranslationSavedConfigText')");
     script("db-v1-delete.sql", "清理旧版表");
     progress("清理旧版设置并检查外键");
     for (const [key] of GLOBAL_READER_CONFIG_FIELDS) update(db, "DELETE FROM config WHERE key = ?", [key]);

@@ -23,18 +23,12 @@ import {
   readCredentials,
 } from "./credentials";
 import { appLog } from "./tools";
-import {
-  readAITranslationSecrets,
-  saveAITranslationSecrets,
-  splitAITranslationConfig,
-} from "../ai-translations/secure-config";
+import { mergeAITranslationSecrets, splitAITranslationConfig } from "../ai-translations/secure-config";
 
 interface Config {
   exhentai: boolean; // 是否登录Exhentai
   syncMyTags: boolean; // 是否同步我的标签
   mpvAvailable: boolean; // 是否可用MPV
-
-  githubToken: string; // GitHub Token，用于获取标签翻译
 
   homepageManagerLayoutMode: "large" | "normal" | "minimal"; // 主页管理器布局模式
   archiveManagerLayoutMode: "large" | "normal" | "minimal"; // 存档管理器布局模式
@@ -102,7 +96,6 @@ const defaultConfig: Config = {
   exhentai: false,
   syncMyTags: false,
   mpvAvailable: false,
-  githubToken: "",
   homepageManagerLayoutMode: "large",
   archiveManagerLayoutMode: "large",
   tagManagerOnlyShowBookmarked: false,
@@ -353,11 +346,11 @@ class ConfigManager {
   }
 
   get githubToken() {
-    return this._config.githubToken;
+    return this._readCredentials().githubToken ?? "";
   }
 
   set githubToken(value: string) {
-    this._setConfig("githubToken", value);
+    this._saveCredentials({ ...this._readCredentials(), githubToken: value });
   }
 
   get homepageManagerLayoutMode() {
@@ -1177,7 +1170,10 @@ class ConfigManager {
       config_form: string | null;
       config: string | null;
     }[];
-    return rows.map((row) => {
+    const credentials = this._readCredentials();
+    const aiTranslation: NonNullable<Credentials["aiTranslation"]> = {};
+    const statements: DatabaseStatement[] = [];
+    const services = rows.map((row) => {
       const service: AITranslationService = {
         id: row.id,
         name: row.name,
@@ -1186,24 +1182,41 @@ class ConfigManager {
         configForm: row.config_form ? (JSON.parse(row.config_form) as AITranslationConfigFormItem[]) : undefined,
         config: row.config ? (JSON.parse(row.config) as Record<string, any>) : undefined,
       };
-      const split = splitAITranslationConfig(service);
-      const keys = Object.keys(split.secrets);
-      if (!keys.length) return service;
-      const saved = readAITranslationSecrets(row.id);
-      const secrets = Object.fromEntries(
-        keys.map((key) => [key, Object.prototype.hasOwnProperty.call(saved, key) ? saved[key] : split.secrets[key]]),
-      );
-      if (split.hasPersistedSecrets) {
-        saveAITranslationSecrets(row.id, secrets, () =>
-          dbManager.update("UPDATE ai_translation_services_v2 SET config_form = ?, config = ? WHERE id = ?", [
-            JSON.stringify(split.configForm),
+      const merged = mergeAITranslationSecrets(service, credentials.aiTranslation?.[row.id]);
+      const split = splitAITranslationConfig(merged);
+      if (Object.keys(split.secrets).length) aiTranslation[row.id] = split.secrets;
+      if (
+        JSON.stringify(split.configForm) !== JSON.stringify(service.configForm) ||
+        JSON.stringify(split.config) !== JSON.stringify(service.config)
+      ) {
+        statements.push({
+          sql: "UPDATE ai_translation_services_v2 SET config_form = ?, config = ? WHERE id = ?",
+          args: [
+            split.configForm ? JSON.stringify(split.configForm) : null,
             split.config ? JSON.stringify(split.config) : null,
             row.id,
-          ]),
-        );
+          ],
+        });
       }
-      return { ...service, configForm: split.configForm, config: { ...split.config, ...secrets } };
+      return {
+        ...service,
+        configForm: split.configForm,
+        config:
+          merged.config || Object.keys(split.secrets).length ? { ...split.config, ...split.secrets } : service.config,
+      };
     });
+    if (statements.length || JSON.stringify(aiTranslation) !== JSON.stringify(credentials.aiTranslation ?? {})) {
+      this._saveCredentials({ ...credentials, aiTranslation }, statements);
+    }
+    return services;
+  }
+
+  private _saveAITranslationSecrets(id: string, secrets: Record<string, string>, statements: DatabaseStatement[]) {
+    const credentials = this._readCredentials();
+    const aiTranslation = { ...credentials.aiTranslation };
+    if (Object.keys(secrets).length) aiTranslation[id] = secrets;
+    else delete aiTranslation[id];
+    this._saveCredentials({ ...credentials, aiTranslation }, statements);
   }
 
   addAITranslationService(service: AITranslationService) {
@@ -1243,7 +1256,7 @@ class ConfigManager {
       ],
     });
 
-    saveAITranslationSecrets(id, secrets, () => dbManager.transactionUpdate(statements));
+    this._saveAITranslationSecrets(id, secrets, statements);
 
     this._aiTranslationServices = this._queryAITranslationServices();
   }
@@ -1253,6 +1266,7 @@ class ConfigManager {
       throw new Error("editAITranslationService 只能用于编辑已有服务");
     }
     const id = service.id;
+    service = { ...service, ...mergeAITranslationSecrets(service, this._readCredentials().aiTranslation?.[id]) };
     const { secrets, ...split } = splitAITranslationConfig(service);
     service = { ...service, configForm: split.configForm, config: split.config };
 
@@ -1279,7 +1293,7 @@ class ConfigManager {
       ],
     });
 
-    saveAITranslationSecrets(id, secrets, () => dbManager.transactionUpdate(statements));
+    this._saveAITranslationSecrets(id, secrets, statements);
 
     this._aiTranslationServices = this._queryAITranslationServices();
   }
@@ -1287,9 +1301,12 @@ class ConfigManager {
   deleteAITranslationService(name: string) {
     const service = this._aiTranslationServices.find((service) => service.name === name);
     if (!service?.id) return;
-    saveAITranslationSecrets(service.id, {}, () =>
-      dbManager.update("UPDATE ai_translation_services_v2 SET deleted = 1, selected = 0 WHERE id = ?", [service.id]),
-    );
+    this._saveAITranslationSecrets(service.id, {}, [
+      {
+        sql: "UPDATE ai_translation_services_v2 SET deleted = 1, selected = 0 WHERE id = ?",
+        args: [service.id],
+      },
+    ]);
     this._aiTranslationServices = this._queryAITranslationServices();
   }
 

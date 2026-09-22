@@ -3,6 +3,8 @@ export const CREDENTIALS_REVISION_KEY = "_credentials_revision";
 export interface Credentials {
   version: 1;
   cookie: string;
+  githubToken?: string;
+  aiTranslation?: Record<string, Record<string, string>>;
   webdav: Record<string, { username: string | null; password: string | null }>;
   sync?: { url: string; masterKey: string };
 }
@@ -15,11 +17,26 @@ export function credentialsPathForDatabase(databasePath: string): string {
   return databasePath.replace(/[^/]+$/, "credentials.json");
 }
 
+function stringRecord(value: any): boolean {
+  return (
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.values(value).every((entry) => typeof entry === "string")
+  );
+}
+
 function validCredentials(value: any): value is Credentials {
   return (
     value &&
     value.version === 1 &&
     typeof value.cookie === "string" &&
+    (value.githubToken === undefined || typeof value.githubToken === "string") &&
+    (value.aiTranslation === undefined ||
+      (value.aiTranslation &&
+        typeof value.aiTranslation === "object" &&
+        !Array.isArray(value.aiTranslation) &&
+        Object.values(value.aiTranslation).every(stringRecord))) &&
     (value.sync === undefined ||
       (value.sync && typeof value.sync.url === "string" && typeof value.sync.masterKey === "string")) &&
     value.webdav &&

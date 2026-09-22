@@ -1,9 +1,6 @@
 import type { AITranslationConfigFormItem, AITranslationService } from "../types";
 import { getAITranslationConfigValue } from "./config-form-utils";
 
-const KEYCHAIN_DOMAIN = "JSEhViewer.ai-translation";
-const keyForService = (id: string) => `service:${id}`;
-
 export function splitAITranslationConfig(service: Pick<AITranslationService, "configForm" | "config">) {
   const fields = (service.configForm ?? []).filter(
     (item): item is Extract<AITranslationConfigFormItem, { type: "string" }> =>
@@ -24,42 +21,24 @@ export function splitAITranslationConfig(service: Pick<AITranslationService, "co
   };
 }
 
-export function readAITranslationSecrets(id: string): Record<string, string> {
-  const raw = $keychain.get(keyForService(id), KEYCHAIN_DOMAIN);
-  if (!raw) return {};
-  const values: unknown = JSON.parse(raw);
-  if (
-    !values ||
-    typeof values !== "object" ||
-    Array.isArray(values) ||
-    Object.values(values).some((v) => typeof v !== "string")
-  ) {
-    throw new Error("AI 翻译敏感配置格式无效");
-  }
-  return values as Record<string, string>;
-}
-
-/** Write secrets first; if the SQL transaction fails, restore the previous entry. */
-export function saveAITranslationSecrets(id: string, secrets: Record<string, string>, saveDatabase: () => void): void {
-  const key = keyForService(id);
-  const previous = $keychain.get(key, KEYCHAIN_DOMAIN);
-  const next = Object.keys(secrets).length ? JSON.stringify(secrets) : undefined;
-  const write = (value: string | undefined) => {
-    if (value) {
-      if (!$keychain.set(key, value, KEYCHAIN_DOMAIN)) throw new Error("无法保存 AI 翻译敏感配置");
-    } else if ($keychain.get(key, KEYCHAIN_DOMAIN) && !$keychain.remove(key, KEYCHAIN_DOMAIN)) {
-      throw new Error("无法删除 AI 翻译敏感配置");
-    }
+/** Reconcile the current schema with local values, including secure -> ordinary changes.
+ * Explicit values (even an empty string) win. Removed secret fields must not leak into SQL.
+ */
+export function mergeAITranslationSecrets(
+  service: Pick<AITranslationService, "configForm" | "config">,
+  saved: Record<string, string> = {},
+) {
+  const keys = new Set((service.configForm ?? []).map((item) => item.key));
+  const retained = Object.fromEntries(Object.entries(saved).filter(([key]) => keys.has(key)));
+  const config = service.config
+    ? Object.fromEntries(
+        Object.entries(service.config).filter(
+          ([key]) => keys.has(key) || !Object.prototype.hasOwnProperty.call(saved, key),
+        ),
+      )
+    : undefined;
+  return {
+    ...service,
+    config: Object.keys(retained).length ? { ...retained, ...config } : config,
   };
-  if (previous === next || (!previous && !next)) {
-    saveDatabase();
-    return;
-  }
-  write(next);
-  try {
-    saveDatabase();
-  } catch (error) {
-    write(previous);
-    throw error;
-  }
 }

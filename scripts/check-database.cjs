@@ -21,8 +21,6 @@ function setup({
   seed = "",
   failSql,
   assets = {},
-  keychain = new Map(),
-  failKeychain,
   failCredentialsWrite,
   onSql,
   onQuery,
@@ -118,18 +116,14 @@ function setup({
     setTimeout,
     clearTimeout,
     $sqlite: { open, close: (db) => db.close() },
-    $keychain: {
-      get: (key, domain) => keychain.get(`${domain}/${key}`),
-      set(key, value, domain) {
-        if (failKeychain?.()) return false;
-        keychain.set(`${domain}/${key}`, value);
-        return true;
+    $keychain: new Proxy(
+      {},
+      {
+        get() {
+          throw new Error("Keychain must never be used");
+        },
       },
-      remove(key, domain) {
-        if (failKeychain?.()) return false;
-        return keychain.delete(`${domain}/${key}`);
-      },
-    },
+    ),
     $file: {
       absolutePath: (filename) => filename,
       read: (filename) => ({
@@ -932,8 +926,7 @@ test("secure schema validation, templates, summaries and preference rows preserv
 });
 
 test("AI secrets stay outside SQL, survive reload and rename, and are removed with their field or service", () => {
-  const keychain = new Map();
-  const env = setup({ keychain });
+  const env = setup();
   try {
     let config = env.load("utils/config").configManager;
     config.addAITranslationService({
@@ -948,7 +941,7 @@ test("AI secrets stay outside SQL, survive reload and rename, and are removed wi
     let stored = env.inspect("SELECT config,config_form FROM ai_translation_services_v2 WHERE id=?", [id])[0];
     assert.deepEqual(JSON.parse(stored.config), { host: "example" });
     assert.doesNotMatch(JSON.stringify(stored), /secret-one/);
-    assert.equal(keychain.size, 1);
+    assert.deepEqual(readCredentialsFile(env).aiTranslation[id], { apiKey: "secret-one" });
     config = env.reload("utils/config").configManager;
     service = config.aiTranslationServices.find((row) => row.id === id);
     assert.equal(service.config.apiKey, "secret-one");
@@ -960,10 +953,10 @@ test("AI secrets stay outside SQL, survive reload and rename, and are removed wi
     service = config.aiTranslationServices.find((row) => row.id === id);
     assert.equal(service.config.apiKey, "");
     config.editAITranslationService({ ...service, configForm: [secureForm[0]], config: { host: "example" } });
-    assert.equal(keychain.size, 0);
+    assert.equal(readCredentialsFile(env).aiTranslation[id], undefined);
     config.editAITranslationService({ ...service, config: { host: "example", apiKey: "secret-three" } });
     config.deleteAITranslationService("renamed");
-    assert.equal(keychain.size, 0);
+    assert.equal(readCredentialsFile(env).aiTranslation[id], undefined);
     stored = env.inspect("SELECT config,deleted FROM ai_translation_services_v2 WHERE id=?", [id])[0];
     assert.equal(stored.deleted, 1);
     assert.doesNotMatch(stored.config, /secret-three/);
@@ -974,12 +967,10 @@ test("AI secrets stay outside SQL, survive reload and rename, and are removed wi
 
 test("marking an existing field secure removes its stored value and failed saves preserve both stores", () => {
   let failSql = false,
-    failKeychain = false;
-  const keychain = new Map();
+    failFile = false;
   const env = setup({
-    keychain,
     failSql: (sql) => failSql && sql.startsWith("UPDATE ai_translation_services_v2"),
-    failKeychain: () => failKeychain,
+    failCredentialsWrite: () => failFile,
   });
   try {
     const config = env.load("utils/config").configManager;
@@ -998,18 +989,18 @@ test("marking an existing field secure removes its stored value and failed saves
       JSON.parse(env.inspect("SELECT config FROM ai_translation_services_v2 WHERE id=?", [service.id])[0].config),
       { host: "example" },
     );
-    const before = [...keychain.entries()];
-    failKeychain = true;
+    const before = readCredentialsFile(env);
+    failFile = true;
     assert.throws(
       () =>
         config.editAITranslationService({
           ...service,
-          name: "failed-keychain",
+          name: "failed-file",
           config: { host: "other", apiKey: "new-secret" },
         }),
-      /敏感配置/,
+      /credentials.json/,
     );
-    failKeychain = false;
+    failFile = false;
     failSql = true;
     assert.throws(
       () =>
@@ -1020,7 +1011,7 @@ test("marking an existing field secure removes its stored value and failed saves
         }),
       /injected/,
     );
-    assert.deepEqual([...keychain.entries()], before);
+    assert.deepEqual(readCredentialsFile(env), before);
     assert.equal(
       env.inspect("SELECT name FROM ai_translation_services_v2 WHERE id=?", [service.id])[0].name,
       "conversion",
@@ -1218,7 +1209,12 @@ test("restart resolves interrupted credential writes from the committed SQL revi
       migration.initializeDatabase(env.dbPath);
       const { prepareCredentialsUpdate, CREDENTIALS_REVISION_KEY } = env.load("utils/credentials");
       const previous = readCredentialsFile(env);
-      const next = { ...previous, cookie: "next-cookie" };
+      const next = {
+        ...previous,
+        cookie: "next-cookie",
+        githubToken: "next-token",
+        aiTranslation: { service: { apiKey: "next-ai-secret" } },
+      };
       const pending = prepareCredentialsUpdate(env.credentialsPath, previous, next);
       if (committed) {
         const native = new DatabaseSync(env.dbPath);
@@ -2271,5 +2267,242 @@ test("transient database failures still retry and retain their original code", a
     assert.deepEqual(waits, [1, 2]);
   } finally {
     env.close();
+  }
+});
+
+test("v1-to-v2 extracts GitHub and AI secrets before ConfigManager is loaded", () => {
+  for (const version of [0, 1]) {
+    const env = setup({ version, seed: seedV1 });
+    try {
+      const native = new DatabaseSync(env.dbPath);
+      native.prepare("INSERT INTO config VALUES('githubToken',?)").run(JSON.stringify("github-secret"));
+      native
+        .prepare("INSERT INTO config VALUES('aiTranslationSavedConfigText',?)")
+        .run(JSON.stringify("obsolete-secret"));
+      native
+        .prepare("UPDATE ai_translation_services SET config_form=?,config=? WHERE id=1")
+        .run(
+          JSON.stringify([
+            ...secureForm,
+            { ...secureForm[1], key: "defaultKey", default: "schema-secret" },
+            { ...secureForm[1], key: "emptyKey", default: "fallback-secret" },
+          ]),
+          JSON.stringify({ host: "example", apiKey: "ai-secret", emptyKey: "" }),
+        );
+      native.close();
+      const migration = env.load("utils/database-migration");
+      migration.initializeDatabase(env.dbPath);
+      const [row] = env.inspect("SELECT * FROM ai_translation_services_v2");
+      const credentials = readCredentialsFile(env);
+      assert.equal(credentials.githubToken, "github-secret");
+      assert.deepEqual(credentials.aiTranslation[row.id], {
+        apiKey: "ai-secret",
+        defaultKey: "schema-secret",
+        emptyKey: "",
+      });
+      assert.deepEqual(JSON.parse(row.config), { host: "example" });
+      assert.ok(
+        JSON.parse(row.config_form)
+          .filter((item) => item.secure)
+          .every((item) => item.default === ""),
+      );
+      assert.equal(
+        env.inspect("SELECT * FROM config WHERE key IN ('githubToken','aiTranslationSavedConfigText')").length,
+        0,
+      );
+      assert.doesNotMatch(JSON.stringify(row), /ai-secret|schema-secret|fallback-secret/);
+      assert.equal(migration.isDatabaseReady(env.dbPath), true);
+      const before = fs.readFileSync(env.credentialsPath, "utf8");
+      migration.initializeDatabase(env.dbPath);
+      assert.equal(fs.readFileSync(env.credentialsPath, "utf8"), before);
+      const config = env.load("utils/config").configManager;
+      assert.equal(config.githubToken, "github-secret");
+      assert.equal(config.aiTranslationServices[0].config.apiKey, "ai-secret");
+      assert.equal(env.inspect("SELECT * FROM config WHERE key='githubToken'").length, 0);
+    } finally {
+      env.close();
+    }
+  }
+});
+
+test("GitHub token edits, clearing and reload remain file-only and roll back on failure", () => {
+  let failFile = false,
+    failCommit = false;
+  const env = setup({ failCredentialsWrite: () => failFile, failSql: (sql) => failCommit && sql === "COMMIT" });
+  try {
+    let config = env.load("utils/config").configManager;
+    assert.equal(config.githubToken, "");
+    config.githubToken = "github-one";
+    config = env.reload("utils/config").configManager;
+    assert.equal(config.githubToken, "github-one");
+    const before = readCredentialsFile(env);
+    failFile = true;
+    assert.throws(() => {
+      config.githubToken = "github-two";
+    }, /credentials.json/);
+    failFile = false;
+    failCommit = true;
+    assert.throws(() => {
+      config.githubToken = "github-three";
+    }, /injected/);
+    failCommit = false;
+    assert.deepEqual(readCredentialsFile(env), before);
+    config.githubToken = "";
+    assert.equal(env.reload("utils/config").configManager.githubToken, "");
+    assert.equal(env.inspect("SELECT * FROM config WHERE key='githubToken'").length, 0);
+  } finally {
+    env.close();
+  }
+});
+
+test("secure flags move arbitrary fields in both directions repeatedly without losing values", () => {
+  const env = setup();
+  try {
+    let config = env.load("utils/config").configManager;
+    config.addAITranslationService({
+      name: "toggle",
+      selected: false,
+      scriptText: "async () => {}",
+      configForm: secureForm,
+      config: { host: "private-host", apiKey: "secret-key" },
+    });
+    const id = config.aiTranslationServices.find((s) => s.name === "toggle").id;
+    for (let index = 0; index < 4; index++) {
+      const service = config.aiTranslationServices.find((s) => s.id === id);
+      const form = secureForm.map((item) => ({
+        ...item,
+        secure: index % 2 === 0 ? item.key === "host" : item.key === "apiKey",
+      }));
+      // Use only SQL values: the file must supply a formerly secure field during schema edits.
+      const stored = env.inspect("SELECT config FROM ai_translation_services_v2 WHERE id=?", [id])[0];
+      config.editAITranslationService({ ...service, configForm: form, config: JSON.parse(stored.config) });
+      const next = readCredentialsFile(env).aiTranslation[id];
+      const sql = JSON.parse(env.inspect("SELECT config FROM ai_translation_services_v2 WHERE id=?", [id])[0].config);
+      assert.deepEqual(next, index % 2 === 0 ? { host: "private-host" } : { apiKey: "secret-key" });
+      assert.deepEqual(sql, index % 2 === 0 ? { apiKey: "secret-key" } : { host: "private-host" });
+      config = env.reload("utils/config").configManager;
+      assert.deepEqual(plain(config.aiTranslationServices.find((s) => s.id === id).config), {
+        host: "private-host",
+        apiKey: "secret-key",
+      });
+    }
+    const service = config.aiTranslationServices.find((s) => s.id === id);
+    // A schema-only removal with stale runtime values must not leak the removed secret into SQL.
+    config.editAITranslationService({ ...service, configForm: [secureForm[0]] });
+    assert.equal(readCredentialsFile(env).aiTranslation[id], undefined);
+    assert.deepEqual(
+      JSON.parse(env.inspect("SELECT config FROM ai_translation_services_v2 WHERE id=?", [id])[0].config),
+      { host: "private-host" },
+    );
+  } finally {
+    env.close();
+  }
+});
+
+test("schema changes loaded from SQL restore ordinary fields and prune removed credentials", () => {
+  const env = setup();
+  try {
+    let config = env.load("utils/config").configManager;
+    config.addAITranslationService({
+      name: "external-schema",
+      selected: false,
+      scriptText: "async () => {}",
+      configForm: secureForm,
+      config: { host: "example", apiKey: "local-secret" },
+    });
+    const id = config.aiTranslationServices.find((s) => s.name === "external-schema").id;
+    const db = env.load("utils/database").dbManager;
+    db.update("UPDATE ai_translation_services_v2 SET config_form=? WHERE id=?", [
+      JSON.stringify(secureForm.map((s) => ({ ...s, secure: false }))),
+      id,
+    ]);
+    config = env.reload("utils/config").configManager;
+    assert.equal(config.aiTranslationServices.find((s) => s.id === id).config.apiKey, "local-secret");
+    assert.equal(readCredentialsFile(env).aiTranslation[id], undefined);
+    assert.equal(
+      JSON.parse(env.inspect("SELECT config FROM ai_translation_services_v2 WHERE id=?", [id])[0].config).apiKey,
+      "local-secret",
+    );
+    db.update("UPDATE ai_translation_services_v2 SET config_form=? WHERE id=?", [JSON.stringify(secureForm), id]);
+    config = env.reload("utils/config").configManager;
+    assert.equal(readCredentialsFile(env).aiTranslation[id].apiKey, "local-secret");
+    db.update("UPDATE ai_translation_services_v2 SET deleted=1 WHERE id=?", [id]);
+    env.reload("utils/config");
+    assert.equal(readCredentialsFile(env).aiTranslation[id], undefined);
+  } finally {
+    env.close();
+  }
+});
+
+test("draft v2 with GitHub or inline AI credentials completes the same migration", () => {
+  const env = setup();
+  try {
+    const migration = env.load("utils/database-migration");
+    migration.initializeDatabase(env.dbPath);
+    const native = new DatabaseSync(env.dbPath);
+    native.prepare("INSERT INTO config VALUES('githubToken',?)").run(JSON.stringify("draft-github"));
+    native
+      .prepare(
+        "INSERT INTO ai_translation_services_v2(id,name,script_text,config_form,config,sync_version) VALUES(?,?,?,?,?,?)",
+      )
+      .run(
+        "draft-ai",
+        "draft",
+        "async () => {}",
+        JSON.stringify(secureForm),
+        JSON.stringify({ apiKey: "draft-secret" }),
+        7,
+      );
+    native.close();
+    assert.equal(migration.isDatabaseReady(env.dbPath), false);
+    migration.initializeDatabase(env.dbPath);
+    assert.equal(migration.isDatabaseReady(env.dbPath), true);
+    assert.equal(readCredentialsFile(env).githubToken, "draft-github");
+    assert.deepEqual(readCredentialsFile(env).aiTranslation["draft-ai"], { apiKey: "draft-secret" });
+    const [row] = env.inspect("SELECT * FROM ai_translation_services_v2 WHERE id='draft-ai'");
+    assert.equal(row.sync_version, 7);
+    assert.doesNotMatch(row.config, /draft-secret/);
+  } finally {
+    env.close();
+  }
+});
+
+test("migration failures preserve legacy GitHub and AI values and the previous credentials file", () => {
+  for (const failure of ["file", "commit"]) {
+    const env = setup({
+      version: 1,
+      seed: seedV1,
+      failCredentialsWrite: () => failure === "file",
+      failSql: (sql) => failure === "commit" && sql === "COMMIT",
+    });
+    try {
+      const previous = {
+        version: 1,
+        cookie: "old-cookie",
+        webdav: {},
+        githubToken: "old-github",
+        aiTranslation: { other: { key: "old-ai" } },
+      };
+      fs.writeFileSync(env.credentialsPath, JSON.stringify(previous));
+      const native = new DatabaseSync(env.dbPath);
+      native.prepare("INSERT INTO config VALUES('githubToken',?)").run(JSON.stringify("legacy-github"));
+      native
+        .prepare("UPDATE ai_translation_services SET config_form=?,config=?")
+        .run(JSON.stringify(secureForm), JSON.stringify({ apiKey: "legacy-ai" }));
+      native.close();
+      assert.throws(
+        () => env.load("utils/database-migration").initializeDatabase(env.dbPath),
+        /credentials.json|injected/,
+      );
+      assert.deepEqual(readCredentialsFile(env), previous);
+      assert.equal(env.inspect("PRAGMA user_version")[0].user_version, 1);
+      assert.equal(
+        JSON.parse(env.inspect("SELECT value FROM config WHERE key='githubToken'")[0].value),
+        "legacy-github",
+      );
+      assert.equal(JSON.parse(env.inspect("SELECT config FROM ai_translation_services")[0].config).apiKey, "legacy-ai");
+    } finally {
+      env.close();
+    }
   }
 });

@@ -11,7 +11,9 @@
 
 首次选择某张表时，本机已有数据保留为待上传意图。云端相同内容自动消除重复；不同内容保留为冲突。关闭表不会删除本地或云端记录，再次启用会完整下载及补拉。服务端仍返回全局分页，表选择在客户端过滤，不减少服务端全局分页读取量。
 
-API 地址和主密钥保存在 `assets/credentials.json` 的 `sync: {url, masterKey}`，沿用文件原子替换及 SQLite revision 恢复机制。安装包排除凭据文件和运行时数据库。Cookie、WebDAV 凭据、AI 敏感参数、下载任务不上传。AI `selected` 和 WebDAV `enabled` 不进入 content；下载新增服务默认关闭，已有服务保留本机选择，删除服务会关闭本机选择。
+API 地址和主密钥保存在 `assets/credentials.json` 的 `sync: {url, masterKey}`，沿用文件原子替换及 SQLite revision 恢复机制。安装包排除凭据文件和运行时数据库。Cookie、GitHub Token、WebDAV 凭据、AI 敏感参数、下载任务不上传。AI `selected` 和 WebDAV `enabled` 不进入 content；下载新增服务默认关闭，已有服务保留本机选择，删除服务会关闭本机选择。
+
+v1-to-v2 迁移将 `config.githubToken` 保存到凭据文件的 `githubToken`，将 AI 表单中 `secure: true` 字段的值按服务 ID 保存到 `aiTranslation: { [id]: { [key]: value } }`，并清空数据库中的敏感默认值。后续修改 secure 标记时，值在数据库和凭据文件间转移；删除字段或服务会清理对应凭据。所有凭据修改使用同一套文件原子替换与 SQLite revision 恢复机制，不使用 `$keychain`。
 
 同步日志显示无法应用的记录及失败类别，不保存主密钥、请求正文或底层数据库错误。设备管理支持禁用/重新启用。同步身份重建仅用于无未确认请求时的旧备份恢复；数据库及设备身份不能直接复制给另一个安装实例使用。
 

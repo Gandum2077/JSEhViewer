@@ -301,7 +301,7 @@ class ConfigManager {
     return this._readCredentials().sync;
   }
 
-  saveSyncCredentials(value: { url: string; masterKey: string }, statements: DatabaseStatement[] = []) {
+  saveSyncCredentials(value: { url: string; masterKey: string } | undefined, statements: DatabaseStatement[] = []) {
     this._saveCredentials({ ...this._readCredentials(), sync: value }, statements);
   }
 

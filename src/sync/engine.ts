@@ -1,12 +1,14 @@
 import URLParse from "url-parse";
 import { SYNC_TABLES, tableSpec } from "./schema";
 import { quotaErrorCodes } from "./errors";
+import { syncLog } from "./logging";
 import { configManager } from "../utils/config";
 import { dbManager } from "../utils/database";
 import {
   CloudRecord,
   Pending,
   applyMirror,
+  applyRecord,
   equalRecord,
   getMeta,
   localRecord,
@@ -28,8 +30,22 @@ type Operation = {
 };
 type Inflight = { body: string; pending: Pending[] };
 export type Transport = (method: string, path: string, body?: string) => Promise<any>;
+export type ReadRecord =
+  | (CloudRecord & { found: true; server_updated_at: number; updated_by_device_id: string })
+  | { tablename: string; id: string; found: false };
+export interface ConflictDetail {
+  pending: Pending;
+  local: ReturnType<typeof localRecord>;
+  cloud: ReadRecord;
+}
+class SyncPaused extends Error {}
 class SyncError extends Error {
-  constructor(readonly code: string) {
+  constructor(
+    readonly code: string,
+    readonly method?: string,
+    readonly path?: string,
+    readonly status?: number,
+  ) {
     super(code);
   }
 }
@@ -66,10 +82,31 @@ export function normalizeEndpoint(url: string) {
   return parsed.origin;
 }
 
+let nextRequestId = 0;
+
 async function httpTransport(method: string, path: string, body?: string): Promise<any> {
   const credentials = configManager.syncCredentials;
   if (!credentials) throw new Error("请先配置 Worker 地址和主密钥");
+  const requestId = ++nextRequestId;
+  let logBody: unknown = body;
+  if (body !== undefined) {
+    try {
+      logBody = JSON.parse(body);
+    } catch {}
+  }
   for (let attempt = 0; attempt < 3; attempt++) {
+    const context = { requestId, attempt: attempt + 1, method, path, url: credentials.url + path };
+    syncLog(
+      "request",
+      {
+        ...context,
+        timeout: 30,
+        headers: { Authorization: "Bearer [REDACTED]", Accept: "application/json", "Content-Type": "application/json" },
+        ...(body === undefined ? {} : { body: logBody }),
+      },
+      "info",
+      credentials.masterKey,
+    );
     let response: HttpTypes.HttpResponse;
     try {
       response = await $http.request({
@@ -83,7 +120,8 @@ async function httpTransport(method: string, path: string, body?: string): Promi
         },
         ...(body === undefined ? {} : { body: $data({ string: body }) }),
       });
-    } catch {
+    } catch (error) {
+      syncLog("request_error", { ...context, status: 0, error }, "error", credentials.masterKey);
       throw new Error("网络请求失败，未确认的上传已保留；请重试同步");
     }
     const status = response.response?.statusCode ?? 0;
@@ -95,24 +133,44 @@ async function httpTransport(method: string, path: string, body?: string): Promi
     } catch {
       // Transient HTTP failures may have non-JSON responses and can still retry.
     }
+    if (response.error || !status || status < 200 || status >= 300 || !parsed || data?.error) {
+      syncLog(
+        "request_error",
+        {
+          ...context,
+          status,
+          error: data?.error ?? (response.error ? "TRANSPORT_ERROR" : !parsed ? "INVALID_JSON" : `HTTP_${status}`),
+          transportError: response.error,
+          retryAfter: response.response?.headers?.["Retry-After"],
+          responsePreview: parsed && data?.error ? undefined : response.rawData?.string,
+        },
+        "error",
+        credentials.masterKey,
+      );
+    }
+    const failure = (code: string) => new SyncError(code, method, path, status);
     // Quotas cannot recover in a short retry loop. Streamed pages can carry an
     // error after HTTP 200; reject them before staging data or advancing cursors.
-    if (status && quotaErrorCodes.has(data?.error?.code)) throw new SyncError(data.error.code);
-    if ((response.error || status === 429 || status >= 500) && attempt < 2) {
+    if (status && quotaErrorCodes.has(data?.error?.code)) throw failure(data.error.code);
+    if (
+      ((response.error && (!status || (status >= 200 && status < 300))) || status === 429 || status >= 500) &&
+      attempt < 2
+    ) {
       const retry = Number(response.response?.headers?.["Retry-After"]);
       // Do not retry earlier than the server asks. Long waits are left to the user.
-      if (retry > 30) throw new SyncError("RATE_LIMITED");
+      if (retry > 30) throw failure("RATE_LIMITED");
       await $wait(Math.max(2 ** attempt, Number.isFinite(retry) ? retry : 0));
       continue;
     }
     if (status && data?.error)
-      throw new SyncError(
+      throw failure(
         knownErrors.has(data.error.code) ? data.error.code : status === 200 ? "INTERNAL_ERROR" : `HTTP_${status}`,
       );
-    if (response.error || !status) throw new Error("网络请求失败，未确认的上传已保留；请重试同步");
-    if (!parsed) throw new Error("同步响应不完整，已保留原游标和未确认请求");
+    if (!status) throw new Error("网络请求失败，未确认的上传已保留；请重试同步");
     if (status < 200 || status >= 300)
-      throw new SyncError(knownErrors.has(data?.error?.code) ? data.error.code : `HTTP_${status}`);
+      throw failure(knownErrors.has(data?.error?.code) ? data.error.code : `HTTP_${status}`);
+    if (response.error) throw new Error("网络请求失败，未确认的上传已保留；请重试同步");
+    if (!parsed) throw new Error("同步响应不完整，已保留原游标和未确认请求");
     return data;
   }
   throw new Error("同步请求失败");
@@ -120,6 +178,36 @@ async function httpTransport(method: string, path: string, body?: string): Promi
 
 export class SyncEngine {
   busy = false;
+  syncing = false;
+  pauseRequested = false;
+  downloaded = 0;
+  message = "";
+  private listeners = new Set<(message: string, finished: boolean) => void>();
+  subscribe(listener: (message: string, finished: boolean) => void) {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+  private notify(finished: boolean) {
+    for (const listener of this.listeners) {
+      // View teardown must never interrupt a committed synchronization operation.
+      try {
+        listener(this.message, finished);
+      } catch {}
+    }
+  }
+  private checkpoint() {
+    if (this.syncing && this.pauseRequested) throw new SyncPaused();
+  }
+  pause() {
+    if (!this.syncing) return;
+    this.pauseRequested = true;
+  }
+  private async request(method: string, path: string, body?: string) {
+    this.checkpoint();
+    return this.transport(method, path, body);
+  }
   constructor(private transport: Transport = httpTransport) {}
   private idle() {
     if (this.busy) throw new Error("同步正在进行，请稍后操作");
@@ -147,6 +235,22 @@ export class SyncEngine {
       : [];
     configManager.saveSyncCredentials({ url, masterKey }, statements);
   }
+  setDeviceName(name: string) {
+    this.idle();
+    name = name.trim();
+    if (!name || name.length > 32) throw new Error("请输入 1～32 个字符的设备名");
+    dbManager.atomic((tx) => setMeta(tx, "deviceName", name));
+  }
+  async renameDevice(name: string) {
+    const previous = getMeta("deviceName", "JSEhViewer");
+    this.setDeviceName(name);
+    try {
+      await this.connectionTest();
+    } catch (error) {
+      dbManager.atomic((tx) => setMeta(tx, "deviceName", previous));
+      throw error;
+    }
+  }
   async connectionTest() {
     this.idle();
     this.busy = true;
@@ -162,10 +266,10 @@ export class SyncEngine {
       id = $text.uuid.toLowerCase();
       dbManager.atomic((tx) => setMeta(tx, "deviceId", id));
     }
-    const data = await this.transport(
+    const data = await this.request(
       "PUT",
       `/v1/devices/${encodeURIComponent(id)}`,
-      JSON.stringify({ name: "JSEhViewer", platform: "JSBox" }),
+      JSON.stringify({ name: getMeta("deviceName", "JSEhViewer"), platform: "JSBox" }),
     );
     if (!data?.device || data.device.id !== id || !Number.isSafeInteger(data.device.last_request_seq))
       throw new Error("设备注册响应无效");
@@ -179,7 +283,17 @@ export class SyncEngine {
   async synchronize(progress: (message: string) => void = () => {}, full = false) {
     this.idle();
     this.busy = true;
+    this.syncing = true;
+    this.pauseRequested = false;
+    this.downloaded = 0;
+    const report = progress;
+    progress = (message) => {
+      this.message = message;
+      this.notify(false);
+      report(message);
+    };
     try {
+      dbManager.atomic((tx) => setMeta(tx, "paused", false));
       if (!selectedTables().length) throw new Error("请至少选择一项同步内容");
       progress("注册设备…");
       await this.register();
@@ -187,6 +301,10 @@ export class SyncEngine {
       if (getMeta("inflight", null)) {
         progress("确认上次上传…");
         await this.sendInflight();
+      }
+      if (!full && !getMeta("needsFull", true)) {
+        for (const table of getMeta<string[]>("needsTables", []))
+          if (selectedTables().includes(table)) await this.download(true, progress, table);
       }
       progress("下载云端变化…");
       await this.download(full || getMeta("needsFull", true), progress);
@@ -201,16 +319,28 @@ export class SyncEngine {
       }
       progress("核对云端变化…");
       await this.download(false, progress);
+      this.checkpoint();
       dbManager.atomic((tx) => setMeta(tx, "lastSuccess", new Date().toISOString()));
       progress("同步完成");
+      return true;
     } catch (error) {
+      if (error instanceof SyncPaused) {
+        dbManager.atomic((tx) => setMeta(tx, "paused", true));
+        progress("同步已暂停，待处理数据已保留");
+        return false;
+      }
+      syncLog("synchronize_error", { error }, "error");
+      this.message = error instanceof Error ? error.message : "同步未完成";
       dbManager.atomic((tx) => logRecord(tx, "", "", error instanceof SyncError ? error.code : "SYNC_INTERRUPTED"));
       throw error;
     } finally {
       this.busy = false;
+      this.syncing = false;
+      this.pauseRequested = false;
+      this.notify(true);
     }
   }
-  private async download(full: boolean, progress: (message: string) => void) {
+  private async download(full: boolean, progress: (message: string) => void, table?: string) {
     // A failed run can safely restart staging from the last committed cursor.
     // This bounds recovery complexity and never exposes a partial download.
     for (let restart = 0; restart < 3; restart++) {
@@ -221,10 +351,15 @@ export class SyncEngine {
         if (full) {
           let cursor: any = null;
           do {
-            const response = await this.transport(
+            const response = await this.request(
               "POST",
-              "/v1/full-download",
-              JSON.stringify({ device_id: getMeta("deviceId", ""), limit: 100, ...(cursor ? { cursor } : {}) }),
+              table ? "/v1/table-download" : "/v1/full-download",
+              JSON.stringify({
+                device_id: getMeta("deviceId", ""),
+                limit: 100,
+                ...(table ? { tablename: table } : {}),
+                ...(cursor ? { cursor } : {}),
+              }),
             );
             this.validatePage(response, "data");
             if (
@@ -240,18 +375,21 @@ export class SyncEngine {
                 response.next_cursor.start_seq !== seq ||
                 typeof response.next_cursor.after?.tablename !== "string" ||
                 typeof response.next_cursor.after?.id !== "string" ||
+                (table && response.next_cursor.after.tablename !== table) ||
                 JSON.stringify(response.next_cursor) === JSON.stringify(cursor))
             )
               throw new Error("完整下载分页游标无效");
-            this.stage(response.data);
+            if (table && response.data.some((row: CloudRecord) => row.tablename !== table))
+              throw new Error("单表下载响应包含其他表");
+            this.stage(response.data, table);
             cursor = response.has_more ? response.next_cursor : null;
-            progress(`完整下载第 ${++page} 页…`);
+            progress(`${table ? tableSpec(table).title : "完整下载"} · 第 ${++page} 页…`);
           } while (cursor);
         }
         let more: boolean;
         do {
           // All pages are staged; do not acknowledge staged cursors before commit.
-          const response = await this.transport(
+          const response = await this.request(
             "POST",
             "/v1/sync",
             JSON.stringify({ device_id: getMeta("deviceId", ""), seq, limit: 100, include_self: true }),
@@ -263,28 +401,39 @@ export class SyncEngine {
             (response.has_more && response.next_seq === seq)
           )
             throw new Error("增量同步游标无效");
-          this.stage(response.changes);
+          this.stage(response.changes, table);
           seq = response.next_seq;
           more = response.has_more;
           progress(`补拉变化第 ${++page} 页…`);
         } while (more);
         progress("正在应用下载的数据…");
         await $wait(0.001);
+        this.checkpoint();
         const changed = dbManager.atomic((tx) => {
-          if (full) tx.execute("DELETE FROM sync_mirror WHERE tablename IN (SELECT tablename FROM sync_enabled)");
+          if (table) tx.execute("DELETE FROM sync_mirror WHERE tablename=?", [table]);
+          else if (full) tx.execute("DELETE FROM sync_mirror WHERE tablename IN (SELECT tablename FROM sync_enabled)");
           tx.execute(`INSERT INTO sync_mirror SELECT * FROM sync_stage WHERE true
             ON CONFLICT(tablename,id) DO UPDATE SET content=excluded.content,sync_version=excluded.sync_version,deleted=excluded.deleted
             WHERE excluded.sync_version>sync_mirror.sync_version`);
           const changed = applyMirror(tx);
-          setMeta(tx, "seq", seq);
-          setMeta(tx, "needsFull", false);
+          if (!table) {
+            setMeta(tx, "seq", seq);
+            setMeta(tx, "needsFull", false);
+          }
+          if (full)
+            setMeta(
+              tx,
+              "needsTables",
+              table ? getMeta<string[]>("needsTables", []).filter((name) => name !== table) : [],
+            );
           tx.execute("DELETE FROM sync_stage");
           return changed;
         }, true);
         configManager.reloadAfterSync(changed);
         // Explicitly acknowledge only the committed cursor. Ignore this response;
         // a later run will fetch anything newer than the committed cursor.
-        await this.transport("POST", "/v1/sync", JSON.stringify({ device_id: getMeta("deviceId", ""), seq, limit: 1 }));
+        if (!table)
+          await this.request("POST", "/v1/sync", JSON.stringify({ device_id: getMeta("deviceId", ""), seq, limit: 1 }));
         return;
       } catch (error) {
         if (error instanceof SyncError && ["FULL_SYNC_REQUIRED", "INVALID_CURSOR"].includes(error.code)) {
@@ -300,17 +449,20 @@ export class SyncEngine {
     if (!response || !Array.isArray(response[field]) || typeof response.has_more !== "boolean")
       throw new Error("同步响应格式无效");
   }
-  private stage(rows: CloudRecord[]) {
+  private stage(rows: CloudRecord[], table?: string) {
     const selected = new Set(selectedTables());
     dbManager.atomic((tx) => {
-      for (const row of rows) if (selected.has(row.tablename)) saveRecord(tx, "sync_stage", row);
+      for (const row of rows)
+        if (selected.has(row.tablename) && (!table || row.tablename === table)) saveRecord(tx, "sync_stage", row);
     });
+    this.downloaded += rows.filter((row) => selected.has(row.tablename) && (!table || row.tablename === table)).length;
   }
   private async prepareBatch(boundary: number) {
     const selected = new Set(selectedTables());
     for (const spec of SYNC_TABLES) {
       if (!selected.has(spec.name)) continue;
       while (true) {
+        this.checkpoint();
         const candidates = dbManager.query(
           `SELECT * FROM sync_pending INDEXED BY sync_pending_ready
            WHERE tablename=? AND conflict IS NULL AND revision<=?
@@ -399,7 +551,7 @@ export class SyncEngine {
     const saved = getMeta<Inflight | null>("inflight", null);
     if (!saved) return;
     const request = JSON.parse(saved.body),
-      response = await this.transport("POST", "/v1/write", saved.body);
+      response = await this.request("POST", "/v1/write", saved.body);
     if (
       response?.request_seq !== request.request_seq ||
       !Array.isArray(response.results) ||
@@ -419,6 +571,8 @@ export class SyncEngine {
       )
         throw new Error("写入结果无效，原请求已保留");
     });
+    const failures = response.results.filter((result: any) => !result.success);
+    if (failures.length) syncLog("write_conflict", { requestSeq: request.request_seq, results: failures }, "error");
     dbManager.atomic((tx) => {
       response.results.forEach((r: any, index: number) => {
         const op: Operation = request.operations[index],
@@ -461,29 +615,113 @@ export class SyncEngine {
       setMeta(tx, "inflight", null);
     }, true);
   }
-  resolve(table: string, id: string, choice: "cloud" | "local") {
+  /** Batch point reads do not alter the global download cursor or discard local intent. */
+  async readConflicts(pending: Pending[]): Promise<ConflictDetail[]> {
     this.idle();
-    if (getMeta("inflight", null)) throw new Error("请先确认未完成的上传");
+    if (!pending.length) return [];
+    if (pending.length > 100) throw new Error("一次最多读取 100 条冲突");
+    this.busy = true;
+    try {
+      await this.register();
+      const response = await this.request(
+        "POST",
+        "/v1/read",
+        JSON.stringify({
+          device_id: getMeta("deviceId", ""),
+          keys: pending.map(({ tablename, id }) => ({ tablename, id })),
+        }),
+      );
+      if (response?.error) throw new SyncError(response.error.code);
+      if (!Array.isArray(response?.results) || response.results.length !== pending.length)
+        throw new Error("记录读取响应无效");
+      const results: ReadRecord[] = response.results;
+      results.forEach((row, index) => {
+        const key = pending[index];
+        if (
+          row.tablename !== key.tablename ||
+          row.id !== key.id ||
+          typeof row.found !== "boolean" ||
+          (row.found &&
+            (!Number.isSafeInteger(row.sync_version) ||
+              row.sync_version < 1 ||
+              typeof row.deleted !== "boolean" ||
+              (!row.deleted && !("content" in row)) ||
+              !Number.isSafeInteger(row.server_updated_at) ||
+              typeof row.updated_by_device_id !== "string"))
+        )
+          throw new Error("记录读取响应无效");
+        const cached = mirror(key.tablename, key.id);
+        if (cached && (!row.found || row.sync_version < cached.sync_version))
+          throw new Error("云端状态早于本机已知版本，请重新下载后再处理冲突");
+      });
+      return pending.map((entry, index) => ({
+        pending: entry,
+        local: localRecord(entry.tablename, entry.id),
+        cloud: results[index],
+      }));
+    } finally {
+      this.busy = false;
+    }
+  }
+  resolve(table: string, id: string, choice: "cloud" | "local", detail: ConflictDetail) {
+    this.idle();
+    tableSpec(table);
+    if (getMeta("inflight", null)) throw new Error("请先同步，确认未完成的上传");
+    const pending = dbManager.query("SELECT * FROM sync_pending WHERE tablename=? AND id=? AND conflict IS NOT NULL", [
+      table,
+      id,
+    ])[0];
+    if (!pending) throw new Error("这条冲突已变化，请刷新列表");
     if (
-      !dbManager.query("SELECT 1 FROM sync_pending WHERE tablename=? AND id=? AND conflict IS NOT NULL", [table, id])
-        .length
+      detail.pending.tablename !== table ||
+      detail.pending.id !== id ||
+      detail.pending.revision !== pending.revision ||
+      !equalRecord(detail.local, localRecord(table, id))
     )
-      return;
-    const remote = mirror(table, id);
-    if (!remote) throw new Error("请先完成同步，取得冲突记录的云端状态");
+      throw new Error("本机内容已修改，请刷新冲突后重新选择");
+    const cached = mirror(table, id);
+    const remote = detail.cloud.found ? detail.cloud : undefined;
+    if (cached && (!remote || cached.sync_version > remote.sync_version))
+      throw new Error("云端版本已更新，请刷新冲突后重新选择");
     const changed = dbManager.atomic((tx) => {
+      if (remote) saveRecord(tx, "sync_mirror", remote);
+      else tx.execute("DELETE FROM sync_mirror WHERE tablename=? AND id=?", [table, id]);
       if (choice === "cloud") {
+        // Apply strictly: invalid contents/FK failures must retain the conflict.
+        applyRecord(tx, tableSpec(table), remote ?? { tablename: table, id, deleted: true, sync_version: 0 });
         tx.execute("DELETE FROM sync_pending WHERE tablename=? AND id=?", [table, id]);
-        return applyMirror(tx, [{ tablename: table, id }]);
-      } else
-        tx.execute("UPDATE sync_pending SET base_version=?,conflict=NULL,forced=1 WHERE tablename=? AND id=?", [
-          remote.sync_version,
-          table,
-          id,
-        ]);
+        tx.execute("DELETE FROM sync_log WHERE tablename=? AND id=?", [table, id]);
+        return new Set([table]);
+      }
+      // The reviewed version is the new base. A later remote edit conflicts again.
+      tx.execute("UPDATE sync_pending SET base_version=?,conflict=NULL,forced=? WHERE tablename=? AND id=?", [
+        remote?.sync_version ?? 0,
+        0,
+        table,
+        id,
+      ]);
       return new Set<string>();
     }, true);
     configManager.reloadAfterSync(changed);
+  }
+  leave() {
+    this.idle();
+    if (getMeta("inflight", null)) throw new Error("请先同步，确认上次未完成的上传后再脱离");
+    configManager.saveSyncCredentials(undefined, [
+      ...["sync_enabled", "sync_meta", "sync_pending", "sync_mirror", "sync_stage", "sync_log"].map((table) => ({
+        sql: `DELETE FROM ${table}`,
+      })),
+      ...SYNC_TABLES.map((table) => ({ sql: `UPDATE ${table.name} SET sync_version=0` })),
+    ]);
+  }
+  async redownloadTable(table: string, progress: (message: string) => void = () => {}) {
+    this.idle();
+    tableSpec(table);
+    if (!selectedTables().includes(table)) throw new Error("请先启用这项同步内容");
+    dbManager.atomic((tx) =>
+      setMeta(tx, "needsTables", [...new Set([...getMeta<string[]>("needsTables", []), table])]),
+    );
+    return this.synchronize(progress);
   }
   /** Explicit recovery when request state was restored from an obsolete backup. */
   resetIdentity() {
@@ -502,7 +740,7 @@ export class SyncEngine {
       const devices: any[] = [];
       let after: string | null = null;
       do {
-        const r = await this.transport(
+        const r = await this.request(
           "GET",
           `/v1/devices?limit=100${after === null ? "" : `&after_id=${encodeURIComponent(after)}`}`,
         );
@@ -524,7 +762,7 @@ export class SyncEngine {
     this.idle();
     this.busy = true;
     try {
-      await this.transport("PATCH", `/v1/devices/${encodeURIComponent(id)}`, JSON.stringify({ disabled }));
+      await this.request("PATCH", `/v1/devices/${encodeURIComponent(id)}`, JSON.stringify({ disabled }));
     } finally {
       this.busy = false;
     }

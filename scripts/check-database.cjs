@@ -26,6 +26,7 @@ function setup({
   onQuery,
   onWait,
   httpRequest,
+  onAppLog,
 } = {}) {
   const dir = fs.mkdtempSync(path.join(output, "db-"));
   const dbPath = path.join(dir, "database.db");
@@ -95,6 +96,7 @@ function setup({
     "sync/store",
     "sync/engine",
     "sync/errors",
+    "sync/logging",
     "utils/database",
     "utils/database-migration",
     "utils/sqlite",
@@ -169,7 +171,7 @@ function setup({
     if (id === "url-parse") return require("url-parse");
     if (id === "utils/glv")
       return { databasePath: dbPath, imagePath: "image/", thumbnailPath: "thumb/", galleryInfoPath: "info/" };
-    if (id === "utils/tools") return { appLog() {} };
+    if (id === "utils/tools") return { appLog: onAppLog ?? (() => {}) };
     if (id === "ehentai-parser")
       return { EHAPIHandler: class {}, tagNamespaces: ["artist", "female", "language", "temp"] };
     if (id === "jsbox-cview")
@@ -1489,11 +1491,22 @@ function syncServer() {
       }
       return plain(d.result);
     }
-    if (path === "/v1/full-download") {
+    if (path === "/v1/read") {
       reads.push(b);
-      const sorted = [...records.values()].sort(
-        (a, b) => a.tablename.localeCompare(b.tablename) || a.id.localeCompare(b.id),
-      );
+      return {
+        results: b.keys.map((k) => {
+          const record = records.get(key(k.tablename, k.id));
+          return record
+            ? { ...plain(record), found: true, server_updated_at: 1000, updated_by_device_id: "other" }
+            : { ...k, found: false };
+        }),
+      };
+    }
+    if (path === "/v1/full-download" || path === "/v1/table-download") {
+      reads.push(b);
+      const sorted = [...records.values()]
+        .filter((record) => path !== "/v1/table-download" || record.tablename === b.tablename)
+        .sort((a, b) => a.tablename.localeCompare(b.tablename) || a.id.localeCompare(b.id));
       const offset = b.cursor?.offset ?? 0;
       const data = sorted.slice(offset, offset + 1),
         more = offset + 1 < sorted.length;
@@ -1653,11 +1666,20 @@ test("sync keeps local edits during download and requires explicit conflict reso
     await engine.synchronize();
     assert.equal(store.localRecord("search_history_v2", "x").content.children[0].term, "new-local");
     assert.equal(db.query("SELECT conflict FROM sync_pending WHERE id='x'")[0].conflict, "ALREADY_EXISTS");
-    engine.resolve("search_history_v2", "x", "local");
+    engine.resolve(
+      "search_history_v2",
+      "x",
+      "local",
+      (
+        await engine.readConflicts(
+          db.query("SELECT * FROM sync_pending WHERE tablename=? AND id=?", ["search_history_v2", "x"]),
+        )
+      )[0],
+    );
     await engine.synchronize();
     assert.equal(server.records.get(JSON.stringify(["search_history_v2", "x"])).content.children[0].term, "new-local");
     assert.equal(db.query("SELECT * FROM sync_pending").length, 0);
-    assert.equal(JSON.parse(server.writes.at(-1)).operations[0].forced, true);
+    assert.equal(JSON.parse(server.writes.at(-1)).operations[0].forced, undefined);
   } finally {
     env.close();
   }
@@ -1817,7 +1839,16 @@ test("sync interoperates with the rebuilt Worker on real workerd/D1", { skip: !p
     await left.engine.synchronize();
     await right.engine.synchronize();
     assert.equal(right.db.query("SELECT conflict FROM sync_pending WHERE id='shared'")[0].conflict, "VERSION_CONFLICT");
-    right.engine.resolve("search_history_v2", "shared", "cloud");
+    right.engine.resolve(
+      "search_history_v2",
+      "shared",
+      "cloud",
+      (
+        await right.engine.readConflicts(
+          right.db.query("SELECT * FROM sync_pending WHERE tablename=? AND id=?", ["search_history_v2", "shared"]),
+        )
+      )[0],
+    );
     assert.equal(right.store.localRecord("search_history_v2", "shared").content.children[0].term, "left");
     a.load("utils/config").configManager.deleteSearchHistory("shared");
     await left.engine.synchronize();
@@ -1872,7 +1903,16 @@ test("deleting an unsynced key cannot erase a cloud record without explicit reso
     await engine.synchronize();
     assert.equal(server.writes.length, 0);
     assert.equal(db.query("SELECT conflict FROM sync_pending WHERE id='same'")[0].conflict, "VERSION_CONFLICT");
-    engine.resolve("marked_uploaders_v2", "same", "local");
+    engine.resolve(
+      "marked_uploaders_v2",
+      "same",
+      "local",
+      (
+        await engine.readConflicts(
+          db.query("SELECT * FROM sync_pending WHERE tablename=? AND id=?", ["marked_uploaders_v2", "same"]),
+        )
+      )[0],
+    );
     await engine.synchronize();
     assert.equal(server.records.get(JSON.stringify(["marked_uploaders_v2", "same"])).deleted, true);
   } finally {
@@ -1911,7 +1951,18 @@ function scaleSyncServer(initial = []) {
           }),
         };
       }
-      if (path === "/v1/full-download") {
+      if (path === "/v1/read") {
+        reads.push(b);
+        return {
+          results: b.keys.map((k) => {
+            const record = records.get(key(k.tablename, k.id));
+            return record
+              ? { ...plain(record), found: true, server_updated_at: 1000, updated_by_device_id: "other" }
+              : { ...k, found: false };
+          }),
+        };
+      }
+      if (path === "/v1/full-download" || path === "/v1/table-download") {
         const start = b.cursor?.start_seq ?? records.length;
         const offset = b.cursor?.offset ?? 0;
         const data = records.slice(offset, offset + 100),
@@ -2504,5 +2555,505 @@ test("migration failures preserve legacy GitHub and AI values and the previous c
     } finally {
       env.close();
     }
+  }
+});
+
+async function conflictDetail(engine, db, table, id) {
+  return (
+    await engine.readConflicts(db.query("SELECT * FROM sync_pending WHERE tablename=? AND id=?", [table, id]))
+  )[0];
+}
+
+test("point reads distinguish missing, tombstone and live records without changing cursors or local intent", async () => {
+  const env = setup();
+  try {
+    const { engine, store, db, server } = syncSetup(env, ["marked_uploaders_v2"]);
+    for (const id of ["missing", "deleted", "live"]) db.update("INSERT INTO marked_uploaders_v2(id) VALUES(?)", [id]);
+    db.update("UPDATE sync_pending SET conflict='VERSION_CONFLICT'");
+    server.put({ tablename: "marked_uploaders_v2", id: "deleted", deleted: true, sync_version: 3 });
+    server.put({ tablename: "marked_uploaders_v2", id: "live", deleted: false, content: {}, sync_version: 5 });
+    const before = plain(db.query("SELECT * FROM sync_pending ORDER BY id"));
+    const details = await engine.readConflicts(before);
+    assert.equal(details.find((d) => d.pending.id === "missing").cloud.found, false);
+    assert.equal(details.find((d) => d.pending.id === "deleted").cloud.deleted, true);
+    assert.equal(details.find((d) => d.pending.id === "live").cloud.server_updated_at, 1000);
+    assert.deepEqual(plain(db.query("SELECT * FROM sync_pending ORDER BY id")), before);
+    assert.equal(store.getMeta("seq", 0), 0);
+    assert.equal(store.getMeta("requestSeq", 0), 0);
+    assert.equal(db.query("SELECT * FROM sync_mirror").length, 0);
+    assert.equal(server.reads.filter((r) => r.keys).length, 1);
+    engine.resolve(
+      "marked_uploaders_v2",
+      "missing",
+      "cloud",
+      details.find((d) => d.pending.id === "missing"),
+    );
+    assert.equal(db.query("SELECT deleted FROM marked_uploaders_v2 WHERE id='missing'")[0].deleted, 1);
+    assert.equal(db.query("SELECT * FROM sync_pending WHERE id='missing'").length, 0);
+    assert.equal(db.query("SELECT * FROM sync_mirror WHERE id='missing'").length, 0);
+    engine.resolve(
+      "marked_uploaders_v2",
+      "deleted",
+      "cloud",
+      details.find((d) => d.pending.id === "deleted"),
+    );
+    assert.equal(store.mirror("marked_uploaders_v2", "deleted").sync_version, 3);
+  } finally {
+    env.close();
+  }
+});
+
+test("reviewed local choices create missing records and conflict again on later remote edits", async () => {
+  const env = setup();
+  try {
+    const { engine, store, db, server } = syncSetup(env, ["search_history_v2"]);
+    const config = env.load("utils/config").configManager;
+    config.addOrUpdateSearchHistory("x", [{ term: "local" }]);
+    db.update("UPDATE sync_pending SET conflict='ENTITY_NOT_FOUND'");
+    engine.resolve("search_history_v2", "x", "local", await conflictDetail(engine, db, "search_history_v2", "x"));
+    await engine.synchronize();
+    assert.equal(db.query("SELECT * FROM sync_pending").length, 0);
+    const cloud = server.records.get(JSON.stringify(["search_history_v2", "x"]));
+    config.addOrUpdateSearchHistory("x", [{ term: "edited-local" }]);
+    server.put({ ...cloud, content: { ...cloud.content, last_access_time: "first remote change" }, sync_version: 2 });
+    await engine.synchronize();
+    const detail = await conflictDetail(engine, db, "search_history_v2", "x");
+    engine.resolve("search_history_v2", "x", "local", detail);
+    server.put({ ...cloud, content: { ...cloud.content, last_access_time: "later remote change" }, sync_version: 3 });
+    await engine.synchronize();
+    assert.equal(db.query("SELECT conflict FROM sync_pending WHERE id='x'")[0].conflict, "VERSION_CONFLICT");
+    assert.equal(server.records.get(JSON.stringify(["search_history_v2", "x"])).sync_version, 3);
+    assert.equal(store.localRecord("search_history_v2", "x").content.children[0].term, "edited-local");
+    assert.equal(JSON.parse(server.writes.at(-1)).operations[0].forced, undefined);
+  } finally {
+    env.close();
+  }
+});
+
+test("conflict decisions reject changed local content and roll back invalid cloud projections", async () => {
+  const env = setup();
+  try {
+    const { engine, db, server } = syncSetup(env, ["search_history_v2"]);
+    const config = env.load("utils/config").configManager;
+    config.addOrUpdateSearchHistory("x", [{ term: "local" }]);
+    db.update("UPDATE sync_pending SET conflict='ALREADY_EXISTS'");
+    server.put({ tablename: "search_history_v2", id: "x", deleted: false, sync_version: 1, content: {} });
+    const stale = await conflictDetail(engine, db, "search_history_v2", "x");
+    config.addOrUpdateSearchHistory("x", [{ term: "new edit" }]);
+    assert.throws(() => engine.resolve("search_history_v2", "x", "cloud", stale), /本机内容已修改/);
+    const current = await conflictDetail(engine, db, "search_history_v2", "x");
+    assert.throws(() => engine.resolve("search_history_v2", "x", "cloud", current), /缺少业务字段/);
+    assert.equal(db.query("SELECT conflict FROM sync_pending WHERE id='x'")[0].conflict, "ALREADY_EXISTS");
+    assert.equal(db.query("SELECT * FROM sync_mirror").length, 0);
+  } finally {
+    env.close();
+  }
+});
+
+test("point read failures and stale versions never consume conflicts or change a known cloud baseline", async () => {
+  const env = setup();
+  try {
+    const server = syncServer();
+    const original = server.transport;
+    let bad;
+    server.transport = async (method, path, raw) => (path === "/v1/read" && bad ? bad : original(method, path, raw));
+    const { engine, store, db } = syncSetup(env, ["marked_uploaders_v2"], server);
+    server.put({ tablename: "marked_uploaders_v2", id: "x", content: {}, deleted: false, sync_version: 3 });
+    await engine.synchronize();
+    db.update("UPDATE marked_uploaders_v2 SET deleted=1 WHERE id='x'");
+    db.update("UPDATE sync_pending SET conflict='VERSION_CONFLICT'");
+    const pending = db.query("SELECT * FROM sync_pending");
+    bad = { results: [{ tablename: "marked_uploaders_v2", id: "x", found: false }] };
+    await assert.rejects(engine.readConflicts(pending), /早于本机/);
+    bad = { error: { code: "D1_READ_QUOTA_EXCEEDED" }, results: [] };
+    await assert.rejects(engine.readConflicts(pending), /D1_READ_QUOTA_EXCEEDED/);
+    assert.equal(store.mirror("marked_uploaders_v2", "x").sync_version, 3);
+    assert.equal(db.query("SELECT * FROM sync_pending").length, 1);
+    assert.equal(engine.busy, false);
+  } finally {
+    env.close();
+  }
+});
+
+test("pause during download keeps the committed cursor and resumes without partial projection", async () => {
+  const env = setup();
+  try {
+    const { engine, db, store, server } = syncSetup(env, ["marked_uploaders_v2"]);
+    server.put({ tablename: "marked_uploaders_v2", id: "a", content: {}, deleted: false, sync_version: 1 });
+    server.put({ tablename: "marked_uploaders_v2", id: "b", content: {}, deleted: false, sync_version: 1 });
+    let paused = false;
+    const result = await engine.synchronize((message) => {
+      if (message.includes("第 1 页") && !paused) {
+        paused = true;
+        engine.pause();
+      }
+    });
+    assert.equal(result, false);
+    assert.equal(engine.busy, false);
+    assert.equal(store.getMeta("paused", false), true);
+    assert.equal(store.getMeta("seq", 0), 0);
+    assert.equal(db.query("SELECT * FROM marked_uploaders_v2").length, 0);
+    assert.equal(await engine.synchronize(), true);
+    assert.equal(db.query("SELECT * FROM marked_uploaders_v2").length, 2);
+    assert.equal(store.getMeta("paused", true), false);
+  } finally {
+    env.close();
+  }
+});
+
+test("pause preserves an unconfirmed upload and resumes using its exact bytes", async () => {
+  const env = setup();
+  try {
+    const { engine, db, store, server } = syncSetup(env, ["marked_uploaders_v2"]);
+    db.update("INSERT INTO marked_uploaders_v2(id) VALUES('local')");
+    server.onWrite = () => engine.pause();
+    server.loseWrite = true;
+    await assert.rejects(engine.synchronize(), /lost response/);
+    const inflight = store.getMeta("inflight", null);
+    assert.ok(inflight);
+    assert.throws(() => engine.leave(), /未完成/);
+    await engine.synchronize();
+    assert.equal(server.writes[0], server.writes[1]);
+    assert.equal(store.getMeta("inflight", null), null);
+    assert.equal(db.query("SELECT * FROM sync_pending").length, 0);
+  } finally {
+    env.close();
+  }
+});
+
+test("single-table catchup includes inserts behind the page cursor and keeps the global cursor independent", async () => {
+  const env = setup();
+  try {
+    const server = syncServer();
+    const original = server.transport;
+    const requests = [];
+    server.transport = async (method, path, raw) => {
+      requests.push({ path, body: raw ? JSON.parse(raw) : {} });
+      return original(method, path, raw);
+    };
+    const { engine, db, store } = syncSetup(env, ["marked_uploaders_v2"], server);
+    server.put({ tablename: "marked_uploaders_v2", id: "old", content: {}, deleted: false, sync_version: 1 });
+    await engine.synchronize();
+    const oldSeq = store.getMeta("seq", 0);
+    const dav = {
+      tablename: "webdav_services_v2",
+      id: "z",
+      content: { name: "z", host: "host", port: null, https: 1, path: null },
+      deleted: false,
+      sync_version: 1,
+    };
+    server.put(dav);
+    store.selectTables(["marked_uploaders_v2", "webdav_services_v2"]);
+    server.onRead = () => {
+      server.put({ ...dav, id: "a", content: { ...dav.content, name: "inserted behind cursor" } });
+      server.put({ tablename: "marked_uploaders_v2", id: "new", content: {}, deleted: false, sync_version: 1 });
+    };
+    requests.length = 0;
+    await engine.synchronize((message) => {
+      if (message === "下载云端变化…") {
+        assert.equal(store.getMeta("seq", 0), oldSeq);
+        assert.equal(db.query("SELECT * FROM webdav_services_v2").length, 2);
+        assert.equal(db.query("SELECT * FROM marked_uploaders_v2 WHERE id='new'").length, 0);
+      }
+    });
+    assert.ok(requests.some((r) => r.path === "/v1/table-download" && r.body.tablename === "webdav_services_v2"));
+    assert.equal(
+      requests.some((r) => r.path === "/v1/full-download"),
+      false,
+    );
+    assert.equal(db.query("SELECT * FROM marked_uploaders_v2 WHERE id='new'").length, 1);
+    assert.deepEqual(plain(store.getMeta("needsTables", [])), []);
+    requests.length = 0;
+    store.selectTables(["marked_uploaders_v2"]);
+    await engine.synchronize();
+    assert.equal(
+      requests.some((r) => r.path.includes("download")),
+      false,
+    );
+  } finally {
+    env.close();
+  }
+});
+
+test("leaving sync preserves local data and other credentials and rolls back failures", async () => {
+  let fail = false;
+  const env = setup({ version: 1, seed: seedV1, failSql: (sql) => fail && sql === "DELETE FROM sync_pending" });
+  try {
+    const { engine, db, store } = syncSetup(env, ["marked_uploaders_v2"]);
+    db.update("INSERT INTO marked_uploaders_v2(id,sync_version) VALUES('local',8)");
+    const credentials = readCredentialsFile(env);
+    fail = true;
+    assert.throws(() => engine.leave(), /injected/);
+    assert.deepEqual(readCredentialsFile(env), credentials);
+    assert.equal(store.selectedTables().length, 1);
+    assert.equal(db.query("SELECT sync_version FROM marked_uploaders_v2 WHERE id='local'")[0].sync_version, 8);
+    fail = false;
+    engine.leave();
+    assert.equal(readCredentialsFile(env).sync, undefined);
+    assert.deepEqual(readCredentialsFile(env).webdav, credentials.webdav);
+    assert.equal(db.query("SELECT sync_version FROM marked_uploaders_v2 WHERE id='local'")[0].sync_version, 0);
+    assert.equal(store.selectedTables().length, 0);
+    engine.configure("https://sync.example.com", "a".repeat(64));
+    store.selectTables(["marked_uploaders_v2"]);
+    assert.equal(db.query("SELECT * FROM sync_pending WHERE id='local'").length, 1);
+  } finally {
+    env.close();
+  }
+});
+
+test("sync observers can detach or fail without interrupting work, and completion reaches a replacement screen", async () => {
+  const env = setup();
+  try {
+    const { engine } = syncSetup(env, ["marked_uploaders_v2"]);
+    let oldScreen = 0,
+      newScreen = 0;
+    const detach = engine.subscribe(() => oldScreen++);
+    engine.subscribe(() => {
+      throw new Error("removed native view");
+    });
+    engine.subscribe((_message, finished) => {
+      if (finished) newScreen++;
+    });
+    detach();
+    assert.equal(await engine.synchronize(), true);
+    assert.equal(oldScreen, 0);
+    assert.equal(newScreen, 1);
+  } finally {
+    env.close();
+  }
+});
+
+test("sync filter cancellation and download-page confirmation release the operation lock", async () => {
+  let menu, logSections, downloadSections;
+  const starts = [],
+    toasts = [];
+  let confirmations = 0,
+    confirmationIndex = 0,
+    pops = 0;
+  const module = { exports: {} };
+  vm.runInNewContext(fs.readFileSync(path.join(output, "controllers/settings-sync-controller.js"), "utf8"), {
+    module,
+    exports: module.exports,
+    require(name) {
+      if (name === "jsbox-cview") return { BaseController: class {}, controllerStatus: { removed: 4 } };
+      if (name.endsWith("sync-management-view"))
+        return {
+          SyncActionRowView: class {
+            constructor(options) {
+              Object.assign(this, options);
+            }
+          },
+        };
+      if (name.endsWith("utils/database")) return { dbManager: { query: () => [] } };
+      if (name.endsWith("sync/engine")) return { syncEngine: { busy: false } };
+      if (name.endsWith("sync/store"))
+        return {
+          getMeta: (_key, fallback) => fallback,
+          selectedTables: () => ["search_history_v2"],
+        };
+      if (name.endsWith("sync/schema"))
+        return {
+          tableSpec: () => ({ title: "搜索历史" }),
+          SYNC_TABLES: [{ name: "search_history_v2", title: "搜索历史" }],
+        };
+      return {};
+    },
+    $ui: {
+      menu(options) {
+        menu = options;
+        // Reproduce JSBox: the promise form stays pending on cancellation.
+        if (!options.handler) return new Promise(() => {});
+      },
+      alert: async () => {
+        confirmations++;
+        return { index: confirmationIndex };
+      },
+      pop: () => pops++,
+      toast: (text) => toasts.push(text),
+    },
+  });
+  const controller = Object.create(module.exports.SettingsSyncController.prototype);
+  controller.acting = false;
+  controller.refresh = () => {};
+  controller.push = (title, sections) => {
+    if (title === "同步日志") logSections = sections;
+    if (title === "重新下载") downloadSections = sections;
+    return { status: 1 };
+  };
+  controller.start = async (...args) => {
+    starts.push(args);
+  };
+  const settle = () => new Promise((resolve) => setImmediate(resolve));
+  controller.logs();
+
+  // Both tapping Cancel and dismissing outside the menu emit finished(true).
+  for (let i = 0; i < 2; i++) {
+    logSections()[0].rows[0].events.tapped();
+    assert.equal(controller.acting, true);
+    assert.equal(typeof menu.finished, "function");
+    menu.finished(true);
+    await settle();
+    assert.equal(controller.acting, false);
+    assert.equal(logSections()[0].rows[0].props.title, "筛选 · 全部");
+
+    // Opening the download page holds no lock while waiting for a selection.
+    await controller.run(() => controller.redownload());
+    assert.equal(controller.acting, false);
+  }
+  assert.equal(confirmations, 0);
+  assert.equal(starts.length, 0);
+
+  logSections()[0].rows[0].events.tapped();
+  menu.handler("错误", 3);
+  menu.finished(false);
+  await settle();
+  assert.equal(logSections()[0].rows[0].props.title, "筛选 · 错误");
+  assert.equal(controller.acting, false);
+
+  downloadSections()[1].rows[0].events.tapped();
+  await settle();
+  assert.equal(controller.acting, false);
+  assert.equal(starts.length, 0);
+  assert.equal(pops, 0);
+
+  confirmationIndex = 1;
+  downloadSections()[1].rows[0].events.tapped();
+  await settle();
+  assert.deepEqual(plain(starts), [[false, "search_history_v2"]]);
+  assert.equal(confirmations, 2);
+  assert.equal(pops, 1);
+  assert.equal(controller.acting, false);
+  assert.deepEqual(toasts, []);
+});
+
+test("sync request logs redact credentials without changing transmitted bytes and identify NOT_FOUND routes", async () => {
+  const key = "abcdef0123456789".repeat(4);
+  const logs = [],
+    requests = [];
+  const server = syncServer();
+  const env = setup({
+    onAppLog: (entry, level) => logs.push({ entry: plain(entry), level }),
+    httpRequest: async (request) => {
+      requests.push(request);
+      const route = new URL(request.url).pathname;
+      if (route === "/v1/table-download")
+        return {
+          response: { statusCode: 404 },
+          error: { description: `Authorization: Bearer ${key}` },
+          rawData: { string: JSON.stringify({ error: { code: "NOT_FOUND", message: `missing route; key=${key}` } }) },
+        };
+      return {
+        response: { statusCode: 200 },
+        rawData: { string: JSON.stringify(await server.transport(request.method, route, request.body?.string)) },
+      };
+    },
+  });
+  try {
+    const engine = new (env.load("sync/engine").SyncEngine)();
+    const store = env.load("sync/store");
+    engine.configure("https://sync.example.com", key);
+    store.selectTables(["search_history_v2"]);
+    env.load("utils/config").configManager.addOrUpdateSearchHistory("log-test", [{ term: key }]);
+    await engine.synchronize();
+    const upload = requests.find((r) => r.url.endsWith("/v1/write"));
+    assert.equal(upload.header.Authorization, `Bearer ${key}`);
+    assert.ok(upload.body.string.includes(key));
+    const info = logs.find((r) => r.entry.event === "request" && r.entry.details.path === "/v1/write");
+    assert.equal(info.level, "info");
+    assert.equal(info.entry.details.headers.Authorization, "[REDACTED]");
+    assert.equal(info.entry.details.body.operations[0].content.children[0].term, "[REDACTED]");
+    assert.equal(info.entry.details.body.request_seq, JSON.parse(upload.body.string).request_seq);
+    store.selectTables(["search_history_v2", "marked_uploaders_v2"]);
+    await assert.rejects(engine.synchronize(), (error) => {
+      assert.equal(error.message, "NOT_FOUND");
+      assert.match(env.load("sync/errors").syncErrorMessage(error), /POST \/v1\/table-download/);
+      return true;
+    });
+    const failure = logs.find((r) => r.entry.event === "request_error");
+    assert.equal(failure.level, "error");
+    assert.equal(failure.entry.details.path, "/v1/table-download");
+    assert.equal(failure.entry.details.status, 404);
+    assert.equal(failure.entry.details.error.code, "NOT_FOUND");
+    assert.ok(
+      logs.some((r) => r.entry.event === "request" && r.entry.details.requestId === failure.entry.details.requestId),
+    );
+    assert.equal(JSON.stringify(logs).includes(key), false);
+    assert.equal(engine.busy, false);
+  } finally {
+    env.close();
+  }
+});
+
+test("sync logs each retry and keeps HTTP errors distinct from transport and JSON errors", async () => {
+  const key = "abcdef0123456789".repeat(4);
+  const logs = [];
+  let mode = "retry";
+  const env = setup({
+    onAppLog: (entry, level) => logs.push({ entry: plain(entry), level }),
+    httpRequest: async () => {
+      if (mode === "network") throw new Error(`request failed: ${key}`);
+      if (mode === "retry")
+        return {
+          response: { statusCode: 503 },
+          rawData: { string: JSON.stringify({ error: { code: "DATABASE_UNAVAILABLE" } }) },
+        };
+      return {
+        response: { statusCode: 404 },
+        error: { description: "HTTP failure" },
+        rawData: { string: "x".repeat(3980) + key.toUpperCase() },
+      };
+    },
+  });
+  try {
+    const engine = new (env.load("sync/engine").SyncEngine)();
+    engine.configure("https://sync.example.com", key);
+    await assert.rejects(engine.connectionTest(), { message: "DATABASE_UNAVAILABLE" });
+    assert.deepEqual(
+      logs.filter((r) => r.level === "info").map((r) => r.entry.details.attempt),
+      [1, 2, 3],
+    );
+    assert.equal(logs.filter((r) => r.level === "error").length, 3);
+    mode = "html";
+    await assert.rejects(engine.connectionTest(), { message: "HTTP_404" });
+    const preview = logs.at(-1).entry.details.responsePreview;
+    assert.equal(preview, "x".repeat(3980) + "[REDACTED]");
+    mode = "network";
+    await assert.rejects(engine.connectionTest(), /网络请求失败/);
+    assert.match(logs.at(-1).entry.details.error.message, /request failed: \[REDACTED\]/);
+    assert.equal(logs.at(-1).entry.details.status, 0);
+    assert.doesNotMatch(JSON.stringify(logs), new RegExp(key, "i"));
+  } finally {
+    env.close();
+  }
+});
+
+test("sync diagnostic snapshots mask nested secrets, handle circular errors and never mutate requests", () => {
+  const logs = [];
+  let fail = false;
+  const env = setup({
+    onAppLog: (entry, level) => {
+      if (fail) throw new Error("log storage unavailable");
+      logs.push({ entry: plain(entry), level });
+    },
+  });
+  try {
+    const { syncLog } = env.load("sync/logging");
+    const key = "a".repeat(64);
+    const details = {
+      master_key: key,
+      nested: { MASTER_KEY: "another-secret", Authorization: `Bearer ${key}`, password: "password-value" },
+    };
+    details.self = details;
+    syncLog("test", details, "error", key);
+    assert.equal(logs[0].entry.details.master_key, "[REDACTED]");
+    assert.equal(logs[0].entry.details.nested.MASTER_KEY, "[REDACTED]");
+    assert.equal(logs[0].entry.details.nested.password, "[REDACTED]");
+    assert.equal(logs[0].entry.details.self, "[Circular]");
+    assert.equal(details.master_key, key);
+    assert.equal(details.nested.password, "password-value");
+    fail = true;
+    assert.doesNotThrow(() => syncLog("test", details, "info", key));
+  } finally {
+    env.close();
   }
 });

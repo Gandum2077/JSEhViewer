@@ -1,43 +1,16 @@
-import { Base, WelcomeView, WelcomeViewButton } from "jsbox-cview";
+import { Base, WelcomeView, WelcomeViewButton, inputAlert } from "jsbox-cview";
 import URLParse from "url-parse";
 
-const SYNC_TABLES = [
-  {
-    name: "archive_entries_v2",
-    title: "图库记录",
-    children: { table: "archive_taglist_v2", key: "id", fields: ["namespace", "tag"] },
-    description: "下面的缩进项依赖图库记录",
-  },
-  { name: "archive_read_state_v2", title: "阅读进度", parent: true },
-  { name: "archive_favorite_state_v2", title: "图库收藏状态", parent: true },
-  { name: "archive_rate_state_v2", title: "图库评分", parent: true },
-  { name: "gallery_reader_config_v2", title: "单个图库阅读设置", parent: true },
-  { name: "favorite_images_v2", title: "图片收藏", parent: true },
-  { name: "global_reader_config_v2", title: "全局阅读设置" },
-  {
-    name: "search_history_v2",
-    title: "搜索历史",
-    children: {
-      table: "search_history_search_terms_v2",
-      key: "history_id",
-      fields: ["term_index", "namespace", "qualifier", "term", "dollar", "subtract", "tilde"],
-    },
-  },
-  {
-    name: "search_bookmarks_v2",
-    title: "搜索书签",
-    children: {
-      table: "search_bookmarks_search_terms_v2",
-      key: "bookmark_id",
-      fields: ["term_index", "namespace", "qualifier", "term", "dollar", "subtract", "tilde"],
-    },
-  },
-  { name: "local_marked_tags_v2", title: "标记的标签（本地）", description: "仅在不与E站同步标签时有效" },
-  { name: "marked_uploaders_v2", title: "标记的上传者" },
-  { name: "tag_access_count_v2", title: "标签访问次数" },
-  { name: "webdav_services_v2", title: "WebDAV 服务", description: "不同步账号密码与启用状态" },
-  { name: "ai_translation_services_v2", title: "AI 翻译服务", description: "不同步敏感参数与启用状态" },
-];
+import { SYNC_TABLES } from "../sync/schema";
+import { syncErrorMessage } from "../sync/errors";
+import { syncLog } from "../sync/logging";
+
+const descriptions: Record<string, string> = {
+  archive_entries_v2: "下面的缩进项依赖图库记录",
+  local_marked_tags_v2: "仅在不与 E 站同步标签时有效",
+  webdav_services_v2: "不同步账号密码与启用状态",
+  ai_translation_services_v2: "不同步敏感参数与启用状态",
+};
 
 interface SyncContentListItem {
   name: string;
@@ -48,14 +21,14 @@ interface SyncContentListItem {
   enabled: boolean;
 }
 
-function mapSyncTablesToItems(): SyncContentListItem[] {
+function mapSyncTablesToItems(selected: string[]): SyncContentListItem[] {
   return SYNC_TABLES.map((table) => ({
     name: table.name,
     title: table.title,
-    description: table.description,
-    requiresArchive: table.parent,
-    on: true,
-    enabled: true,
+    description: descriptions[table.name],
+    requiresArchive: "parent" in table,
+    on: selected.includes(table.name),
+    enabled: !("parent" in table) || selected.includes("archive_entries_v2"),
   }));
 }
 
@@ -63,9 +36,9 @@ export class SyncContentList extends Base<UIListView, UiTypes.ListOptions> {
   private _items: SyncContentListItem[];
   protected _defineView: () => UiTypes.ListOptions;
 
-  constructor() {
+  constructor(selected = SYNC_TABLES.map((table) => table.name) as string[]) {
     super();
-    this._items = mapSyncTablesToItems();
+    this._items = mapSyncTablesToItems(selected);
     this._defineView = () => ({
       type: "list",
       props: {
@@ -195,14 +168,20 @@ class InputLikeView extends Base<UIView, UiTypes.ViewOptions> {
         },
         events: {
           tapped: async (sender) => {
-            const text = await $input.text({
-              text: this.text,
-              placeholder: props.placeholder,
-              type: props.type,
-            });
-            const tr = text.trim();
-            const r = events.checkInput(tr);
-            if (r) this.text = tr;
+            try {
+              const text = await inputAlert({
+                title: props.placeholder ?? "请输入",
+                text: this.text,
+                placeholder: props.placeholder,
+                type: props.type,
+                secure: props.secure ?? false,
+              });
+              const tr = text.trim();
+              const r = events.checkInput(tr);
+              if (r) this.text = tr;
+            } catch (error) {
+              if (error !== "cancel") $ui.error("输入未完成，请重试");
+            }
           },
         },
         views: [
@@ -424,6 +403,7 @@ export class CloudflareSyncGuideView extends WelcomeView {
         card([
           text("额度限制", 17, true),
           text("每日读取 500 万行，写入 10 万行。", 14, true, palette.muted),
+          link("查看当前额度说明 ↗", links.pricing),
           text(
             "上传或下载数据时，还需要进行索引、日志、更新设备状态等操作，因此实际上会消耗数倍的额度。",
             12,
@@ -431,7 +411,7 @@ export class CloudflareSyncGuideView extends WelcomeView {
             palette.muted,
           ),
           text(
-            "首次同步可能突破写入额度限制(将消耗上传数据数量 4.1 倍的额度)，其他时候基本不必担心额度问题。",
+            "首次同步大量数据可能达到每日额度；实际用量取决于记录、索引和同步操作。额度恢复后可以继续同步。",
             12,
             false,
             palette.muted,
@@ -448,10 +428,10 @@ export class CloudflareSyncGuideView extends WelcomeView {
       },
       events: {
         checkInput: (text) => {
-          if (Boolean(text)) {
+          if (text.length > 0 && text.length <= 32) {
             return true;
           } else {
-            $ui.alert("设备名不能为空");
+            $ui.alert("请输入 1～32 个字符的设备名");
             return false;
           }
         },
@@ -576,11 +556,11 @@ export class CloudflareSyncGuideView extends WelcomeView {
             contentHeight: sharedContentHeight,
             buttons: [
               button("开始连接", async (sender) => {
-                const deviceName = nameInput.text;
+                const deviceName = nameInput.text.trim();
                 const endpoint = apiInput.text;
                 const masterKey = keyInput.text;
-                if (!deviceName || !endpoint || !masterKey) {
-                  $ui.alert("请填写验证信息");
+                if (!deviceName || deviceName.length > 32 || !endpoint || !masterKey) {
+                  $ui.alert("请填写连接信息，设备名需为 1～32 个字符。");
                   return;
                 }
                 const selectedTables = selectionList.selectedTables;
@@ -594,15 +574,15 @@ export class CloudflareSyncGuideView extends WelcomeView {
                   const success = await finishHandler(this, { deviceName, endpoint, masterKey, selectedTables });
                   if (success) {
                     sender.title = "连接成功，请稍候……";
-                    // 延后1秒移除本视图
-                    this.view.remove();
+                    // 导航生命周期由调用方负责。
                   } else {
                     $ui.alert("验证失败，请检查连接信息后重试。");
                     sender.title = "开始连接";
                     sender.enabled = true;
                   }
-                } catch {
-                  $ui.alert("验证失败，请检查连接信息后重试。");
+                } catch (error) {
+                  syncLog("connection_error", { error }, "error", masterKey);
+                  $ui.alert(syncErrorMessage(error));
                   sender.title = "开始连接";
                   sender.enabled = true;
                 }

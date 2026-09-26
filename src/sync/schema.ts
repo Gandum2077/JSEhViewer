@@ -34,8 +34,8 @@ export const SYNC_TABLES = [
   { name: "local_marked_tags_v2", title: "本地标签标记" },
   { name: "marked_uploaders_v2", title: "上传者标记" },
   { name: "tag_access_count_v2", title: "标签访问次数" },
-  { name: "webdav_services_v2", title: "WebDAV 服务（不含凭据和开启状态）" },
-  { name: "ai_translation_services_v2", title: "AI 翻译服务（不含敏感参数和选择状态）" },
+  { name: "webdav_services_v2", title: "WebDAV 服务" },
+  { name: "ai_translation_services_v2", title: "AI 翻译服务" },
 ] as const;
 
 export type TableSpec = (typeof SYNC_TABLES)[number];

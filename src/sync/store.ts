@@ -302,7 +302,7 @@ function validateContent(spec: TableSpec, row: CloudRecord) {
   }
 }
 
-function applyRecord(tx: DatabaseTransaction, spec: TableSpec, row: CloudRecord) {
+export function applyRecord(tx: DatabaseTransaction, spec: TableSpec, row: CloudRecord) {
   if (spec.name === "global_reader_config_v2" && row.id !== "1") throw new Error("同步内容的全局设置 ID 无效");
   if (row.deleted) {
     if (spec.name === "local_marked_tags_v2") {
@@ -385,6 +385,11 @@ export function selectTables(names: string[]) {
         own ? [name, name, dbManager.deviceId] : [name, name],
       );
     }
-    setMeta(tx, "needsFull", true);
+    setMeta(tx, "needsTables", [
+      ...new Set([
+        ...getMeta<string[]>("needsTables", []).filter((name) => names.includes(name)),
+        ...names.filter((name) => !old.includes(name)),
+      ]),
+    ]);
   });
 }

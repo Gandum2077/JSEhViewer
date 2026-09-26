@@ -6,6 +6,9 @@ export const quotaErrorCodes = new Set([
 ]);
 
 export const syncErrorMessages: Record<string, string> = {
+  NOT_FOUND: "云端没有此接口（NOT_FOUND）。请检查 Worker 地址，并确认已部署包含批量读取和单表下载接口的后端版本。",
+  HTTP_404: "云端返回 HTTP 404，请检查 Worker 地址及已部署的接口版本。",
+  DEVICE_NOT_FOUND: "云端没有找到此设备，请重新验证连接。",
   UNAUTHORIZED: "主密钥无效，请检查连接设置。",
   DEVICE_DISABLED: "本设备已被禁用，可在设备管理中重新启用。",
   RATE_LIMITED: "请求过于频繁，请稍后再同步。",
@@ -22,3 +25,13 @@ export const syncErrorMessages: Record<string, string> = {
   D1_DATABASE_SIZE_EXCEEDED: "Cloudflare D1 当前数据库容量已满。请在服务端释放空间或拆分数据；数据库容量不会按日重置。",
   DATABASE_UNAVAILABLE: "云端数据库暂时不可用，请稍后重试。服务端未提供明确的额度超限信息。",
 };
+
+/** Keep stable error codes for recovery, while giving the UI the failing route. */
+export function syncErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : "操作失败，请重试";
+  const detail = syncErrorMessages[message] ?? message;
+  const context = error as { method?: string; path?: string } | null;
+  return (message === "NOT_FOUND" || message === "HTTP_404") && context?.path
+    ? `${detail}\n接口：${context.method ?? ""} ${context.path}`
+    : detail;
+}

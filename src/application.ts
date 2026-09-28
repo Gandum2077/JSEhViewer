@@ -21,6 +21,7 @@ import {
 } from "ehentai-parser";
 import { aiTranslationPath, imagePath, thumbnailPath, originalImagePath, galleryInfoPath } from "./utils/glv";
 import { globalTimer } from "./utils/timer";
+import { syncScheduler } from "./sync/scheduler";
 import { StatusTabOptions } from "./types";
 import { dbManager } from "./utils/database";
 import { getPendingDownloads } from "./utils/database-records";
@@ -148,6 +149,7 @@ async function init(url?: string) {
 
   // 启动全局定时器
   globalTimer.init();
+  syncScheduler.start();
   // 主界面显示"请等待配置同步……"
   // 为什么要延迟0.2秒：matrix从属的footer，可能会延后出现（matrix能查找的时候，footer可能还没出现）
   $delay(0.2, () => {

@@ -2824,7 +2824,7 @@ test("sync observers can detach or fail without interrupting work, and completio
 });
 
 test("sync filter cancellation and download-page confirmation release the operation lock", async () => {
-  let menu, logSections, downloadSections;
+  let menu, logSections, logButtons, downloadSections;
   const starts = [],
     toasts = [];
   let confirmations = 0,
@@ -2846,6 +2846,7 @@ test("sync filter cancellation and download-page confirmation release the operat
         };
       if (name.endsWith("utils/database")) return { dbManager: { query: () => [] } };
       if (name.endsWith("sync/engine")) return { syncEngine: { busy: false } };
+      if (name.endsWith("sync/scheduler")) return { syncScheduler: { hold: () => () => {} } };
       if (name.endsWith("sync/store"))
         return {
           getMeta: (_key, fallback) => fallback,
@@ -2875,8 +2876,11 @@ test("sync filter cancellation and download-page confirmation release the operat
   const controller = Object.create(module.exports.SettingsSyncController.prototype);
   controller.acting = false;
   controller.refresh = () => {};
-  controller.push = (title, sections) => {
-    if (title === "同步日志") logSections = sections;
+  controller.push = (title, sections, buttons) => {
+    if (title === "同步日志") {
+      logSections = sections;
+      logButtons = buttons;
+    }
     if (title === "重新下载") downloadSections = sections;
     return { status: 1 };
   };
@@ -2888,13 +2892,13 @@ test("sync filter cancellation and download-page confirmation release the operat
 
   // Both tapping Cancel and dismissing outside the menu emit finished(true).
   for (let i = 0; i < 2; i++) {
-    logSections()[0].rows[0].events.tapped();
+    logButtons[0].handler();
     assert.equal(controller.acting, true);
     assert.equal(typeof menu.finished, "function");
     menu.finished(true);
     await settle();
     assert.equal(controller.acting, false);
-    assert.equal(logSections()[0].rows[0].props.title, "筛选 · 全部");
+    assert.equal(logSections()[0].title, "最近记录 · 全部 · 仅保存操作摘要");
 
     // Opening the download page holds no lock while waiting for a selection.
     await controller.run(() => controller.redownload());
@@ -2903,11 +2907,11 @@ test("sync filter cancellation and download-page confirmation release the operat
   assert.equal(confirmations, 0);
   assert.equal(starts.length, 0);
 
-  logSections()[0].rows[0].events.tapped();
+  logButtons[0].handler();
   menu.handler("错误", 3);
   menu.finished(false);
   await settle();
-  assert.equal(logSections()[0].rows[0].props.title, "筛选 · 错误");
+  assert.equal(logSections()[0].title, "最近记录 · 错误 · 仅保存操作摘要");
   assert.equal(controller.acting, false);
 
   downloadSections()[1].rows[0].events.tapped();
@@ -3053,6 +3057,139 @@ test("sync diagnostic snapshots mask nested secrets, handle circular errors and 
     assert.equal(details.nested.password, "password-value");
     fail = true;
     assert.doesNotThrow(() => syncLog("test", details, "info", key));
+  } finally {
+    env.close();
+  }
+});
+
+test("automatic sync ticks every 30 seconds, respects session pause and offline state, and shares the UI engine lock", async () => {
+  const logs = [], toasts = [];
+  const env = setup({ onAppLog: (entry, level) => logs.push({ entry: plain(entry), level }) });
+  try {
+    const { engine, store, server } = syncSetup(env, ["search_history_v2"]);
+    const device = { networkType: 1 };
+    let timerCallback, requests = 0, fail = false, releaseNetwork;
+    let gate = new Promise((resolve) => { releaseNetwork = resolve; });
+    engine.transport = async (...args) => {
+      requests++;
+      await gate;
+      if (fail) throw new Error("offline during request");
+      return server.transport(...args);
+    };
+    function compiled(id, requireLocal, globals = {}) {
+      const module = { exports: {} };
+      vm.runInNewContext(fs.readFileSync(path.join(output, id + ".js"), "utf8"), {
+        module, exports: module.exports, require: requireLocal, ...globals,
+      });
+      return module.exports;
+    }
+    const { globalTimer } = compiled("utils/timer", () => env.load("utils/tools"), {
+      $timer: { schedule: ({ handler }) => { timerCallback = handler; return { invalidate() {} }; } },
+    });
+    const schedulerModule = compiled("sync/scheduler", (name) => {
+      if (name.endsWith("/timer")) return { globalTimer };
+      if (name === "./engine") return { syncEngine: engine };
+      return env.load(name.startsWith("../") ? name.slice(3) : "sync/" + name.slice(2));
+    }, { $device: device });
+    const { syncScheduler: scheduler, SyncScheduler } = schedulerModule;
+    class Base { get definition() { return this._defineView(); } }
+    class BaseController {
+      constructor(options) { this.options = options; this.rootView = {}; this.status = 1; }
+    }
+    const cview = { Base, BaseController, CustomNavigationBar: class {}, controllerStatus: { loaded: 1, appeared: 2, removed: 4 } };
+    const uiGlobals = {
+      $layout: { fill() {}, fillSafeArea() {} }, $color: (...args) => args,
+      $font: (...args) => args, $align: { center: 1 },
+      $ui: { toast: (text) => toasts.push(text) },
+    };
+    const views = compiled("components/sync-management-view", () => cview, uiGlobals);
+    const controllerModule = compiled("controllers/settings-sync-controller", (name) => {
+      if (name === "jsbox-cview") return cview;
+      if (name.endsWith("sync-management-view")) return views;
+      if (name.endsWith("sync/engine")) return { syncEngine: engine };
+      if (name.endsWith("sync/scheduler")) return schedulerModule;
+      return env.load(name.slice(3));
+    }, uiGlobals);
+    const controller = new controllerModule.SettingsSyncController();
+    controller.options.events.didLoad();
+    const cardData = () => controller.list.definition.props.data[0].rows[0];
+    const button = (title) => Object.values(cardData()).find((props) => props.title === title);
+    const tick = (seconds = 30) => { for (let i = 0; i < seconds; i++) timerCallback(); };
+    const settle = () => new Promise((resolve) => setImmediate(resolve));
+    const skipped = (reason) => logs.some(({entry, level}) => level === "info" && entry.event === "auto_sync_skipped" && entry.details.reason === reason);
+
+    globalTimer.init();
+    scheduler.start();
+    scheduler.start(); // No duplicate registration.
+    tick(29);
+    assert.equal(requests, 0);
+    device.networkType = 0;
+    tick(1);
+    assert.ok(skipped("offline"));
+    assert.equal(requests, 0);
+    device.networkType = 1;
+    store.selectTables([]);
+    tick();
+    assert.ok(skipped("no_selected_tables"));
+    store.selectTables(["search_history_v2"]);
+    const releaseHold = scheduler.hold();
+    tick();
+    assert.ok(skipped("management_action"));
+    releaseHold();
+    releaseHold();
+    tick();
+    assert.equal(requests, 1);
+    assert.equal(engine.syncing, true);
+    assert.equal(button("同步中…").enabled, false); // Automatic start refreshes the card.
+    assert.equal(button("暂停同步").enabled, true);
+    await assert.rejects(() => engine.synchronize(), /同步正在进行/);
+    await controller.run(() => controller.start());
+    assert.equal(toasts.length, 1);
+    assert.equal(requests, 1);
+    tick();
+    assert.ok(skipped("busy"));
+
+    // Use the actual status-card action while an automatic run is in flight.
+    const card = controller.sections()[0].rows[0].definition;
+    const pauseButton = card.views[0].views.find((view) => view.props?.title === "暂停同步");
+    pauseButton.events.tapped();
+    assert.equal(scheduler.paused, true);
+    assert.equal(engine.pauseRequested, false);
+    assert.equal(button("恢复同步").enabled, true);
+    releaseNetwork();
+    gate = Promise.resolve();
+    await settle();
+    assert.equal(engine.busy, false);
+    assert.equal(button("立即同步").enabled, true);
+    const beforePausedTick = requests;
+    tick();
+    assert.equal(requests, beforePausedTick);
+    assert.ok(skipped("paused"));
+    await controller.run(() => controller.start());
+    assert.ok(requests > beforePausedTick); // Manual sync is still allowed.
+    assert.equal(scheduler.paused, true); // It does not resume the timer.
+    assert.equal(new SyncScheduler().paused, false); // New session has no persisted pause.
+
+    scheduler.setPaused(false);
+    fail = true;
+    tick();
+    await settle();
+    assert.equal(engine.busy, false);
+    assert.ok(logs.some(({entry, level}) => entry.event === "auto_sync_error" && level === "error"));
+    fail = false;
+    const beforeRetry = requests;
+    tick();
+    await settle();
+    assert.ok(requests > beforeRetry);
+    assert.ok(logs.some(({entry, level}) => entry.event === "auto_sync_finished" && entry.details.completed && level === "info"));
+    engine.leave();
+    const beforeLeaveTick = requests;
+    tick();
+    assert.equal(requests, beforeLeaveTick);
+    assert.ok(skipped("not_configured"));
+    controller.options.events.didRemove();
+    scheduler.setPaused(true); // Removed pages no longer receive updates.
+    globalTimer.stop();
   } finally {
     env.close();
   }

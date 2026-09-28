@@ -217,14 +217,16 @@ class InputLikeView extends Base<UIView, UiTypes.ViewOptions> {
 
 const links = {
   deploy: "https://gandum2077.github.io/cloudflare-d1-sync/",
-  pricing: "https://developers.cloudflare.com/d1/platform/pricing/",
-  dashboard: "https://dash.cloudflare.com/",
 };
 const palette = {
-  background: $color("#FAF8F5", "#171614"),
-  card: $color("#FFFFFF", "#24221F"),
-  ink: $color("#26231F", "#F7F2EA"),
-  muted: $color("#726B62", "#B9B0A4"),
+  //background: $color("#FAF8F5", "#171614"),
+  //card: $color("#FFFFFF", "#24221F"),
+  //ink: $color("#26231F", "#F7F2EA"),
+  //muted: $color("#726B62", "#B9B0A4"),
+  background: $color("insetGroupedBackground"),
+  card: $color("secondarySurface"),
+  ink: $color("primaryText"),
+  muted: $color("secondaryText"),
   accent: $color("#B94B16", "#FFAC75"),
   tint: $color("#FBEBDD", "#38291F"),
 };
@@ -299,14 +301,14 @@ function link(title: string, url: string): Block {
   };
 }
 
-function button(title: string, tapped: WelcomeViewButton["tapped"], secondary = false): WelcomeViewButton {
+function button(title: string, tapped: WelcomeViewButton["tapped"]): WelcomeViewButton {
   return {
     props: {
       title,
       font: $font("bold", 16),
       cornerRadius: 15,
-      bgcolor: secondary ? palette.tint : palette.ink,
-      titleColor: secondary ? palette.accent : palette.background,
+      bgcolor: palette.ink,
+      titleColor: palette.background,
     },
     tapped,
   };
@@ -403,7 +405,6 @@ export class CloudflareSyncGuideView extends WelcomeView {
         card([
           text("额度限制", 17, true),
           text("每日读取 500 万行，写入 10 万行。", 14, true, palette.muted),
-          link("查看当前额度说明 ↗", links.pricing),
           text(
             "上传或下载数据时，还需要进行索引、日志、更新设备状态等操作，因此实际上会消耗数倍的额度。",
             12,

@@ -1,16 +1,21 @@
 import { Base } from "jsbox-cview";
 export const syncColors = {
-  background: $color("#FAF8F5", "#171614"),
-  card: $color("#FFFFFF", "#24221F"),
-  ink: $color("#26231F", "#F7F2EA"),
-  muted: $color("#726B62", "#B9B0A4"),
+  //background: $color("#FAF8F5", "#171614"),
+  //card: $color("#FFFFFF", "#24221F"),
+  //ink: $color("#26231F", "#F7F2EA"),
+  //muted: $color("#726B62", "#B9B0A4"),
+  background: $color("insetGroupedBackground"),
+  card: $color("secondarySurface"),
+  ink: $color("primaryText"),
+  muted: $color("secondaryText"),
   orange: $color("#B94B16", "#FFAC75"),
   tint: $color("#FBEBDD", "#38291F"),
-  danger: $color("#BD3939", "#FF8E89"),
+  danger: $color("red"),
 };
 /** 标题与说明组成的操作行，可用于冲突、日志和设备列表。 */
 export class SyncActionRowView extends Base<UIView, UiTypes.ViewOptions> {
   protected _defineView: () => UiTypes.ViewOptions;
+  readonly compact: boolean;
   constructor({
     props,
     layout = $layout.fill,
@@ -28,6 +33,7 @@ export class SyncActionRowView extends Base<UIView, UiTypes.ViewOptions> {
   }) {
     super();
     const { title, detail, danger = false } = props;
+    this.compact = !detail;
     const action = events.tapped;
     this._defineView = () => ({
       type: "view",
@@ -53,28 +59,42 @@ export class SyncActionRowView extends Base<UIView, UiTypes.ViewOptions> {
             lines: 0,
             textColor: danger ? syncColors.danger : syncColors.ink,
           },
-          layout: (make) => {
-            make.left.inset(16);
-            make.right.inset(40);
-            make.top.inset(15);
-          },
-        },
-        {
-          type: "label",
-          props: { text: detail, font: $font(13), lines: 0, textColor: syncColors.muted },
           layout: (make, view) => {
             make.left.inset(16);
             make.right.inset(40);
-            make.top.equalTo(view.prev.bottom).offset(6);
-            make.bottom.inset(15);
+            if (this.compact) {
+              make.centerY.equalTo(view.super);
+              make.top.greaterThanOrEqualTo(view.super.top).offset(12);
+              make.bottom.lessThanOrEqualTo(view.super.bottom).offset(-12);
+            } else make.top.inset(15);
           },
         },
+        ...(this.compact
+          ? []
+          : [
+              {
+                type: "label",
+                props: { text: detail, font: $font(13), lines: 0, textColor: syncColors.muted },
+                layout: (make, view) => {
+                  make.left.inset(16);
+                  make.right.inset(40);
+                  make.top.equalTo(view.prev.bottom).offset(6);
+                  make.bottom.inset(15);
+                },
+              } as UiTypes.LabelOptions,
+            ]),
       ],
     });
-    this.heightToWidth = (width) =>
-      36 +
-      Math.ceil($text.sizeThatFits({ text: title, width: Math.max(1, width - 56), font: $font("bold", 16) }).height) +
-      Math.ceil($text.sizeThatFits({ text: detail, width: Math.max(1, width - 56), font: $font(13) }).height);
+    this.heightToWidth = (width) => {
+      const titleHeight = Math.ceil(
+        $text.sizeThatFits({ text: title, width: Math.max(1, width - 56), font: $font("bold", 16) }).height,
+      );
+      return this.compact
+        ? Math.max(48, 24 + titleHeight)
+        : 36 +
+            titleHeight +
+            Math.ceil($text.sizeThatFits({ text: detail, width: Math.max(1, width - 56), font: $font(13) }).height);
+    };
   }
   readonly heightToWidth: (width: number) => number;
 }
@@ -118,14 +138,13 @@ export class SyncActionButtonView extends Base<UIButtonView, UiTypes.ButtonOptio
 export interface SyncStatusProps {
   joined: boolean;
   running: boolean;
-  paused: boolean;
+  autoPaused: boolean;
   fullDownload: boolean;
   upload: number;
   download: number;
   conflictCount: number;
   lastSync: string;
   message?: string;
-  pauseRequested?: boolean;
   downloadLabel?: string;
 }
 /** 同步状态、三项数量和操作按钮，只展示外部传入的状态。 */
@@ -147,24 +166,25 @@ export class SyncStatusView extends Base<UIView, UiTypes.ViewOptions> {
   }) {
     super();
     const title = !props.joined
-      ? "尚未连接云同步"
+      ? "尚未连接"
       : props.running
         ? props.fullDownload
           ? "正在完整下载"
           : "正在同步"
-        : props.paused
-          ? "同步已暂停"
+        : props.autoPaused
+          ? "定时同步已暂停"
           : props.conflictCount
-            ? "有内容需要你决定"
+            ? "有冲突需要你决定"
             : "已准备好同步";
     const subtitle = !props.joined
-      ? "本机数据仍然保留，可重新加入云同步。"
+      ? "请先加入云同步。"
       : props.running
         ? props.message || "正在处理同步数据…"
-        : props.message || `上次同步 · ${props.lastSync}`;
+        : props.message ||
+          (props.autoPaused ? "仍可手动同步，重启应用后恢复定时同步。" : `上次同步 · ${props.lastSync}`);
     const start = new SyncActionButtonView({
       props: {
-        title: !props.joined ? "重新加入同步" : props.running ? "同步中…" : props.paused ? "继续同步" : "立即同步",
+        title: !props.joined ? "加入同步" : props.running ? "同步中…" : "立即同步",
         secondary: false,
         enabled: !props.running,
       },
@@ -174,9 +194,9 @@ export class SyncStatusView extends Base<UIView, UiTypes.ViewOptions> {
     });
     const pause = new SyncActionButtonView({
       props: {
-        title: props.pauseRequested ? "正在暂停…" : props.paused ? "已暂停" : "暂停同步",
+        title: props.autoPaused ? "恢复同步" : "暂停同步",
         secondary: true,
-        enabled: props.joined && props.running && !props.pauseRequested,
+        enabled: props.joined,
       },
       events: {
         tapped: () => events.pauseTapped?.(),
@@ -311,7 +331,7 @@ export class SyncManagementListView extends Base<UIListView, UiTypes.ListOptions
         // 普通行统一由 didSelect 处理。状态卡只给真正的操作控件绑定手势，
         // 不给文字标签添加空手势，以免吞掉整行或父控件的点击。
         const interactive = prefix === "status" && !!view.events?.tapped;
-        if (prefix === "detail") view.props.userInteractionEnabled = false;
+        if (prefix !== "status") view.props.userInteractionEnabled = false;
         view.events = interactive
           ? {
               tapped: async (sender: UIBaseView) => {
@@ -345,7 +365,7 @@ export class SyncManagementListView extends Base<UIListView, UiTypes.ListOptions
                 props: {
                   joined: true,
                   running: false,
-                  paused: false,
+                  autoPaused: false,
                   fullDownload: false,
                   upload: 0,
                   download: 0,
@@ -355,7 +375,8 @@ export class SyncManagementListView extends Base<UIListView, UiTypes.ListOptions
               }),
               "status",
             ),
-            template(new SyncActionRowView({ props: { title: "", detail: "" } }), "detail"),
+            template(new SyncActionRowView({ props: { title: "", detail: " " } }), "detail"),
+            template(new SyncActionRowView({ props: { title: "", detail: "" } }), "compact"),
           ],
         },
         data: this.listData(),
@@ -363,7 +384,7 @@ export class SyncManagementListView extends Base<UIListView, UiTypes.ListOptions
       layout,
       events: {
         didSelect: async (sender, _indexPath, data) => {
-          const id = data["detail-0"]?.info?.actionId;
+          const id = data["detail-0"]?.info?.actionId || data["compact-0"]?.info?.actionId;
           if (typeof id !== "string") return;
           try {
             await this.actions.get(id)?.(sender);
@@ -381,10 +402,11 @@ export class SyncManagementListView extends Base<UIListView, UiTypes.ListOptions
     return this._sections.map((section) => ({
       title: section.title,
       rows: section.rows.map((component) => {
-        const prefix = component instanceof SyncStatusView ? "status" : "detail";
+        const prefix = component instanceof SyncStatusView ? "status" : component.compact ? "compact" : "detail";
         const data: Record<string, UiTypes.BaseViewProps> = {
           "status-0": { hidden: prefix !== "status" },
           "detail-0": { hidden: prefix !== "detail" },
+          "compact-0": { hidden: prefix !== "compact" },
         };
         let index = 0;
         const visit = (view: UiTypes.AllViewOptions) => {

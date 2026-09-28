@@ -1,4 +1,4 @@
-import { BaseController, controllerStatus, CustomNavigationBar, inputAlert } from "jsbox-cview";
+import { BaseController, controllerStatus, CustomNavigationBar, inputAlert, NavigationBarProps } from "jsbox-cview";
 import { CloudflareSyncGuideView, SyncContentList } from "../components/sync-guide-view";
 import {
   SyncActionRowView,
@@ -12,6 +12,7 @@ import { dbManager } from "../utils/database";
 import { ConflictDetail, normalizeEndpoint, syncEngine } from "../sync/engine";
 import { syncErrorMessages as errors, syncErrorMessage } from "../sync/errors";
 import { syncLog } from "../sync/logging";
+import { syncScheduler } from "../sync/scheduler";
 import { recordPreview } from "../sync/presentation";
 import { SYNC_TABLES, tableSpec } from "../sync/schema";
 import { getMeta, Pending, selectedTables, selectTables, setMeta } from "../sync/store";
@@ -44,6 +45,7 @@ class ManagementPage extends BaseController {
     title: string,
     private sections: () => SyncManagementSection[],
     removed: () => void,
+    rightBarButtonItems: NavigationBarProps["rightBarButtonItems"] = [],
   ) {
     super({
       props: { bgcolor: syncColors.background },
@@ -55,7 +57,7 @@ class ManagementPage extends BaseController {
         },
       },
     });
-    const navbar = new CustomNavigationBar({ props: { title, popButtonEnabled: true } });
+    const navbar = new CustomNavigationBar({ props: { title, popButtonEnabled: true, rightBarButtonItems } });
     this.list = new SyncManagementListView({
       props: { sections: sections() },
       events: { actionFailed: (error) => $ui.error(error instanceof Error ? error.message : "操作失败") },
@@ -77,6 +79,8 @@ export class SettingsSyncController extends BaseController {
   private acting = false;
   private message = syncEngine.syncing ? syncEngine.message : "";
   private unsubscribe?: () => void;
+  private unsubscribeScheduler?: () => void;
+  private observedSyncing = syncEngine.syncing;
   private full = false;
   private lastProgress = 0;
   constructor() {
@@ -85,15 +89,18 @@ export class SettingsSyncController extends BaseController {
       events: {
         didLoad: () => {
           this.unsubscribe = syncEngine.subscribe((message, finished) => {
-            if (finished) {
+            if (finished || this.observedSyncing !== syncEngine.syncing) {
+              this.observedSyncing = syncEngine.syncing;
               this.message = message === "同步完成" ? "" : (errors[message] ?? message);
               this.refresh();
             } else this.progress(message);
           });
+          this.unsubscribeScheduler = syncScheduler.subscribe(() => this.refresh());
         },
         didAppear: () => this.refresh(),
         didRemove: () => {
           this.unsubscribe?.();
+          this.unsubscribeScheduler?.();
           this.list.dispose();
           this.screens.clear();
         },
@@ -114,8 +121,12 @@ export class SettingsSyncController extends BaseController {
     this.list.sections = this.sections();
     this.screens.forEach((screen) => screen.refresh());
   }
-  private push(title: string, sections: () => SyncManagementSection[]) {
-    const screen = new ManagementPage(title, sections, () => this.screens.delete(screen));
+  private push(
+    title: string,
+    sections: () => SyncManagementSection[],
+    rightBarButtonItems?: NavigationBarProps["rightBarButtonItems"],
+  ) {
+    const screen = new ManagementPage(title, sections, () => this.screens.delete(screen), rightBarButtonItems);
     this.screens.add(screen);
     screen.uipush({ navBarHidden: true, statusBarStyle: 0 });
     return screen;
@@ -131,6 +142,7 @@ export class SettingsSyncController extends BaseController {
       return;
     }
     this.acting = true;
+    const release = syncScheduler.hold();
     try {
       await fn();
     } catch (error) {
@@ -142,6 +154,7 @@ export class SettingsSyncController extends BaseController {
       this.record("操作未完成", errors[message] ? this.message : "请检查连接或数据后重试，待处理修改已保留。", "错误");
       if (this.status !== controllerStatus.removed) await $ui.alert({ title: "云同步", message: this.message });
     } finally {
+      release();
       this.acting = false;
       this.refresh();
     }
@@ -186,27 +199,24 @@ export class SettingsSyncController extends BaseController {
     const enabled = selectedTables();
     return [
       {
-        title: "CLOUDFLARE · 个人云同步",
+        title: "",
         rows: [
           new SyncStatusView({
             props: {
               joined,
               running: syncEngine.syncing,
-              paused: getMeta("paused", false),
+              autoPaused: syncScheduler.paused,
               fullDownload: this.full,
               upload: counts.pending,
               download: syncEngine.downloaded,
               conflictCount: counts.conflicts,
               lastSync: date(getMeta("lastSuccess", "")),
               message: this.message,
-              pauseRequested: syncEngine.pauseRequested,
             },
             events: {
               primaryTapped: this.action(() => (joined ? this.start() : this.guide())),
               pauseTapped: () => {
-                syncEngine.pause();
-                this.message = "正在完成当前请求，随后暂停…";
-                this.refresh();
+                syncScheduler.setPaused(!syncScheduler.paused);
               },
               conflictsTapped: this.action(() => this.conflicts()),
             },
@@ -267,19 +277,7 @@ export class SettingsSyncController extends BaseController {
               ],
             },
           ]
-        : [
-            {
-              title: "连接你的云",
-              rows: [
-                row(
-                  "开始设置",
-                  "跟随三步引导部署、连接并选择同步内容。",
-                  this.action(() => this.guide()),
-                ),
-                row("本机数据会保留", "加入后比较本机与云端内容，由你决定如何处理差异。"),
-              ],
-            },
-          ]),
+        : []),
     ];
   }
   private guide() {
@@ -291,7 +289,7 @@ export class SettingsSyncController extends BaseController {
         syncEngine.setDeviceName(info.deviceName);
         await syncEngine.connectionTest();
         selectTables(info.selectedTables);
-        this.message = "连接成功，点击立即同步开始比较数据。";
+        this.message = "连接成功，将自动同步，也可点击立即同步。";
         this.record("已加入云同步", "连接已验证，同步内容已保存。", "成功");
         this.refresh();
         $delay(0, () => {
@@ -300,77 +298,76 @@ export class SettingsSyncController extends BaseController {
         return true;
       }),
     ];
-    controller.uipush({ navBarHidden: true });
+    controller.uipush({ navBarHidden: true, statusBarStyle: 0 });
   }
   private configure() {
     const current = configManager.syncCredentials;
     let url = current?.url ?? "";
     let masterKey = current?.masterKey ?? "";
-    const page = this.push("连接设置", () => [
-      {
-        title: "Cloudflare Worker",
-        rows: [
-          row(
-            "API 根地址",
-            url || "点击填写 Worker 的 HTTPS 根地址",
-            this.action(async () => {
-              const value = await inputAlert({
-                title: "API 根地址",
-                message: "填写 HTTPS 根地址，不包含 /v1 路径。",
-                text: url,
-                placeholder: "https://your-worker.workers.dev",
-                type: $kbType.url,
-              });
-              url = normalizeEndpoint(value);
-            }),
-          ),
-          row(
-            "主密钥",
-            masterKey ? "•••••••• · 点击修改" : "点击填写部署时的 MASTER_KEY",
-            this.action(async () => {
-              const value = (
-                await inputAlert({
-                  title: "主密钥",
-                  message: "填写部署时设置的 64 位小写十六进制主密钥。",
-                  text: masterKey,
-                  secure: true,
-                })
-              ).trim();
-              if (!/^[0-9a-f]{64}$/.test(value)) throw new Error("请输入 64 位小写十六进制主密钥");
-              masterKey = value;
-            }),
-          ),
-        ],
-      },
-      {
-        title: "保存连接",
-        rows: [
-          row(
-            "保存并验证",
-            "应用以上修改，并检查能否连接云端。返回上页可放弃未保存的修改。",
-            this.action(async () => {
-              const endpoint = normalizeEndpoint(url);
-              if (!/^[0-9a-f]{64}$/.test(masterKey)) throw new Error("请输入 64 位小写十六进制主密钥");
-              if (endpoint !== configManager.syncCredentials?.url) {
-                const answer = await $ui.alert({
-                  title: "切换云端服务？",
-                  message: "将为新服务器重建同步状态。本机数据保留，下次同步重新比较。",
-                  actions: [{ title: "取消" }, { title: "切换" }],
+    const page = this.push(
+      "连接设置",
+      () => [
+        {
+          title: "Cloudflare Worker",
+          rows: [
+            row(
+              "API 根地址",
+              url || "点击填写 Worker 的 HTTPS 根地址",
+              this.action(async () => {
+                const value = await inputAlert({
+                  title: "API 根地址",
+                  message: "填写 HTTPS 根地址，不包含 /v1 路径。",
+                  text: url,
+                  placeholder: "https://your-worker.workers.dev",
+                  type: $kbType.url,
                 });
-                if (answer.index !== 1) return;
-              }
-              const name = getMeta("deviceName", "JSEhViewer");
-              syncEngine.configure(endpoint, masterKey);
-              syncEngine.setDeviceName(name);
-              await syncEngine.connectionTest();
-              this.message = "连接验证成功。";
-              this.record("连接已更新", "Worker 连接验证成功。", "成功");
-              if (page.status !== controllerStatus.removed) $ui.pop();
-            }),
-          ),
-        ],
-      },
-    ]);
+                url = normalizeEndpoint(value);
+              }),
+            ),
+            row(
+              "主密钥",
+              masterKey ? "•••••••• · 点击修改" : "点击填写部署时的 MASTER_KEY",
+              this.action(async () => {
+                const value = (
+                  await inputAlert({
+                    title: "主密钥",
+                    message: "填写部署时设置的 64 位小写十六进制主密钥。",
+                    text: masterKey,
+                    secure: true,
+                  })
+                ).trim();
+                if (!/^[0-9a-f]{64}$/.test(value)) throw new Error("请输入 64 位小写十六进制主密钥");
+                masterKey = value;
+              }),
+            ),
+          ],
+        },
+      ],
+      [
+        {
+          title: "应用",
+          handler: this.action(async () => {
+            const endpoint = normalizeEndpoint(url);
+            if (!/^[0-9a-f]{64}$/.test(masterKey)) throw new Error("请输入 64 位小写十六进制主密钥");
+            if (endpoint !== configManager.syncCredentials?.url) {
+              const answer = await $ui.alert({
+                title: "切换云端服务？",
+                message: "将为新服务器重建同步状态。本机数据保留，下次同步重新比较。",
+                actions: [{ title: "取消" }, { title: "切换" }],
+              });
+              if (answer.index !== 1) return;
+            }
+            const name = getMeta("deviceName", "JSEhViewer");
+            syncEngine.configure(endpoint, masterKey);
+            syncEngine.setDeviceName(name);
+            await syncEngine.connectionTest();
+            this.message = "连接验证成功。";
+            this.record("连接已更新", "Worker 连接验证成功。", "成功");
+            if (page.status !== controllerStatus.removed) $ui.pop();
+          }),
+        },
+      ],
+    );
   }
   private chooseTables() {
     const content = new SyncContentList(selectedTables());
@@ -423,45 +420,49 @@ export class SettingsSyncController extends BaseController {
       items = await syncEngine.readConflicts(rows.slice(0, 50));
     };
     await load();
-    this.push("处理冲突", () => [
-      {
-        title: "请选择你要保留的版本",
-        rows: [
-          ...items.map((item) =>
-            row(
-              `${tableSpec(item.pending.tablename).title} · ${item.pending.id}`,
-              this.conflictSummary(item),
-              this.action(() =>
-                this.conflictDetail(item, () => {
-                  items = items.filter((entry) => entry !== item);
-                }),
-              ),
-            ),
-          ),
-          ...(!items.length ? [row("没有待处理冲突", "下一次同步会继续应用已选择的内容。")] : []),
-          row(
-            "刷新列表",
-            "重新读取云端当前版本",
-            this.action(async () => {
-              after = undefined;
-              await load();
-            }),
-          ),
-          ...(more
-            ? [
-                row(
-                  "下一页",
-                  "继续查看后面的冲突",
-                  this.action(async () => {
-                    after = pageEnd;
-                    await load();
+    this.push(
+      "处理冲突",
+      () => [
+        {
+          title: !items.length ? "" : "请选择你要保留的版本",
+          rows: [
+            ...items.map((item) =>
+              row(
+                `${tableSpec(item.pending.tablename).title} · ${item.pending.id}`,
+                this.conflictSummary(item),
+                this.action(() =>
+                  this.conflictDetail(item, () => {
+                    items = items.filter((entry) => entry !== item);
                   }),
                 ),
-              ]
-            : []),
-        ],
-      },
-    ]);
+              ),
+            ),
+            ...(!items.length ? [row("没有待处理冲突", "下一次同步会继续应用已选择的内容。")] : []),
+            ...(more
+              ? [
+                  row(
+                    "下一页",
+                    "继续查看后面的冲突",
+                    this.action(async () => {
+                      after = pageEnd;
+                      await load();
+                    }),
+                  ),
+                ]
+              : []),
+          ],
+        },
+      ],
+      [
+        {
+          title: "刷新",
+          handler: this.action(async () => {
+            after = undefined;
+            await load();
+          }),
+        },
+      ],
+    );
   }
   private conflictSummary(item: ConflictDetail) {
     return `本机：${item.local.deleted ? "已删除" : "有待上传修改"}\n云端：${!item.cloud.found ? "不存在" : item.cloud.deleted ? "已删除" : "有其他版本"}`;
@@ -562,94 +563,118 @@ export class SettingsSyncController extends BaseController {
   }
   private logs() {
     let filter = "全部";
-    this.push("同步日志", () => {
-      const activity = getMeta<Activity[]>("activities", []);
-      const failures = dbManager.query("SELECT * FROM sync_log ORDER BY updated_at DESC LIMIT 50").map(
-        (entry): Activity => ({
-          title: entry.tablename ? `${tableSpec(entry.tablename).title} · ${entry.id}` : "同步中断",
-          detail:
-            errors[entry.code] ??
-            {
-              FOREIGN_KEY: "关联的图库记录尚未就绪，下次同步会重试。",
-              INVALID_CONTENT: "云端内容无法应用，下次同步会重试。",
-              SYNC_INTERRUPTED: "同步未完成，待处理修改已保留。",
-            }[entry.code as string] ??
-            entry.code,
-          time: entry.updated_at,
-          kind: "错误",
-        }),
-      );
-      const entries = [...activity, ...failures]
-        .sort((a, b) => b.time.localeCompare(a.time))
-        .filter((entry) => filter === "全部" || entry.kind === filter)
-        .slice(0, 100);
-      return [
+    this.push(
+      "同步日志",
+      () => {
+        const activity = getMeta<Activity[]>("activities", []);
+        const failures = dbManager.query("SELECT * FROM sync_log ORDER BY updated_at DESC LIMIT 50").map(
+          (entry): Activity => ({
+            title: entry.tablename ? `${tableSpec(entry.tablename).title} · ${entry.id}` : "同步中断",
+            detail:
+              errors[entry.code] ??
+              {
+                FOREIGN_KEY: "关联的图库记录尚未就绪，下次同步会重试。",
+                INVALID_CONTENT: "云端内容无法应用，下次同步会重试。",
+                SYNC_INTERRUPTED: "同步未完成，待处理修改已保留。",
+              }[entry.code as string] ??
+              entry.code,
+            time: entry.updated_at,
+            kind: "错误",
+          }),
+        );
+        const entries = [...activity, ...failures]
+          .sort((a, b) => b.time.localeCompare(a.time))
+          .filter((entry) => filter === "全部" || entry.kind === filter)
+          .slice(0, 100);
+        return [
+          {
+            title: `最近记录 · ${filter} · 仅保存操作摘要`,
+            rows: entries.length
+              ? entries.map((entry) => row(`${date(entry.time)} · ${entry.title}`, `${entry.kind} · ${entry.detail}`))
+              : [row("暂无记录", "此筛选下没有同步记录。")],
+          },
+        ];
+      },
+      [
         {
-          title: "仅保存操作摘要",
-          rows: [
-            row(
-              `筛选 · ${filter}`,
-              "查看最近的同步结果与异常",
-              this.action(async () => {
-                const choices = ["全部", "成功", "提示", "错误"];
-                const index = await chooseMenu(choices);
-                if (index >= 0) filter = choices[index];
-              }),
-            ),
-          ],
+          title: "筛选",
+          handler: this.action(async () => {
+            const choices = ["全部", "成功", "提示", "错误"];
+            const index = await chooseMenu(choices);
+            if (index >= 0) filter = choices[index];
+          }),
         },
-        {
-          title: "最近记录",
-          rows: entries.length
-            ? entries.map((entry) => row(`${date(entry.time)} · ${entry.title}`, `${entry.kind} · ${entry.detail}`))
-            : [row("暂无记录", "此筛选下没有同步记录。")],
-        },
-      ];
-    });
+      ],
+    );
   }
   private async devices() {
     let devices = await syncEngine.devices();
-    this.push("设备管理", () => [
-      {
-        title: "禁用设备不会移除其已有数据或主密钥",
-        rows: [
-          ...devices.map((device) => {
-            const current = device.id === getMeta("deviceId", "");
-            return row(
-              `${device.name || "设备"}${current ? " · 本设备" : ""}${device.disabled ? " · 已禁用" : ""}`,
-              `最近活动：${date(device.last_seen_at)}${current && !device.disabled ? "\n点击修改本设备名称" : "\n点击管理访问权限"}`,
-              this.action(async () => {
-                if (current && !device.disabled) {
-                  const name = await inputAlert({
-                    title: "本设备名称",
-                    message: "请输入 1～32 个字符",
-                    text: device.name,
-                  });
-                  await syncEngine.renameDevice(name);
-                  this.record("设备已改名", "已更新本设备名称。", "成功");
-                } else {
-                  const answer = await $ui.alert({
-                    title: device.disabled ? "启用设备？" : "禁用设备？",
-                    message: device.disabled ? "该设备将可以再次同步。" : "该设备将无法同步，已有数据仍保留。",
-                    actions: [{ title: "取消" }, { title: device.disabled ? "启用" : "禁用" }],
-                  });
-                  if (answer.index !== 1) return;
-                  await syncEngine.setDeviceDisabled(device.id, !device.disabled);
-                }
-                devices = await syncEngine.devices();
-              }),
-            );
-          }),
-          row(
-            "刷新设备列表",
-            "获取最新活动与权限状态",
-            this.action(async () => {
-              devices = await syncEngine.devices();
-            }),
-          ),
-        ],
+    const refresh = async () => {
+      devices = await syncEngine.devices();
+    };
+    const setDisabled = async (device: { id: string; disabled: boolean }) => {
+      const answer = await $ui.alert({
+        title: device.disabled ? "启用设备？" : "禁用设备？",
+        message: device.disabled ? "该设备将可以再次同步。" : "该设备将无法同步，已有数据仍保留。",
+        actions: [{ title: "取消" }, { title: device.disabled ? "启用" : "禁用" }],
+      });
+      if (answer.index !== 1) return;
+      await syncEngine.setDeviceDisabled(device.id, !device.disabled);
+      await refresh();
+    };
+    this.push(
+      "设备管理",
+      () => {
+        const deviceId = getMeta("deviceId", "");
+        const current = devices.find((device) => device.id === deviceId);
+        const others = devices.filter((device) => device.id !== deviceId);
+        return [
+          {
+            title: "本机设备",
+            rows: [
+              row(
+                current?.name || getMeta("deviceName", "JSEhViewer"),
+                current?.disabled ? "本设备已禁用，启用后可修改名称。" : "点击修改本设备名称",
+                current?.disabled
+                  ? undefined
+                  : this.action(async () => {
+                      const name = await inputAlert({
+                        title: "本设备名称",
+                        message: "请输入 1～32 个字符",
+                        text: current?.name || getMeta("deviceName", "JSEhViewer"),
+                      });
+                      await syncEngine.renameDevice(name);
+                      this.record("设备已改名", "已更新本设备名称。", "成功");
+                      await refresh();
+                    }),
+              ),
+              ...(current?.disabled
+                ? [
+                    row(
+                      "启用本设备",
+                      "恢复本设备的同步权限",
+                      this.action(() => setDisabled(current)),
+                    ),
+                  ]
+                : []),
+            ],
+          },
+          {
+            title: "其他设备",
+            rows: others.length
+              ? others.map((device) =>
+                  row(
+                    `${device.name || "设备"}${device.disabled ? " · 已禁用" : ""}`,
+                    `最近活动：${date(device.last_seen_at)}\n点击${device.disabled ? "启用" : "禁用"}设备，已有数据和主密钥保留。`,
+                    this.action(() => setDisabled(device)),
+                  ),
+                )
+              : [row("暂无其他设备", "其他设备加入同步后会显示在这里。")],
+          },
+        ];
       },
-    ]);
+      [{ title: "刷新", handler: this.action(refresh) }],
+    );
   }
   private redownload() {
     const download = async (table?: string) => {
@@ -683,7 +708,7 @@ export class SettingsSyncController extends BaseController {
           rows: tables.map((table) =>
             row(
               table.title,
-              "重新获取这一项的云端内容，保留本机未上传修改。",
+              "",
               this.action(() => download(table.name)),
             ),
           ),

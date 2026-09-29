@@ -308,6 +308,8 @@ export class SyncManagementListView extends Base<UIListView, UiTypes.ListOptions
   private _sections: SyncManagementSection[];
   private actions = new Map<string, (sender: any) => void>();
   private nextActionId = 0;
+  private fetchingMore = false;
+  private disposed = false;
   constructor({
     props,
     layout = $layout.fill,
@@ -319,6 +321,7 @@ export class SyncManagementListView extends Base<UIListView, UiTypes.ListOptions
     layout?: (make: MASConstraintMaker, view: UIListView) => void;
     events?: {
       actionFailed?: (error: unknown) => void;
+      didReachBottom?: () => void | Promise<void>;
     };
   }) {
     super();
@@ -383,6 +386,22 @@ export class SyncManagementListView extends Base<UIListView, UiTypes.ListOptions
       },
       layout,
       events: {
+        ...(events.didReachBottom
+          ? {
+              didReachBottom: async (sender: UIListView) => {
+                if (this.fetchingMore || this.disposed) return;
+                this.fetchingMore = true;
+                try {
+                  await events.didReachBottom!();
+                } catch (error) {
+                  events.actionFailed?.(error);
+                } finally {
+                  this.fetchingMore = false;
+                  if (!this.disposed) sender.endFetchingMore();
+                }
+              },
+            }
+          : {}),
         didSelect: async (sender, _indexPath, data) => {
           const id = data["detail-0"]?.info?.actionId || data["compact-0"]?.info?.actionId;
           if (typeof id !== "string") return;
@@ -440,6 +459,7 @@ export class SyncManagementListView extends Base<UIListView, UiTypes.ListOptions
     if (count) count.text = String(downloaded);
   }
   dispose() {
+    this.disposed = true;
     this.actions.clear();
   }
 }

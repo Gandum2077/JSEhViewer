@@ -623,48 +623,54 @@ export class SyncEngine {
     this.busy = true;
     try {
       await this.register();
-      const response = await this.request(
-        "POST",
-        "/v1/read",
-        JSON.stringify({
-          device_id: getMeta("deviceId", ""),
-          keys: pending.map(({ tablename, id }) => ({ tablename, id })),
-        }),
-      );
-      if (response?.error) throw new SyncError(response.error.code);
-      if (!Array.isArray(response?.results) || response.results.length !== pending.length)
-        throw new Error("记录读取响应无效");
-      const results: ReadRecord[] = response.results;
-      results.forEach((row, index) => {
-        const key = pending[index];
-        if (
-          row.tablename !== key.tablename ||
-          row.id !== key.id ||
-          typeof row.found !== "boolean" ||
-          (row.found &&
-            (!Number.isSafeInteger(row.sync_version) ||
-              row.sync_version < 1 ||
-              typeof row.deleted !== "boolean" ||
-              (!row.deleted && !("content" in row)) ||
-              !Number.isSafeInteger(row.server_updated_at) ||
-              typeof row.updated_by_device_id !== "string"))
-        )
-          throw new Error("记录读取响应无效");
-        const cached = mirror(key.tablename, key.id);
-        if (cached && (!row.found || row.sync_version < cached.sync_version))
-          throw new Error("云端状态早于本机已知版本，请重新下载后再处理冲突");
-      });
-      return pending.map((entry, index) => ({
-        pending: entry,
-        local: localRecord(entry.tablename, entry.id),
-        cloud: results[index],
-      }));
+      return await this.readConflictRecords(pending);
     } finally {
       this.busy = false;
     }
   }
+  private async readConflictRecords(pending: Pending[]): Promise<ConflictDetail[]> {
+    const response = await this.request(
+      "POST",
+      "/v1/read",
+      JSON.stringify({
+        device_id: getMeta("deviceId", ""),
+        keys: pending.map(({ tablename, id }) => ({ tablename, id })),
+      }),
+    );
+    if (response?.error) throw new SyncError(response.error.code);
+    if (!Array.isArray(response?.results) || response.results.length !== pending.length)
+      throw new Error("记录读取响应无效");
+    const results: ReadRecord[] = response.results;
+    results.forEach((row, index) => {
+      const key = pending[index];
+      if (
+        row.tablename !== key.tablename ||
+        row.id !== key.id ||
+        typeof row.found !== "boolean" ||
+        (row.found &&
+          (!Number.isSafeInteger(row.sync_version) ||
+            row.sync_version < 1 ||
+            typeof row.deleted !== "boolean" ||
+            (!row.deleted && !("content" in row)) ||
+            !Number.isSafeInteger(row.server_updated_at) ||
+            typeof row.updated_by_device_id !== "string"))
+      )
+        throw new Error("记录读取响应无效");
+      const cached = mirror(key.tablename, key.id);
+      if (cached && (!row.found || row.sync_version < cached.sync_version))
+        throw new Error("云端状态早于本机已知版本，请重新下载后再处理冲突");
+    });
+    return pending.map((entry, index) => ({
+      pending: entry,
+      local: localRecord(entry.tablename, entry.id),
+      cloud: results[index],
+    }));
+  }
   resolve(table: string, id: string, choice: "cloud" | "local", detail: ConflictDetail) {
     this.idle();
+    configManager.reloadAfterSync(this.resolveRecord(table, id, choice, detail));
+  }
+  private resolveRecord(table: string, id: string, choice: "cloud" | "local", detail: ConflictDetail) {
     tableSpec(table);
     if (getMeta("inflight", null)) throw new Error("请先同步，确认未完成的上传");
     const pending = dbManager.query("SELECT * FROM sync_pending WHERE tablename=? AND id=? AND conflict IS NOT NULL", [
@@ -683,7 +689,7 @@ export class SyncEngine {
     const remote = detail.cloud.found ? detail.cloud : undefined;
     if (cached && (!remote || cached.sync_version > remote.sync_version))
       throw new Error("云端版本已更新，请刷新冲突后重新选择");
-    const changed = dbManager.atomic((tx) => {
+    return dbManager.atomic((tx) => {
       if (remote) saveRecord(tx, "sync_mirror", remote);
       else tx.execute("DELETE FROM sync_mirror WHERE tablename=? AND id=?", [table, id]);
       if (choice === "cloud") {
@@ -702,7 +708,58 @@ export class SyncEngine {
       ]);
       return new Set<string>();
     }, true);
-    configManager.reloadAfterSync(changed);
+  }
+  async resolveConflicts(choice: "cloud" | "local", table?: string) {
+    this.idle();
+    if (table) tableSpec(table);
+    if (getMeta("inflight", null)) throw new Error("请先同步，确认未完成的上传");
+    const enabled = new Set(selectedTables());
+    const tables = SYNC_TABLES.filter((spec) => enabled.has(spec.name) && (!table || spec.name === table));
+    const boundary = dbManager.query("SELECT tick FROM sync_control WHERE id=1")[0].tick;
+    const result = { resolved: 0, failed: 0 };
+    this.busy = true;
+    syncLog("bulk_conflicts_started", { choice, table, boundary }, "info");
+    try {
+      await this.register();
+      // Schema order applies gallery parents before their dependent records.
+      for (const spec of tables) {
+        let after: string | undefined;
+        while (true) {
+          const pending = dbManager.query(
+            `SELECT * FROM sync_pending WHERE tablename=? AND conflict IS NOT NULL AND revision<=?
+             ${after === undefined ? "" : "AND id>?"} ORDER BY id LIMIT 50`,
+            after === undefined ? [spec.name, boundary] : [spec.name, boundary, after],
+          ) as Pending[];
+          if (!pending.length) break;
+          const details = await this.readConflictRecords(pending);
+          const changed = new Set<string>();
+          for (const detail of details) {
+            try {
+              this.resolveRecord(spec.name, detail.pending.id, choice, detail).forEach((name) => changed.add(name));
+              result.resolved++;
+            } catch (error) {
+              // Each record has its own transaction; failed or edited records remain conflicts.
+              result.failed++;
+              syncLog(
+                "bulk_conflict_record_error",
+                { table: spec.name, id: detail.pending.id, choice, error },
+                "error",
+              );
+            }
+          }
+          configManager.reloadAfterSync(changed);
+          after = pending[pending.length - 1].id;
+          await $wait(0.001);
+        }
+      }
+      syncLog("bulk_conflicts_finished", { choice, table, ...result }, "info");
+      return result;
+    } catch (error) {
+      syncLog("bulk_conflicts_error", { choice, table, ...result, error }, "error");
+      throw error;
+    } finally {
+      this.busy = false;
+    }
   }
   leave() {
     this.idle();

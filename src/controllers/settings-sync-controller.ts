@@ -15,7 +15,7 @@ import { syncLog } from "../sync/logging";
 import { syncScheduler } from "../sync/scheduler";
 import { recordPreview } from "../sync/presentation";
 import { SYNC_TABLES, tableSpec } from "../sync/schema";
-import { getMeta, Pending, selectedTables, selectTables, setMeta } from "../sync/store";
+import { getMeta, localRecord, Pending, selectedTables, selectTables, setMeta } from "../sync/store";
 
 type Activity = { title: string; detail: string; kind: "成功" | "提示" | "错误"; time: string };
 const date = (value: string | number) => (value ? new Date(value).toLocaleString() : "尚未同步");
@@ -46,6 +46,7 @@ class ManagementPage extends BaseController {
     private sections: () => SyncManagementSection[],
     removed: () => void,
     rightBarButtonItems: NavigationBarProps["rightBarButtonItems"] = [],
+    didReachBottom?: () => void | Promise<void>,
   ) {
     super({
       props: { bgcolor: syncColors.background },
@@ -60,7 +61,10 @@ class ManagementPage extends BaseController {
     const navbar = new CustomNavigationBar({ props: { title, popButtonEnabled: true, rightBarButtonItems } });
     this.list = new SyncManagementListView({
       props: { sections: sections() },
-      events: { actionFailed: (error) => $ui.error(error instanceof Error ? error.message : "操作失败") },
+      events: {
+        actionFailed: (error) => $ui.error(error instanceof Error ? error.message : "操作失败"),
+        didReachBottom,
+      },
       layout: (make, view) => {
         make.top.equalTo(view.prev.bottom);
         make.left.right.bottom.inset(0);
@@ -125,8 +129,15 @@ export class SettingsSyncController extends BaseController {
     title: string,
     sections: () => SyncManagementSection[],
     rightBarButtonItems?: NavigationBarProps["rightBarButtonItems"],
+    didReachBottom?: () => void | Promise<void>,
   ) {
-    const screen = new ManagementPage(title, sections, () => this.screens.delete(screen), rightBarButtonItems);
+    const screen = new ManagementPage(
+      title,
+      sections,
+      () => this.screens.delete(screen),
+      rightBarButtonItems,
+      didReachBottom,
+    );
     this.screens.add(screen);
     screen.uipush({ navBarHidden: true, statusBarStyle: 0 });
     return screen;
@@ -218,7 +229,7 @@ export class SettingsSyncController extends BaseController {
               pauseTapped: () => {
                 syncScheduler.setPaused(!syncScheduler.paused);
               },
-              conflictsTapped: this.action(() => this.conflicts()),
+              conflictsTapped: () => this.conflicts(),
             },
           }),
         ],
@@ -228,10 +239,8 @@ export class SettingsSyncController extends BaseController {
             {
               title: "同步管理",
               rows: [
-                row(
-                  "处理冲突",
-                  counts.conflicts ? `${counts.conflicts} 项需要选择保留的版本` : "没有待处理冲突",
-                  this.action(() => this.conflicts()),
+                row("处理冲突", counts.conflicts ? `${counts.conflicts} 项需要选择保留的版本` : "没有待处理冲突", () =>
+                  this.conflicts(),
                 ),
                 row(
                   "同步日志",
@@ -403,151 +412,279 @@ export class SettingsSyncController extends BaseController {
     ];
     page.uipush({ navBarHidden: true, statusBarStyle: 0 });
   }
-  private async conflicts() {
-    let after: { tablename: string; id: string } | undefined;
-    let items: ConflictDetail[] = [];
-    let more = false;
-    let pageEnd: Pending | undefined;
-    const load = async () => {
-      const rows = dbManager.query(
-        `SELECT p.* FROM sync_pending p JOIN sync_enabled USING(tablename)
-        WHERE conflict IS NOT NULL ${after ? "AND (p.tablename,p.id)>(?,?)" : ""}
-        ORDER BY p.tablename,p.id LIMIT 51`,
-        after ? [after.tablename, after.id] : [],
-      ) as Pending[];
-      more = rows.length > 50;
-      pageEnd = rows[Math.min(50, rows.length) - 1];
-      items = await syncEngine.readConflicts(rows.slice(0, 50));
-    };
-    await load();
+  private conflictCounts() {
+    return dbManager.query(`SELECT tablename,COUNT(*) AS count FROM sync_pending
+      JOIN sync_enabled USING(tablename) WHERE conflict IS NOT NULL GROUP BY tablename`) as {
+      tablename: string;
+      count: number;
+    }[];
+  }
+  private conflicts() {
     this.push(
       "处理冲突",
-      () => [
-        {
-          title: !items.length ? "" : "请选择你要保留的版本",
-          rows: [
-            ...items.map((item) =>
+      () => {
+        const counts = new Map(this.conflictCounts().map((entry) => [entry.tablename, entry.count]));
+        return [
+          {
+            title: "批量处理",
+            rows: [
               row(
-                `${tableSpec(item.pending.tablename).title} · ${item.pending.id}`,
-                this.conflictSummary(item),
-                this.action(() =>
+                "保留全部本机内容",
+                "",
+                this.action(() => this.resolveAllConflicts("local")),
+              ),
+              row(
+                "保留全部云端内容",
+                "",
+                this.action(() => this.resolveAllConflicts("cloud")),
+              ),
+            ],
+          },
+          {
+            title: "有冲突的同步内容",
+            rows: counts.size
+              ? SYNC_TABLES.filter((table) => counts.has(table.name)).map((table) =>
+                  row(table.title, `${counts.get(table.name)} 个冲突`, () => this.tableConflicts(table.name)),
+                )
+              : [row("没有待处理冲突", "下一次同步会继续应用已选择的内容。")],
+          },
+        ];
+      },
+      [{ title: "刷新", handler: () => this.refresh() }],
+    );
+  }
+  private async resolveAllConflicts(choice: "cloud" | "local", table?: string) {
+    const count = this.conflictCounts()
+      .filter((entry) => !table || entry.tablename === table)
+      .reduce((sum, entry) => sum + entry.count, 0);
+    if (!count) {
+      $ui.toast("没有待处理冲突");
+      return;
+    }
+    const scope = table ? tableSpec(table).title : "全部同步内容";
+    const answer = await $ui.alert({
+      title: `保留${table ? "该表" : "全部"}${choice === "local" ? "本机" : "云端"}内容？`,
+      message:
+        `${scope}当前有 ${count} 个冲突。` +
+        (choice === "local"
+          ? "将保留本机内容，等待后续同步上传；云端再次变化时仍会提示冲突。"
+          : "将读取云端当前内容并替换本机冲突记录；云端已删除或不存在的记录也会从本机移除。"),
+      actions: [{ title: "取消" }, { title: "确认选择" }],
+    });
+    if (answer.index !== 1) return;
+    const result = await syncEngine.resolveConflicts(choice, table);
+    const remaining = this.conflictCounts()
+      .filter((entry) => !table || entry.tablename === table)
+      .reduce((sum, entry) => sum + entry.count, 0);
+    const detail = `${scope}：已处理 ${result.resolved} 项，失败 ${result.failed} 项，剩余 ${remaining} 个冲突。`;
+    this.record("批量处理冲突", detail, result.failed ? "错误" : "成功");
+    await $ui.alert({ title: "批量处理完成", message: detail });
+  }
+  private tableConflicts(table: string) {
+    let after: string | undefined;
+    let items: Pending[] = [];
+    let more = true;
+    let page: ManagementPage | undefined;
+    const load = (reset = false) => {
+      const cursor = reset ? undefined : after;
+      const rows = dbManager.query(
+        `SELECT p.* FROM sync_pending p JOIN sync_enabled USING(tablename)
+         WHERE tablename=? AND conflict IS NOT NULL ${cursor === undefined ? "" : "AND id>?"}
+         ORDER BY id LIMIT 51`,
+        cursor === undefined ? [table] : [table, cursor],
+      ) as Pending[];
+      const next = rows.slice(0, 50);
+      if (page?.status === controllerStatus.removed) return;
+      items = reset ? next : [...items, ...next];
+      more = rows.length > 50;
+      after = rows.length ? rows[Math.min(50, rows.length) - 1].id : cursor;
+    };
+    load();
+    page = this.push(
+      tableSpec(table).title,
+      () => {
+        // Remove resolved rows when returning from details or after an automatic sync.
+        const pending = new Map(
+          (after === undefined
+            ? []
+            : dbManager.query(
+                `SELECT id,revision FROM sync_pending WHERE tablename=? AND conflict IS NOT NULL AND id<=?`,
+                [table, after],
+              )
+          ).map((entry) => [entry.id, entry.revision]),
+        );
+        items = items.filter((item) => pending.has(item.id));
+        const count = this.conflictCounts().find((entry) => entry.tablename === table)?.count ?? 0;
+        return [
+          {
+            title: "批量处理",
+            rows: [
+              row(
+                "保留该表本机内容",
+                "",
+                this.action(() => this.resolveAllConflicts("local", table)),
+              ),
+              row(
+                "保留该表云端内容",
+                "",
+                this.action(() => this.resolveAllConflicts("cloud", table)),
+              ),
+            ],
+          },
+          {
+            title: `冲突记录 · 点击查看具体内容`,
+            rows: [
+              ...items.map((item) =>
+                row(item.id, "", () =>
                   this.conflictDetail(item, () => {
-                    items = items.filter((entry) => entry !== item);
+                    items = items.filter((entry) => entry.id !== item.id);
                   }),
                 ),
               ),
-            ),
-            ...(!items.length ? [row("没有待处理冲突", "下一次同步会继续应用已选择的内容。")] : []),
-            ...(more
-              ? [
-                  row(
-                    "下一页",
-                    "继续查看后面的冲突",
-                    this.action(async () => {
-                      after = pageEnd;
-                      await load();
-                    }),
-                  ),
-                ]
-              : []),
-          ],
-        },
-      ],
+              ...(!items.length
+                ? [
+                    row(
+                      count ? "暂无已加载的冲突" : "没有待处理冲突",
+                      count ? "可触底继续加载，或点击右上角刷新。" : "下一次同步会继续应用已选择的内容。",
+                    ),
+                  ]
+                : []),
+            ],
+          },
+        ];
+      },
       [
         {
           title: "刷新",
-          handler: this.action(async () => {
-            after = undefined;
-            await load();
-          }),
+          handler: () => {
+            load(true);
+            page?.refresh();
+          },
         },
       ],
+      () => {
+        if (!more || page?.status === controllerStatus.removed) return;
+        load();
+        page?.refresh();
+      },
     );
   }
-  private conflictSummary(item: ConflictDetail) {
-    return `本机：${item.local.deleted ? "已删除" : "有待上传修改"}\n云端：${!item.cloud.found ? "不存在" : item.cloud.deleted ? "已删除" : "有其他版本"}`;
-  }
-  private async conflictDetail(initial: ConflictDetail, onResolved: () => void) {
-    const pending = dbManager.query("SELECT * FROM sync_pending WHERE tablename=? AND id=? AND conflict IS NOT NULL", [
-      initial.pending.tablename,
-      initial.pending.id,
-    ]) as Pending[];
+  private conflictDetail(initial: Pending, onResolved: () => void) {
+    const current = () =>
+      dbManager.query("SELECT * FROM sync_pending WHERE tablename=? AND id=? AND conflict IS NOT NULL", [
+        initial.tablename,
+        initial.id,
+      ]) as Pending[];
+    const pending = current();
     if (!pending.length) {
+      onResolved();
+      this.refresh();
       $ui.toast("这条冲突已处理，请刷新列表");
       return;
     }
-    let item = (await syncEngine.readConflicts(pending))[0];
-    const content = (local: boolean) =>
-      local
-        ? describe(item.local)
-        : item.cloud.found
-          ? describe(item.cloud)
-          : "云端不存在这条记录。选择云端会移除本机这条内容。";
+    let local = localRecord(initial.tablename, initial.id);
+    let item: ConflictDetail | undefined;
+    let loading = false;
+    let error = "";
     let resolved = false;
-    const choose = async (local: boolean) => {
+    let page: ManagementPage;
+    const loadCloud = async () => {
+      if (loading || resolved || page.status === controllerStatus.removed) return;
+      loading = true;
+      error = "";
+      item = undefined;
+      page.refresh();
+      try {
+        // Let navigation render first. Waiting for the engine never holds the UI action lock.
+        await $wait(0.001);
+        while (syncEngine.busy || this.acting) {
+          if (page.status === controllerStatus.removed) return;
+          await $wait(0.1);
+        }
+        if (page.status === controllerStatus.removed) return;
+        const rows = current();
+        if (!rows.length) {
+          resolved = true;
+          onResolved();
+          return;
+        }
+        const details = await syncEngine.readConflicts(rows);
+        if (page.status === controllerStatus.removed) return;
+        item = details[0];
+        local = item.local;
+      } catch (failure) {
+        syncLog("conflict_detail_read_error", { table: initial.tablename, id: initial.id, error: failure }, "error");
+        if (page.status !== controllerStatus.removed) error = syncErrorMessage(failure);
+      } finally {
+        loading = false;
+        if (page.status !== controllerStatus.removed) page.refresh();
+      }
+    };
+    const choose = async (useLocal: boolean) => {
+      const reviewed = item;
+      if (!reviewed || loading || resolved) return;
       const answer = await $ui.alert({
-        title: local ? "使用本机内容？" : "保留云端内容？",
-        message: local
+        title: useLocal ? "使用本机内容？" : "保留云端内容？",
+        message: useLocal
           ? "下次同步将上传本机版本；如果云端再次修改，会重新提示冲突。"
           : "将用刚读取的云端版本替换本机这条内容。",
         actions: [{ title: "取消" }, { title: "确认选择" }],
       });
-      if (answer.index !== 1) return;
-      syncEngine.resolve(item.pending.tablename, item.pending.id, local ? "local" : "cloud", item);
+      if (answer.index !== 1 || page.status === controllerStatus.removed) return;
+      syncEngine.resolve(initial.tablename, initial.id, useLocal ? "local" : "cloud", reviewed);
       resolved = true;
       onResolved();
       this.record(
         "冲突已处理",
-        `${tableSpec(item.pending.tablename).title}：${local ? "等待上传本机内容" : "已应用云端内容"}。`,
+        `${tableSpec(initial.tablename).title}：${useLocal ? "等待上传本机内容" : "已应用云端内容"}。`,
         "成功",
       );
       $ui.pop();
     };
-    this.push("选择保留的内容", () => [
+    page = this.push("选择保留的内容", () => [
       {
-        title: `${tableSpec(item.pending.tablename).title} · ${item.pending.id}`,
+        title: `${tableSpec(initial.tablename).title} · ${initial.id}`,
         rows: resolved
-          ? [row("冲突已处理", "返回列表后刷新以查看其他冲突。")]
+          ? [row("冲突已处理", "返回列表后可查看其他冲突。")]
           : [
-              row(
-                "本机内容",
-                recordPreview(item.local).slice(0, 700) + "\n点击查看完整内容",
-                this.action(() => this.showContent("本机内容", content(true))),
+              row("本机内容", recordPreview(local).slice(0, 700) + "\n点击查看完整内容", () =>
+                this.showContent("本机内容", describe(local)),
               ),
               row(
                 "云端内容",
-                `${item.cloud.found ? `云端更新：${date(item.cloud.server_updated_at)}\n修改设备：${item.cloud.updated_by_device_id}\n` : ""}${item.cloud.found ? recordPreview(item.cloud).slice(0, 700) : content(false)}\n点击查看完整内容`,
-                this.action(() => this.showContent("云端内容", content(false))),
+                item
+                  ? `${item.cloud.found ? `云端更新：${date(item.cloud.server_updated_at)}\n修改设备：${item.cloud.updated_by_device_id}\n` : ""}${item.cloud.found ? recordPreview(item.cloud).slice(0, 700) : "云端不存在这条记录。选择云端会移除本机这条内容。"}\n点击查看完整内容`
+                  : error
+                    ? `读取失败：${error}\n请点击下方重试。`
+                    : "正在读取云端内容",
+                item
+                  ? () =>
+                      this.showContent("云端内容", item!.cloud.found ? describe(item!.cloud) : "云端不存在这条记录。")
+                  : undefined,
               ),
               row(
                 "使用本机内容",
-                "下次同步上传这一份",
-                this.action(() => choose(true)),
+                item ? "下次同步上传这一份" : "读取云端内容后可选择",
+                item ? this.action(() => choose(true)) : undefined,
               ),
               row(
                 "保留云端内容",
-                "立即应用这一份",
-                this.action(() => choose(false)),
+                item ? "立即应用这一份" : "读取云端内容后可选择",
+                item ? this.action(() => choose(false)) : undefined,
               ),
               row(
-                "刷新云端内容",
-                "重新取得当前内容后再选择",
-                this.action(async () => {
-                  const rows = dbManager.query(
-                    "SELECT * FROM sync_pending WHERE tablename=? AND id=? AND conflict IS NOT NULL",
-                    [item.pending.tablename, item.pending.id],
-                  ) as Pending[];
-                  if (!rows.length) {
-                    resolved = true;
-                    return;
-                  }
-                  item = (await syncEngine.readConflicts(rows))[0];
-                }),
+                error ? "重试读取云端内容" : "刷新云端内容",
+                loading ? "正在读取云端内容" : "重新取得当前内容后再选择",
+                loading
+                  ? undefined
+                  : () => {
+                      void loadCloud();
+                    },
               ),
-              row("稍后处理", "保留冲突，返回列表", () => $ui.pop()),
             ],
       },
     ]);
+    void loadCloud();
   }
   private showContent(title: string, text: string) {
     $ui.push({

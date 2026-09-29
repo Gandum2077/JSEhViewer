@@ -97,6 +97,7 @@ function setup({
     "sync/engine",
     "sync/errors",
     "sync/logging",
+    "sync/presentation",
     "utils/database",
     "utils/database-migration",
     "utils/sqlite",
@@ -3193,4 +3194,249 @@ test("automatic sync ticks every 30 seconds, respects session pause and offline 
   } finally {
     env.close();
   }
+});
+
+test("bulk local conflict resolution crosses batches and only changes the selected table", async () => {
+  const env = setup();
+  try {
+    const { engine, db, server } = syncSetup(env, ["marked_uploaders_v2", "search_history_v2"]);
+    for (let i = 0; i < 125; i++) {
+      const id = String(i).padStart(3, "0");
+      db.update("INSERT INTO marked_uploaders_v2(id) VALUES(?)", [id]);
+      server.put({ tablename: "marked_uploaders_v2", id, content: {}, deleted: false, sync_version: 5 });
+    }
+    env.load("utils/config").configManager.addOrUpdateSearchHistory("other", [{term: "keep"}]);
+    db.update("UPDATE sync_pending SET conflict='ALREADY_EXISTS'");
+    assert.deepEqual(plain(await engine.resolveConflicts("local", "marked_uploaders_v2")), { resolved: 125, failed: 0 });
+    assert.equal(db.query("SELECT COUNT(*) AS n FROM sync_pending WHERE tablename='marked_uploaders_v2' AND conflict IS NULL AND base_version=5 AND forced=0")[0].n, 125);
+    assert.equal(db.query("SELECT conflict FROM sync_pending WHERE id='other'")[0].conflict, "ALREADY_EXISTS");
+    assert.deepEqual(server.reads.filter((r) => r.keys).map((r) => r.keys.length), [50, 50, 25]);
+    assert.equal(server.writes.length, 0);
+    assert.equal(engine.busy, false);
+  } finally { env.close(); }
+});
+
+test("bulk cloud resolution preserves concurrent edits and invalid records while resolving the rest", async () => {
+  const logs = [];
+  const env = setup({ onAppLog: (entry, level) => logs.push({entry: plain(entry), level}) });
+  try {
+    const { engine, db, server } = syncSetup(env, ["marked_uploaders_v2", "search_history_v2"]);
+    for (const id of ["", ...Array.from({length: 120}, (_, i) => String(i).padStart(3, "0"))])
+      db.update("INSERT INTO marked_uploaders_v2(id) VALUES(?)", [id]);
+    env.load("utils/config").configManager.addOrUpdateSearchHistory("invalid", [{term: "keep"}]);
+    server.put({tablename: "search_history_v2", id: "invalid", content: {}, deleted: false, sync_version: 2});
+    db.update("UPDATE sync_pending SET conflict='ALREADY_EXISTS'");
+    let edited = false;
+    engine.transport = async (...args) => {
+      if (args[1] === "/v1/read" && JSON.parse(args[2]).keys[0].tablename === "marked_uploaders_v2" && !edited) {
+        edited = true;
+        assert.equal(engine.busy, true);
+        await assert.rejects(engine.synchronize(), /同步正在进行/);
+        db.update("UPDATE marked_uploaders_v2 SET deleted=1 WHERE id=''");
+        db.update("INSERT INTO marked_uploaders_v2(id) VALUES('new')");
+        db.update("UPDATE sync_pending SET conflict='ALREADY_EXISTS' WHERE id='new'");
+      }
+      return server.transport(...args);
+    };
+    assert.deepEqual(plain(await engine.resolveConflicts("cloud")), {resolved: 120, failed: 2});
+    assert.deepEqual(plain(db.query("SELECT id FROM sync_pending WHERE conflict IS NOT NULL ORDER BY id")).map((r) => r.id), ["", "invalid", "new"]);
+    assert.equal(db.query("SELECT COUNT(*) AS n FROM marked_uploaders_v2 WHERE deleted=1")[0].n, 121);
+    assert.equal(db.query("SELECT COUNT(*) AS n FROM sync_mirror WHERE id='invalid'")[0].n, 0);
+    assert.ok(logs.some(({entry, level}) => entry.event === "bulk_conflict_record_error" && level === "error"));
+    assert.equal(engine.busy, false);
+  } finally { env.close(); }
+});
+
+test("table conflict pages load locally even while busy, append on reaching bottom and reset on refresh", async () => {
+  const env = setup();
+  try {
+    const { engine, db, server } = syncSetup(env, ["marked_uploaders_v2"]);
+    for (let i = 0; i < 121; i++) db.update("INSERT INTO marked_uploaders_v2(id) VALUES(?)", [String(i).padStart(3, "0")]);
+    db.update("UPDATE sync_pending SET conflict='ALREADY_EXISTS'");
+    const module = {exports: {}};
+    vm.runInNewContext(fs.readFileSync(path.join(output, "controllers/settings-sync-controller.js"), "utf8"), {
+      module, exports: module.exports,
+      require(name) {
+        if (name === "jsbox-cview") return {BaseController: class {}, controllerStatus: {removed: 4}};
+        if (name.endsWith("sync-management-view")) return {SyncActionRowView: class { constructor(options) {Object.assign(this, options);} }};
+        if (name.endsWith("sync/engine")) return {syncEngine: engine};
+        if (name.endsWith("sync/scheduler")) return {syncScheduler: {hold: () => () => {}}};
+        return env.load(name.slice(3));
+      },
+      $ui: {alert: async () => ({index: 0}), toast() {}},
+    });
+    const controller = Object.create(module.exports.SettingsSyncController.prototype);
+    controller.acting = false;
+    controller.refresh = () => {};
+    controller.record = () => {};
+    let sections, buttons, bottom, page;
+    controller.push = (_title, getSections, barButtons, onBottom) => {
+      sections = getSections; buttons = barButtons; bottom = onBottom;
+      return page = {status: 1, refresh() {}};
+    };
+    controller.conflicts();
+    assert.equal(sections().length, 2);
+    assert.deepEqual(plain(sections()[0].rows.map((r) => [r.props.title, r.props.detail])), [["保留全部本机内容", ""], ["保留全部云端内容", ""]]);
+    assert.equal(sections()[1].rows[0].props.detail, "121 个冲突");
+    assert.equal(server.reads.length, 0); // Overview only counts locally.
+    engine.busy = true;
+    controller.tableConflicts("marked_uploaders_v2");
+    assert.equal(sections()[0].rows[0].props.title, "保留该表本机内容");
+    assert.equal(sections()[1].rows.length, 50);
+    engine.transport = async () => { throw new Error("List browsing must not use the network"); };
+    await bottom();
+    assert.equal(sections()[1].rows.length, 100);
+    await bottom();
+    const ids = sections()[1].rows.map((r) => r.props.title);
+    assert.equal(ids.length, 121);
+    assert.equal(new Set(ids).size, 121);
+    assert.equal(server.reads.length, 0);
+    const readCount = server.reads.length;
+    await bottom();
+    assert.equal(server.reads.length, readCount);
+    buttons[0].handler();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(sections()[1].rows.length, 50);
+    page.status = 4;
+    await bottom();
+    assert.equal(sections()[1].rows.length, 50);
+  } finally { env.close(); }
+});
+
+test("native conflict pagination ends its loading indicator on success and failure and ignores duplicate events", async () => {
+  const module = {exports: {}};
+  class Base { get definition() {return this._defineView();} }
+  vm.runInNewContext(fs.readFileSync(path.join(output, "components/sync-management-view.js"), "utf8"), {
+    module, exports: module.exports, require: () => ({Base}),
+    $color: (...args) => args, $font: (...args) => args, $layout: {fill() {}}, $align: {center: 1},
+  });
+  let calls = 0, ended = 0, release, fail = false;
+  const errors = [];
+  const list = new module.exports.SyncManagementListView({
+    props: {sections: []},
+    events: {
+      didReachBottom: async () => {
+        calls++;
+        if (fail) throw new Error("load failed");
+        await new Promise((resolve) => {release = resolve;});
+      },
+      actionFailed: (error) => errors.push(error.message),
+    },
+  });
+  const bottom = list.definition.events.didReachBottom;
+  const sender = {endFetchingMore: () => ended++};
+  const first = bottom(sender);
+  await bottom(sender);
+  assert.equal(calls, 1);
+  release();
+  await first;
+  assert.equal(ended, 1);
+  fail = true;
+  await bottom(sender);
+  assert.deepEqual(errors, ["load failed"]);
+  assert.equal(ended, 2);
+  fail = false;
+  const removed = bottom(sender);
+  list.dispose();
+  release();
+  await removed;
+  assert.equal(ended, 2); // Do not touch a removed native view.
+});
+
+test("conflict details open before remote reads, show inline retry, and ignore results after navigation away", async () => {
+  const logs = [], waits = [], pages = [], alerts = [];
+  const env = setup({onAppLog: (entry, level) => logs.push({entry: plain(entry), level})});
+  try {
+    const {engine, db, server} = syncSetup(env, ["marked_uploaders_v2"]);
+    db.update("INSERT INTO marked_uploaders_v2(id) VALUES('first'),('second')");
+    db.update("UPDATE sync_pending SET conflict='ALREADY_EXISTS'");
+    const module = {exports: {}};
+    vm.runInNewContext(fs.readFileSync(path.join(output, "controllers/settings-sync-controller.js"), "utf8"), {
+      module, exports: module.exports,
+      require(name) {
+        if (name === "jsbox-cview") return {BaseController: class {}, controllerStatus: {removed: 4}};
+        if (name.endsWith("sync-management-view")) return {SyncActionRowView: class {constructor(options) {Object.assign(this, options);}}};
+        if (name.endsWith("sync/engine")) return {syncEngine: engine};
+        if (name.endsWith("sync/scheduler")) return {syncScheduler: {hold: () => () => {}}};
+        return env.load(name.slice(3));
+      },
+      $wait: () => new Promise((resolve) => waits.push(resolve)),
+      $ui: {alert: async (options) => {alerts.push(options); return {index: 0};}, toast() {}},
+    });
+    const controller = Object.create(module.exports.SettingsSyncController.prototype);
+    controller.acting = false;
+    controller.refresh = () => {};
+    controller.record = () => {};
+    controller.push = (title, sections) => {
+      const page = {title, sections, status: 1, updates: 0, refresh() {this.updates++;}};
+      pages.push(page);
+      return page;
+    };
+    let previews = 0;
+    controller.showContent = () => previews++;
+    const settle = () => new Promise((resolve) => setImmediate(resolve));
+    const row = (page, title) => page.sections()[0].rows.find((entry) => entry.props.title === title);
+    const initial = db.query("SELECT * FROM sync_pending WHERE id='first'")[0];
+    let releaseRead, reads = 0, fail = true;
+    engine.transport = async (...args) => {
+      if (args[1] === "/v1/read") {
+        reads++;
+        await new Promise((resolve) => {releaseRead = resolve;});
+        if (fail) throw new Error("read unavailable");
+      }
+      return server.transport(...args);
+    };
+    engine.busy = true;
+    controller.conflictDetail(initial, () => {});
+    const first = pages[0];
+    assert.equal(first.title, "选择保留的内容");
+    assert.equal(row(first, "云端内容").props.detail, "正在读取云端内容");
+    assert.equal(row(first, "保留云端内容").events.tapped, undefined);
+    row(first, "本机内容").events.tapped();
+    assert.equal(previews, 1);
+    waits.shift()();
+    await settle();
+    assert.equal(reads, 0); // Still waiting for an existing engine operation.
+    assert.equal(controller.acting, false);
+    engine.busy = false;
+    waits.shift()();
+    await settle();
+    assert.equal(reads, 1);
+    controller.tableConflicts("marked_uploaders_v2"); // Navigation works during the read.
+    assert.equal(pages.length, 2);
+    releaseRead();
+    await settle();
+    assert.match(row(first, "云端内容").props.detail, /读取失败/);
+    assert.equal(alerts.length, 0);
+    assert.ok(logs.some(({entry, level}) => entry.event === "conflict_detail_read_error" && level === "error"));
+    fail = false;
+    row(first, "重试读取云端内容").events.tapped();
+    assert.equal(row(first, "云端内容").props.detail, "正在读取云端内容");
+    waits.shift()();
+    await settle();
+    releaseRead();
+    await settle();
+    assert.match(row(first, "云端内容").props.detail, /云端不存在/);
+    assert.equal(typeof row(first, "保留云端内容").events.tapped, "function");
+
+    row(first, "刷新云端内容").events.tapped();
+    waits.shift()();
+    await settle();
+    first.status = 4;
+    const updatesBeforeRemoval = first.updates;
+    controller.conflictDetail(db.query("SELECT * FROM sync_pending WHERE id='second'")[0], () => {});
+    const second = pages[2];
+    waits.shift()();
+    await settle();
+    releaseRead();
+    await settle();
+    assert.equal(first.updates, updatesBeforeRemoval);
+    second.status = 4; // A page removed while waiting must not start another request.
+    const before = reads;
+    waits.shift()();
+    await settle();
+    assert.equal(reads, before);
+    assert.equal(second.updates, 1);
+    assert.equal(controller.acting, false);
+  } finally {env.close();}
 });

@@ -743,6 +743,24 @@ class ConfigManager {
     return this._markedTagDict.get(namespace)?.get(name);
   }
 
+  /** Website editing must not use the local overlay's synthetic tagid=0. */
+  getWebsiteMarkedTag(namespace: TagNamespace, name: string): MarkedTag | undefined {
+    const row = dbManager.query("SELECT * FROM downloaded_marked_tags_v2 WHERE namespace = ? AND name = ?", [
+      namespace,
+      name,
+    ])[0];
+    if (!row) return;
+    return {
+      tagid: row.tagid,
+      namespace,
+      name,
+      watched: Boolean(row.watched),
+      hidden: Boolean(row.hidden),
+      color: row.color,
+      weight: row.weight,
+    };
+  }
+
   updateMarkedTag(tag: MarkedTag) {
     if (this.syncMyTags && tag.tagid !== 0) {
       dbManager.update(

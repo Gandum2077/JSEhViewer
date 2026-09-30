@@ -3440,3 +3440,134 @@ test("conflict details open before remote reads, show inline retry, and ignore r
     assert.equal(controller.acting, false);
   } finally {env.close();}
 });
+
+test("partial gallery sync permits local state creation, preserves edits and revives deleted states", async () => {
+  const source = setup(),
+    target = setup();
+  try {
+    source.load("utils/status").statusManager.updateArchiveItem(123, { infos: gallery() });
+    const first = syncSetup(source, ["archive_entries_v2"]);
+    await first.engine.synchronize();
+    const second = syncSetup(target, ["archive_entries_v2"], first.server);
+    await second.engine.synchronize();
+    const status = target.load("utils/status").statusManager;
+    assert.equal(second.db.query("SELECT * FROM archive_read_state_v2").length, 0);
+    status.updateArchiveItem(123, { readlater: true });
+    status.updateArchiveItem(123, { last_read_page: 2, updateLastAccessTime: true });
+    status.updateArchiveItem(123, { my_rating: 5, favorite_info: { favorited: true, favcat: 3 } });
+    let item = status.getArchiveItem(123);
+    assert.equal(item.readlater, true);
+    assert.equal(item.last_read_page, 2);
+    assert.ok(item.first_access_time);
+    assert.ok(item.last_access_time);
+    assert.equal(item.rating, 5);
+    assert.equal(item.favcat, 3);
+    assert.equal(item.favorited, true);
+    for (const table of ["archive_read_state_v2", "archive_rate_state_v2", "archive_favorite_state_v2"])
+      second.db.update(`UPDATE ${table} SET deleted=1 WHERE id='123'`);
+    status.updateArchiveItem(123, { readlater: true, my_rating: 4, favorite_info: { favorited: true, favcat: 2 } });
+    item = status.getArchiveItem(123);
+    assert.equal(item.readlater, true);
+    assert.equal(item.last_read_page, 0); // Do not revive obsolete progress from the tombstone.
+    assert.equal(item.rating, 4);
+    assert.equal(item.favcat, 2);
+    assert.equal(item.favorited, true);
+    status.updateArchiveItem(123, { favorite_info: { favorited: false } });
+    assert.equal(status.getArchiveItem(123).favorited, false);
+  } finally {
+    source.close();
+    target.close();
+  }
+});
+
+test("partial gallery state updates roll back together when a later write fails", () => {
+  let fail = false;
+  const env = setup({ failSql: (sql) => fail && sql.includes("INSERT INTO archive_rate_state_v2") });
+  try {
+    const status = env.load("utils/status").statusManager;
+    status.updateArchiveItem(123, { infos: gallery() });
+    const previous = plain(status.getArchiveItem(123));
+    fail = true;
+    assert.throws(() => status.updateArchiveItem(123, { readlater: true, my_rating: 5 }), /injected/);
+    assert.deepEqual(plain(status.getArchiveItem(123)), previous);
+  } finally {
+    env.close();
+  }
+});
+
+for (const moduleName of ["controllers/tag-manager-controller", "components/tags-flowlayout"]) {
+  test(`${moduleName} website edits use remote IDs despite local overlays and tombstones`, async () => {
+    const env = setup();
+    try {
+      const config = env.load("utils/config").configManager;
+      config.addMarkedTag({ tagid: 0, namespace: "artist", name: "example", watched: true, hidden: false, weight: 5 });
+      config.syncMyTags = true;
+      config.mytagsApiuid = 1;
+      config.mytagsApikey = "test";
+      const remote = { tagid: 42, namespace: "artist", name: "example", watched: false, hidden: true, weight: 10 };
+      config.updateAllMarkedTags([remote]);
+      assert.equal(config.getMarkedTag("artist", "example").tagid, 0);
+      const code = fs.readFileSync(path.join(output, moduleName + ".js"), "utf8");
+      const start = code.indexOf("async updateTagDetailsWithSync(");
+      const end = code.indexOf("\n    }", start) + "\n    }".length;
+      const method = code.slice(start, end).replace("async updateTagDetailsWithSync(", "async function(");
+      const requests = [];
+      let params = { marked: true, watched: true, hidden: false, weight: 20 };
+      let shown;
+      const handler = vm.runInNewContext(`(${method})`, {
+        config_1: { configManager: config },
+        detailed_info_view_1: {
+          showDetailedInfoView: async (_namespace, _name, _translation, tag) => {
+            shown = tag;
+            return params;
+          },
+        },
+        $ui: { error: (message) => assert.fail(message), warning: (message) => assert.fail(message) },
+        api_1: {
+          api: {
+            updateTag: async (options) => requests.push(["update", options]),
+            deleteTag: async (options) => {
+              requests.push(["delete", options]);
+              return { tags: [] };
+            },
+            addTag: async (options) => {
+              requests.push(["add", options]);
+              return { tags: [remote] };
+            },
+          },
+        },
+        tools_1: {
+          appLog: (error) => {
+            throw error;
+          },
+        },
+      });
+      const view = { refresh() {} };
+      await handler.call(view, "artist", "example");
+      assert.equal(shown.tagid, 42);
+      assert.equal(shown.weight, 10);
+      assert.equal(requests[0][0], "update");
+      assert.equal(requests[0][1].tagid, 42);
+      assert.equal(config.getWebsiteMarkedTag("artist", "example").weight, 20);
+      assert.equal(config.getMarkedTag("artist", "example").weight, 5);
+      params = { marked: false };
+      await handler.call(view, "artist", "example");
+      assert.equal(requests[1][0], "delete");
+      assert.equal(requests[1][1].tagid, 42);
+      params = { marked: true, watched: true, hidden: false, weight: 10 };
+      await handler.call(view, "artist", "example");
+      assert.equal(shown, undefined);
+      assert.equal(requests[2][0], "add");
+      config.syncMyTags = false;
+      config.deleteMarkedTag("artist", "example");
+      config.syncMyTags = true;
+      assert.equal(config.getMarkedTag("artist", "example"), undefined);
+      params = { marked: false };
+      await handler.call(view, "artist", "example");
+      assert.equal(requests[3][0], "delete");
+      assert.equal(requests[3][1].tagid, 42);
+    } finally {
+      env.close();
+    }
+  });
+}

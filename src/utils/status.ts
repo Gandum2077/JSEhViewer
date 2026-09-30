@@ -1451,36 +1451,53 @@ class StatusManager {
             }
           }
         }
-        // 情况5: 数据库内存在该条数据，但是没有options.info，那么options里存在什么就更新什么
-        const sql_update_readlater = `UPDATE archive_read_state_v2 SET readlater = ? WHERE id = ?;`;
-        const sql_update_downloaded = `INSERT INTO archive_download_state_v2 (downloaded, id, finished) VALUES (?, ?, 1) ON CONFLICT(id) DO UPDATE SET downloaded = excluded.downloaded;`;
-        const sql_update_last_read_page = `UPDATE archive_read_state_v2 SET last_read_page = ? WHERE id = ?;`;
-        const sql_update_last_access_time = `UPDATE archive_read_state_v2 SET last_access_time = ? WHERE id = ?;`;
-        const sql_update_my_rating = `UPDATE archive_rate_state_v2 SET is_my_rating = ?, display_rating = ? WHERE id = ?;`;
-        const sql_update_unfavorited = `UPDATE archive_favorite_state_v2 SET favorited = ? WHERE id = ?;`;
-        const sql_update_favorited = `UPDATE archive_favorite_state_v2 SET favorited = ?, favcat = ? WHERE id = ?;`;
-        if (options.readlater !== undefined) {
-          dbManager.update(sql_update_readlater, [options.readlater, String(gid)]);
+        // 同步可能只带回图库主记录；按需创建状态行，并恢复被软删除的状态。
+        // oldInfos 来自汇总视图，缺失或已删除状态使用视图默认值。
+        const statements = [];
+        if (options.readlater !== undefined || options.last_read_page !== undefined || options.updateLastAccessTime) {
+          const now = new Date().toISOString();
+          statements.push({
+            sql: `INSERT INTO archive_read_state_v2
+              (id, first_access_time, last_access_time, readlater, last_read_page) VALUES (?, ?, ?, ?, ?)
+              ON CONFLICT(id) DO UPDATE SET deleted=0, first_access_time=excluded.first_access_time,
+              last_access_time=excluded.last_access_time, readlater=excluded.readlater,
+              last_read_page=excluded.last_read_page`,
+            args: [
+              String(gid),
+              oldInfos.first_access_time || now,
+              options.updateLastAccessTime ? now : oldInfos.last_access_time || now,
+              options.readlater ?? oldInfos.readlater,
+              options.last_read_page ?? oldInfos.last_read_page,
+            ],
+          });
         }
         if (options.downloaded !== undefined) {
-          dbManager.update(sql_update_downloaded, [options.downloaded, String(gid)]);
-        }
-        if (options.last_read_page !== undefined) {
-          dbManager.update(sql_update_last_read_page, [options.last_read_page, String(gid)]);
-        }
-        if (options.updateLastAccessTime) {
-          dbManager.update(sql_update_last_access_time, [new Date().toISOString(), String(gid)]);
+          statements.push({
+            sql: `INSERT INTO archive_download_state_v2 (downloaded, id, finished) VALUES (?, ?, 1)
+              ON CONFLICT(id) DO UPDATE SET downloaded=excluded.downloaded`,
+            args: [options.downloaded, String(gid)],
+          });
         }
         if (options.my_rating !== undefined) {
-          dbManager.update(sql_update_my_rating, [true, options.my_rating, String(gid)]);
+          statements.push({
+            sql: `INSERT INTO archive_rate_state_v2 (id, average_rating, display_rating, is_my_rating)
+              VALUES (?, ?, ?, 1) ON CONFLICT(id) DO UPDATE SET deleted=0,
+              display_rating=excluded.display_rating, is_my_rating=1`,
+            args: [String(gid), oldInfos.rating, options.my_rating],
+          });
         }
         if (options.favorite_info) {
-          if (options.favorite_info.favorited) {
-            dbManager.update(sql_update_favorited, [true, options.favorite_info.favcat, String(gid)]);
-          } else {
-            dbManager.update(sql_update_unfavorited, [false, String(gid)]);
-          }
+          statements.push({
+            sql: `INSERT INTO archive_favorite_state_v2 (id, favorited, favcat) VALUES (?, ?, ?)
+              ON CONFLICT(id) DO UPDATE SET deleted=0, favorited=excluded.favorited, favcat=excluded.favcat`,
+            args: [
+              String(gid),
+              options.favorite_info.favorited,
+              options.favorite_info.favorited ? options.favorite_info.favcat : oldInfos.favcat,
+            ],
+          });
         }
+        dbManager.transactionUpdate(statements);
       }
     }
   }

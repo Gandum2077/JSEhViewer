@@ -628,7 +628,7 @@ export class TagManagerController extends BaseController {
       return;
     }
     const translationData = configManager.getTranslationDetailedInfo(namespace, name);
-    const markedTag = configManager.getMarkedTag(namespace, name);
+    const markedTag = configManager.getWebsiteMarkedTag(namespace, name);
     const params = await showDetailedInfoView(namespace, name, translationData, markedTag);
     // 对比原来的数据, 查看是否有变化
     const { marked, watched, hidden, weight } = params;

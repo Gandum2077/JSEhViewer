@@ -209,6 +209,11 @@ export function getLatestVersion() {
     header.Authorization = `Bearer ${githubToken}`;
   }
   const current_version = JSON.parse($file.read(appConfigPath).string || "").info.version as string;
+  const isTestVersion = /(alpha|beta|rc|preview|dev|canary|nightly|snapshot|test)/i.test(current_version);
+  if (isTestVersion) {
+    $ui.toast("当前为测试版本，跳过更新检查");
+    return;
+  }
   $http.get({
     url: "https://api.github.com/repos/Gandum2077/JSEhViewer/releases/latest",
     header,

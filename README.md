@@ -26,7 +26,7 @@ JSEhViewer 是运行在 iOS 平台 [JSBox](https://apps.apple.com/app/id13120144
 - 更加便捷的标签搜索、书签和管理
 - WebDAV
 - AI 翻译支持，[需要自行设置](app/assets/ai-translation-description.md)
-- 数据库云同步，[需要自行部署](app/assets/database-sync.md)
+- 数据库云同步，[需要自行部署](docs/database-sync.md)
 
 [Telegram 聊天群](https://t.me/jsehviewer)
 

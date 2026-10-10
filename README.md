@@ -26,7 +26,7 @@ JSEhViewer 是运行在 iOS 平台 [JSBox](https://apps.apple.com/app/id13120144
 - 更加便捷的标签搜索、书签和管理
 - WebDAV
 - AI 翻译支持，[需要自行设置](app/assets/ai-translation-description.md)
-- 数据库云同步，[需要自行部署](docs/database-sync.md)
+- 数据库云同步，[需要自行部署](#云同步支持)
 
 [Telegram 聊天群](https://t.me/jsehviewer)
 
@@ -35,7 +35,7 @@ JSEhViewer 是运行在 iOS 平台 [JSBox](https://apps.apple.com/app/id13120144
 需要 iOS 版本 >= 17.0.0, JSBox 版本 >= 2.22.0  
 不需要 JSBox 2.0.0 版本之后的付费订阅功能
 
-[一键安装](https://xteko.com/redir?name=JSEhViewer&url=https%3A%2F%2Fgithub.com%2FGandum2077%2FJSEhViewer%2Freleases%2Fdownload%2F3.11.0-beta.2%2FJSEhViewer.box)
+[一键安装](https://xteko.com/redir?name=JSEhViewer&url=https%3A%2F%2Fgithub.com%2FGandum2077%2FJSEhViewer%2Freleases%2Fdownload%2F3.11.0%2FJSEhViewer.box)
 
 [从 Release 下载](https://github.com/Gandum2077/JSEhViewer/releases)
 
@@ -120,6 +120,19 @@ hath.network
 #### 阅读时切换页面闪烁
 
 如果你使用“滑动和点击”翻页手势阅读页数很多的图库，同时你的设备性能比较低，那么点击切换页面时可能会闪烁（因为图片重新布局的速度太慢）。可以把翻页手势切换成“仅滑动”或者“仅点击”来规避这个问题。
+
+### 云同步支持
+
+本应用支持 Cloudflare Worker 云同步。用户需要自行部署对应的 [cloudflare-d1-sync](https://gandum2077.github.io/cloudflare-d1-sync/)。
+
+功能的入口在：更多 -> 数据库同步。
+
+详细文档请参见[database-sync.md](docs/database-sync.md)。
+
+你可能关心的问题：
+
+1. 需要费用吗？Cloudflare Worker 免费版足够使用，该功能不需要添加信用卡。另外 cloudflare-d1-sync 已经对各个 API 所需的费用进行了模拟测试，确保其不会产生账单问题。
+2. 部署有难度吗？本功能将使用 Deploy to Cloudflare 功能，可以一键部署到你的 Cloudflare 账户下。不过 Cloudflare Worker 毕竟是为开发者准备的功能，可能出现各种意外情况，如果不熟悉，建议委托给你的 AI Agent 处理。
 
 ### 其他问题
 

@@ -1,6 +1,6 @@
 # 数据库同步
 
-入口：**更多 → 数据库同步**。使用重新实现的 cloudflare-d1-sync JSON 协议（`/v1/write`、`/v1/sync`、`/v1/full-download`、`/v1/read`、`/v1/table-download`），不兼容旧版业务表后端。
+入口：**更多 → 数据库同步**。使用 cloudflare-d1-sync JSON 协议（`/v1/write`、`/v1/sync`、`/v1/full-download`、`/v1/read`、`/v1/table-download`）。
 
 ## 使用
 
